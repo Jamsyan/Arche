@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+node_modules/
+frontend/dist/
+*.env
+.idea
+.venv
+
