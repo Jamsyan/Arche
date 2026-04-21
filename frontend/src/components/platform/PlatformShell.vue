@@ -1,91 +1,71 @@
 <template>
-  <div class="platform-shell">
-    <header class="platform-header">
-      <h1 class="logo">Veil</h1>
-      <nav class="platform-nav">
-        <router-link to="/platform">仪表盘</router-link>
-        <router-link v-if="userLevel <= 3" to="/editor">编辑器</router-link>
-        <router-link v-if="userLevel <= 2" to="/upload">上传</router-link>
-        <router-link v-if="userLevel <= 1" to="/github">GitHub</router-link>
-        <router-link v-if="userLevel <= 1" to="/storage">存储</router-link>
-        <router-link v-if="userLevel <= 1" to="/moderation">审核</router-link>
-        <router-link v-if="userLevel <= 0" to="/admin">管理</router-link>
-        <router-link v-if="userLevel <= 0" to="/ops/crawler">爬虫</router-link>
-        <router-link v-if="userLevel <= 0" to="/ops/cloud">云训练</router-link>
-      </nav>
-      <span class="level-badge">P{{ userLevel }}</span>
-      <button class="logout-btn" @click="$emit('logout')">退出</button>
-    </header>
-    <main class="platform-main">
+  <a-layout class="platform-shell">
+    <a-layout-header class="platform-header">
+      <a-typography-title :heading="5" style="margin: 0; color: #fff">Veil</a-typography-title>
+
+      <a-menu mode="horizontal" :selected-keys="[currentPath]" class="platform-nav" @menu-item-click="$router.push">
+        <a-menu-item key="/platform">仪表盘</a-menu-item>
+        <a-menu-item v-if="userLevel <= 3" key="/editor">编辑器</a-menu-item>
+        <a-menu-item v-if="userLevel <= 2" key="/upload">上传</a-menu-item>
+        <a-menu-item v-if="userLevel <= 1" key="/github">GitHub</a-menu-item>
+        <a-menu-item v-if="userLevel <= 1" key="/storage">存储</a-menu-item>
+        <a-menu-item v-if="userLevel <= 1" key="/moderation">审核</a-menu-item>
+        <a-menu-item v-if="userLevel <= 0" key="/ops/crawler">爬虫</a-menu-item>
+        <a-menu-item v-if="userLevel <= 0" key="/ops/cloud">云训练</a-menu-item>
+        <a-menu-item v-if="userLevel <= 0" key="/ops/assets">资产</a-menu-item>
+      </a-menu>
+
+      <LevelBadge :level="userLevel" />
+
+      <a-button type="outline" size="small" @click="$emit('logout')">
+        退出
+      </a-button>
+    </a-layout-header>
+
+    <a-layout-content class="platform-main">
       <router-view />
-    </main>
-  </div>
+    </a-layout-content>
+  </a-layout>
 </template>
 
 <script setup>
-const props = defineProps({
-  userLevel: { type: Number, default: 5 },
-})
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import LevelBadge from '../LevelBadge.vue'
+
+const route = useRoute()
+const currentPath = computed(() => route.path)
+
+defineProps({ userLevel: { type: Number, default: 5 } })
 defineEmits(['logout'])
 </script>
 
 <style scoped>
-.platform-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
+.platform-shell { min-height: 100vh; }
 .platform-header {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 0.8rem 2rem;
-  background: #1a1a2e;
-  color: #eee;
-}
-.logo {
-  margin: 0;
-  font-size: 1.3rem;
-  color: #fff;
+  gap: 16px;
+  background: #1d2129;
+  padding: 0 24px;
 }
 .platform-nav {
-  display: flex;
-  gap: 1rem;
   flex: 1;
-}
-.platform-nav a {
-  color: #ccc;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.2s;
-}
-.platform-nav a:hover,
-.platform-nav a.router-link-active {
-  color: #fff;
-}
-.level-badge {
-  padding: 0.2rem 0.6rem;
-  border-radius: 4px;
-  background: #16213e;
-  font-size: 0.8rem;
-  color: #aaa;
-}
-.logout-btn {
-  padding: 0.3rem 0.8rem;
-  border: 1px solid #444;
-  border-radius: 4px;
   background: transparent;
-  color: #ccc;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
+  border-bottom: none;
 }
-.logout-btn:hover {
-  border-color: #d32f2f;
-  color: #d32f2f;
+.platform-nav :deep(.arco-menu-item) {
+  color: rgb(var(--gray-6));
+  font-size: 14px;
+}
+.platform-nav :deep(.arco-menu-item:hover) {
+  color: rgb(var(--gray-8));
+}
+.platform-nav :deep(.arco-menu-item.arco-menu-selected) {
+  color: rgb(var(--primary-6));
 }
 .platform-main {
-  flex: 1;
-  padding: 2rem;
+  padding: 24px;
+  background: var(--color-fill-2);
 }
 </style>

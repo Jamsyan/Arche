@@ -1,69 +1,56 @@
 <template>
-  <div class="login-page">
-    <div class="login-card">
-      <h1 class="login-title">Veil</h1>
-      <p class="login-subtitle">登录你的账户</p>
+  <div class="auth-page">
+    <a-card class="auth-card" :bordered="false">
+      <a-typography-title :heading="3" class="auth-title">Veil</a-typography-title>
+      <a-typography-text type="secondary" class="auth-subtitle">登录你的账户</a-typography-text>
 
-      <form @submit.prevent="handleLogin" class="login-form">
-        <div class="form-group">
-          <label for="username">用户名</label>
-          <input
-            id="username"
-            v-model="username"
-            type="text"
-            autocomplete="username"
-            placeholder="输入用户名"
-            required
-          />
-        </div>
+      <a-form
+        :model="form"
+        layout="vertical"
+        @submit="handleLogin"
+      >
+        <a-form-item field="username" label="用户名">
+          <a-input v-model="form.username" placeholder="输入用户名" allow-clear />
+        </a-form-item>
 
-        <div class="form-group">
-          <label for="password">密码</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            autocomplete="current-password"
-            placeholder="输入密码"
-            required
-          />
-        </div>
+        <a-form-item field="password" label="密码">
+          <a-input-password v-model="form.password" placeholder="输入密码" />
+        </a-form-item>
 
-        <p v-if="error" class="error-msg">{{ error }}</p>
+        <a-alert v-if="error" type="error" :content="error" style="margin-bottom: 16px" />
 
-        <button type="submit" :disabled="loading" class="submit-btn">
-          {{ loading ? '登录中...' : '登录' }}
-        </button>
-      </form>
+        <a-button type="primary" html-type="submit" long :loading="loading">
+          登录
+        </a-button>
+      </a-form>
 
-      <p class="login-footer">
-        还没有账户？<router-link to="/register">立即注册</router-link>
-      </p>
-    </div>
+      <div class="auth-footer">
+        <a-typography-text type="secondary">
+          还没有账户？
+          <a-link @click="$router.push('/register')">立即注册</a-link>
+        </a-typography-text>
+      </div>
+    </a-card>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../../router/auth.js'
 
 const router = useRouter()
 const { login } = useAuth()
 
-const username = ref('')
-const password = ref('')
+const form = reactive({ username: '', password: '' })
 const loading = ref(false)
 const error = ref('')
 
 async function handleLogin() {
-  if (!username.value || !password.value) return
   loading.value = true
   error.value = ''
-
-  const result = await login(username.value, password.value)
+  const result = await login(form.username, form.password)
   loading.value = false
-
   if (result.ok) {
     router.push('/')
   } else {
@@ -73,89 +60,28 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-page {
+.auth-page {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--color-fill-2);
 }
-.login-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 2.5rem;
-  width: 100%;
-  max-width: 380px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+.auth-card {
+  width: 400px;
+  padding: 32px;
 }
-.login-title {
+.auth-title {
   text-align: center;
-  margin: 0 0 0.5rem;
-  font-size: 1.8rem;
-  color: #1a1a2e;
+  margin-bottom: 4px;
 }
-.login-subtitle {
+.auth-subtitle {
+  display: block;
   text-align: center;
-  margin: 0 0 2rem;
-  color: #666;
-  font-size: 0.9rem;
+  margin-bottom: 24px;
 }
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.form-group label {
-  font-size: 0.85rem;
-  color: #444;
-  font-weight: 500;
-}
-.form-group input {
-  padding: 0.6rem 0.8rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.form-group input:focus {
-  border-color: #1a1a2e;
-}
-.error-msg {
-  color: #d32f2f;
-  font-size: 0.85rem;
-  margin: 0;
-}
-.submit-btn {
-  padding: 0.7rem;
-  border: none;
-  border-radius: 4px;
-  background: #1a1a2e;
-  color: #fff;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.85;
-}
-.login-footer {
+.auth-footer {
   text-align: center;
-  margin-top: 1.5rem;
-  font-size: 0.85rem;
-  color: #666;
-}
-.login-footer a {
-  color: #1a1a2e;
-  text-decoration: none;
+  margin-top: 16px;
 }
 </style>

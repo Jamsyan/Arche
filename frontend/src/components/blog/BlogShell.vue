@@ -1,51 +1,37 @@
 <template>
   <div class="blog-shell">
-    <header class="blog-header">
-      <h1>Veil Blog</h1>
-      <nav>
+    <a-layout-header class="blog-header">
+      <a-typography-title :heading="4" style="margin: 0">Veil</a-typography-title>
+      <a-space>
         <router-link to="/">首页</router-link>
-        <router-link to="/login" class="login-link">登录</router-link>
-      </nav>
-    </header>
-    <main>
+        <a-button type="primary" size="small" @click="$router.push('/login')">登录</a-button>
+      </a-space>
+    </a-layout-header>
+    <main class="blog-main">
       <router-view />
     </main>
   </div>
 </template>
 
 <style scoped>
-.blog-shell {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-}
+.blog-shell { min-height: 100vh; }
 .blog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 1rem;
+  padding: 0 24px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
-.blog-header h1 {
-  margin: 0;
-  font-size: 1.4rem;
-  color: #1a1a2e;
-}
-.blog-header nav {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-.blog-header nav a {
-  color: #444;
+.blog-header a {
+  color: var(--color-text-2);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 14px;
 }
-.blog-header nav a:hover {
-  color: #1a1a2e;
-}
-.login-link {
-  color: #1a1a2e !important;
-  font-weight: 500;
+.blog-header a:hover { color: rgb(var(--primary-6)); }
+.blog-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
 }
 </style>
