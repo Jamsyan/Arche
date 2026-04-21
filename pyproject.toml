@@ -13,11 +13,15 @@ dependencies = [
     "sqlalchemy>=2.0.49",
     "starlette>=1.0.0",
     "alembic>=1.18.4",
+    "httpx>=0.27",
+    "apscheduler>=3.10",
+    "python-multipart>=0.0.26",
 ]
 
 [tool.uv]
 dev-dependencies = [
     "pytest>=8.0",
+    "ruff>=0.15.11",
 ]
 
 [[tool.uv.index]]
