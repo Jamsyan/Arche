@@ -1,9 +1,4 @@
-"""
-Plugin Registry - Central hub for loading and activating plugins.
-
-Plugins are self-contained modules that register themselves with the registry.
-The core does NOT know about plugin specifics — it only knows the registry.
-"""
+"""Plugin Registry — directory scanning, DAG topological sort, and lifecycle management."""
 
 from __future__ import annotations
 
@@ -14,20 +9,24 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
+    from .container import ServiceContainer
+
+
+class DependencyError(Exception):
+    pass
+
 
 class PluginRegistry:
-    """Singleton registry that manages plugin lifecycle."""
+    """Singleton registry that manages plugin discovery, ordering, and activation."""
 
     def __init__(self):
         self._plugins: dict[str, object] = {}
         self._active: list[str] = []
 
     def register(self, name: str, plugin: object) -> None:
-        """Register a plugin instance. Does NOT activate it."""
         self._plugins[name] = plugin
 
     def activate(self, name: str, app: FastAPI) -> None:
-        """Activate a registered plugin, mounting its routes."""
         if name not in self._plugins:
             raise ValueError(f"Plugin '{name}' not registered")
         plugin = self._plugins[name]
@@ -36,9 +35,63 @@ class PluginRegistry:
         self._active.append(name)
 
     def activate_all(self, app: FastAPI) -> None:
-        """Activate all registered plugins."""
-        for name in list(self._plugins):
+        ordered = self._topological_sort()
+        for name in ordered:
             self.activate(name, app)
+
+    def register_services(self, container: ServiceContainer) -> None:
+        ordered = self._topological_sort()
+        for name in ordered:
+            plugin = self._plugins[name]
+            if hasattr(plugin, "register_services"):
+                plugin.register_services(container)
+
+    def on_startup(self) -> None:
+        for name in self._active:
+            plugin = self._plugins.get(name)
+            if plugin and hasattr(plugin, "on_startup"):
+                plugin.on_startup()
+
+    def on_shutdown(self) -> None:
+        for name in reversed(self._active):
+            plugin = self._plugins.get(name)
+            if plugin and hasattr(plugin, "on_shutdown"):
+                plugin.on_shutdown()
+
+    def _topological_sort(self) -> list[str]:
+        """Kahn's algorithm with hard/optional dependency validation."""
+        names = list(self._plugins)
+        in_degree: dict[str, int] = {n: 0 for n in names}
+        graph: dict[str, list[str]] = {n: [] for n in names}
+
+        for name, plugin in self._plugins.items():
+            for dep in getattr(plugin, "requires", []):
+                if dep not in self._plugins:
+                    raise DependencyError(f"插件 '{name}' 依赖 '{dep}'，但该插件未注册")
+                graph[dep].append(name)
+                in_degree[name] += 1
+
+            for dep in getattr(plugin, "optional", []):
+                if dep in self._plugins:
+                    graph[dep].append(name)
+                    in_degree[name] += 1
+
+        queue = [n for n in names if in_degree[n] == 0]
+        result: list[str] = []
+
+        while queue:
+            node = queue.pop(0)
+            result.append(node)
+            for neighbor in graph[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        if len(result) != len(names):
+            missing = set(names) - set(result)
+            raise DependencyError(f"循环依赖 detected，涉及插件: {', '.join(missing)}")
+
+        return result
 
     @property
     def active(self) -> list[str]:
@@ -53,13 +106,10 @@ registry = PluginRegistry()
 
 
 def discover_plugins(plugin_dir: Path | None = None) -> None:
-    """Auto-discover and import all plugin directories under the plugin dir.
-
-    Each plugin must be a subdirectory containing an __init__.py.
-    """
+    """Auto-discover and import all plugin directories under the plugin dir."""
     if plugin_dir is None:
         plugin_dir = Path(__file__).resolve().parent.parent / "plugins"
-    for entry in plugin_dir.iterdir():
+    for entry in sorted(plugin_dir.iterdir()):
         if not entry.is_dir():
             continue
         init_file = entry / "__init__.py"

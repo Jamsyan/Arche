@@ -1,0 +1,70 @@
+"""Auth plugin — JWT 认证中间件。
+
+从请求头提取 Bearer token，解析后注入 request.state.user。
+对公开路由（/api/auth/register, /api/auth/login）跳过认证。
+"""
+
+from __future__ import annotations
+
+import jwt
+
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from backend.core.middleware import AuthError
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """JWT 认证中间件：解析 token 并注入 request.state.user。"""
+
+    # 不需要认证的公开路由
+    PUBLIC_PATHS = {
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/refresh",
+        # 博客公开路由
+        "/api/blog/posts",
+    }
+
+    # FastAPI 内置路由（/docs, /openapi.json 等）跳过认证
+    INTERNAL_PREFIXES = ("/docs", "/openapi.json", "/redoc")
+
+    def __init__(self, app, secret_key: str):
+        super().__init__(app)
+        self.secret_key = secret_key
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        path = request.url.path
+
+        # 公开路由和 FastAPI 内置路由直接放行
+        if path in self.PUBLIC_PATHS or path.startswith(self.INTERNAL_PREFIXES):
+            return await call_next(request)
+
+        # 博客公开路由前缀匹配
+        if path.startswith("/api/blog/posts/") and not path.startswith("/api/blog/posts/{"):
+            return await call_next(request)
+
+        # 提取 Authorization header
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise AuthError("缺少认证信息")
+
+        token = auth_header[7:]  # 去掉 "Bearer " 前缀
+
+        # 解析 token
+        try:
+            payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            raise AuthError("Token 已过期")
+        except jwt.InvalidTokenError:
+            raise AuthError("无效 Token")
+
+        # 注入用户信息到 request.state
+        request.state.user = {
+            "id": payload["sub"],
+            "username": payload.get("username", ""),
+            "level": payload["level"],
+            "blog_quality_level": payload.get("blog_quality_level", 0),
+        }
+
+        return await call_next(request)

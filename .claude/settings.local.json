@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(docker compose *)",
+      "Bash(npx vite *)",
+      "Skill(update-config)",
+      "Bash(ssh *)",
+      "Bash(rsync *)",
+      "Bash(tar czf *)",
+      "Bash(scp /tmp/veil-backend.tar.gz \"admin@jamsyan.top:~/admin/veil-backend/\")",
+      "Bash(scp *)"
+    ]
+  }
+}
