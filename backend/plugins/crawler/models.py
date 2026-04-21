@@ -30,6 +30,21 @@ class CrawlTask(Base):
     schedule_interval: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )  # 调度间隔（小时），0 表示仅执行一次
+    max_depth: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1
+    )  # 链接扩展深度
+    max_pages: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=100
+    )  # 最大抓取页数
+    concurrency: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=3
+    )  # 并发数
+    request_delay: Mapped[float] = mapped_column(
+        Integer, nullable=False, default=1
+    )  # 同站请求间隔秒数（存储为整数秒 * 100）
+    respect_robots: Mapped[bool] = mapped_column(
+        Integer, nullable=False, default=1
+    )  # 1 = True, 0 = False
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

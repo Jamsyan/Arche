@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from backend.core.container import ServiceContainer
 
 # 导入模型，确保在 create_all 前注册到 Base
-from backend.plugins.cloud_integration.models import TrainingJob, TrainingInstance  # noqa: F401
+from backend.plugins.cloud_integration.models import TrainingJob, TrainingInstance, TrainingCost  # noqa: F401
 from backend.plugins.cloud_integration.routes import router
 from backend.plugins.cloud_integration.services import CloudTrainingService
 

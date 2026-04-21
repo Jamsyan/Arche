@@ -1,4 +1,4 @@
-"""OSS plugin — 路由：上传/下载/删除/列表/外部写入/存储统计。"""
+"""OSS plugin — 路由：上传/下载/删除/列表/外部写入/存储统计/配额管理。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, Request, UploadFile, File, Form, Query
 
 from backend.core.container import ServiceContainer
-from backend.core.middleware import require_user
+from backend.core.middleware import require_user, require_level
 
 
 router = APIRouter(prefix="/api/oss", tags=["oss"])
@@ -133,3 +133,26 @@ async def get_storage_stats(
     user_id = uuid.UUID(user["id"]) if user_scope else None
     stats = await storage_service.get_storage_stats(user_id=user_id)
     return {"code": "ok", "message": "获取成功", "data": stats}
+
+
+@router.get("/quota")
+async def get_quota(request: Request):
+    """P1 用户存储配额使用情况。"""
+    user = require_user(request)
+    container: ServiceContainer = request.app.state.container
+    storage_service = container.get("storage")
+    quota = await storage_service.get_p1_quota_used(uuid.UUID(user["id"]))
+    return {"code": "ok", "message": "获取成功", "data": quota}
+
+
+@router.post("/admin/evict")
+@require_level(0)
+async def trigger_eviction(
+    request: Request,
+    days: int = Query(default=7, ge=1, le=30),
+):
+    """手动触发冷热迁移（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    storage_service = container.get("storage")
+    count = await storage_service.evict_cold_files(days=days)
+    return {"code": "ok", "message": f"迁移完成，{count} 个文件已推到阿里云", "data": {"migrated": count}}

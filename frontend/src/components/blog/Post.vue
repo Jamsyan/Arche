@@ -20,7 +20,7 @@
 
         <!-- 作者信息 -->
         <a-space style="margin-bottom: 20px">
-          <a-avatar :size="32" :style="{ backgroundColor: '#165DFF' }">
+          <a-avatar :size="32" style="background-color: var(--color-primary-light-4)">
             {{ (post.author_username || 'U')[0].toUpperCase() }}
           </a-avatar>
           <span>{{ post.author_username || '匿名用户' }}</span>
@@ -310,7 +310,7 @@ onMounted(async () => {
 
 <style scoped>
 .post-detail {
-  max-width: 800px;
+  max-width: 760px;
   margin: 0 auto;
 }
 .post-content {

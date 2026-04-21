@@ -1,10 +1,10 @@
 <template>
   <div class="dashboard">
     <!-- 用户信息卡片 -->
-    <a-card :bordered="false" style="margin-bottom: 24px">
-      <a-row :gutter="16" align="center">
+    <a-card :bordered="false" class="profile-card">
+      <a-row :gutter="24" align="center">
         <a-col :span="16">
-          <a-space direction="vertical" :size="8">
+          <a-space direction="vertical" :size="12">
             <a-typography-title :heading="4" style="margin: 0">
               {{ userInfo?.username ?? '加载中...' }}
             </a-typography-title>
@@ -38,38 +38,30 @@
     <a-grid :cols="4" :col-gap="16" :row-gap="16">
       <a-grid-item>
         <a-card hoverable class="quick-card" @click="$router.push('/editor')">
-          <a-statistic title="我的文章" :value="0">
-            <template #prefix>
-              <icon-edit />
-            </template>
-          </a-statistic>
+          <icon-edit class="quick-icon" />
+          <div class="quick-title">我的文章</div>
+          <div class="quick-desc">撰写和管理博客文章</div>
         </a-card>
       </a-grid-item>
       <a-grid-item>
         <a-card hoverable class="quick-card" @click="$router.push('/upload')">
-          <a-statistic title="上传文件" :value="0">
-            <template #prefix>
-              <icon-upload />
-            </template>
-          </a-statistic>
+          <icon-upload class="quick-icon" />
+          <div class="quick-title">上传文件</div>
+          <div class="quick-desc">拖拽或点击上传文件</div>
         </a-card>
       </a-grid-item>
       <a-grid-item>
         <a-card hoverable class="quick-card" @click="$router.push('/storage')">
-          <a-statistic title="存储管理" :value="0">
-            <template #prefix>
-              <icon-storage />
-            </template>
-          </a-statistic>
+          <icon-storage class="quick-icon" />
+          <div class="quick-title">存储管理</div>
+          <div class="quick-desc">查看和管理存储空间</div>
         </a-card>
       </a-grid-item>
       <a-grid-item>
         <a-card hoverable class="quick-card" @click="$router.push('/moderation')">
-          <a-statistic title="审核中心" :value="0">
-            <template #prefix>
-              <icon-check-circle />
-            </template>
-          </a-statistic>
+          <icon-check-circle class="quick-icon" />
+          <div class="quick-title">审核中心</div>
+          <div class="quick-desc">审批待发布的内容</div>
         </a-card>
       </a-grid-item>
     </a-grid>
@@ -118,16 +110,40 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
+}
+
+.profile-card {
+  margin-bottom: 24px;
+  border-radius: var(--border-radius-large);
+  padding: 24px;
 }
 
 .quick-card {
   cursor: pointer;
-  transition: transform 0.2s;
+  border-radius: var(--border-radius-large);
+  padding: 24px 16px;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-
 .quick-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.quick-icon {
+  font-size: 28px;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+.quick-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-1);
+  margin-bottom: 4px;
+}
+.quick-desc {
+  font-size: 12px;
+  color: var(--color-text-3);
 }
 </style>

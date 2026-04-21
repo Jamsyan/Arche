@@ -1,23 +1,38 @@
-"""Crawler plugin — 业务逻辑：网页抓取、任务管理、结果存储。"""
+"""Crawler plugin — 业务逻辑：Playwright 抓取、链接扩展、去重、限流、结果存储。"""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 
-import httpx
 from sqlalchemy import func, select
 
 from backend.core.middleware import AppError
 
+from .link_extractor import extract_links
+from .rate_limiter import RateLimiter
+from .robots_checker import RobotsChecker
+from .url_dedup import URLDedup
+
 
 class CrawlerService:
-    """爬虫服务：任务 CRUD、网页抓取、结果管理。"""
+    """爬虫服务：任务 CRUD、Playwright 抓取、链接扩展、去重、限流。"""
 
     def __init__(self, container):
         self.container = container
         db = container.get("db")
         self.session_factory = db["session_factory"]
+
+        # 共享组件实例
+        self._dedup = URLDedup()
+        self._robots_checker = RobotsChecker()
+        self._rate_limiter = RateLimiter()
+
+    # --- BrowserManager 生命周期 ---
+    async def set_browser_manager(self, browser_manager):
+        """设置浏览器管理器（由插件 on_startup 注入）。"""
+        self._browser_manager = browser_manager
 
     # --- 任务 CRUD ---
 
@@ -207,47 +222,68 @@ class CrawlerService:
 
     async def crawl_url(self, url: str) -> dict:
         """抓取单个 URL，返回解析后的数据。"""
-        try:
-            async with httpx.AsyncClient(
-                timeout=30.0,
-                follow_redirects=True,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Veil Crawler/0.1.0)",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                },
-            ) as client:
-                response = await client.get(url)
+        # robots.txt 检查
+        if not await self._robots_checker.is_allowed(url):
+            raise AppError("robots.txt 禁止爬取", code="robots_disallowed", status_code=403)
 
-                # 提取 title
-                title = self._extract_title(response.text)
-
-                # 提取纯文本内容（简易版，去掉 HTML 标签）
-                content = self._extract_text(response.text)
-
+        # Playwright 抓取
+        browser_manager = getattr(self, "_browser_manager", None)
+        if browser_manager:
+            try:
+                data = await browser_manager.fetch_page(url)
                 return {
-                    "url": str(response.url),
-                    "title": title,
-                    "content": content,
-                    "raw_html": response.text[:100000],  # 限制原始 HTML 长度
-                    "status_code": response.status_code,
-                    "headers": json.dumps(dict(response.headers), ensure_ascii=False),
+                    "url": data["final_url"],
+                    "title": data["title"],
+                    "content": data["text"],
+                    "raw_html": data["html"][:100000],
+                    "status_code": data["status_code"],
+                    "headers": json.dumps(data["headers"], ensure_ascii=False),
+                    "links": data["links"],
                 }
-        except httpx.TimeoutException:
-            raise AppError("请求超时", code="crawl_timeout", status_code=504)
-        except httpx.HTTPStatusError as e:
-            raise AppError(
-                f"HTTP 错误: {e.response.status_code}",
-                code="http_error",
-                status_code=502,
-            )
-        except httpx.RequestError as e:
-            raise AppError(
-                f"请求失败: {e}", code="request_error", status_code=502
-            )
+            except Exception as e:
+                raise AppError(f"浏览器抓取失败: {e}", code="crawl_error", status_code=502)
+        else:
+            # Fallback: httpx 简易抓取（无浏览器时）
+            import httpx
+            try:
+                async with httpx.AsyncClient(
+                    timeout=30.0,
+                    follow_redirects=True,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Veil Crawler/0.1.0)",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    },
+                ) as client:
+                    response = await client.get(url)
+                    html = response.text
+                    # 提取 title
+                    import re
+                    title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
+                    title = title_match.group(1).strip() if title_match else None
+                    # 简易文本
+                    text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
+                    text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE)
+                    text = re.sub(r"<[^>]+>", " ", text)
+                    text = re.sub(r"\s+", " ", text).strip()[:10000]
+                    # 提取链接
+                    links = extract_links(html, str(response.url))
+
+                    return {
+                        "url": str(response.url),
+                        "title": title,
+                        "content": text,
+                        "raw_html": html[:100000],
+                        "status_code": response.status_code,
+                        "headers": json.dumps(dict(response.headers), ensure_ascii=False),
+                        "links": links,
+                    }
+            except httpx.TimeoutException:
+                raise AppError("请求超时", code="crawl_timeout", status_code=504)
+            except httpx.RequestError as e:
+                raise AppError(f"请求失败: {e}", code="request_error", status_code=502)
 
     async def execute_task(self, task_id: uuid.UUID) -> list[dict]:
-        """执行一个爬虫任务，抓取种子 URL 并存储结果。"""
+        """执行一个爬虫任务，支持链接扩展和并发控制。"""
         from backend.plugins.crawler.models import CrawlResult, CrawlTask
 
         async with self.session_factory() as session:
@@ -256,25 +292,46 @@ class CrawlerService:
             )
             task = result.scalar_one_or_none()
             if not task:
-                raise AppError(
-                    "任务不存在", code="task_not_found", status_code=404
-                )
+                raise AppError("任务不存在", code="task_not_found", status_code=404)
 
             if task.status == "running":
-                raise AppError(
-                    "任务正在运行中", code="task_running", status_code=409
-                )
+                raise AppError("任务正在运行中", code="task_running", status_code=409)
 
-            # 更新状态为 running
             task.status = "running"
             await session.commit()
 
         seed_urls = json.loads(task.seed_urls)
-        results = []
+        max_depth = getattr(task, "max_depth", 1) or 1
+        max_pages = getattr(task, "max_pages", 100) or 100
+        concurrency = getattr(task, "concurrency", 3) or 3
+        request_delay = getattr(task, "request_delay", 1) or 1
+        respect_robots = bool(getattr(task, "respect_robots", 1))
 
-        for url in seed_urls:
-            try:
-                data = await self.crawl_url(url)
+        # 初始化组件
+        self._dedup.clear()
+        self._rate_limiter.update_interval(float(request_delay))
+
+        # BFS 队列：(url, depth)
+        queue: list[tuple[str, int]] = [(url, 0) for url in seed_urls if self._dedup.is_new(url)]
+        for url, _ in queue:
+            self._dedup.mark_seen(url)
+
+        results = []
+        semaphore = asyncio.Semaphore(concurrency)
+        pages_crawled = 0
+
+        async def _crawl_one(url: str, depth: int) -> list[dict]:
+            nonlocal pages_crawled
+            async with semaphore:
+                # 速率限制
+                await self._rate_limiter.wait(url)
+
+                try:
+                    data = await self.crawl_url(url)
+                except AppError:
+                    return []
+
+                pages_crawled += 1
 
                 # 存储结果
                 async with self.session_factory() as session:
@@ -290,12 +347,36 @@ class CrawlerService:
                     session.add(crawl_result)
                     await session.commit()
                     await session.refresh(crawl_result)
-                    results.append(self._result_to_dict(crawl_result))
-            except AppError:
-                # 单个 URL 失败不影响其他 URL，记录失败但不中断
-                continue
 
-        # 更新任务状态为 completed
+                result_dict = self._result_to_dict(crawl_result)
+                new_results = [result_dict]
+
+                # 链接扩展：如果未达到最大深度和页数，提取新链接入队
+                if depth < max_depth and pages_crawled < max_pages:
+                    links = data.get("links", [])
+                    for link in links:
+                        if self._dedup.is_new(link) and pages_crawled < max_pages:
+                            self._dedup.mark_seen(link)
+                            queue.append((link, depth + 1))
+
+                return new_results
+
+        # 按批次处理队列
+        batch_idx = 0
+        while batch_idx < len(queue) and pages_crawled < max_pages:
+            # 取出当前批次的 URL（不超过 concurrency * 2）
+            batch_size = min(concurrency * 2, len(queue) - batch_idx, max_pages - pages_crawled)
+            batch = queue[batch_idx : batch_idx + batch_size]
+            batch_idx += batch_size
+
+            # 并发执行
+            tasks = [_crawl_one(url, depth) for url, depth in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in batch_results:
+                if isinstance(r, list):
+                    results.extend(r)
+
+        # 更新任务状态
         async with self.session_factory() as session:
             result = await session.execute(
                 select(CrawlTask).where(CrawlTask.id == task_id)

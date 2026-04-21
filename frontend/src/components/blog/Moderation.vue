@@ -22,7 +22,7 @@
 
       <template #author="{ record }">
         <a-space>
-          <a-avatar :size="24" :style="{ backgroundColor: '#165DFF' }">
+          <a-avatar :size="24" style="background-color: var(--color-primary-light-4)">
             {{ (record.author_username || 'U')[0].toUpperCase() }}
           </a-avatar>
           <span>{{ record.author_username || '匿名用户' }}</span>
@@ -196,5 +196,9 @@ onMounted(() => {
 .moderation-panel {
   max-width: 1000px;
   margin: 0 auto;
+}
+.moderation-panel :deep(.arco-table) {
+  border-radius: var(--border-radius-large);
+  overflow: hidden;
 }
 </style>

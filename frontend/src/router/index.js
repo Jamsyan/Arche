@@ -48,7 +48,7 @@ function guarded(path, name, component, requiredLevel, children = []) {
 const authRoutes = [
   // P4+（注册用户）：仪表盘
   guarded('/platform', 'platform',
-    () => import('../components/platform/PlatformShell.vue'),
+    () => import('../components/platform/Dashboard.vue'),
     4, [
       {
         path: '',

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from backend.core.middleware import AppError, AuthError
 
@@ -26,7 +26,7 @@ class AuthService:
 
     # --- 用户注册 ---
     async def register(self, username: str, password: str, level: int = 5) -> dict:
-        """注册新用户，默认 P5 等级。"""
+        """注册新用户。第一个注册用户自动成为 P0（最高权限），后续默认 P5。"""
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
@@ -38,6 +38,11 @@ class AuthService:
             if existing:
                 raise AppError("用户名已存在", code="username_exists", status_code=409)
 
+            # 第一个注册用户自动成为 P0
+            count_result = await session.execute(select(func.count(User.id)))
+            is_first_user = count_result.scalar() == 0
+            effective_level = 0 if is_first_user else level
+
             # 密码 hash
             password_hash = bcrypt.hashpw(
                 password.encode("utf-8"), bcrypt.gensalt()
@@ -46,7 +51,7 @@ class AuthService:
             user = User(
                 username=username,
                 password_hash=password_hash,
-                level=level,
+                level=effective_level,
             )
             session.add(user)
             await session.commit()

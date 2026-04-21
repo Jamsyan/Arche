@@ -22,8 +22,11 @@ async def proxy_github(path: str, request: Request):
     转发所有 HTTP 方法到 https://api.github.com/{path}，
     自动注入 GitHub Token，缓存 GET 请求。
     """
+    from backend.core.middleware import require_user
+
     container: ServiceContainer = request.app.state.container
     proxy_service = container.get("github_proxy")
+    user = require_user(request)
 
     query_params = dict(request.query_params)
 
@@ -37,6 +40,7 @@ async def proxy_github(path: str, request: Request):
         query_params=query_params,
         headers=dict(request.headers),
         body=body,
+        user_id=user["id"],
     )
 
     response_headers = {

@@ -1,0 +1,71 @@
+"""Artifact manager — pulls training outputs from remote instances and verifies integrity."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from backend.plugins.cloud_integration.deploy.ssh_executor import SSHExecutor
+
+
+class ArtifactManager:
+    """训练产物管理：SFTP 回传 + SHA256 校验。"""
+
+    def __init__(self, ssh_executor: "SSHExecutor"):
+        self._ssh = ssh_executor
+
+    async def pull_artifacts(
+        self,
+        conn_key: str,
+        remote_paths: list[str],
+        local_dir: Path,
+    ) -> list[dict]:
+        """从远程实例拉取产物文件并验证 SHA256。
+
+        Returns:
+            [{filename, local_path, sha256, size_bytes, verified}]
+        """
+        local_dir.mkdir(parents=True, exist_ok=True)
+        artifacts = []
+
+        for remote_path in remote_paths:
+            filename = Path(remote_path).name
+            local_path = local_dir / filename
+
+            # 下载
+            await self._ssh.download(conn_key, remote_path, local_path)
+
+            # 远程和本地 SHA256 对比
+            remote_sha = await self._ssh.compute_sha256(conn_key, remote_path)
+            local_sha = await self._ssh.compute_local_sha256(local_path)
+
+            artifacts.append({
+                "filename": filename,
+                "local_path": str(local_path),
+                "remote_path": remote_path,
+                "sha256": local_sha,
+                "size_bytes": local_path.stat().st_size,
+                "verified": remote_sha == local_sha,
+            })
+
+        return artifacts
+
+    async def pull_directory(
+        self,
+        conn_key: str,
+        remote_dir: str,
+        local_dir: Path,
+        pattern: str = "*",
+    ) -> list[dict]:
+        """拉取远程目录下匹配的文件。"""
+        # 先列出远程文件
+        listing = await self._ssh.execute(conn_key, f"ls -1 {remote_dir}/{pattern}")
+        files = [f.strip() for f in listing.splitlines() if f.strip()]
+
+        if not files:
+            return []
+
+        full_paths = [f"{remote_dir}/{f}" for f in files]
+        return await self.pull_artifacts(conn_key, full_paths, local_dir)

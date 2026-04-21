@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .config import Config
 from .container import ServiceContainer
-from .db import init_db
+from .db import init_db, ensure_tables
 from .middleware import register_error_handlers, setup_cors
 from .plugin_registry import registry
 
@@ -57,6 +57,7 @@ def create_app() -> FastAPI:
     # 8. Startup / Shutdown hooks
     @app.on_event("startup")
     async def startup():
+        await ensure_tables(engine)
         registry.on_startup()
 
     @app.on_event("shutdown")

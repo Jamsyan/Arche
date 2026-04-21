@@ -1,9 +1,10 @@
-"""GitHub Proxy Service — 反向代理 GitHub API，支持缓存和 Token 注入。"""
+"""GitHub Proxy Service — 反向代理 GitHub API，支持缓存、Token 注入和限流。"""
 
 from __future__ import annotations
 
 import hashlib
 import time
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -17,6 +18,11 @@ if TYPE_CHECKING:
 class GitHubProxyError(AppError):
     def __init__(self, message: str = "GitHub 代理请求失败", code: str = "github_proxy_error", status_code: int = 502):
         super().__init__(message, code, status_code)
+
+
+# === 限流常量 ===
+RATE_LIMIT_WINDOW = 60  # 秒
+RATE_LIMIT_MAX_REQUESTS = 60  # 每分钟最大请求数
 
 
 class CacheEntry:
@@ -34,7 +40,7 @@ class CacheEntry:
 
 
 class GitHubProxyService:
-    """GitHub API 反向代理服务：转发请求、缓存响应、注入 Token。"""
+    """GitHub API 反向代理服务：转发请求、缓存响应、注入 Token、限流。"""
 
     def __init__(self, container: "ServiceContainer"):
         self.container = container
@@ -51,6 +57,28 @@ class GitHubProxyService:
             timeout=self.timeout,
             follow_redirects=True,
         )
+
+        # 限流追踪：{user_id: [timestamp, ...]}
+        self._rate_tracker: dict[str, list[float]] = defaultdict(list)
+
+    def _check_rate_limit(self, user_id: str) -> None:
+        """检查用户是否在限流窗口内超出请求数。"""
+        now = time.monotonic()
+        timestamps = self._rate_tracker[user_id]
+
+        # 清理过期时间戳
+        cutoff = now - RATE_LIMIT_WINDOW
+        self._rate_tracker[user_id] = [t for t in timestamps if t > cutoff]
+        timestamps = self._rate_tracker[user_id]
+
+        if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
+            raise AppError(
+                f"请求过于频繁，请等待 {RATE_LIMIT_WINDOW} 秒后重试",
+                code="rate_limit_exceeded",
+                status_code=429,
+            )
+
+        timestamps.append(now)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -94,8 +122,13 @@ class GitHubProxyService:
         query_params: dict | None = None,
         headers: dict | None = None,
         body: bytes | None = None,
+        user_id: str | None = None,
     ) -> dict:
         """代理转发请求到 GitHub API。"""
+        # 限流检查
+        if user_id:
+            self._check_rate_limit(user_id)
+
         query_params = query_params or {}
         cache_key = self._cache_key(method, path, query_params)
 

@@ -24,6 +24,18 @@ class CreateTaskRequest(BaseModel):
     schedule_interval: int = Field(
         default=0, ge=0, le=168, description="调度间隔（小时），0 表示仅执行一次"
     )
+    max_depth: int = Field(
+        default=1, ge=0, le=5, description="链接扩展深度（0 = 不扩展）"
+    )
+    max_pages: int = Field(
+        default=100, ge=1, le=10000, description="最大抓取页数"
+    )
+    concurrency: int = Field(
+        default=3, ge=1, le=10, description="并发数"
+    )
+    request_delay: float = Field(
+        default=1.0, ge=0.1, le=60, description="同站请求间隔秒数"
+    )
 
 
 # --- 任务管理（全部 P0） ---
@@ -40,6 +52,25 @@ async def create_task(req: CreateTaskRequest, request: Request):
         seed_urls=req.seed_urls,
         schedule_interval=req.schedule_interval,
     )
+    # 更新扩展字段（create_task 不接收这些字段，直接更新数据库）
+    from sqlalchemy import update as sql_update
+    from backend.plugins.crawler.models import CrawlTask
+
+    task_id = result["id"]
+    async with crawler_service.session_factory() as session:
+        await session.execute(
+            sql_update(CrawlTask)
+            .where(CrawlTask.id == uuid.UUID(task_id))
+            .values(
+                max_depth=req.max_depth,
+                max_pages=req.max_pages,
+                concurrency=req.concurrency,
+                request_delay=int(req.request_delay * 100),  # 存储为整数
+                respect_robots=1,
+            )
+        )
+        await session.commit()
+
     return {"code": "ok", "message": "创建成功", "data": result}
 
 

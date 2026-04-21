@@ -30,6 +30,9 @@ class TrainingJob(Base):
     result_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     gpu_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    artifacts: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    artifact_verified: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -52,8 +55,15 @@ class TrainingInstance(Base):
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("training_jobs.id"), nullable=False
     )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False, default="mock")
+    provider_instance_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
     instance_name: Mapped[str] = mapped_column(String(256), nullable=False)
     gpu_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    gpu_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    ssh_host: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    ssh_port: Mapped[int] = mapped_column(Integer, nullable=False, default=22)
+    ssh_user: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    ssh_key_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="pending"
     )
@@ -65,4 +75,29 @@ class TrainingInstance(Base):
     )
     stopped_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class TrainingCost(Base):
+    """训练费用记录表。"""
+
+    __tablename__ = "training_costs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("training_jobs.id"), nullable=False
+    )
+    instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("training_instances.id"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    gpu_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    hourly_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    duration_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="CNY")
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )

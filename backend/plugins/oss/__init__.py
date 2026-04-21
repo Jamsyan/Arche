@@ -1,4 +1,4 @@
-"""OSS plugin — 文件存储插件：本地存储 + 外部写入 + 租户隔离。"""
+"""OSS plugin — 文件存储插件：本地存储 + 外部写入 + 租户隔离 + 阿里云冷存储。"""
 
 from __future__ import annotations
 
@@ -23,6 +23,9 @@ class OSSPlugin(BasePlugin):
     requires = []
     optional = ["auth"]
 
+    def __init__(self):
+        self._eviction_job = None
+
     def setup(self, app: "FastAPI") -> None:
         """注册路由。"""
         app.include_router(router)
@@ -32,10 +35,45 @@ class OSSPlugin(BasePlugin):
         container.register("storage", lambda c: StorageService(c))
 
     def on_startup(self) -> None:
-        pass
+        """启动冷热分层调度定时任务。"""
+        try:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from apscheduler.triggers.interval import IntervalTrigger
+
+            scheduler = AsyncIOScheduler()
+
+            async def _evict():
+                storage_service = self._get_service()
+                if storage_service:
+                    count = await storage_service.evict_cold_files(days=7)
+                    if count > 0:
+                        print(f"[OSS] 冷热迁移: {count} 个文件已推到阿里云")
+
+            scheduler.add_job(
+                _evict,
+                trigger=IntervalTrigger(hours=1),
+                id="oss_cold_eviction",
+                name="OSS 冷热分层迁移",
+                replace_existing=True,
+            )
+            scheduler.start()
+            self._eviction_job = scheduler
+        except Exception:
+            # APScheduler 不可用时跳过
+            pass
 
     def on_shutdown(self) -> None:
-        pass
+        """关闭时停止调度器。"""
+        if self._eviction_job and getattr(self._eviction_job, "running", False):
+            self._eviction_job.shutdown(wait=False)
+
+    def _get_service(self) -> StorageService | None:
+        """获取 StorageService 实例。"""
+        try:
+            from backend.core.container import container as global_container
+            return global_container.get("storage")
+        except Exception:
+            return None
 
 
 # 自注册

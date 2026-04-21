@@ -24,6 +24,7 @@ class CreateJobRequest(BaseModel):
 class CreateInstanceRequest(BaseModel):
     instance_name: str = Field(..., min_length=1, max_length=256, description="实例名称")
     gpu_type: str = Field(..., min_length=1, max_length=64, description="GPU 类型")
+    provider: str = Field(default="mock", description="Provider 名称")
 
 
 # --- 任务 CRUD（P0） ---
@@ -177,6 +178,7 @@ async def create_instance(job_id: str, req: CreateInstanceRequest, request: Requ
         job_id=uuid.UUID(job_id),
         instance_name=req.instance_name,
         gpu_type=req.gpu_type,
+        provider=req.provider,
     )
     return {"code": "ok", "message": "创建成功", "data": result}
 
@@ -199,3 +201,48 @@ async def stop_instance(instance_id: str, request: Request):
     service = container.get("cloud_training")
     result = await service.stop_instance(uuid.UUID(instance_id))
     return {"code": "ok", "message": "停止成功", "data": result}
+
+
+# --- 费用查询（P0） ---
+@router.get("/costs")
+@require_level(0)
+async def get_costs(
+    request: Request,
+    job_id: str | None = Query(None, description="按任务 ID 过滤"),
+    start_date: str | None = Query(None, description="起始日期 ISO 8601"),
+    end_date: str | None = Query(None, description="结束日期 ISO 8601"),
+):
+    """训练费用汇总（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.get_costs(
+        job_id=uuid.UUID(job_id) if job_id else None,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+# --- GPU 指标（P0） ---
+@router.get("/instances/{instance_id}/gpu-metrics")
+@require_level(0)
+async def get_gpu_metrics(instance_id: str, request: Request):
+    """GPU 实时指标（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+
+    # 获取实例信息
+    instance = await service.list_instances(
+        job_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),  # placeholder
+        page=1,
+        page_size=1,
+    )
+
+    # 通过 Provider 获取 GPU 指标
+    from backend.plugins.cloud_integration.providers.registry import get_provider
+    cloud_provider = get_provider("mock")
+    try:
+        metrics = await cloud_provider.get_gpu_metrics(instance_id)
+        return {"code": "ok", "message": "获取成功", "data": metrics}
+    except Exception as e:
+        return {"code": "error", "message": str(e), "data": {}}

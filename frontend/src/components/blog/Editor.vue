@@ -64,11 +64,9 @@ const form = ref({
 const submitting = ref(false)
 const isEdit = ref(false)
 
-// 检查路由中是否有 id 参数（编辑模式）
 onMounted(() => {
   if (route.params.id) {
     isEdit.value = true
-    // TODO: 加载已有文章内容
     Message.info('编辑模式（加载文章内容待实现）')
   }
 })
@@ -127,7 +125,10 @@ async function handleSubmit() {
 
 <style scoped>
 .post-editor {
-  max-width: 800px;
+  max-width: 760px;
   margin: 0 auto;
+}
+.post-editor :deep(.arco-form-item-label) {
+  font-weight: 500;
 }
 </style>

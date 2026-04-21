@@ -39,7 +39,20 @@ class BlogPlugin(BasePlugin):
         container.register("blog", lambda c: BlogService(c))
 
     def on_startup(self) -> None:
-        pass
+        """启动时初始化敏感词过滤器。"""
+        from backend.core.plugin_registry import registry as plugin_registry
+        from backend.plugins.blog.sensitive_words import init_filter
+
+        # 从容器获取配置
+        # 延迟导入避免循环
+        try:
+            from backend.core.container import container as global_container
+            config = global_container.get("config")
+            words_str = config.get("SENSITIVE_WORDS", "")
+            words = [w.strip() for w in words_str.split(",") if w.strip()] if words_str else []
+            init_filter(words)
+        except Exception:
+            init_filter([])
 
     def on_shutdown(self) -> None:
         pass

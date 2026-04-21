@@ -167,8 +167,13 @@ onMounted(() => {
 
 <style scoped>
 .upload-page {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
+}
+
+.upload-page :deep(.arco-card) {
+  border-radius: var(--border-radius-large);
+  margin-bottom: 16px;
 }
 
 .upload-drag-area {
@@ -177,14 +182,15 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 48px 24px;
-  border: 1px dashed var(--color-border-2);
-  border-radius: 4px;
+  border: 2px dashed var(--color-border-2);
+  border-radius: var(--border-radius-large);
   cursor: pointer;
-  transition: border-color 0.3s;
+  transition: border-color 0.3s, background 0.3s;
 }
 
 .upload-drag-area:hover {
-  border-color: rgb(var(--primary-6));
+  border-color: var(--color-primary);
+  background: var(--color-fill-2);
 }
 
 .upload-icon {

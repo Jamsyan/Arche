@@ -35,16 +35,47 @@ class CrawlerPlugin(BasePlugin):
         container.register("crawler", lambda c: CrawlerService(c))
 
     def on_startup(self) -> None:
-        """启动时恢复已调度的定时任务。"""
+        """启动时恢复已调度的定时任务并初始化浏览器。"""
         # 延迟导入避免循环依赖
         from backend.plugins.crawler.tasks import init_scheduler
 
         self._scheduler = init_scheduler()
 
+        # 初始化浏览器并注入到服务
+        import asyncio
+        from backend.plugins.crawler.browser import BrowserManager
+
+        browser = BrowserManager()
+        self._browser = browser
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._init_browser(browser))
+        except RuntimeError:
+            pass
+
+    async def _init_browser(self, browser):
+        """异步初始化浏览器并注入到 CrawlerService。"""
+        try:
+            await browser.startup()
+            from backend.core.container import container as global_container
+            crawler_service = global_container.get("crawler")
+            if crawler_service:
+                await crawler_service.set_browser_manager(browser)
+        except Exception:
+            pass
+
     def on_shutdown(self) -> None:
-        """关闭时停止调度器。"""
+        """关闭时停止调度器和浏览器。"""
+        import asyncio
         if self._scheduler and getattr(self._scheduler, "running", False):
             self._scheduler.shutdown(wait=False)
+        if hasattr(self, "_browser") and self._browser:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._browser.shutdown())
+            except RuntimeError:
+                pass
 
 
 # 自注册

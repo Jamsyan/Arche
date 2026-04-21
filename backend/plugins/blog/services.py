@@ -124,6 +124,28 @@ class BlogService:
         content: str,
     ) -> dict:
         """创建帖子，默认进入审核队列（status=pending）。"""
+        from backend.plugins.blog.sensitive_words import get_filter
+
+        # 敏感词检查
+        word_filter = get_filter()
+        passed, matched_words = word_filter.check(title + " " + content)
+
+        if not passed:
+            # 包含敏感词 → 直接拒绝
+            slug = await self.generate_slug(title)
+            async with self.session_factory() as session:
+                post = BlogPost(
+                    author_id=author_id,
+                    title=title,
+                    slug=slug,
+                    content=content,
+                    status="rejected",
+                )
+                session.add(post)
+                await session.commit()
+                await session.refresh(post)
+                return self._post_to_dict(post)
+
         slug = await self.generate_slug(title)
 
         async with self.session_factory() as session:

@@ -1,8 +1,7 @@
-"""Database layer — sync init (create_all), async sessions."""
+"""Database layer — async engine + lazy create_all."""
 
 from __future__ import annotations
 
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -11,15 +10,20 @@ class Base(DeclarativeBase):
     pass
 
 
-def init_db(database_url: str) -> tuple:
-    # Sync engine for create_all (runs in this thread's context)
-    sync_url = database_url.replace("+asyncpg", "")
-    sync_engine = create_engine(sync_url, echo=False)
-    Base.metadata.create_all(sync_engine)
-    sync_engine.dispose()
+_initialized = False
 
-    # Async engine for runtime use
+
+async def ensure_tables(engine) -> None:
+    """Lazy create tables on first async context (avoids event loop conflicts)."""
+    global _initialized
+    if _initialized:
+        return
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    _initialized = True
+
+
+def init_db(database_url: str) -> tuple:
     engine = create_async_engine(database_url, echo=False)
     session_factory = async_sessionmaker(engine, class_=AsyncSession)
-
     return engine, session_factory
