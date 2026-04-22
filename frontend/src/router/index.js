@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuth } from './auth.js'
 
 // 公共路由（无需登录）
 const publicRoutes = [
@@ -66,10 +65,10 @@ const authRoutes = [
     () => import('../components/blog/Editor.vue'),
     3),
 
-  // P2+（中级用户）：文件上传
+  // P1+（中级用户）：文件上传
   guarded('/upload', 'file-upload',
     () => import('../components/platform/FileUpload.vue'),
-    2),
+    1),
 
   // P1+（部分开放）：GitHub 代理、P1 存储、审核面板
   guarded('/github', 'github-proxy',
@@ -80,7 +79,7 @@ const authRoutes = [
     1),
   guarded('/moderation', 'moderation',
     () => import('../components/blog/Moderation.vue'),
-    0),
+    1),
 
   // P0（最高权限）：运维面板、管理后台
   guarded('/ops/crawler', 'crawler-dashboard',
@@ -110,19 +109,22 @@ for (const route of authRoutes) {
 
 // 全局前置守卫
 router.beforeEach((to) => {
-  const { level } = useAuth()
+  // 直接从 localStorage 读取，避免 Vue ref 初始化时序问题
+  const token = localStorage.getItem('veil_token')
+  const storedLevel = localStorage.getItem('veil_level')
+  const userLevel = storedLevel !== null ? parseInt(storedLevel, 10) : null
 
   // 已登录状态访问登录/注册页，重定向到首页
   if (to.name === 'login' || to.name === 'register') {
-    if (level.value !== null) return '/'
+    if (userLevel !== null) return '/'
     return
   }
 
   // 检查等级权限
   if (to.meta.requiredLevel !== undefined) {
-    if (level.value === null) return '/login'
+    if (userLevel === null) return '/login'
     // 数字越小权限越高，用户 level <= requiredLevel 即可访问
-    if (level.value > to.meta.requiredLevel) return '/'
+    if (userLevel > to.meta.requiredLevel) return '/'
   }
 })
 

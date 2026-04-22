@@ -38,20 +38,20 @@ export function useAuth() {
 
   /**
    * 登录
-   * @param {string} username
+   * @param {string} identity 邮箱或用户名
    * @param {string} password
    * @returns {{ ok: boolean, error?: string }}
    */
-  async function login(username, password) {
+  async function login(identity, password) {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ identity, password })
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        return { ok: false, error: err.message || '登录失败' }
+        return { ok: false, error: err.message || err.code || '登录失败' }
       }
       const resData = await res.json()
       // 后端: { "code": "ok", "data": { "access_token": "...", "user": {...} } }
@@ -70,16 +70,17 @@ export function useAuth() {
 
   /**
    * 注册（新用户默认 P5）
+   * @param {string} email
    * @param {string} username
    * @param {string} password
    * @returns {{ ok: boolean, error?: string }}
    */
-  async function register(username, password) {
+  async function register(email, username, password) {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, username, password })
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

@@ -11,6 +11,15 @@
       <a-tag color="red" size="small">P0 权限</a-tag>
     </div>
 
+    <div class="header-actions">
+      <a-popconfirm content="确定触发冷热迁移？7 天未访问的本地文件将推送到阿里云 OSS" @ok="triggerEvict">
+        <a-button size="small" status="warning">
+          <template #icon><icon-swap /></template>
+          冷热迁移
+        </a-button>
+      </a-popconfirm>
+    </div>
+
     <a-tabs default-active-key="dashboard" type="rounded" class="oss-tabs">
       <a-tab-pane key="dashboard" title="统计大盘">
         <OssDashboard />
@@ -29,11 +38,32 @@
 </template>
 
 <script setup>
-import { IconStorage, IconArrowLeft } from '@arco-design/web-vue/es/icon'
+import { IconStorage, IconArrowLeft, IconSwap } from '@arco-design/web-vue/es/icon'
+import { Message } from '@arco-design/web-vue'
+import { useAuth } from '../../router/auth.js'
 import OssDashboard from './OssDashboard.vue'
 import QuotaManagement from './QuotaManagement.vue'
 import SpeedLimitConfig from './SpeedLimitConfig.vue'
 import FileManagement from './FileManagement.vue'
+
+const { authHeaders } = useAuth()
+
+async function triggerEvict() {
+  try {
+    const res = await fetch('/api/oss/admin/evict?days=7', {
+      method: 'POST',
+      headers: authHeaders(),
+    })
+    const data = await res.json()
+    if (data.code === 'ok') {
+      Message.success(`迁移完成，${data.data.migrated} 个文件已推送`)
+    } else {
+      Message.error(data.message || '迁移失败')
+    }
+  } catch {
+    Message.error('迁移失败')
+  }
+}
 </script>
 
 <style scoped>

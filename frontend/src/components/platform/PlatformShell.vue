@@ -4,9 +4,9 @@
       <!-- 左：Logo + 应用名 -->
       <div class="menubar-left">
         <router-link to="/" class="menubar-brand">
-          <img src="/logo.png" alt="Veil" class="menubar-logo" />
+          <img src="/logo.png" alt="锦年志" class="menubar-logo" />
         </router-link>
-        <span class="menubar-appname">Veil</span>
+        <span class="menubar-appname">锦年志</span>
         <span class="menubar-divider"></span>
         <!-- 当前页面标题 -->
         <span class="menubar-pagename">{{ currentPageTitle }}</span>
@@ -117,16 +117,18 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import LevelBadge from '../LevelBadge.vue'
 import { useAuth } from '../../router/auth.js'
+import { Message } from '@arco-design/web-vue'
 import { useDock } from '../../router/dock.js'
 import {
   IconExport, IconCamera, IconApps, IconPlus, IconDragDotVertical,
 } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
+const router = useRouter()
 const { user, logout, level } = useAuth()
 
 const props = defineProps({ userLevel: { type: Number, default: 5 } })
@@ -164,7 +166,7 @@ const currentPageTitle = computed(() => {
   for (const [p, title] of Object.entries(PAGE_TITLES)) {
     if (path.startsWith(p) && p !== '/') return title
   }
-  return 'Veil'
+  return '锦年志'
 })
 
 // 时钟
@@ -176,9 +178,9 @@ function updateClock() {
   })
 }
 updateClock()
-setInterval(updateClock, 10000)
+const clockTimer = setInterval(updateClock, 10000)
 
-function handleLogout() { logout() }
+function handleLogout() { logout(); router.push('/') }
 
 function handleAvatarChange() {
   fileInput.value?.click()
@@ -188,7 +190,7 @@ function onFileSelected(event) {
   const file = event.target.files?.[0]
   if (!file) return
   if (file.size > 2 * 1024 * 1024) {
-    alert('头像图片不能超过 2MB')
+    Message.warning('头像图片不能超过 2MB')
     return
   }
   const reader = new FileReader()
@@ -237,7 +239,6 @@ onMounted(() => {
 
   dockList.addEventListener('drop', (e) => {
     e.preventDefault()
-    // Reorder pinned items based on DOM order
     const items = dockList.querySelectorAll('.dock-list-item')
     const newOrder = []
     items.forEach(el => {
@@ -245,13 +246,8 @@ onMounted(() => {
       const found = dock.pinned.find(p => p.title === title)
       if (found) newOrder.push(found.id)
     })
-    // Update pinned order in localStorage
     if (newOrder.length > 0) {
-      const allPinned = JSON.parse(localStorage.getItem('veil_dock') || '[]')
-      const reordered = newOrder.filter(id => allPinned.includes(id))
-      const remaining = allPinned.filter(id => !newOrder.includes(id))
-      localStorage.setItem('veil_dock', JSON.stringify([...reordered, ...remaining]))
-      location.reload()
+      dock.reorder(newOrder)
     }
   })
 })
@@ -267,6 +263,10 @@ function getDragAfterElement(container, y) {
     return closest
   }, { offset: Number.NEGATIVE_INFINITY }).element
 }
+
+onUnmounted(() => {
+  clearInterval(clockTimer)
+})
 </script>
 
 <style scoped>
@@ -311,14 +311,17 @@ function getDragAfterElement(container, y) {
 .menubar-logo {
   width: 22px;
   height: 22px;
-  border-radius: 5px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .menubar-appname {
-  font-size: 13px;
-  font-weight: 700;
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 16px;
+  font-weight: 400;
   color: var(--color-text-1);
-  letter-spacing: -0.01em;
 }
 
 .menubar-divider {
@@ -409,6 +412,8 @@ function getDragAfterElement(container, y) {
 
 .avatar-wrap {
   cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
 .avatar-circle {

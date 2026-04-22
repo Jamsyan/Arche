@@ -2,7 +2,11 @@
 
 import pytest
 
-from backend.plugins.blog.sensitive_words import SensitiveWordFilter, init_filter, get_filter
+from backend.plugins.blog.sensitive_words import (
+    SensitiveWordFilter,
+    init_filter,
+    get_filter,
+)
 
 
 def test_sensitive_word_filter_match():
@@ -42,6 +46,7 @@ def test_init_and_get_filter():
 def test_slug_generation():
     """BlogService 的 slug 生成应生成 URL 友好的字符串。"""
     import re
+
     title = "Hello World! This is a Test."
     slug = re.sub(r"[^\w一-鿿-]", "-", title.lower().strip())
     slug = re.sub(r"-+", "-", slug).strip("-")

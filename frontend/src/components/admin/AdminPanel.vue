@@ -68,7 +68,7 @@
       class="process-table"
     />
 
-    <!-- 插件管理 -->
+    <!-- 快捷操作 -->
     <div class="section-header">
       <icon-apps class="section-icon" />
       <span>快捷操作</span>
@@ -79,40 +79,27 @@
         <template #icon><icon-user /></template>
         用户管理
       </a-button>
-      <a-button type="outline" @click="showSystemSettings = true">
-        <template #icon><icon-settings /></template>
-        系统设置
-      </a-button>
-      <a-button type="outline" status="warning" @click="clearCache">
-        <template #icon><icon-delete /></template>
-        清理缓存
+      <a-button type="outline" @click="$router.push('/admin/oss')">
+        <template #icon><icon-storage /></template>
+        OSS 管理
       </a-button>
     </div>
-
-    <!-- 系统设置弹窗 -->
-    <a-modal v-model:visible="showSystemSettings" title="系统设置" width="560">
-      <a-typography-text type="secondary">系统设置功能待后端接口支持</a-typography-text>
-      <template #footer>
-        <a-button @click="showSystemSettings = false">关闭</a-button>
-      </template>
-    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Message, Modal } from '@arco-design/web-vue'
+import { Message } from '@arco-design/web-vue'
 import { useAuth } from '../../router/auth.js'
 import {
   IconLock, IconArrowLeft, IconDashboard, IconDesktop,
-  IconApps, IconUser, IconSettings, IconDelete, IconRefresh,
+  IconApps, IconUser, IconStorage, IconRefresh,
 } from '@arco-design/web-vue/es/icon'
 
 const { authHeaders } = useAuth()
 const loading = ref(false)
 const summary = ref(null)
 const processes = ref([])
-const showSystemSettings = ref(false)
 
 const processColumns = [
   { title: 'PID', dataIndex: 'pid', width: 80 },
@@ -120,8 +107,6 @@ const processColumns = [
   { title: 'CPU%', dataIndex: 'cpu_percent', width: 80,
     formatter: ({ cellValue }) => cellValue?.toFixed(1) ?? '—' },
   { title: '内存%', dataIndex: 'memory_percent', width: 90,
-    formatter: ({ cellValue }) => cellValue?.toFixed(1) ?? '—' },
-  { title: '内存 (MB)', dataIndex: 'memory_mb', width: 100,
     formatter: ({ cellValue }) => cellValue?.toFixed(1) ?? '—' },
 ]
 
@@ -149,21 +134,13 @@ async function fetchSummary() {
       Message.error(summaryData.message || '加载系统监控失败')
     }
     if (processData.code === 'ok') {
-      processes.value = processData.data?.items || processData.data || []
+      processes.value = processData.data?.items || []
     }
   } catch {
     Message.error('加载系统监控失败')
   } finally {
     loading.value = false
   }
-}
-
-function clearCache() {
-  Modal.confirm({
-    title: '确认清理缓存',
-    content: '清理后将导致缓存文件全部失效，确认继续？',
-    onOk: () => Message.success('缓存已清理（前端模拟）'),
-  })
 }
 
 onMounted(() => { fetchSummary() })

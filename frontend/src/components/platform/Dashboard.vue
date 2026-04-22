@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-layout">
-    <!-- 左侧锚定区：固定不动 -->
+    <!-- 左侧锚定区 -->
     <aside class="sidebar">
       <!-- 用户身份面板 -->
       <div class="identity-panel">
@@ -27,15 +27,15 @@
         </div>
         <div class="identity-stats">
           <div class="stat-block">
-            <div class="stat-num">{{ postCount }}</div>
+            <div class="stat-num">—</div>
             <div class="stat-label">文章</div>
           </div>
           <div class="stat-block">
-            <div class="stat-num">{{ totalViews }}</div>
+            <div class="stat-num">—</div>
             <div class="stat-label">阅读</div>
           </div>
           <div class="stat-block">
-            <div class="stat-num">{{ totalLikes }}</div>
+            <div class="stat-num">—</div>
             <div class="stat-label">获赞</div>
           </div>
           <div class="stat-block">
@@ -85,8 +85,8 @@
           <a-button type="text" size="mini" @click="$router.push('/admin/users')">
             <template #icon><icon-user /></template>用户
           </a-button>
-          <a-button type="text" size="mini" @click="$router.push('/admin')">
-            <template #icon><icon-settings /></template>设置
+          <a-button type="text" size="mini" @click="$router.push('/admin/oss')">
+            <template #icon><icon-storage /></template>OSS
           </a-button>
         </div>
       </div>
@@ -94,7 +94,28 @@
 
     <!-- 右侧滚动区 -->
     <main class="main-content">
-      <!-- 关注焦点 / 待办任务 -->
+      <!-- 监控大屏 -->
+      <div class="monitor-section" v-if="level !== null && level <= 0">
+        <div class="section-header">
+          <icon-dashboard class="section-icon" />
+          <span>监控大屏</span>
+          <a-button size="mini" type="outline" @click="showPicker = !showPicker">
+            <template #icon><icon-apps /></template>
+            {{ showPicker ? '收起' : '添加 Widget' }}
+          </a-button>
+        </div>
+        <div class="monitor-content">
+          <WidgetPicker v-if="showPicker" @close="showPicker = false" @add="onAddWidget" />
+          <WidgetCanvas ref="canvasRef" :pinned-ids="pinnedIds" :on-toggle-pin="togglePin" />
+        </div>
+      </div>
+
+      <!-- 待办任务 -->
+      <div class="todo-section" v-if="level !== null && level <= 0">
+        <TodoPanel ref="todoRef" />
+      </div>
+
+      <!-- 关注焦点 -->
       <div class="focus-section" ref="focusSectionRef">
         <div class="section-header">
           <icon-pushpin class="section-icon" />
@@ -193,21 +214,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import LevelBadge from '../LevelBadge.vue'
 import { useAuth } from '../../router/auth.js'
+import WidgetCanvas from '../dashboard/WidgetCanvas.vue'
+import WidgetPicker from '../dashboard/WidgetPicker.vue'
+import TodoPanel from '../dashboard/TodoPanel.vue'
 import {
   IconCalendar, IconEmail, IconBarChart, IconEdit, IconUpload,
   IconCheck, IconCheckCircle, IconBug, IconCloud, IconStorage,
-  IconApps, IconSync, IconClose, IconLock, IconDesktop,
-  IconGithub, IconPushpin, IconDashboard, IconUser, IconSettings,
+  IconApps, IconClose, IconLock, IconDesktop,
+  IconGithub, IconPushpin, IconUser, IconSettings,
   IconDragDotVertical,
 } from '@arco-design/web-vue/es/icon'
 
 const router = useRouter()
-const { loadUser, user, level } = useAuth()
+const { loadUser, user, level, authHeaders } = useAuth()
 
+// ====== 用户信息 ======
 const userInfo = ref(null)
 const avatarUrl = ref(localStorage.getItem('veil_avatar') || '')
 const moderationPending = ref(0)
@@ -216,7 +241,6 @@ const storageTotal = ref(500)
 const postCount = ref(0)
 const totalViews = ref(0)
 const totalLikes = ref(0)
-const postHistory = ref([30, 45, 25, 60, 40, 55, 35, 70, 50, 65, 45, 80])
 
 const ROLE_LABELS = {
   0: '管理员', 1: '高级用户', 2: '中级用户',
@@ -225,23 +249,79 @@ const ROLE_LABELS = {
 const roleLabel = computed(() => ROLE_LABELS[level.value ?? 5] ?? '未知')
 const userInitial = computed(() => userInfo.value?.username ? userInfo.value.username[0].toUpperCase() : 'U')
 
-const storagePercent = computed(() => storageTotal.value ? Math.round((storageUsed.value / storageTotal.value) * 100) : 0)
-
-// 管理员系统信息
+// ====== 管理员系统信息（真实数据） ======
 const sysInfo = ref({
-  cpu: 23, memoryPercent: 26, diskPercent: 24,
-  onlineUsers: 7, qps: 12.3, requests: 18453,
+  cpu: 0, memoryPercent: 0, diskPercent: 0,
+  onlineUsers: 0, qps: 0, requests: 0,
 })
 
-// ====== 关注焦点卡片 ======
+async function fetchSysInfo() {
+  if (level.value === null || level.value > 0) return
+  try {
+    const res = await fetch('/api/system/summary', { headers: authHeaders() })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.code === 'ok') {
+        sysInfo.value = {
+          cpu: Math.round(data.data.cpu_pct || 0),
+          memoryPercent: Math.round(data.data.mem_pct || 0),
+          diskPercent: Math.round(data.data.disk_pct || 0),
+          onlineUsers: 0,
+          qps: 0,
+          requests: 0,
+        }
+      }
+    }
+  } catch {}
+}
+
+// ====== Widget 系统 ======
+const showPicker = ref(false)
+const canvasRef = ref(null)
+const todoRef = ref(null)
+const pinnedIds = ref(new Set())
+
+function onAddWidget(type) {
+  if (canvasRef.value) canvasRef.value.addWidget(type)
+}
+
+function togglePin(widgetId) {
+  if (pinnedIds.value.has(widgetId)) {
+    pinnedIds.value.delete(widgetId)
+  } else {
+    pinnedIds.value.add(widgetId)
+  }
+  pinnedIds.value = new Set(pinnedIds.value)
+}
+
+// ====== 关注焦点 ======
 const focusCards = ref([])
+let dragData = null
+
+function onDragStart(event, card, source) {
+  dragData = { card, source }
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', card.id)
+  const el = event.target.closest('.task-card, .creator-card')
+  if (el) {
+    const rect = el.getBoundingClientRect()
+    event.dataTransfer.setDragImage(el, rect.width / 2, 20)
+  }
+}
+
+function onDragEnd() { dragData = null }
+
+const focusSectionRef = ref(null)
+let focusHandlers = null
+
+function removeFromFocus(id) {
+  focusCards.value = focusCards.value.filter(c => c.id !== id)
+}
 
 // ====== 创作者卡片 ======
 const creatorCards = computed(() => [
   {
-    id: 'articles',
-    icon: IconEdit,
-    title: '文章总览',
+    id: 'articles', icon: IconEdit, title: '文章总览',
     onClick: () => router.push('/editor'),
     body: () => h('div', { class: 'creator-stat' }, [
       h('span', { class: 'creator-num' }, postCount.value),
@@ -256,9 +336,7 @@ const creatorCards = computed(() => [
     ]),
   },
   {
-    id: 'files',
-    icon: IconUpload,
-    title: '文件管理',
+    id: 'files', icon: IconUpload, title: '文件管理',
     onClick: () => router.push('/upload'),
     body: () => h('div', null, [
       h('div', { class: 'creator-stat' }, [
@@ -274,9 +352,7 @@ const creatorCards = computed(() => [
     ]),
   },
   {
-    id: 'moderation',
-    icon: IconCheck,
-    title: '审核队列',
+    id: 'moderation', icon: IconCheck, title: '审核队列',
     onClick: () => router.push('/moderation'),
     body: () => moderationPending.value > 0
       ? h('div', { class: 'moderation-list' }, [
@@ -298,27 +374,17 @@ const creatorCards = computed(() => [
 const taskCards = computed(() => {
   const cards = [
     {
-      id: 'crawler',
-      icon: IconBug,
-      title: '爬虫任务',
+      id: 'crawler', icon: IconBug, title: '爬虫任务',
       onClick: () => router.push('/ops/crawler'),
-      body: () => h('div', { class: 'task-empty' }, [
-        h('span', null, '暂无爬虫任务'),
-      ]),
+      body: () => h('div', { class: 'task-empty' }, [h('span', null, '暂无爬虫任务')]),
     },
     {
-      id: 'cloud',
-      icon: IconCloud,
-      title: '云训练',
+      id: 'cloud', icon: IconCloud, title: '云训练',
       onClick: () => router.push('/ops/cloud'),
-      body: () => h('div', { class: 'task-empty' }, [
-        h('span', null, '暂无训练任务'),
-      ]),
+      body: () => h('div', { class: 'task-empty' }, [h('span', null, '暂无训练任务')]),
     },
     {
-      id: 'storage',
-      icon: IconStorage,
-      title: '存储管理',
+      id: 'storage', icon: IconStorage, title: '存储管理',
       onClick: () => router.push('/storage'),
       body: () => h('div', { class: 'storage-detail' }, [
         h('div', { class: 'storage-item' }, [
@@ -328,37 +394,23 @@ const taskCards = computed(() => {
       ]),
     },
     {
-      id: 'github',
-      icon: IconGithub,
-      title: 'GitHub 代理',
+      id: 'github', icon: IconGithub, title: 'GitHub 代理',
       onClick: () => router.push('/github'),
-      body: () => h('div', { class: 'task-empty' }, [
-        h('span', null, '管理追踪仓库'),
-      ]),
+      body: () => h('div', { class: 'task-empty' }, [h('span', null, '管理追踪仓库')]),
     },
     {
-      id: 'assets',
-      icon: IconApps,
-      title: '资产管理',
+      id: 'assets', icon: IconApps, title: '资产管理',
       onClick: () => router.push('/ops/assets'),
-      body: () => h('div', { class: 'task-empty' }, [
-        h('span', null, '暂无资产'),
-      ]),
+      body: () => h('div', { class: 'task-empty' }, [h('span', null, '暂无资产')]),
     },
   ]
 
-  // P0 管理员卡片
   if (level.value !== null && level.value <= 0) {
     cards.push({
-      id: 'admin',
-      icon: IconLock,
-      title: '管理员面板',
-      adminOnly: true,
-      onClick: () => router.push('/admin'),
+      id: 'admin', icon: IconLock, title: '管理员面板',
+      adminOnly: true, onClick: () => router.push('/admin'),
       body: () => h('div', { class: 'admin-task-body' }, [
-        h('span', { class: 'admin-stat' }, [
-          h('span', null, `${sysInfo.value.onlineUsers} 在线`),
-        ]),
+        h('span', { class: 'admin-stat' }, [h('span', null, `${sysInfo.value.onlineUsers} 在线`)]),
       ]),
     })
   }
@@ -371,78 +423,29 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('zh-CN')
 }
 
-// ====== 拖拽逻辑 ======
-let dragData = null
-
-function onDragStart(event, card, source) {
-  dragData = { card, source }
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', card.id)
-  // 设置拖拽图像
-  const el = event.target.closest('.task-card, .creator-card')
-  if (el) {
-    const rect = el.getBoundingClientRect()
-    event.dataTransfer.setDragImage(el, rect.width / 2, 20)
-  }
-}
-
-function onDragEnd() {
-  dragData = null
-}
-
-// 关注焦点区 drop 处理
-const focusSectionRef = ref(null)
-
-onMounted(() => {
-  const focusZone = document.getElementById('focus-zone')
-  if (!focusZone) return
-
-  focusZone.addEventListener('dragover', (e) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    focusZone.classList.add('drag-over')
-  })
-
-  focusZone.addEventListener('dragleave', () => {
-    focusZone.classList.remove('drag-over')
-  })
-
-  focusZone.addEventListener('drop', (e) => {
-    e.preventDefault()
-    focusZone.classList.remove('drag-over')
-    if (dragData && !focusCards.value.find(c => c.id === dragData.card.id)) {
-      focusCards.value.push({ ...dragData.card })
-    }
-  })
-})
-
-function removeFromFocus(id) {
-  focusCards.value = focusCards.value.filter(c => c.id !== id)
-}
-
+// ====== 状态加载 ======
 async function fetchStatus() {
   try {
-    const token = localStorage.getItem('veil_token')
-    if (!token) return
     const modRes = await fetch('/api/blog/moderation/pending?page=1&page_size=1', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(),
     })
     if (modRes.ok) {
       const data = await modRes.json()
       moderationPending.value = data.data?.total || 0
     }
-    // 存储用量
     const storageRes = await fetch('/api/oss/storage/stats?user_scope=true', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(),
     })
     if (storageRes.ok) {
       const sData = await storageRes.json()
       if (sData.code === 'ok') {
-        storageUsed.value = Math.round((sData.data.total_size || 0) / 1024 / 1024)
+        storageUsed.value = Math.round((sData.data.total_bytes || 0) / 1024 / 1024)
       }
     }
   } catch {}
 }
+
+let sysInfoTimer = null
 
 onMounted(async () => {
   await loadUser()
@@ -452,11 +455,44 @@ onMounted(async () => {
     if (saved) avatarUrl.value = saved
   }
   fetchStatus()
+  fetchSysInfo()
+  sysInfoTimer = setInterval(fetchSysInfo, 10000)
+
+  // 关注焦点 drop handler
+  const focusZone = document.getElementById('focus-zone')
+  const onDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    focusZone.classList.add('drag-over')
+  }
+  const onDragLeave = () => focusZone.classList.remove('drag-over')
+  const onDrop = (e) => {
+    e.preventDefault()
+    focusZone.classList.remove('drag-over')
+    if (dragData && !focusCards.value.find(c => c.id === dragData.card.id)) {
+      focusCards.value.push({ ...dragData.card })
+    }
+  }
+  if (focusZone) {
+    focusZone.addEventListener('dragover', onDragOver)
+    focusZone.addEventListener('dragleave', onDragLeave)
+    focusZone.addEventListener('drop', onDrop)
+  }
+})
+
+onUnmounted(() => {
+  if (sysInfoTimer) clearInterval(sysInfoTimer)
+  const focusZone = document.getElementById('focus-zone')
+  if (focusZone) {
+    focusZone.removeEventListener('dragover', onDragOver)
+    focusZone.removeEventListener('dragleave', onDragLeave)
+    focusZone.removeEventListener('drop', onDrop)
+  }
 })
 </script>
 
 <style scoped>
-/* ===== 整体布局：左侧锚定 + 右侧滚动 ===== */
+/* ===== 整体布局 ===== */
 .dashboard-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -578,20 +614,25 @@ onMounted(async () => {
   border-top: 1px solid var(--color-border-1);
 }
 
+/* ===== 监控大屏区 ===== */
+.monitor-section { margin-bottom: 24px; }
+.monitor-content { display: flex; gap: 12px; align-items: flex-start; }
+
+/* ===== 待办任务区 ===== */
+.todo-section { margin-bottom: 24px; }
+
 /* ===== 分区标题 ===== */
 .section-header {
   display: flex; align-items: center; gap: 8px;
   font-size: 15px; font-weight: 600; color: var(--color-text-2);
   margin-bottom: 12px;
 }
-
+.section-header:first-child { margin-top: 0; }
 .section-icon { width: 16px; height: 16px; color: var(--color-text-4); }
 .section-hint { font-size: 11px; color: var(--color-text-4); font-weight: 400; margin-left: auto; }
 
 /* ===== 关注焦点区 ===== */
-.focus-section {
-  margin-bottom: 24px;
-}
+.focus-section { margin-bottom: 24px; }
 
 .focus-grid {
   display: grid;
@@ -745,14 +786,8 @@ onMounted(async () => {
   transform: translateY(-2px);
 }
 
-.task-card.admin-task {
-  border-color: rgba(207,34,46,0.15);
-}
-
-.task-card.admin-task:hover {
-  border-color: #cf222e;
-}
-
+.task-card.admin-task { border-color: rgba(207,34,46,0.15); }
+.task-card.admin-task:hover { border-color: #cf222e; }
 .admin-task .admin-icon { color: #cf222e !important; }
 .admin-task-body { text-align: center; padding: 4px 0; }
 .admin-stat { font-size: 12px; color: var(--color-text-3); }
@@ -798,17 +833,9 @@ onMounted(async () => {
 
 /* ===== 响应式 ===== */
 @media (max-width: 900px) {
-  .dashboard-layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: static;
-  }
-  .creator-grid {
-    grid-template-columns: 1fr;
-  }
-  .task-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  .creator-grid { grid-template-columns: 1fr; }
+  .task-grid { grid-template-columns: repeat(2, 1fr); }
 }
 </style>

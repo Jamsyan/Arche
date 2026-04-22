@@ -202,7 +202,7 @@ const replyContents = ref({})
 const showReportModal = ref(false)
 const reportReason = ref('')
 
-const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
 
 const renderedContent = computed(() => {
   if (!post.value?.content) return ''

@@ -2,7 +2,11 @@
 
 import pytest
 
-from backend.core.container import ServiceContainer, CircularDependencyError, ServiceNotFoundError
+from backend.core.container import (
+    ServiceContainer,
+    CircularDependencyError,
+    ServiceNotFoundError,
+)
 
 
 def test_register_and_get(container):

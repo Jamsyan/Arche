@@ -17,12 +17,11 @@ const registry = {
   },
   2: {
     FileUpload: () => import('../components/platform/FileUpload.vue'),
-  },
-  1: {
     GitHubProxy: () => import('../components/github/Repo.vue'),
     P1Storage: () => import('../components/platform/P1Storage.vue'),
     ModerationPanel: () => import('../components/blog/Moderation.vue'),
   },
+  1: {},
   0: {
     CrawlerDashboard: () => import('../components/ops/CrawlerDashboard.vue'),
     CloudTraining: () => import('../components/ops/CloudTraining.vue'),

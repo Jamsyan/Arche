@@ -16,6 +16,7 @@ def test_safe_path_prevents_traversal():
     """路径穿越应被阻止。"""
     # 直接测试 _safe_path 的逻辑
     from pathlib import Path
+
     storage_root = Path("/safe/root").resolve()
 
     # 正常路径应通过

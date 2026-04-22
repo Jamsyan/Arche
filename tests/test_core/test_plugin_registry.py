@@ -81,12 +81,16 @@ def test_circular_dependency_detection():
     class A(BasePlugin):
         name = "a"
         requires = ["b"]
-        def setup(self, app): pass
+
+        def setup(self, app):
+            pass
 
     class B(BasePlugin):
         name = "b"
         requires = ["a"]
-        def setup(self, app): pass
+
+        def setup(self, app):
+            pass
 
     registry.register("a", A())
     registry.register("b", B())

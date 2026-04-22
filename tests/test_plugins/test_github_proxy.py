@@ -4,7 +4,12 @@ import pytest
 import time
 
 from backend.core.middleware import AppError
-from backend.plugins.github_proxy.services import GitHubProxyService, CacheEntry, RATE_LIMIT_WINDOW, RATE_LIMIT_MAX_REQUESTS
+from backend.plugins.github_proxy.services import (
+    GitHubProxyService,
+    CacheEntry,
+    RATE_LIMIT_WINDOW,
+    RATE_LIMIT_MAX_REQUESTS,
+)
 
 
 class MockConfig:

@@ -12,6 +12,10 @@
         <h1 class="page-title">用户管理</h1>
       </div>
       <a-space>
+        <a-button type="primary" size="small" @click="showCreateModal = true">
+          <template #icon><icon-plus /></template>
+          创建用户
+        </a-button>
         <a-button type="text" size="small" @click="fetchUsers" :loading="refreshing">
           <template #icon><icon-refresh /></template>
         </a-button>
@@ -133,6 +137,31 @@
         </div>
       </div>
     </a-drawer>
+
+    <!-- 创建用户弹窗 -->
+    <a-modal v-model:visible="showCreateModal" title="创建用户" @ok="confirmCreateUser" :mask-closable="false">
+      <a-form :model="createForm" layout="vertical">
+        <a-form-item field="email" label="邮箱">
+          <a-input v-model="createForm.email" placeholder="输入邮箱" />
+        </a-form-item>
+        <a-form-item field="username" label="用户名">
+          <a-input v-model="createForm.username" placeholder="输入用户名" />
+        </a-form-item>
+        <a-form-item field="password" label="密码">
+          <a-input-password v-model="createForm.password" placeholder="至少 6 位" />
+        </a-form-item>
+        <a-form-item field="level" label="权限等级">
+          <a-select v-model="createForm.level" size="large">
+            <a-option :value="0">P0 - 管理员</a-option>
+            <a-option :value="1">P1 - 高级用户</a-option>
+            <a-option :value="2">P2 - 中级用户</a-option>
+            <a-option :value="3">P3 - 初级用户</a-option>
+            <a-option :value="4">P4 - 注册用户</a-option>
+            <a-option :value="5">P5 - 访客</a-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -142,7 +171,7 @@ import { Message, Modal } from '@arco-design/web-vue'
 import LevelBadge from '../LevelBadge.vue'
 import { useAuth } from '../../router/auth.js'
 import {
-  IconUser, IconArrowLeft, IconHome, IconRefresh, IconDown,
+  IconUser, IconArrowLeft, IconHome, IconRefresh, IconDown, IconPlus,
   IconSwap, IconStop, IconCheck, IconEye,
 } from '@arco-design/web-vue/es/icon'
 
@@ -152,9 +181,12 @@ const refreshing = ref(false)
 const loading = ref(true)
 const showLevelModal = ref(false)
 const showDetailDrawer = ref(false)
+const showCreateModal = ref(false)
 const targetUser = ref(null)
 const detailUser = ref(null)
 const newLevel = ref(5)
+
+const createForm = ref({ email: '', username: '', password: '', level: 5 })
 
 const userStats = ref({ total: 0, active: 0, disabled: 0 })
 const users = ref([])
@@ -290,6 +322,44 @@ async function enableUser(user) {
 function viewUserDetail(user) {
   detailUser.value = user
   showDetailDrawer.value = true
+}
+
+async function confirmCreateUser() {
+  if (!createForm.value.email || !createForm.value.username || !createForm.value.password) {
+    Message.warning('请填写完整信息')
+    return
+  }
+  if (createForm.value.password.length < 6) {
+    Message.warning('密码至少 6 位')
+    return
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.value.email)) {
+    Message.warning('请输入有效的邮箱地址')
+    return
+  }
+  try {
+    const res = await fetch('/api/auth/admin/users', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        email: createForm.value.email.trim().toLowerCase(),
+        username: createForm.value.username,
+        password: createForm.value.password,
+        level: createForm.value.level,
+      }),
+    })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      Message.success(`用户 ${createForm.value.username} 创建成功`)
+      showCreateModal.value = false
+      createForm.value = { email: '', username: '', password: '', level: 5 }
+      await fetchUsers()
+    } else {
+      Message.error(result.message || '创建失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  }
 }
 
 onMounted(() => { fetchUsers() })

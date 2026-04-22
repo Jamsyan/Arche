@@ -4,9 +4,9 @@
       <!-- 左：Logo + 应用名 -->
       <div class="menubar-left">
         <router-link to="/" class="menubar-brand">
-          <img src="/logo.png" alt="Veil" class="menubar-logo" />
+          <img src="/logo.png" alt="锦年志" class="menubar-logo" />
         </router-link>
-        <span class="menubar-appname">Veil</span>
+        <span class="menubar-appname">锦年志</span>
         <span class="menubar-divider"></span>
         <span class="menubar-pagename">{{ currentPageTitle }}</span>
       </div>
@@ -29,7 +29,7 @@
       <div class="menubar-right">
         <span class="menubar-time">{{ currentTime }}</span>
         <template v-if="!isAuthenticated">
-          <a-button class="login-btn" @click="$router.push('/login')">
+          <a-button shape="circle" class="login-btn" @click="$router.push('/login')">
             <icon-user />
           </a-button>
         </template>
@@ -68,15 +68,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import LevelBadge from '../LevelBadge.vue'
 import { useAuth } from '../../router/auth.js'
+import { Message } from '@arco-design/web-vue'
 import {
   IconUser, IconHome, IconApps, IconExport, IconCamera,
 } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
+const router = useRouter()
 const { level, user, isAuthenticated, logout, loadUser } = useAuth()
 
 const userLevel = computed(() => level.value ?? 5)
@@ -96,7 +98,7 @@ const currentPageTitle = computed(() => {
   const path = route.path
   if (PAGE_TITLES[path]) return PAGE_TITLES[path]
   if (route.path.startsWith('/post/')) return '文章'
-  return 'Veil'
+  return '锦年志'
 })
 
 function updateClock() {
@@ -107,14 +109,18 @@ function updateClock() {
   })
 }
 updateClock()
-setInterval(updateClock, 10000)
+const clockTimer = setInterval(updateClock, 10000)
 
-function handleLogout() { logout() }
+onUnmounted(() => {
+  clearInterval(clockTimer)
+})
+
+function handleLogout() { logout(); router.push('/') }
 function handleAvatarChange() { fileInput.value?.click() }
 function onFileSelected(event) {
   const file = event.target.files?.[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) { alert('头像图片不能超过 2MB'); return }
+  if (file.size > 2 * 1024 * 1024) { Message.warning('头像图片不能超过 2MB'); return }
   const reader = new FileReader()
   reader.onload = (e) => {
     avatarUrl.value = e.target.result
@@ -166,14 +172,17 @@ onMounted(() => {
 .menubar-logo {
   width: 22px;
   height: 22px;
-  border-radius: 5px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .menubar-appname {
-  font-size: 13px;
-  font-weight: 700;
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 16px;
+  font-weight: 400;
   color: var(--color-text-1);
-  letter-spacing: -0.01em;
 }
 
 .menubar-divider {
