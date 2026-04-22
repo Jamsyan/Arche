@@ -1,8 +1,15 @@
 <template>
   <div class="upload-page">
-    <a-card :bordered="false" style="margin-bottom: 24px">
-      <a-typography-title :heading="5" style="margin: 0 0 16px">文件上传</a-typography-title>
+    <div class="page-header">
+      <div class="header-left">
+        <a-button type="text" size="mini" @click="$router.push('/platform')" class="back-btn">
+          <template #icon><icon-arrow-left /></template>
+        </a-button>
+        <h1 class="page-title">文件上传</h1>
+      </div>
+    </div>
 
+    <a-card :bordered="false" style="margin-bottom: 24px">
       <a-upload
         action="/api/oss/upload"
         :headers="uploadHeaders"
@@ -73,20 +80,18 @@ import { Message } from '@arco-design/web-vue'
 import {
   IconUpload,
   IconRefresh,
+  IconArrowLeft,
 } from '@arco-design/web-vue/es/icon'
 import { useAuth } from '../../router/auth.js'
 
-const { getToken, authHeaders } = useAuth()
+const { authHeaders } = useAuth()
 
 const uploading = ref(false)
 const uploadPercent = ref(0)
 const fileList = ref([])
 const loadingFiles = ref(false)
 
-const uploadHeaders = computed(() => {
-  const token = getToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
-})
+const uploadHeaders = computed(() => authHeaders())
 
 const columns = [
   { title: '文件名', dataIndex: 'name', width: 300 },
@@ -170,6 +175,17 @@ onMounted(() => {
   max-width: 1000px;
   margin: 0 auto;
 }
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.back-btn { padding: 2px; color: var(--color-text-3); }
+.back-btn:hover { color: var(--color-text-1); }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.page-title { margin: 0; font-size: 20px; font-weight: 600; color: var(--color-text-1); }
 
 .upload-page :deep(.arco-card) {
   border-radius: var(--border-radius-large);

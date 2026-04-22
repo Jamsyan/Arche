@@ -1,10 +1,14 @@
 <template>
   <div class="moderation-panel">
-    <a-page-header
-      title="审核面板"
-      subtitle="待审核的文章列表（仅 P0 可见）"
-      style="padding: 0; margin-bottom: 16px"
-    />
+    <div class="page-header">
+      <div class="header-left">
+        <a-button type="text" size="mini" @click="$router.push('/platform')" class="back-btn">
+          <template #icon><icon-arrow-left /></template>
+        </a-button>
+        <h1 class="page-title">审核面板</h1>
+      </div>
+      <span class="page-subtitle">待审核的文章列表</span>
+    </div>
 
     <a-table
       :columns="columns"
@@ -197,6 +201,17 @@ onMounted(() => {
   max-width: 1000px;
   margin: 0 auto;
 }
+.page-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.back-btn { padding: 2px; color: var(--color-text-3); }
+.back-btn:hover { color: var(--color-text-1); }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.page-title { margin: 0; font-size: 20px; font-weight: 600; color: var(--color-text-1); }
+.page-subtitle { font-size: 13px; color: var(--color-text-4); }
 .moderation-panel :deep(.arco-table) {
   border-radius: var(--border-radius-large);
   overflow: hidden;

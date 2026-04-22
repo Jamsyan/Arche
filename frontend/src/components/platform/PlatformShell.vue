@@ -1,32 +1,52 @@
 <template>
   <div class="platform-shell">
-    <header class="platform-header">
-      <!-- 左：Logo（点击回博客首页） -->
-      <router-link to="/" class="header-brand">
-        <img src="/logo.png" alt="Veil" class="logo-img" />
-      </router-link>
+    <header class="mac-menubar">
+      <!-- 左：Logo + 应用名 -->
+      <div class="menubar-left">
+        <router-link to="/" class="menubar-brand">
+          <img src="/logo.png" alt="Veil" class="menubar-logo" />
+        </router-link>
+        <span class="menubar-appname">Veil</span>
+        <span class="menubar-divider"></span>
+        <!-- 当前页面标题 -->
+        <span class="menubar-pagename">{{ currentPageTitle }}</span>
+      </div>
 
-      <!-- 中：纯线条图标导航 -->
-      <nav class="header-center">
-        <!-- 首页图标：跳回博客主页 -->
-        <router-link to="/" class="nav-icon-link" :class="{ active: route.path === '/' }" title="博客首页">
-          <icon-home class="nav-icon" />
-        </router-link>
-        <!-- 其他功能图标 -->
+      <!-- 中：Dock 快捷入口 -->
+      <nav class="menubar-center">
         <router-link
-          v-for="item in navItems"
-          :key="item.key"
-          :to="item.key"
-          class="nav-icon-link"
-          :class="{ active: currentPath === item.key || currentPath.startsWith(item.key + '/') }"
-          :title="item.label"
+          v-for="item in dock.alwaysItems"
+          :key="item.id"
+          :to="item.route"
+          class="dock-item"
+          :class="{ active: route.path === item.route }"
+          :title="item.title"
         >
-          <component :is="item.icon" class="nav-icon" />
+          <component :is="`icon-${item.icon}`" class="dock-icon" />
         </router-link>
+
+        <div v-if="dock.pinned.length > 0" class="dock-divider"></div>
+
+        <router-link
+          v-for="item in dock.pinned"
+          :key="item.id"
+          :to="item.route"
+          class="dock-item pinned"
+          :class="{ active: route.path.startsWith(item.route) }"
+          :title="item.title"
+        >
+          <component :is="`icon-${item.icon}`" class="dock-icon" />
+          <span class="dock-label">{{ item.title }}</span>
+        </router-link>
+
+        <div class="dock-item dock-add" @click="showDockPanel = true" title="添加快捷入口">
+          <icon-plus class="dock-icon" />
+        </div>
       </nav>
 
-      <!-- 右：用户头像 + 下拉菜单 -->
-      <div class="header-right">
+      <!-- 右：等级 + 头像 + 系统状态 -->
+      <div class="menubar-right">
+        <span class="menubar-time">{{ currentTime }}</span>
         <LevelBadge :level="userLevel" />
         <a-dropdown trigger="click" position="br">
           <div class="avatar-wrap" :class="{ 'has-avatar': avatarUrl }">
@@ -37,8 +57,8 @@
           </div>
           <template #content>
             <a-doption @click="$router.push('/platform')">
-              <template #icon><icon-user /></template>
-              个人中心
+              <template #icon><icon-apps /></template>
+              任务中心
             </a-doption>
             <a-doption @click="handleAvatarChange">
               <template #icon><icon-camera /></template>
@@ -50,20 +70,49 @@
             </a-doption>
           </template>
         </a-dropdown>
-        <!-- 隐藏的文件选择器 -->
-        <input
-          ref="fileInput"
-          type="file"
-          accept="image/*"
-          style="display: none"
-          @change="onFileSelected"
-        />
+        <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onFileSelected" />
       </div>
     </header>
 
     <main class="platform-main">
       <router-view />
     </main>
+
+    <!-- Dock 管理面板 -->
+    <a-modal v-model:visible="showDockPanel" title="管理快捷入口" width="480" :footer="false">
+      <div class="dock-panel">
+        <div class="dock-section">
+          <span class="dock-section-label">已添加</span>
+          <div v-if="dock.pinned.length === 0" class="dock-empty">暂无快捷入口</div>
+          <div v-else class="dock-list" id="dock-pinned-list">
+            <div
+              v-for="item in dock.pinned"
+              :key="item.id"
+              class="dock-list-item"
+              :draggable="true"
+              @dragstart="onDockDragStart($event, item)"
+              @dragend="onDockDragEnd"
+            >
+              <icon-drag-dot-vertical class="dock-drag-handle" />
+              <component :is="`icon-${item.icon}`" class="dock-list-icon" />
+              <span class="dock-list-title">{{ item.title }}</span>
+              <a-button type="text" size="mini" @click="dock.unpin(item.id)">移除</a-button>
+            </div>
+          </div>
+        </div>
+        <div class="dock-section">
+          <span class="dock-section-label">可添加</span>
+          <div v-if="dock.available.length === 0" class="dock-empty">没有更多可添加的入口</div>
+          <div v-else class="dock-list">
+            <div v-for="item in dock.available" :key="item.id" class="dock-list-item available">
+              <component :is="`icon-${item.icon}`" class="dock-list-icon" />
+              <span class="dock-list-title">{{ item.title }}</span>
+              <a-button type="text" size="mini" @click="dock.pin(item.id)">添加</a-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -72,76 +121,64 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LevelBadge from '../LevelBadge.vue'
 import { useAuth } from '../../router/auth.js'
+import { useDock } from '../../router/dock.js'
 import {
-  IconUser,
-  IconExport,
-  IconCamera,
-  IconHome,
-  IconApps,
-  IconEdit,
-  IconUpload,
-  IconGithub,
-  IconStorage,
-  IconCheck,
-  IconBug,
-  IconCloud,
+  IconExport, IconCamera, IconApps, IconPlus, IconDragDotVertical,
 } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
-const currentPath = computed(() => route.path)
-const { user } = useAuth()
+const { user, logout, level } = useAuth()
 
 const props = defineProps({ userLevel: { type: Number, default: 5 } })
-const emit = defineEmits(['logout'])
+
+const dockData = useDock(level.value ?? 5)
+const showDockPanel = dockData.showDockPanel
+const dock = dockData
 
 const fileInput = ref(null)
-
-// 头像管理（localStorage 存储 base64）
 const avatarUrl = ref(localStorage.getItem('veil_avatar') || '')
+const currentTime = ref('')
 
-const ICON_MAP = {
-  '/platform': IconApps,
-  '/editor': IconEdit,
-  '/upload': IconUpload,
-  '/github': IconGithub,
-  '/storage': IconStorage,
-  '/moderation': IconCheck,
-  '/ops/crawler': IconBug,
-  '/ops/cloud': IconCloud,
-  '/ops/assets': IconApps,
+const userInitial = computed(() => user.value?.username ? user.value.username[0].toUpperCase() : 'U')
+
+// 当前页面标题
+const PAGE_TITLES = {
+  '/platform': '任务中心',
+  '/editor': '文章编辑',
+  '/upload': '文件上传',
+  '/storage': '存储管理',
+  '/moderation': '审核面板',
+  '/github': 'GitHub 代理',
+  '/ops/crawler': '爬虫仪表盘',
+  '/ops/cloud': '云训练',
+  '/ops/assets': '资产管理',
+  '/admin': '管理员面板',
+  '/admin/users': '用户管理',
 }
 
-const navItems = computed(() => {
-  const items = [{ key: '/platform', label: '仪表盘' }]
-  if (props.userLevel <= 3) items.push({ key: '/editor', label: '编辑器' })
-  if (props.userLevel <= 2) items.push({ key: '/upload', label: '上传' })
-  if (props.userLevel <= 1) {
-    items.push({ key: '/github', label: 'GitHub' })
-    items.push({ key: '/storage', label: '存储' })
-    items.push({ key: '/moderation', label: '审核' })
+const currentPageTitle = computed(() => {
+  const path = route.path
+  // 精确匹配
+  if (PAGE_TITLES[path]) return PAGE_TITLES[path]
+  // 前缀匹配
+  for (const [p, title] of Object.entries(PAGE_TITLES)) {
+    if (path.startsWith(p) && p !== '/') return title
   }
-  if (props.userLevel <= 0) {
-    items.push({ key: '/ops/crawler', label: '爬虫' })
-    items.push({ key: '/ops/cloud', label: '云训练' })
-    items.push({ key: '/ops/assets', label: '资产' })
-  }
-  // 添加图标映射
-  return items.map(item => ({
-    ...item,
-    icon: ICON_MAP[item.key] || IconHome,
-  }))
+  return 'Veil'
 })
 
-const userInitial = computed(() => {
-  if (user.value?.username) {
-    return user.value.username[0].toUpperCase()
-  }
-  return 'U'
-})
-
-function handleLogout() {
-  emit('logout')
+// 时钟
+function updateClock() {
+  const now = new Date()
+  currentTime.value = now.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
+updateClock()
+setInterval(updateClock, 10000)
+
+function handleLogout() { logout() }
 
 function handleAvatarChange() {
   fileInput.value?.click()
@@ -150,30 +187,86 @@ function handleAvatarChange() {
 function onFileSelected(event) {
   const file = event.target.files?.[0]
   if (!file) return
-
-  // 限制大小 2MB
   if (file.size > 2 * 1024 * 1024) {
     alert('头像图片不能超过 2MB')
     return
   }
-
   const reader = new FileReader()
   reader.onload = (e) => {
-    const dataUrl = e.target.result
-    avatarUrl.value = dataUrl
-    localStorage.setItem('veil_avatar', dataUrl)
+    avatarUrl.value = e.target.result
+    localStorage.setItem('veil_avatar', e.target.result)
   }
   reader.readAsDataURL(file)
-  event.target.value = '' // 重置
+  event.target.value = ''
+}
+
+// Dock 拖拽排序
+let dockDragItem = null
+
+function onDockDragStart(event, item) {
+  dockDragItem = item
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', item.id)
+}
+
+function onDockDragEnd() {
+  dockDragItem = null
 }
 
 onMounted(() => {
-  // 从 localStorage 恢复头像
   const saved = localStorage.getItem('veil_avatar')
-  if (saved) {
-    avatarUrl.value = saved
-  }
+  if (saved) avatarUrl.value = saved
+
+  // Dock 列表拖拽排序
+  const dockList = document.getElementById('dock-pinned-list')
+  if (!dockList) return
+
+  dockList.addEventListener('dragover', (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const afterElement = getDragAfterElement(dockList, e.clientY)
+    const draggable = document.querySelector('.dock-list-item.dragging')
+    if (draggable) {
+      if (afterElement == null) {
+        dockList.appendChild(draggable)
+      } else {
+        dockList.insertBefore(draggable, afterElement)
+      }
+    }
+  })
+
+  dockList.addEventListener('drop', (e) => {
+    e.preventDefault()
+    // Reorder pinned items based on DOM order
+    const items = dockList.querySelectorAll('.dock-list-item')
+    const newOrder = []
+    items.forEach(el => {
+      const title = el.querySelector('.dock-list-title')?.textContent
+      const found = dock.pinned.find(p => p.title === title)
+      if (found) newOrder.push(found.id)
+    })
+    // Update pinned order in localStorage
+    if (newOrder.length > 0) {
+      const allPinned = JSON.parse(localStorage.getItem('veil_dock') || '[]')
+      const reordered = newOrder.filter(id => allPinned.includes(id))
+      const remaining = allPinned.filter(id => !newOrder.includes(id))
+      localStorage.setItem('veil_dock', JSON.stringify([...reordered, ...remaining]))
+      location.reload()
+    }
+  })
 })
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.dock-list-item:not(.dragging)')]
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect()
+    const offset = y - box.top - box.height / 2
+    if (offset < 0 && offset > closest.offset) {
+      return { offset, element: child }
+    }
+    return closest
+  }, { offset: Number.NEGATIVE_INFINITY }).element
+}
 </script>
 
 <style scoped>
@@ -181,96 +274,264 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--color-fill-1);
 }
-.platform-header {
+
+/* ===== macOS Menu Bar 风格 ===== */
+.mac-menubar {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  padding: 0 24px;
-  background: var(--color-bg-1);
-  border-bottom: 1px solid var(--color-border-1);
-  height: 56px;
+  padding: 0 16px;
+  height: 38px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.header-brand { display: flex; align-items: center; text-decoration: none; }
-.logo-img {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
-  animation: slideFromLeft 0.4s ease-out;
+/* 左侧：Logo + 应用名 + 页面名 */
+.menubar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 200px;
 }
 
-.header-center {
-  display: flex; justify-content: center; align-items: center; gap: 2px; overflow-x: auto;
-}
-.nav-icon-link {
-  display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px;
-  border-radius: var(--border-radius-medium);
+.menubar-brand {
+  display: flex;
+  align-items: center;
   text-decoration: none;
-  transition: background 0.15s;
-  flex-shrink: 0;
 }
-.nav-icon-link:hover { background: var(--color-fill-2); }
-.nav-icon-link.active { background: var(--color-fill-3); }
-.nav-icon {
-  width: 20px; height: 20px;
-  color: var(--color-text-3);
-}
-.nav-icon-link.active .nav-icon { color: var(--color-text-1); }
-.nav-icon-link:hover .nav-icon { color: var(--color-text-1); }
 
-.header-right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-.avatar-wrap { cursor: pointer; position: relative; }
+.menubar-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+.menubar-appname {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  letter-spacing: -0.01em;
+}
+
+.menubar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-2);
+  margin: 0 4px;
+}
+
+.menubar-pagename {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-2);
+}
+
+/* 中间：Dock */
+.menubar-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+}
+
+.dock-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-3);
+  transition: background 0.12s, color 0.12s;
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.dock-item:hover {
+  background: rgba(0,0,0,0.06);
+  color: var(--color-text-1);
+}
+
+.dock-item.active {
+  background: rgba(0,0,0,0.08);
+  color: var(--color-text-1);
+  font-weight: 500;
+}
+
+.dock-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.dock-label {
+  white-space: nowrap;
+}
+
+.dock-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border-1);
+  margin: 0 4px;
+}
+
+.dock-add {
+  color: var(--color-text-4);
+}
+
+.dock-add:hover {
+  color: var(--color-text-1);
+}
+
+/* 右侧：时间 + 等级 + 头像 */
+.menubar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.menubar-time {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.avatar-wrap {
+  cursor: pointer;
+}
+
 .avatar-circle {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: var(--color-primary); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 600;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08);
-  animation: slideFromRight 0.4s ease-out;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
   transition: box-shadow 0.15s;
 }
-.avatar-wrap:hover .avatar-circle { box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+
+.avatar-wrap:hover .avatar-circle {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
 .avatar-img {
-  width: 34px; height: 34px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08);
-  animation: slideFromRight 0.4s ease-out;
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
   transition: box-shadow 0.15s;
 }
-.avatar-wrap:hover .avatar-img { box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
 
+.avatar-wrap:hover .avatar-img {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* ===== 主内容区 ===== */
 .platform-main {
-  flex: 1; padding: 24px; background: var(--color-fill-1);
+  flex: 1;
+  padding: 20px 24px;
 }
 
-/* 动画 */
-@keyframes slideFromRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
+/* ===== Dock 管理面板 ===== */
+.dock-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-@keyframes slideFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
+
+.dock-section { }
+
+.dock-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.dock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dock-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-fill-1);
+  border-radius: var(--border-radius-small);
+  cursor: default;
+}
+
+.dock-list-item.available {
+  opacity: 0.7;
+}
+
+.dock-list-item.available:hover {
+  opacity: 1;
+}
+
+.dock-list-item[draggable="true"] {
+  cursor: grab;
+}
+
+.dock-list-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.dock-drag-handle {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-4);
+  flex-shrink: 0;
+}
+
+.dock-list-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-3);
+}
+
+.dock-list-title {
+  flex: 1;
+  font-size: 13px;
+}
+
+.dock-empty {
+  font-size: 12px;
+  color: var(--color-text-4);
+  padding: 12px 0;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .menubar-left { min-width: auto; }
+  .menubar-pagename { display: none; }
+  .menubar-right { min-width: auto; gap: 6px; }
+  .menubar-time { display: none; }
+  .dock-label { display: none; }
 }
 </style>

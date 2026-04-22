@@ -192,8 +192,8 @@ onMounted(() => {
 <style scoped>
 .layout-3col {
   display: grid;
-  grid-template-columns: 180px 1fr 180px;
-  gap: 24px;
+  grid-template-columns: 200px 1fr 200px;
+  gap: 32px;
   align-items: start;
 }
 
@@ -203,12 +203,23 @@ onMounted(() => {
   position: sticky;
   top: 80px;
 }
-.panel {
-  background: var(--color-bg-1);
-  border: 1px solid var(--color-border-1);
+.sidebar-left .panel {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0,0,0,0.06);
   border-radius: var(--border-radius-large);
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.sidebar-right .panel {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: var(--border-radius-large);
+  padding: 14px;
+  margin-bottom: 10px;
 }
 .panel-title {
   display: flex;

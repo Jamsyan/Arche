@@ -1,13 +1,13 @@
 <template>
   <div class="post-editor">
-    <a-page-header
-      :title="isEdit ? '编辑文章' : '发布新文章'"
-      style="padding: 0; margin-bottom: 16px"
-    >
-      <template #extra>
-        <a-button @click="$router.push('/')">返回列表</a-button>
-      </template>
-    </a-page-header>
+    <div class="page-header">
+      <div class="header-left">
+        <a-button type="text" size="mini" @click="$router.back()" class="back-btn">
+          <template #icon><icon-arrow-left /></template>
+        </a-button>
+        <h1 class="page-title">{{ isEdit ? '编辑文章' : '发布新文章' }}</h1>
+      </div>
+    </div>
 
     <a-form
       :model="form"
@@ -111,7 +111,7 @@ async function handleSubmit() {
 
     if (result.code === 'ok') {
       Message.success(isEdit.value ? '更新成功，文章重新进入审核' : '发布成功，文章等待审核')
-      router.push('/')
+      router.push('/platform')
     } else {
       Message.error(result.message || '操作失败')
     }
@@ -128,6 +128,16 @@ async function handleSubmit() {
   max-width: 760px;
   margin: 0 auto;
 }
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.back-btn { padding: 2px; color: var(--color-text-3); }
+.back-btn:hover { color: var(--color-text-1); }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.page-title { margin: 0; font-size: 20px; font-weight: 600; color: var(--color-text-1); }
 .post-editor :deep(.arco-form-item-label) {
   font-weight: 500;
 }
