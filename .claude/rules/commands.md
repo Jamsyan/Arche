@@ -1,6 +1,6 @@
 # 命令规则
 
-> 本目录定义了在 Veil 项目中允许和禁止使用的 shell 命令。
+> 本目录定义了在 Arche 项目中允许和禁止使用的 shell 命令。
 > Claude 在执行任何 Bash 操作前必须先查阅本规则。
 >
 > 本规则受 `constitution.md`（宪法）约束。

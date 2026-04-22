@@ -1,5 +1,5 @@
 [project]
-name = "veil"
+name = "arche"
 version = "0.1.0"
 description = "Personal modular platform - microkernel architecture"
 requires-python = ">=3.10"
@@ -23,6 +23,8 @@ dependencies = [
     "aliyun-python-sdk-ecs>=4.24",
     # Aliyun OSS SDK
     "oss2>=2.18",
+    # MinIO SDK (local object storage)
+    "minio>=7.2",
     # Playwright (crawler browser automation)
     "playwright>=1.40",
     # SSH/SFTP (cloud training remote deployment)
@@ -39,6 +41,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.408",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-httpx>=0.36.2",
