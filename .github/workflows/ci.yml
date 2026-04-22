@@ -7,14 +7,7 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  REGISTRY: registry.cn-shanghai.aliyuncs.com
-  IMAGE_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
-  IMAGE_BACKEND: Arche-backend
-  IMAGE_FRONTEND: Arche-frontend
-
 jobs:
-  # ── 阶段 1: 代码质量检查 ──
   check:
     runs-on: ubuntu-latest
     steps:
@@ -36,8 +29,7 @@ jobs:
       - name: Run tests
         run: uv run pytest
 
-  # ── 阶段 2: 前端构建 ──
-  frontend-build:
+  frontend-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

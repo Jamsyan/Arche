@@ -11,7 +11,8 @@
       "Bash(scp *)",
       "Bash(node -e ' *)",
       "WebSearch",
-      "WebFetch(domain:www.apache.org)"
+      "WebFetch(domain:www.apache.org)",
+      "Bash(gh run *)"
     ]
   }
 }

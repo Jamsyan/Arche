@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+
+jobs:
+  # ── 1. 计算版本号 ──
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.compute.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version tag
+        id: compute
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tag push: 直接用标签名，去掉 'v' 前缀
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "Using tag version: ${TAG}"
+          else
+            # Push to master: 基于最近标签递增 patch
+            LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            VERSION="${LATEST#v}"
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3)
+            NEXT_PATCH=$((PATCH + 1))
+            NEW_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+            git tag "$NEW_TAG"
+            git push origin "$NEW_TAG"
+
+            echo "tag=${NEW_TAG#v}" >> $GITHUB_OUTPUT
+            echo "Bumped to: ${NEW_TAG}"
+          fi
+
+  # ── 2. 构建镜像（自动登录，登录成功则推送） ──
+  build:
+    needs: version
+    uses: ./.github/workflows/build.yml
+    with:
+      image_tag: ${{ needs.version.outputs.tag }}
+    secrets: inherit
+
+  # ── 3. 触发部署 ──
+  deploy:
+    needs: [version, build]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      image_tag: ${{ needs.version.outputs.tag }}
+      ref: ${{ github.ref }}
+    secrets: inherit
