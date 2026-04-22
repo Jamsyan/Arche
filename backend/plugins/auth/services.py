@@ -86,6 +86,9 @@ class AuthService:
             ):
                 raise AuthError("用户名或密码错误")
 
+            if not user.is_active:
+                raise AuthError("账号已被禁用，请联系管理员")
+
             access_token = self._create_token(user, expires_hours=self.access_token_expire_hours)
             refresh_token = self._create_token(user, expires_days=self.refresh_token_expire_days)
 
@@ -174,6 +177,78 @@ class AuthService:
             "username": user.username,
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
+            "is_active": user.is_active,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
+
+    # --- 用户管理（P0） ---
+    async def list_users(self, page: int = 1, page_size: int = 20, status_filter: str | None = None) -> dict:
+        """分页查询用户列表，支持 active/disabled 过滤。"""
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            query = select(User)
+            if status_filter == "active":
+                query = query.where(User.is_active.is_(True))
+            elif status_filter == "disabled":
+                query = query.where(User.is_active.is_(False))
+
+            # 总数
+            count_query = select(func.count()).select_from(query.subquery())
+            total_result = await session.execute(count_query)
+            total = total_result.scalar()
+
+            # 分页
+            query = query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+            result = await session.execute(query)
+            users = result.scalars().all()
+
+            return {
+                "users": [self._user_to_dict(u) for u in users],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def get_user(self, user_id: uuid.UUID) -> dict | None:
+        """根据 ID 获取用户信息。"""
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(User).where(User.id == user_id)
+            )
+            user = result.scalar_one_or_none()
+            if user:
+                return self._user_to_dict(user)
+            return None
+
+    async def update_user(self, user_id: uuid.UUID, level: int | None = None, is_active: bool | None = None) -> dict:
+        """修改用户等级或状态。"""
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(User).where(User.id == user_id)
+            )
+            user = result.scalar_one_or_none()
+            if not user:
+                raise AppError("用户不存在", code="user_not_found", status_code=404)
+
+            if level is not None:
+                user.level = level
+            if is_active is not None:
+                user.is_active = is_active
+
+            await session.commit()
+            await session.refresh(user)
+            return self._user_to_dict(user)
+
+    async def disable_user(self, user_id: uuid.UUID) -> dict:
+        """禁用用户。"""
+        return await self.update_user(user_id, is_active=False)
+
+    async def enable_user(self, user_id: uuid.UUID) -> dict:
+        """启用用户。"""
+        return await self.update_user(user_id, is_active=True)
