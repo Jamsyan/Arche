@@ -2,19 +2,23 @@
 
 Assembly order:
 1. Load Config
-2. Initialize Database
-3. Create ServiceContainer, register built-in services
-4. Activate plugins (DAG-ordered setup)
-5. Register plugin services into container
-6. Setup middleware (CORS, error handlers)
-7. Register startup/shutdown hooks
+2. Configure Logging
+3. Initialize Database
+4. Create ServiceContainer, register built-in services
+5. Activate plugins (DAG-ordered setup)
+6. Register plugin services into container
+7. Setup middleware (CORS, error handlers)
+8. Register startup/shutdown hooks
 """
 
 from __future__ import annotations
 
+import logging
+import logging.config
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from .config import Config
 from .container import ServiceContainer
@@ -23,11 +27,57 @@ from .middleware import register_error_handlers, setup_cors
 from .plugin_registry import registry
 
 
+def _setup_logging(config: Config) -> None:
+    """Configure unified logging: console + optional file handler."""
+    log_level = config.get("LOG_LEVEL", "INFO").upper()
+    log_file = config.get("LOG_FILE")
+
+    handlers = ["console"]
+    logging_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(levelname)s:     %(message)s",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "level": log_level,
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": log_level,
+        },
+    }
+
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append("file")
+        logging_config["handlers"]["file"] = {
+            "class": "logging.FileHandler",
+            "formatter": "default",
+            "filename": str(log_path),
+            "level": log_level,
+            "encoding": "utf-8",
+        }
+        logging_config["root"]["handlers"] = handlers
+
+    logging.config.dictConfig(logging_config)
+
+
 def create_app() -> FastAPI:
     # 1. Load config
     config = Config()
 
-    # 2. Create container, register config
+    # 2. Configure logging (before anything else runs)
+    _setup_logging(config)
+
+    # 3. Create container, register config
     container = ServiceContainer()
 
     # Sync to module-level singleton for plugins that import it directly
@@ -37,7 +87,7 @@ def create_app() -> FastAPI:
 
     container.register("config", lambda c: config)
 
-    # 3. Init database (must be synchronous here — app factory cannot be async)
+    # 4. Init database (must be synchronous here — app factory cannot be async)
     database_url = config.get_required("DATABASE_URL")
     engine, session_factory = init_db(database_url)
 
@@ -45,8 +95,8 @@ def create_app() -> FastAPI:
         "db", lambda c: {"engine": engine, "session_factory": session_factory}
     )
 
-    # 4. Create app
-    app = FastAPI(title="Veil", version="0.1.0")
+    # 5. Create app
+    app = FastAPI(title="Arche", version="0.1.0")
 
     # Store container on app for dependency injection
     app.state.container = container
