@@ -104,12 +104,7 @@ for (const route of authRoutes) {
 
 // 全局前置守卫
 router.beforeEach((to) => {
-  const { level, initAuth } = useAuth()
-
-  // 首次初始化（刷新页面时从 localStorage 恢复状态）
-  if (level.value === null) {
-    initAuth()
-  }
+  const { level } = useAuth()
 
   // 已登录状态访问登录/注册页，重定向到首页
   if (to.name === 'login' || to.name === 'register') {

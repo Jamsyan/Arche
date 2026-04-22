@@ -144,12 +144,13 @@ export function useAuth() {
         level.value = parseInt(userData.level, 10)
         user.value = userData
         localStorage.setItem(LEVEL_KEY, String(userData.level))
-      } else {
-        // token 失效，清除状态
+      } else if (res.status === 401) {
+        // 仅 401 确认 token 失效，才清除本地状态
         logout()
       }
+      // 其他错误码（如 500/404）说明接口尚未就绪，保留本地状态
     } catch {
-      logout()
+      // 网络不可达，保留本地状态
     }
   }
 

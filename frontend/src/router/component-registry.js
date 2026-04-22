@@ -11,9 +11,7 @@ const registry = {
     BlogHome: () => import('../components/blog/Home.vue'),
     BlogPost: () => import('../components/blog/Post.vue'),
   },
-  4: {
-    BlogComment: () => import('../components/blog/Comment.vue'),
-  },
+  4: {},
   3: {
     BlogEditor: () => import('../components/blog/Editor.vue'),
   },
