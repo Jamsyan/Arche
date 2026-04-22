@@ -36,7 +36,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ── 1. 确定版本号 ──
+      # ── 1. 校验配置 ──
+      - name: Validate configuration
+        run: |
+          if [ -z "${{ env.IMAGE_NAMESPACE }}" ]; then
+            echo "Error: IMAGE_NAMESPACE is not set. Configure secrets.ALIYUN_REGISTRY_NAMESPACE."
+            exit 1
+          fi
+          echo "Registry:  ${{ env.REGISTRY }}"
+          echo "Namespace: ${{ env.IMAGE_NAMESPACE }}"
+
+      # ── 2. 确定版本号 ──
       - name: Resolve image tag
         id: resolve
         run: |
@@ -88,9 +98,10 @@ jobs:
           context: .
           file: Dockerfile.backend
           push: ${{ steps.login.outcome == 'success' }}
+          load: ${{ steps.login.outcome != 'success' }}
           tags: ${{ steps.tags.outputs.backend }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: ${{ steps.login.outcome == 'success' && 'type=gha,mode=max' || '' }}
 
       - name: Build frontend
         uses: docker/build-push-action@v6
@@ -98,9 +109,10 @@ jobs:
           context: .
           file: Dockerfile.frontend
           push: ${{ steps.login.outcome == 'success' }}
+          load: ${{ steps.login.outcome != 'success' }}
           tags: ${{ steps.tags.outputs.frontend }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: ${{ steps.login.outcome == 'success' && 'type=gha,mode=max' || '' }}
 
       # ── 5. 输出结果 ──
       - name: Summary
