@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+
+env:
+  REGISTRY: registry.cn-shanghai.aliyuncs.com
+  IMAGE_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
+  IMAGE_BACKEND: Arche-backend
+  IMAGE_FRONTEND: Arche-frontend
+
+jobs:
+  # ── 版本号计算 ──
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.compute.outputs.tag }}
+      is_tag: ${{ steps.compute.outputs.is_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version tag
+        id: compute
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tag push: use the tag directly, strip the 'v' prefix
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+            echo "Using tag version: ${TAG}"
+          else
+            # Push to master: bump patch from latest tag
+            LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            # Strip 'v' prefix and split
+            VERSION="${LATEST#v}"
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3)
+            NEXT_PATCH=$((PATCH + 1))
+            NEW_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+            # Create and push the new tag
+            git tag "$NEW_TAG"
+            git push origin "$NEW_TAG"
+
+            # Output without 'v' prefix for image tag
+            echo "tag=${NEW_TAG#v}" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "Bumped to: ${NEW_TAG}"
+          fi
+
+  # ── 构建镜像 ──
+  build:
+    needs: version
+    uses: ./.github/workflows/build.yml
+    with:
+      image_tag: ${{ needs.version.outputs.tag }}
+      push: true
+    secrets: inherit
+
+  # ── 触发部署 ──
+  deploy:
+    needs: [version, build]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      image_tag: ${{ needs.version.outputs.tag }}
+      ref: ${{ github.ref }}
+    secrets: inherit
