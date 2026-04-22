@@ -36,10 +36,22 @@ class CloudTrainingService:
 
         config = self.container.get("config")
         provider_name = config.get("CLOUD_PROVIDER", "mock")
-        credentials = {
-            "api_key": config.get("CLOUD_API_KEY", ""),
-            "api_secret": config.get("CLOUD_API_SECRET", ""),
-        }
+
+        if provider_name == "aliyun":
+            credentials = {
+                "access_key_id": config.get_required("ALIYUN_ACCESS_KEY_ID"),
+                "access_key_secret": config.get_required("ALIYUN_ACCESS_KEY_SECRET"),
+                "region": config.get("ALIYUN_REGION", "cn-shanghai"),
+                "security_group_id": config.get("ALIYUN_SECURITY_GROUP_ID", ""),
+                "vswitch_id": config.get("ALIYUN_VSWITCH_ID", ""),
+                "image_id": config.get("ALIYUN_IMAGE_ID", ""),
+            }
+        else:
+            credentials = {
+                "api_key": config.get("CLOUD_API_KEY", ""),
+                "api_secret": config.get("CLOUD_API_SECRET", ""),
+            }
+
         self._provider = get_provider(provider_name, credentials)
         return self._provider
 
