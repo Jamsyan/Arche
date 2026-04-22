@@ -25,7 +25,7 @@ dependencies = [
     # Aliyun OSS SDK
     "oss2>=2.18",
     # MinIO SDK (local object storage)
-    "minio>=7.2",
+    "minio>=7.2.20",
     # Playwright (crawler browser automation)
     "playwright>=1.40",
     # SSH/SFTP (cloud training remote deployment)
