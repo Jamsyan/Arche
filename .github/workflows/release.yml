@@ -19,7 +19,7 @@ jobs:
       tag: ${{ steps.compute.outputs.tag }}
       is_tag: ${{ steps.compute.outputs.is_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
