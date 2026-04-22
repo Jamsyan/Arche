@@ -99,7 +99,7 @@ jobs:
           file: Dockerfile.frontend
           push: ${{ steps.login.outcome == 'success' }}
           tags: ${{ steps.tags.outputs.frontend }}
-          cache-from: type:gha
+          cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # ── 5. 输出结果 ──
