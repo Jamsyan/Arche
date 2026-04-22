@@ -10,7 +10,8 @@
       "Bash(tar czf *)",
       "Bash(scp *)",
       "Bash(node -e ' *)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:www.apache.org)"
     ]
   }
 }

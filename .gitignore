@@ -1,11 +1,51 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
 *.egg-info/
-dist/
-node_modules/
-frontend/dist/
-*.env
-.idea
-.venv
-*.db
+*.egg
 
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files (never commit secrets)
+.env
+.env.*.local
+!.env.example
+
+# Database
+*.db
+*.sqlite3
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Build output
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# uv lock (generated, not committed for personal project)
+uv.lock
+
+# Storage (local data)
+storage/
+data/
+
+# SSL certificates
+/ssl/
