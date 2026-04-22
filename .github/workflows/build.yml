@@ -4,22 +4,17 @@ on:
   workflow_call:
     inputs:
       image_tag:
-        description: "Image tag to use (e.g., v0.1.3, latest)"
+        description: "Image tag (e.g., v0.1.3). Leave empty to auto-compute."
         required: false
         type: string
-        default: "latest"
-      push:
-        description: "Whether to push images to registry (true/false)"
-        required: false
-        type: string
-        default: "true"
+        default: ""
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to use (e.g., v0.1.3, latest)"
+        description: "Image tag (e.g., v0.1.3). Leave empty to auto-compute."
         required: false
         type: string
-        default: "latest"
+        default: ""
 
 env:
   REGISTRY: registry.cn-shanghai.aliyuncs.com
@@ -28,34 +23,43 @@ env:
   IMAGE_FRONTEND: Arche-frontend
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      backend_tags: ${{ steps.tags.outputs.backend }}
+      frontend_tags: ${{ steps.tags.outputs.frontend }}
+      can_push: ${{ steps.login.outcome == 'success' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      # ── 1. 确定版本号 ──
+      - name: Resolve image tag
+        id: resolve
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            TAG="${{ inputs.image_tag }}"
+          else
+            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
+            TAG="${TAG#v}"
+            if [ "$TAG" = "latest" ] || [ -z "$TAG" ]; then
+              TAG="latest"
+            fi
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Using tag: ${TAG}"
 
-      - name: Login to Aliyun Registry
-        if: inputs.push == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
-          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
-
+      # ── 2. 生成镜像标签 ──
       - name: Generate image tags
         id: tags
         run: |
-          TAG="${{ inputs.image_tag }}"
+          TAG="${{ steps.resolve.outputs.tag }}"
           BACKEND_TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_BACKEND }}:${TAG}"
           FRONTEND_TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_FRONTEND }}:${TAG}"
 
-          # Always add latest tag when building
           if [ "$TAG" != "latest" ]; then
             BACKEND_TAGS="${BACKEND_TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_BACKEND }}:latest"
             FRONTEND_TAGS="${FRONTEND_TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_FRONTEND }}:latest"
@@ -64,31 +68,47 @@ jobs:
           echo "backend=${BACKEND_TAGS}" >> $GITHUB_OUTPUT
           echo "frontend=${FRONTEND_TAGS}" >> $GITHUB_OUTPUT
 
-      - name: Build & push backend
+      # ── 3. 尝试登录镜像仓库 ──
+      - name: Login to Aliyun Registry
+        id: login
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+        continue-on-error: true
+
+      # ── 4. 构建镜像 ──
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.backend
-          push: ${{ inputs.push == 'true' }}
+          push: ${{ steps.login.outcome == 'success' }}
           tags: ${{ steps.tags.outputs.backend }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build & push frontend
+      - name: Build frontend
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.frontend
-          push: ${{ inputs.push == 'true' }}
+          push: ${{ steps.login.outcome == 'success' }}
           tags: ${{ steps.tags.outputs.frontend }}
-          cache-from: type=gha
+          cache-from: type:gha
           cache-to: type=gha,mode=max
 
+      # ── 5. 输出结果 ──
       - name: Summary
         run: |
           echo "Backend:  ${{ steps.tags.outputs.backend }}"
           echo "Frontend: ${{ steps.tags.outputs.frontend }}"
-
-    outputs:
-      backend_tags: ${{ steps.tags.outputs.backend }}
-      frontend_tags: ${{ steps.tags.outputs.frontend }}
+          if [ "${{ steps.login.outcome }}" = "success" ]; then
+            echo "Pushed:   yes"
+          else
+            echo "Pushed:   no (login failed or no credentials)"
+          fi
