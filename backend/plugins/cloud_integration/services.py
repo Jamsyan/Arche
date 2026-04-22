@@ -46,6 +46,11 @@ class CloudTrainingService:
                 "vswitch_id": config.get("ALIYUN_VSWITCH_ID", ""),
                 "image_id": config.get("ALIYUN_IMAGE_ID", ""),
             }
+        elif provider_name == "zhixingyun":
+            credentials = {
+                "api_key": config.get_required("ZHIXINGYUN_API_KEY"),
+                "api_secret": config.get_required("ZHIXINGYUN_API_SECRET"),
+            }
         else:
             credentials = {
                 "api_key": config.get("CLOUD_API_KEY", ""),

@@ -24,9 +24,11 @@ def get_provider(name: str, credentials: dict | None = None) -> CloudProvider:
 def _auto_register():
     from .mock import MockProvider
     from .aliyun import AliyunProvider
+    from .zhixingyun import ZhixingyunProvider
 
     register("mock", MockProvider)
     register("aliyun", AliyunProvider)
+    register("zhixingyun", ZhixingyunProvider)
 
 
 _auto_register()

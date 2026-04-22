@@ -21,7 +21,7 @@ class CrawlerPlugin(BasePlugin):
     name = "crawler"
     version = "0.2.0"
     requires = ["auth"]
-    optional = []
+    optional = ["oss"]
 
     def setup(self, app: "FastAPI") -> None:
         """注册路由。"""

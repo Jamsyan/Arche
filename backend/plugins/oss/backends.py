@@ -1,13 +1,16 @@
-"""Storage backend abstraction — 本地/阿里云统一接口，流式读写。"""
+"""Storage backend abstraction — MinIO（本地对象存储）/ 阿里云 OSS 统一接口。"""
 
 from __future__ import annotations
 
-import os
+import io
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator
 
+CHUNK_SIZE = 64 * 1024
+
 if TYPE_CHECKING:
+    from minio import Minio as MinioClient
     from backend.plugins.oss.aliyun import CloudStorageService
 
 
@@ -16,122 +19,127 @@ class StorageBackend(ABC):
 
     @abstractmethod
     async def upload_stream(
-        self, path: Path, stream: AsyncGenerator[bytes, None], size: int
+        self, key: str, stream: AsyncGenerator[bytes, None], size: int
     ) -> None:
         """流式写入文件。"""
         ...
 
     @abstractmethod
-    async def download(self, path: Path) -> AsyncGenerator[bytes, None]:
+    async def download(self, key: str) -> AsyncGenerator[bytes, None]:
         """流式读取文件，返回字节生成器。"""
         ...
 
     @abstractmethod
-    async def delete(self, path: Path) -> None:
+    async def delete(self, key: str) -> None:
         """删除文件。"""
         ...
 
     @abstractmethod
-    async def exists(self, path: Path) -> bool:
+    async def exists(self, key: str) -> bool:
         """检查文件是否存在。"""
         ...
 
     @abstractmethod
-    def get_disk_usage(self, root: Path) -> int:
-        """获取根目录下所有文件的总大小（用 os.scandir 迭代，比 rglob 快）。"""
+    def get_disk_usage(self) -> int:
+        """获取当前桶的总使用量（字节）。"""
         ...
 
     @property
     @abstractmethod
     def backend_type(self) -> str:
-        """返回后端类型标识，如 'local' / 'aliyun'。"""
+        """返回后端类型标识，如 'minio' / 'aliyun'。"""
         ...
 
 
-class LocalBackend(StorageBackend):
-    """本地文件系统存储后端，64KB chunk 流式读写。"""
+class MinIOBackend(StorageBackend):
+    """本地 MinIO 对象存储后端（S3 兼容）。"""
 
-    CHUNK = 64 * 1024
+    def __init__(self, client: "MinioClient", bucket: str):
+        self._client = client
+        self._bucket = bucket
+
+    def _ensure_bucket(self):
+        if not self._client.bucket_exists(self._bucket):
+            self._client.make_bucket(self._bucket)
 
     async def upload_stream(
-        self, path: Path, stream: AsyncGenerator[bytes, None], size: int
+        self, key: str, stream: AsyncGenerator[bytes, None], size: int
     ) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "wb") as f:
-            async for chunk in stream:
-                f.write(chunk)
+        self._ensure_bucket()
 
-    async def download(self, path: Path) -> AsyncGenerator[bytes, None]:
-        with open(path, "rb") as f:
-            while chunk := f.read(self.CHUNK):
-                yield chunk
+        # MinIO put_object 接受类文件对象，需要收集所有 chunk
+        chunks = [chunk async for chunk in stream]
+        data = b"".join(chunks)
+        self._client.put_object(
+            self._bucket,
+            key,
+            io.BytesIO(data),
+            length=len(data),
+        )
 
-    async def delete(self, path: Path) -> None:
-        if path.exists():
-            path.unlink()
-
-    async def exists(self, path: Path) -> bool:
-        return path.exists()
-
-    def get_disk_usage(self, root: Path) -> int:
-        total = 0
-        with os.scandir(root) as it:
-            for entry in it:
-                if entry.is_file():
-                    total += entry.stat().st_size
-                elif entry.is_dir(follow_symlinks=False):
-                    total += self._walk_dir(Path(entry.path))
-        return total
-
-    def _walk_dir(self, directory: Path) -> int:
-        total = 0
+    async def download(self, key: str) -> AsyncGenerator[bytes, None]:
+        response = self._client.get_object(self._bucket, key)
         try:
-            with os.scandir(directory) as it:
-                for entry in it:
-                    if entry.is_file():
-                        total += entry.stat().st_size
-                    elif entry.is_dir(follow_symlinks=False):
-                        total += self._walk_dir(Path(entry.path))
-        except OSError:
-            pass
+            while True:
+                chunk = response.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    async def delete(self, key: str) -> None:
+        self._client.remove_object(self._bucket, key)
+
+    async def exists(self, key: str) -> bool:
+        try:
+            self._client.stat_object(self._bucket, key)
+            return True
+        except Exception:
+            return False
+
+    def get_disk_usage(self) -> int:
+        """统计桶中所有对象的总大小。"""
+        total = 0
+        for obj in self._client.list_objects(self._bucket, recursive=True):
+            total += obj.size or 0
         return total
 
     @property
     def backend_type(self) -> str:
-        return "local"
+        return "minio"
 
 
 class AliyunBackend(StorageBackend):
-    """阿里云 OSS 存储后端（冷存储），包装 CloudStorageService。"""
-
-    CHUNK = 64 * 1024
+    """阿里云 OSS 存储后端（远程对象存储）。"""
 
     def __init__(self, cloud_service: "CloudStorageService"):
         self._cloud = cloud_service
 
     async def upload_stream(
-        self, path: Path, stream: AsyncGenerator[bytes, None], size: int
+        self, key: str, stream: AsyncGenerator[bytes, None], size: int
     ) -> None:
         chunks = [chunk async for chunk in stream]
         content = b"".join(chunks)
-        await self._cloud.upload(str(path), content)
+        await self._cloud.upload(key, content)
 
-    async def upload_from_file(self, object_key: str, local_path: Path) -> str:
+    async def upload_from_file(self, key: str, local_path: Path) -> str:
         """从本地文件上传到阿里云（用于冷热迁移）。"""
-        return await self._cloud.upload(object_key, local_path)
+        return await self._cloud.upload(key, local_path)
 
-    async def download(self, path: Path) -> AsyncGenerator[bytes, None]:
-        content = await self._cloud.download_bytes(str(path))
-        for i in range(0, len(content), self.CHUNK):
-            yield content[i : i + self.CHUNK]
+    async def download(self, key: str) -> AsyncGenerator[bytes, None]:
+        content = await self._cloud.download_bytes(key)
+        for i in range(0, len(content), CHUNK_SIZE):
+            yield content[i : i + CHUNK_SIZE]
 
-    async def delete(self, path: Path) -> None:
-        await self._cloud.delete(str(path))
+    async def delete(self, key: str) -> None:
+        await self._cloud.delete(key)
 
-    async def exists(self, path: Path) -> bool:
-        return await self._cloud.object_exists(str(path))
+    async def exists(self, key: str) -> bool:
+        return await self._cloud.object_exists(key)
 
-    def get_disk_usage(self, root: Path) -> int:
+    def get_disk_usage(self) -> int:
         return 0
 
     @property

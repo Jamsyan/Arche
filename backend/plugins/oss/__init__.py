@@ -77,9 +77,6 @@ class OSSPlugin(BasePlugin):
         except Exception as e:
             logger.warning(f"[OSS] APScheduler 启动失败: {e}")
 
-        # 清理残留临时文件
-        self._cleanup_temp_files()
-
     def on_shutdown(self) -> None:
         """关闭时停止调度器。"""
         if self._eviction_job and getattr(self._eviction_job, "running", False):

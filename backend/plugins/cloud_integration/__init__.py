@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 
 # 导入模型，确保在 create_all 前注册到 Base
 from backend.plugins.cloud_integration.models import (
-    TrainingJob,
-    TrainingInstance,
-    TrainingCost,
-)  # noqa: F401
+    TrainingJob as TrainingJob,
+    TrainingInstance as TrainingInstance,
+    TrainingCost as TrainingCost,
+)
 from backend.plugins.cloud_integration.routes import router
 from backend.plugins.cloud_integration.services import CloudTrainingService
 

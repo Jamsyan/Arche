@@ -13,11 +13,15 @@ PRICING_TABLE: dict[str, dict[str, float]] = {
         "RTX4090": 5.0,
         "default": 10.0,
     },
-    # 智云星（待接入）
-    "zhiyunxing": {
-        "A100": 18.0,
-        "H100": 30.0,
-        "default": 20.0,
+    # 智星云
+    "zhixingyun": {
+        "A100": 12.5,
+        "H100": 22.0,
+        "V100": 7.5,
+        "RTX4090": 4.5,
+        "RTX3090": 3.5,
+        "RTX3080": 3.0,
+        "default": 10.0,
     },
     # 阿里云（待接入）
     "aliyun": {

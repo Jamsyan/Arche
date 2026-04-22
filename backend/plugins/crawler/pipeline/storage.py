@@ -1,10 +1,9 @@
-"""Crawler plugin — 存储车间：生成文件写入 OSS。"""
+"""Crawler plugin — 存储车间：通过 OSS 服务写入，统一元数据注册。"""
 
 from __future__ import annotations
 
 import gzip
 import json
-import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,23 +14,24 @@ from backend.plugins.crawler.pipeline.base import BaseStage, CrawlItem
 # 超过此大小的内容使用 gzip 压缩
 _COMPRESS_THRESHOLD = 50_000
 
-# 本地存储根目录（可通过环境变量覆盖）
-_STORAGE_ROOT = Path(os.environ.get("CRAWLER_STORAGE_ROOT", "data/crawler"))
-
 
 class StorageStage(BaseStage):
-    """存储车间：一条任务产出一个文件（JSON 或 gzip），写入本地 OSS 目录。"""
+    """存储车间：通过 OSS 服务写入文件，自动注册到 oss_files 表。"""
 
     name = "storage"
 
     def __init__(self, container=None):
         self.container = container
-        self._storage_root = _STORAGE_ROOT
-        self._storage_root.mkdir(parents=True, exist_ok=True)
+        self._storage_service = None
+        if container and container.is_available("storage"):
+            self._storage_service = container.get("storage")
 
     async def process(self, item: CrawlItem) -> CrawlItem | None:
         if item.error or not item.quality_passed:
             return None
+
+        ts = int(time.time() * 1000)
+        domain = urlparse(item.url).netloc.replace(".", "_").replace(":", "_")
 
         # 生成文件内容
         record = {
@@ -49,23 +49,35 @@ class StorageStage(BaseStage):
         content_bytes = json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8")
 
         # 决定文件名和是否压缩
-        ts = int(time.time() * 1000)
-        domain = urlparse(item.url).netloc.replace(".", "_").replace(":", "_")
         if len(content_bytes) > _COMPRESS_THRESHOLD:
             filename = f"{domain}_{ts}.json.gz"
             content_bytes = gzip.compress(content_bytes)
         else:
             filename = f"{domain}_{ts}.json"
 
-        # 按域名分目录
-        dir_path = self._storage_root / domain.replace(".", "_").replace(":", "_")
-        dir_path.mkdir(parents=True, exist_ok=True)
-        file_path = dir_path / filename
+        mime_type = (
+            "application/gzip" if filename.endswith(".gz") else "application/json"
+        )
 
-        # 写入文件
-        file_path.write_bytes(content_bytes)
-
-        item.oss_path = str(file_path.relative_to(self._storage_root))
-        item.file_size = file_path.stat().st_size
+        # 通过 OSS 服务写入（注册到 oss_files 表，支持冷迁移）
+        if self._storage_service:
+            result = await self._storage_service.ingest_bytes(
+                content=content_bytes,
+                tenant_id="crawler",
+                filename=filename,
+                mime_type=mime_type,
+                is_private=True,
+            )
+            item.oss_path = result["path"]
+            item.file_size = result["size"]
+        else:
+            # 回退：直接写本地文件（无 oss_files 注册）
+            storage_root = Path("data/crawler")
+            dir_path = storage_root / domain
+            dir_path.mkdir(parents=True, exist_ok=True)
+            file_path = dir_path / filename
+            file_path.write_bytes(content_bytes)
+            item.oss_path = str(file_path.relative_to(storage_root))
+            item.file_size = file_path.stat().st_size
 
         return item
