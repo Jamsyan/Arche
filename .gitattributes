@@ -1,0 +1,27 @@
+# Set default line ending to LF (Unix-style) for all text files
+# This ensures consistency across Windows, macOS, and Linux
+* text=auto eol=lf
+
+# Binary files should always use CRLF-safe handling (no conversion)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar.gz binary
+
+# Windows batch scripts need CRLF to run natively
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Windows PowerShell scripts
+*.ps1 text eol=crlf
