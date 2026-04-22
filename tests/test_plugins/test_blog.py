@@ -1,6 +1,5 @@
 """Tests for Blog plugin — sensitive word filter and service logic."""
 
-import pytest
 
 from backend.plugins.blog.sensitive_words import (
     SensitiveWordFilter,

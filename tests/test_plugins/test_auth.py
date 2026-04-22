@@ -6,7 +6,6 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 
-from backend.core.middleware import AuthError
 
 
 def test_password_hashing():

@@ -1,11 +1,9 @@
 """Tests for OSS plugin — path safety, validation, quota."""
 
-import pytest
 import uuid
 
 from backend.plugins.oss.services import (
     StorageService,
-    StorageError,
     P1_QUOTA_BYTES,
     MAX_FILE_SIZE,
     ALLOWED_MIME_TYPES,

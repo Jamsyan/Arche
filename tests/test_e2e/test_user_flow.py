@@ -41,7 +41,7 @@ def test_require_user_raises_on_missing():
 def test_require_level_pass():
     """用户等级满足时应放行。"""
     from backend.core.middleware import require_level
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import Mock
 
     user = {"id": "1", "username": "test", "level": 2}
 
@@ -59,7 +59,6 @@ def test_require_level_pass():
 
 def test_require_level_fails():
     """用户等级不足时应拒绝。"""
-    from backend.core.middleware import PermissionError
     from unittest.mock import Mock
 
     user = {"id": "1", "username": "test", "level": 4}
