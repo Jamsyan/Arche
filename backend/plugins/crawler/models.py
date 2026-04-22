@@ -1,73 +1,28 @@
-"""Crawler plugin — 数据模型。"""
+"""Crawler plugin — 数据模型：漫游爬虫抓取记录。"""
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, DateTime, Integer, String, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from backend.core.db import Base
 
 
-class CrawlTask(Base):
-    """爬虫任务表。"""
+class CrawlRecord(Base):
+    """漫游爬虫抓取记录（用于资产聚合查询和前端展示）。"""
 
-    __tablename__ = "crawl_tasks"
+    __tablename__ = "crawl_records"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
-    seed_urls: Mapped[str] = mapped_column(
-        Text, nullable=False
-    )  # JSON 数组字符串，如 ["https://example.com"]
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="pending"
-    )  # pending / running / paused / completed / failed
-    schedule_interval: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )  # 调度间隔（小时），0 表示仅执行一次
-    max_depth: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1
-    )  # 链接扩展深度
-    max_pages: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=100
-    )  # 最大抓取页数
-    concurrency: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=3
-    )  # 并发数
-    request_delay: Mapped[float] = mapped_column(
-        Integer, nullable=False, default=1
-    )  # 同站请求间隔秒数（存储为整数秒 * 100）
-    respect_robots: Mapped[bool] = mapped_column(
-        Integer, nullable=False, default=1
-    )  # 1 = True, 0 = False
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-
-class CrawlResult(Base):
-    """爬虫结果表。"""
-
-    __tablename__ = "crawl_results"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    content: Mapped[str | None] = mapped_column(Text, nullable=True)
-    raw_html: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status_code: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    headers: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON 字符串
-    crawled_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    url = Column(String(2048), nullable=False)
+    title = Column(String(512), nullable=True)
+    content_type = Column(
+        String(64), nullable=True
+    )  # article/post/nav/ad/functional/other
+    status_code = Column(Integer, default=0)
+    source = Column(String(256), nullable=True)  # 来源域名/页面
+    crawled_at = Column(DateTime(timezone=True), server_default=func.now())
+    file_path = Column(String(1024), nullable=True)  # OSS 中文件路径
+    file_size = Column(Integer, default=0)  # 文件大小（字节）

@@ -10,7 +10,6 @@ import uuid
 from sqlalchemy import func, select
 
 
-
 class AssetMgmtService:
     """资产管理服务：跨插件聚合查询、搜索、统计。"""
 
@@ -40,16 +39,20 @@ class AssetMgmtService:
                 query = select(BlogPost).where(BlogPost.author_id == owner_id)
                 result = await session.execute(query)
                 for post in result.scalars().all():
-                    assets.append({
-                        "id": str(post.id),
-                        "asset_type": "blog_post",
-                        "source_id": str(post.id),
-                        "title": post.title,
-                        "description": post.content[:200] if post.content else None,
-                        "tags": [],
-                        "created_at": post.created_at.isoformat() if post.created_at else None,
-                        "source_plugin": "blog",
-                    })
+                    assets.append(
+                        {
+                            "id": str(post.id),
+                            "asset_type": "blog_post",
+                            "source_id": str(post.id),
+                            "title": post.title,
+                            "description": post.content[:200] if post.content else None,
+                            "tags": [],
+                            "created_at": post.created_at.isoformat()
+                            if post.created_at
+                            else None,
+                            "source_plugin": "blog",
+                        }
+                    )
 
             # OSS files
             if asset_type is None or asset_type == "file":
@@ -58,36 +61,44 @@ class AssetMgmtService:
                 query = select(OSSFile).where(OSSFile.owner_id == owner_id)
                 result = await session.execute(query)
                 for f in result.scalars().all():
-                    assets.append({
-                        "id": str(f.id),
-                        "asset_type": "file",
-                        "source_id": str(f.id),
-                        "title": f.path.rsplit("/", 1)[-1] if "/" in f.path else f.path,
-                        "description": f.mime_type,
-                        "tags": [],
-                        "created_at": f.created_at.isoformat() if f.created_at else None,
-                        "source_plugin": "oss",
-                    })
+                    assets.append(
+                        {
+                            "id": str(f.id),
+                            "asset_type": "file",
+                            "source_id": str(f.id),
+                            "title": f.path.rsplit("/", 1)[-1]
+                            if "/" in f.path
+                            else f.path,
+                            "description": f.mime_type,
+                            "tags": [],
+                            "created_at": f.created_at.isoformat()
+                            if f.created_at
+                            else None,
+                            "source_plugin": "oss",
+                        }
+                    )
 
             # Crawl results
             if asset_type is None or asset_type == "crawl_result":
-                from backend.plugins.crawler.models import CrawlResult
+                from backend.plugins.crawler.models import CrawlRecord
 
-                # 先找到该用户的任务 ID（通过任务名关联，当前没有 owner_id 字段，
-                # 所以查询所有 crawl_result）
-                query = select(CrawlResult)
+                query = select(CrawlRecord)
                 result = await session.execute(query)
                 for cr in result.scalars().all():
-                    assets.append({
-                        "id": str(cr.id),
-                        "asset_type": "crawl_result",
-                        "source_id": str(cr.id),
-                        "title": cr.title or cr.url,
-                        "description": cr.url,
-                        "tags": [],
-                        "created_at": cr.crawled_at.isoformat() if cr.crawled_at else None,
-                        "source_plugin": "crawler",
-                    })
+                    assets.append(
+                        {
+                            "id": str(cr.id),
+                            "asset_type": "crawl_result",
+                            "source_id": str(cr.id),
+                            "title": cr.title or cr.url,
+                            "description": cr.url,
+                            "tags": [],
+                            "created_at": cr.crawled_at.isoformat()
+                            if cr.crawled_at
+                            else None,
+                            "source_plugin": "crawler",
+                        }
+                    )
 
             # Training jobs
             if asset_type is None or asset_type == "training_job":
@@ -96,16 +107,20 @@ class AssetMgmtService:
                 query = select(TrainingJob).where(TrainingJob.creator_id == owner_id)
                 result = await session.execute(query)
                 for job in result.scalars().all():
-                    assets.append({
-                        "id": str(job.id),
-                        "asset_type": "training_job",
-                        "source_id": str(job.id),
-                        "title": job.name,
-                        "description": job.status,
-                        "tags": [],
-                        "created_at": job.created_at.isoformat() if job.created_at else None,
-                        "source_plugin": "cloud_integration",
-                    })
+                    assets.append(
+                        {
+                            "id": str(job.id),
+                            "asset_type": "training_job",
+                            "source_id": str(job.id),
+                            "title": job.name,
+                            "description": job.status,
+                            "tags": [],
+                            "created_at": job.created_at.isoformat()
+                            if job.created_at
+                            else None,
+                            "source_plugin": "cloud_integration",
+                        }
+                    )
 
         # 按创建时间倒序排序
         assets.sort(key=lambda x: x["created_at"] or "", reverse=True)
@@ -132,7 +147,9 @@ class AssetMgmtService:
     ) -> list[dict]:
         """按关键词搜索资产，支持类型和时间范围过滤。"""
 
-        all_assets = await self.list_assets(owner_id, page=1, page_size=10000, asset_type=asset_type)
+        all_assets = await self.list_assets(
+            owner_id, page=1, page_size=10000, asset_type=asset_type
+        )
 
         results = []
         keyword_lower = keyword.lower()
@@ -163,7 +180,7 @@ class AssetMgmtService:
         """按类型分组统计用户资产。"""
         from backend.plugins.blog.models import BlogPost
         from backend.plugins.cloud_integration.models import TrainingJob
-        from backend.plugins.crawler.models import CrawlResult
+        from backend.plugins.crawler.models import CrawlRecord
         from backend.plugins.oss.models import OSSFile
 
         async with self.session_factory() as session:
@@ -174,19 +191,20 @@ class AssetMgmtService:
 
             # OSS files
             file_result = await session.execute(
-                select(func.count(OSSFile.id), func.sum(OSSFile.size))
-                .where(OSSFile.owner_id == owner_id)
+                select(func.count(OSSFile.id), func.sum(OSSFile.size)).where(
+                    OSSFile.owner_id == owner_id
+                )
             )
             file_row = file_result.one()
 
             # Crawl results（当前没有 owner_id，统计全部）
-            crawl_count = await session.execute(
-                select(func.count(CrawlResult.id))
-            )
+            crawl_count = await session.execute(select(func.count(CrawlRecord.id)))
 
             # Training jobs
             job_count = await session.execute(
-                select(func.count(TrainingJob.id)).where(TrainingJob.creator_id == owner_id)
+                select(func.count(TrainingJob.id)).where(
+                    TrainingJob.creator_id == owner_id
+                )
             )
 
         return {

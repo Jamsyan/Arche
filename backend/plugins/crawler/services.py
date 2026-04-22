@@ -1,472 +1,287 @@
-"""Crawler plugin — 业务逻辑：Playwright 抓取、链接扩展、去重、限流、结果存储。"""
+"""Crawler plugin — 总调度器：CrawlerOrchestrator。
+
+全局并发控制、流水线编排、状态查询。
+"""
 
 from __future__ import annotations
 
 import asyncio
-import json
-import uuid
+import time
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
-from sqlalchemy import func, select
+from backend.core.container import ServiceContainer
+from backend.plugins.crawler.models import CrawlRecord
+from backend.plugins.crawler.pipeline import (
+    CrawlItem,
+    FetchStage,
+    ParseStage,
+    ClassifyStage,
+    QualityStage,
+    StorageStage,
+)
+from backend.plugins.crawler.seed_manager import SeedManager
+from backend.plugins.crawler.url_scheduler import UrlScheduler
 
-from backend.core.middleware import AppError
 
-from .link_extractor import extract_links
-from .rate_limiter import RateLimiter
-from .robots_checker import RobotsChecker
-from .url_dedup import URLDedup
+class CrawlerOrchestrator:
+    """总调度器：全局并发控制、流水线编排、状态查询。"""
 
-
-class CrawlerService:
-    """爬虫服务：任务 CRUD、Playwright 抓取、链接扩展、去重、限流。"""
-
-    def __init__(self, container):
+    def __init__(self, container: ServiceContainer):
         self.container = container
-        db = container.get("db")
-        self.session_factory = db["session_factory"]
+        self.seed_manager = SeedManager(container)
+        self.url_scheduler = UrlScheduler(max_global=5, max_per_domain=2)
+        self.fetch_stage = FetchStage()
+        self.parse_stage = ParseStage()
+        self.classify_stage = ClassifyStage()
+        self.quality_stage = QualityStage()
+        self.storage_stage = StorageStage(container)
 
-        # 共享组件实例
-        self._dedup = URLDedup()
-        self._robots_checker = RobotsChecker()
-        self._rate_limiter = RateLimiter()
+        self._running = False
+        self._start_time: float | None = None
+        self._pages_crawled = 0
+        self._pages_rejected = 0
+        self._task: asyncio.Task | None = None
 
-    # --- BrowserManager 生命周期 ---
-    async def set_browser_manager(self, browser_manager):
-        """设置浏览器管理器（由插件 on_startup 注入）。"""
-        self._browser_manager = browser_manager
+    async def start(self) -> None:
+        """启动常驻守护进程。"""
+        if self._running:
+            return
+        self._running = True
+        self._start_time = time.monotonic()
+        await self.seed_manager.initialize()
+        self._task = asyncio.create_task(self._daemon_loop())
 
-    # --- 任务 CRUD ---
-
-    async def create_task(
-        self,
-        name: str,
-        seed_urls: list[str],
-        schedule_interval: int = 0,
-    ) -> dict:
-        """创建爬虫任务。"""
-        from backend.plugins.crawler.models import CrawlTask
-
-        async with self.session_factory() as session:
-            task = CrawlTask(
-                name=name,
-                seed_urls=json.dumps(seed_urls, ensure_ascii=False),
-                schedule_interval=schedule_interval,
-            )
-            session.add(task)
-            await session.commit()
-            await session.refresh(task)
-
-            return self._task_to_dict(task)
-
-    async def list_tasks(
-        self,
-        page: int = 1,
-        page_size: int = 20,
-        status_filter: str | None = None,
-    ) -> dict:
-        """获取任务列表（分页）。"""
-        from backend.plugins.crawler.models import CrawlTask
-
-        offset = (page - 1) * page_size
-
-        async with self.session_factory() as session:
-            query = select(CrawlTask)
-            count_query = select(func.count()).select_from(CrawlTask)
-
-            if status_filter:
-                query = query.where(CrawlTask.status == status_filter)
-                count_query = count_query.where(CrawlTask.status == status_filter)
-
-            total_result = await session.execute(count_query)
-            total = total_result.scalar_one()
-
-            query = query.order_by(CrawlTask.created_at.desc())
-            query = query.offset(offset).limit(page_size)
-
-            result = await session.execute(query)
-            tasks = result.scalars().all()
-
-            return {
-                "items": [self._task_to_dict(t) for t in tasks],
-                "total": total,
-                "page": page,
-                "page_size": page_size,
-            }
-
-    async def get_task(self, task_id: uuid.UUID) -> dict:
-        """获取任务详情。"""
-        from backend.plugins.crawler.models import CrawlTask
-
-        async with self.session_factory() as session:
-            result = await session.execute(
-                select(CrawlTask).where(CrawlTask.id == task_id)
-            )
-            task = result.scalar_one_or_none()
-            if not task:
-                raise AppError(
-                    "任务不存在", code="task_not_found", status_code=404
-                )
-            return self._task_to_dict(task)
-
-    async def update_task_status(
-        self, task_id: uuid.UUID, status: str
-    ) -> dict:
-        """更新任务状态。"""
-        from backend.plugins.crawler.models import CrawlTask
-
-        valid_statuses = {"pending", "running", "paused", "completed", "failed"}
-        if status not in valid_statuses:
-            raise AppError(
-                f"无效状态: {status}", code="invalid_status", status_code=400
-            )
-
-        async with self.session_factory() as session:
-            result = await session.execute(
-                select(CrawlTask).where(CrawlTask.id == task_id)
-            )
-            task = result.scalar_one_or_none()
-            if not task:
-                raise AppError(
-                    "任务不存在", code="task_not_found", status_code=404
-                )
-
-            task.status = status
-            await session.commit()
-            await session.refresh(task)
-
-            return self._task_to_dict(task)
-
-    async def delete_task(self, task_id: uuid.UUID) -> None:
-        """删除任务及其关联结果。"""
-        from backend.plugins.crawler.models import CrawlResult, CrawlTask
-
-        async with self.session_factory() as session:
-            # 先删除关联结果
-            await session.execute(
-                CrawlResult.__table__.delete().where(
-                    CrawlResult.task_id == task_id
-                )
-            )
-            # 再删除任务
-            result = await session.execute(
-                select(CrawlTask).where(CrawlTask.id == task_id)
-            )
-            task = result.scalar_one_or_none()
-            if not task:
-                raise AppError(
-                    "任务不存在", code="task_not_found", status_code=404
-                )
-            await session.delete(task)
-            await session.commit()
-
-    # --- 结果管理 ---
-
-    async def list_results(
-        self,
-        task_id: uuid.UUID,
-        page: int = 1,
-        page_size: int = 20,
-    ) -> dict:
-        """获取任务的结果列表（分页）。"""
-        from backend.plugins.crawler.models import CrawlResult, CrawlTask
-
-        # 验证任务存在
-        async with self.session_factory() as session:
-            task_result = await session.execute(
-                select(CrawlTask).where(CrawlTask.id == task_id)
-            )
-            if not task_result.scalar_one_or_none():
-                raise AppError(
-                    "任务不存在", code="task_not_found", status_code=404
-                )
-
-        offset = (page - 1) * page_size
-
-        async with self.session_factory() as session:
-            count_result = await session.execute(
-                select(func.count()).where(CrawlResult.task_id == task_id)
-            )
-            total = count_result.scalar_one()
-
-            result = await session.execute(
-                select(CrawlResult)
-                .where(CrawlResult.task_id == task_id)
-                .order_by(CrawlResult.crawled_at.desc())
-                .offset(offset)
-                .limit(page_size)
-            )
-            items = result.scalars().all()
-
-            return {
-                "items": [self._result_to_dict(r) for r in items],
-                "total": total,
-                "page": page,
-                "page_size": page_size,
-            }
-
-    async def get_result(self, result_id: uuid.UUID) -> dict:
-        """获取单条结果详情。"""
-        from backend.plugins.crawler.models import CrawlResult
-
-        async with self.session_factory() as session:
-            result = await session.execute(
-                select(CrawlResult).where(CrawlResult.id == result_id)
-            )
-            item = result.scalar_one_or_none()
-            if not item:
-                raise AppError(
-                    "结果不存在", code="result_not_found", status_code=404
-                )
-            return self._result_to_dict(item)
-
-    # --- 抓取逻辑 ---
-
-    async def crawl_url(self, url: str) -> dict:
-        """抓取单个 URL，返回解析后的数据。"""
-        # robots.txt 检查
-        if not await self._robots_checker.is_allowed(url):
-            raise AppError("robots.txt 禁止爬取", code="robots_disallowed", status_code=403)
-
-        # Playwright 抓取
-        browser_manager = getattr(self, "_browser_manager", None)
-        if browser_manager:
+    async def stop(self) -> None:
+        """优雅关闭。"""
+        self._running = False
+        if self._task:
+            self._task.cancel()
             try:
-                data = await browser_manager.fetch_page(url)
-                return {
-                    "url": data["final_url"],
-                    "title": data["title"],
-                    "content": data["text"],
-                    "raw_html": data["html"][:100000],
-                    "status_code": data["status_code"],
-                    "headers": json.dumps(data["headers"], ensure_ascii=False),
-                    "links": data["links"],
-                }
-            except Exception as e:
-                raise AppError(f"浏览器抓取失败: {e}", code="crawl_error", status_code=502)
-        else:
-            # Fallback: httpx 简易抓取（无浏览器时）
-            import httpx
-            try:
-                async with httpx.AsyncClient(
-                    timeout=30.0,
-                    follow_redirects=True,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Veil Crawler/0.1.0)",
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    },
-                ) as client:
-                    response = await client.get(url)
-                    html = response.text
-                    # 提取 title
-                    import re
-                    title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
-                    title = title_match.group(1).strip() if title_match else None
-                    # 简易文本
-                    text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
-                    text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE)
-                    text = re.sub(r"<[^>]+>", " ", text)
-                    text = re.sub(r"\s+", " ", text).strip()[:10000]
-                    # 提取链接
-                    links = extract_links(html, str(response.url))
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
 
-                    return {
-                        "url": str(response.url),
-                        "title": title,
-                        "content": text,
-                        "raw_html": html[:100000],
-                        "status_code": response.status_code,
-                        "headers": json.dumps(dict(response.headers), ensure_ascii=False),
-                        "links": links,
-                    }
-            except httpx.TimeoutException:
-                raise AppError("请求超时", code="crawl_timeout", status_code=504)
-            except httpx.RequestError as e:
-                raise AppError(f"请求失败: {e}", code="request_error", status_code=502)
+    def set_browser_manager(self, browser_manager):
+        """注入浏览器管理器到 FetchStage。"""
+        self.fetch_stage.set_browser(browser_manager)
 
-    async def execute_task(self, task_id: uuid.UUID) -> list[dict]:
-        """执行一个爬虫任务，支持链接扩展和并发控制。"""
-        from backend.plugins.crawler.models import CrawlResult, CrawlTask
+    async def _daemon_loop(self) -> None:
+        """主循环：不断从种子池取 URL、送入流水线。"""
+        active_tasks: list[asyncio.Task] = []
+        while self._running:
+            # 清理已完成的任务
+            active_tasks = [t for t in active_tasks if not t.done()]
 
-        async with self.session_factory() as session:
-            result = await session.execute(
-                select(CrawlTask).where(CrawlTask.id == task_id)
-            )
-            task = result.scalar_one_or_none()
-            if not task:
-                raise AppError("任务不存在", code="task_not_found", status_code=404)
+            # 如果还有并发配额，取新种子
+            if self.url_scheduler.active_count < self.url_scheduler._max_global:
+                url = self.seed_manager.pop_seed()
+                if url:
+                    task = asyncio.create_task(self._run_pipeline(url))
+                    active_tasks.append(task)
+                    # 佛系模式：随机停留
+                    delay = asyncio.uniform(1, 30) if hasattr(asyncio, "uniform") else 5
+                    import random
 
-            if task.status == "running":
-                raise AppError("任务正在运行中", code="task_running", status_code=409)
+                    delay = random.uniform(1, 30)
+                    await asyncio.sleep(delay)
+                else:
+                    # 种子池空了，等待
+                    await asyncio.sleep(5)
+            else:
+                # 等待正在任务完成
+                await asyncio.sleep(1)
 
-            task.status = "running"
-            await session.commit()
+        # 关闭时等待所有活跃任务完成
+        if active_tasks:
+            await asyncio.gather(*active_tasks, return_exceptions=True)
 
-        seed_urls = json.loads(task.seed_urls)
-        max_depth = getattr(task, "max_depth", 1) or 1
-        max_pages = getattr(task, "max_pages", 100) or 100
-        concurrency = getattr(task, "concurrency", 3) or 3
-        request_delay = getattr(task, "request_delay", 1) or 1
-        respect_robots = bool(getattr(task, "respect_robots", 1))
+    async def _run_pipeline(self, url: str, source_url: str = "") -> CrawlItem | None:
+        """执行完整流水线。"""
+        item = CrawlItem(url=url, source=source_url or urlparse(url).netloc)
 
-        # 初始化组件
-        self._dedup.clear()
-        self._rate_limiter.update_interval(float(request_delay))
+        # 探嗅
+        from backend.plugins.crawler.probe import ProbeService
 
-        # BFS 队列：(url, depth)
-        queue: list[tuple[str, int]] = [(url, 0) for url in seed_urls if self._dedup.is_new(url)]
-        for url, _ in queue:
-            self._dedup.mark_seen(url)
+        probe = ProbeService()
+        try:
+            probe_result = await probe.probe(url)
+            item.probe_result = probe_result
+            if probe_result.get("is_functional"):
+                self.seed_manager.add_to_blacklist(
+                    urlparse(url).netloc, reason="functional"
+                )
+                self._pages_rejected += 1
+                return None
+            if not probe_result.get("has_content", False):
+                self._pages_rejected += 1
+                return None
+        except Exception:
+            self._pages_rejected += 1
+            return None
+        finally:
+            await probe.close()
 
-        results = []
-        semaphore = asyncio.Semaphore(concurrency)
-        pages_crawled = 0
+        # 抓取 → 解析 → 分类 → 质检 → 存储
+        await self.url_scheduler.acquire(url)
+        try:
+            item = await self.fetch_stage.process(item)
+            if item and not item.error:
+                item = await self.parse_stage.process(item)
+            if item and not item.error:
+                item = await self.classify_stage.process(item)
+            if item and not item.error:
+                item = await self.quality_stage.process(item)
+            if item and item.quality_passed and not item.error:
+                item = await self.storage_stage.process(item)
+                if item:
+                    self._save_record(item)
+                    self._pages_crawled += 1
+                    # 发现新链接，加入种子池
+                    if item.links:
+                        self.seed_manager.discover_seeds_from_links(item.links, url)
+                else:
+                    self._pages_rejected += 1
+            else:
+                self._pages_rejected += 1
+        finally:
+            await self.url_scheduler.release(url)
 
-        async def _crawl_one(url: str, depth: int) -> list[dict]:
-            nonlocal pages_crawled
-            async with semaphore:
-                # 速率限制
-                await self._rate_limiter.wait(url)
+        return item
 
-                try:
-                    data = await self.crawl_url(url)
-                except AppError:
-                    return []
+    def _save_record(self, item: CrawlItem) -> None:
+        """将抓取记录写入数据库。"""
+        try:
+            db = self.container.get("db")
+            session_factory = db["session_factory"]
 
-                pages_crawled += 1
+            import asyncio as _asyncio
 
-                # 存储结果
-                async with self.session_factory() as session:
-                    crawl_result = CrawlResult(
-                        task_id=task_id,
-                        url=data["url"],
-                        title=data["title"],
-                        content=data["content"],
-                        raw_html=data["raw_html"],
-                        status_code=data["status_code"],
-                        headers=data["headers"],
+            async def _save():
+                async with session_factory() as session:
+                    record = CrawlRecord(
+                        url=item.url,
+                        title=item.title[:512] if item.title else None,
+                        content_type=item.content_type or None,
+                        status_code=item.status_code,
+                        source=item.source or urlparse(item.url).netloc,
+                        crawled_at=datetime.now(timezone.utc),
+                        file_path=item.oss_path,
+                        file_size=item.file_size,
                     )
-                    session.add(crawl_result)
+                    session.add(record)
                     await session.commit()
-                    await session.refresh(crawl_result)
 
-                result_dict = self._result_to_dict(crawl_result)
-                new_results = [result_dict]
+            _asyncio.get_running_loop().create_task(_save())
+        except Exception:
+            pass
 
-                # 链接扩展：如果未达到最大深度和页数，提取新链接入队
-                if depth < max_depth and pages_crawled < max_pages:
-                    links = data.get("links", [])
-                    for link in links:
-                        if self._dedup.is_new(link) and pages_crawled < max_pages:
-                            self._dedup.mark_seen(link)
-                            queue.append((link, depth + 1))
+    async def add_seed(self, url: str) -> bool:
+        """手动添加种子 URL。"""
+        return self.seed_manager.add_seed(url)
 
-                return new_results
+    async def get_status(self) -> dict:
+        """返回运行状态。"""
+        uptime = time.monotonic() - self._start_time if self._start_time else 0
+        return {
+            "running": self._running,
+            "uptime_seconds": round(uptime, 1),
+            "active_tasks": self.url_scheduler.active_count,
+            "queue_size": self.url_scheduler.queue_size + self.seed_manager.queue_size,
+            "seeds_count": self.seed_manager.queue_size,
+            "pages_crawled": self._pages_crawled,
+            "pages_rejected": self._pages_rejected,
+            "domains_active": self.url_scheduler.domains_active,
+        }
 
-        # 按批次处理队列
-        batch_idx = 0
-        while batch_idx < len(queue) and pages_crawled < max_pages:
-            # 取出当前批次的 URL（不超过 concurrency * 2）
-            batch_size = min(concurrency * 2, len(queue) - batch_idx, max_pages - pages_crawled)
-            batch = queue[batch_idx : batch_idx + batch_size]
-            batch_idx += batch_size
+    async def get_recent_records(self, limit: int = 50) -> list[dict]:
+        """获取最近抓取的记录列表。"""
+        from sqlalchemy import select, desc
 
-            # 并发执行
-            tasks = [_crawl_one(url, depth) for url, depth in batch]
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-            for r in batch_results:
-                if isinstance(r, list):
-                    results.extend(r)
+        db = self.container.get("db")
+        session_factory = db["session_factory"]
 
-        # 更新任务状态
-        async with self.session_factory() as session:
+        async with session_factory() as session:
             result = await session.execute(
-                select(CrawlTask).where(CrawlTask.id == task_id)
+                select(CrawlRecord).order_by(desc(CrawlRecord.crawled_at)).limit(limit)
             )
-            task = result.scalar_one()
-            task.status = "completed"
-            await session.commit()
+            records = result.scalars().all()
+            return [
+                {
+                    "id": str(r.id),
+                    "url": r.url,
+                    "title": r.title,
+                    "content_type": r.content_type,
+                    "status_code": r.status_code,
+                    "source": r.source,
+                    "crawled_at": r.crawled_at.isoformat() if r.crawled_at else None,
+                    "file_path": r.file_path,
+                    "file_size": r.file_size,
+                }
+                for r in records
+            ]
 
-        return results
+    async def get_record(self, record_id) -> dict | None:
+        """获取单条记录详情。"""
+        import uuid as _uuid
+        from sqlalchemy import select
 
-    # --- 统计 ---
+        db = self.container.get("db")
+        session_factory = db["session_factory"]
+
+        if isinstance(record_id, str):
+            record_id = _uuid.UUID(record_id)
+
+        async with session_factory() as session:
+            result = await session.execute(
+                select(CrawlRecord).where(CrawlRecord.id == record_id)
+            )
+            r = result.scalar_one_or_none()
+            if not r:
+                return None
+            return {
+                "id": str(r.id),
+                "url": r.url,
+                "title": r.title,
+                "content_type": r.content_type,
+                "status_code": r.status_code,
+                "source": r.source,
+                "crawled_at": r.crawled_at.isoformat() if r.crawled_at else None,
+                "file_path": r.file_path,
+                "file_size": r.file_size,
+            }
 
     async def get_stats(self) -> dict:
-        """获取爬虫统计信息。"""
-        from backend.plugins.crawler.models import CrawlResult, CrawlTask
+        """统计信息。"""
+        from sqlalchemy import select, func
 
-        async with self.session_factory() as session:
-            # 任务总数
-            total_tasks_result = await session.execute(
-                select(func.count()).select_from(CrawlTask)
-            )
-            total_tasks = total_tasks_result.scalar_one()
+        db = self.container.get("db")
+        session_factory = db["session_factory"]
 
-            # 按状态分组统计任务
-            status_counts = {}
-            status_result = await session.execute(
-                select(CrawlTask.status, func.count(CrawlTask.id))
-                .group_by(CrawlTask.status)
-            )
-            for row in status_result.all():
-                status_counts[row[0]] = row[1]
+        async with session_factory() as session:
+            total = await session.execute(select(func.count(CrawlRecord.id)))
+            total = total.scalar_one()
 
-            # 结果总数
-            total_results_result = await session.execute(
-                select(func.count()).select_from(CrawlResult)
+            # 按类型分布
+            type_dist = await session.execute(
+                select(CrawlRecord.content_type, func.count(CrawlRecord.id)).group_by(
+                    CrawlRecord.content_type
+                )
             )
-            total_results = total_results_result.scalar_one()
+            type_counts = {row[0] or "unknown": row[1] for row in type_dist.all()}
+
+            # 按域名分布
+            domain_dist = await session.execute(
+                select(CrawlRecord.source, func.count(CrawlRecord.id))
+                .group_by(CrawlRecord.source)
+                .order_by(func.count(CrawlRecord.id).desc())
+                .limit(20)
+            )
+            domain_counts = {row[0] or "unknown": row[1] for row in domain_dist.all()}
 
             return {
-                "total_tasks": total_tasks,
-                "tasks_by_status": status_counts,
-                "total_results": total_results,
+                "total_crawled": total,
+                "by_type": type_counts,
+                "by_domain": domain_counts,
             }
-
-    # --- 工具方法 ---
-
-    def _task_to_dict(self, task) -> dict:
-        return {
-            "id": str(task.id),
-            "name": task.name,
-            "seed_urls": json.loads(task.seed_urls),
-            "status": task.status,
-            "schedule_interval": task.schedule_interval,
-            "created_at": task.created_at.isoformat() if task.created_at else None,
-            "updated_at": task.updated_at.isoformat() if task.updated_at else None,
-        }
-
-    def _result_to_dict(self, result) -> dict:
-        return {
-            "id": str(result.id),
-            "task_id": str(result.task_id),
-            "url": result.url,
-            "title": result.title,
-            "content": result.content,
-            "status_code": result.status_code,
-            "headers": json.loads(result.headers) if result.headers else None,
-            "crawled_at": result.crawled_at.isoformat() if result.crawled_at else None,
-        }
-
-    @staticmethod
-    def _extract_title(html: str) -> str | None:
-        """从 HTML 中提取 title 标签内容。"""
-        import re
-
-        match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-        return None
-
-    @staticmethod
-    def _extract_text(html: str) -> str:
-        """从 HTML 中提取纯文本（去掉标签，简易版）。"""
-        import re
-
-        # 去掉 script 和 style 标签内容
-        text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
-        text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE)
-        # 去掉所有 HTML 标签
-        text = re.sub(r"<[^>]+>", " ", text)
-        # 合并空白
-        text = re.sub(r"\s+", " ", text).strip()
-        # 限制长度
-        return text[:10000] if len(text) > 10000 else text
