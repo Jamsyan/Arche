@@ -30,7 +30,7 @@ class CrawlerOrchestrator:
     def __init__(self, container: ServiceContainer):
         self.container = container
         self.seed_manager = SeedManager(container)
-        self.url_scheduler = UrlScheduler(max_global=5, max_per_domain=2)
+        self.url_scheduler = UrlScheduler(max_global=10, max_per_domain=2)
         self.fetch_stage = FetchStage()
         self.parse_stage = ParseStage()
         self.classify_stage = ClassifyStage()
@@ -63,10 +63,6 @@ class CrawlerOrchestrator:
                 pass
             self._task = None
 
-    def set_browser_manager(self, browser_manager):
-        """注入浏览器管理器到 FetchStage。"""
-        self.fetch_stage.set_browser(browser_manager)
-
     async def _daemon_loop(self) -> None:
         """主循环：不断从种子池取 URL、送入流水线。"""
         active_tasks: list[asyncio.Task] = []
@@ -80,11 +76,10 @@ class CrawlerOrchestrator:
                 if url:
                     task = asyncio.create_task(self._run_pipeline(url))
                     active_tasks.append(task)
-                    # 佛系模式：随机停留
-                    delay = asyncio.uniform(1, 30) if hasattr(asyncio, "uniform") else 5
+                    # 佛系模式：随机停留 5-300 秒
                     import random
 
-                    delay = random.uniform(1, 30)
+                    delay = random.uniform(5, 300)
                     await asyncio.sleep(delay)
                 else:
                     # 种子池空了，等待

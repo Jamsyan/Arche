@@ -1,4 +1,4 @@
-"""Crawler plugin — 漫游爬虫插件：24 小时常驻后台服务。"""
+"""Crawler plugin — 漫游爬虫插件：24 小时常驻后台服务，纯 HTTP 请求。"""
 
 from __future__ import annotations
 
@@ -23,9 +23,6 @@ class CrawlerPlugin(BasePlugin):
     requires = ["auth"]
     optional = []
 
-    def __init__(self):
-        self._browser = None
-
     def setup(self, app: "FastAPI") -> None:
         """注册路由。"""
         app.include_router(router)
@@ -35,34 +32,20 @@ class CrawlerPlugin(BasePlugin):
         container.register("crawler", lambda c: CrawlerOrchestrator(c))
 
     def on_startup(self) -> None:
-        """启动时初始化浏览器并注入，启动常驻守护进程。"""
+        """启动时初始化并启动常驻守护进程。"""
         import asyncio
-        from backend.plugins.crawler.browser import BrowserManager
+        from backend.core.container import container as global_container
 
-        browser = BrowserManager()
-        self._browser = browser
-
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(self._init(browser))
-        except RuntimeError:
-            pass
-
-    async def _init(self, browser):
-        """异步初始化浏览器并启动爬虫。"""
-        try:
-            await browser.startup()
-            from backend.core.container import container as global_container
-
-            orchestrator = global_container.get("crawler")
-            if orchestrator:
-                orchestrator.set_browser_manager(browser)
-                await orchestrator.start()
-        except Exception:
-            pass
+        orchestrator = global_container.get("crawler")
+        if orchestrator:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(orchestrator.start())
+            except RuntimeError:
+                pass
 
     def on_shutdown(self) -> None:
-        """关闭时停止爬虫并关闭浏览器。"""
+        """关闭时停止爬虫。"""
         import asyncio
         from backend.core.container import container as global_container
 
@@ -71,13 +54,6 @@ class CrawlerPlugin(BasePlugin):
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(orchestrator.stop())
-            except RuntimeError:
-                pass
-
-        if self._browser:
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self._browser.shutdown())
             except RuntimeError:
                 pass
 
