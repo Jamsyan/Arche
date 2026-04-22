@@ -1,0 +1,59 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: veil-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: veil-backend
+    expose:
+      - "8000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://veil:veil@postgres:5432/veil
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: veil-postgres
+    environment:
+      POSTGRES_DB: veil
+      POSTGRES_USER: veil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-veil}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U veil
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: veil-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-veiladmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-veiladmin123}
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  pgdata:
+  minio-data:
