@@ -8,7 +8,8 @@ on:
     branches: [master]
 
 jobs:
-  check:
+  # ── 后端代码格式检查 ──
+  backend-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +27,23 @@ jobs:
       - name: Format check
         run: uv run ruff format --check backend/
 
+  # ── 后端测试 ──
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
       - name: Run tests
         run: uv run pytest
 
+  # ── 前端检查 ──
   frontend-check:
     runs-on: ubuntu-latest
     steps:
@@ -47,3 +62,148 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  # ── 前端测试（有测试文件时运行） ──
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Check if tests exist
+        id: check
+        working-directory: frontend
+        run: |
+          if [ -d "tests" ] || [ -d "__tests__" ] || ls *.test.* *.spec.* 1>/dev/null 2>&1; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run tests
+        if: steps.check.outputs.has_tests == 'true'
+        working-directory: frontend
+        run: npm test
+
+  # ── 代码安全扫描（CodeQL） ──
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        language: [python, javascript]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ── 门控 + 分支判断 ──
+  gate:
+    needs: [backend-lint, backend-test, frontend-check, frontend-test, security-scan]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.route.outputs.should_build }}
+      image_tag: ${{ steps.route.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check results
+        run: |
+          FAILED=0
+          BL="${{ needs.backend-lint.result }}"
+          BT="${{ needs.backend-test.result }}"
+          FC="${{ needs.frontend-check.result }}"
+          FT="${{ needs.frontend-test.result }}"
+          SS="${{ needs.security-scan.result }}"
+
+          echo "Results: lint=$BL test=$BT fe-check=$FC fe-test=$FT security=$SS"
+
+          if [ "$BL" != "success" ]; then FAILED=1; fi
+          if [ "$BT" != "success" ]; then FAILED=1; fi
+          if [ "$FC" != "success" ]; then FAILED=1; fi
+          if [ "$FT" != "success" ] && [ "$FT" != "skipped" ]; then FAILED=1; fi
+          if [ "$SS" != "success" ]; then FAILED=1; fi
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo "CI failed! Build will be skipped."
+            exit 1
+          fi
+
+      - name: Route by branch/tag
+        id: route
+        run: |
+          REF="${{ github.ref }}"
+          EVENT="${{ github.event_name }}"
+
+          echo "Trigger: $EVENT"
+          echo "Ref: $REF"
+
+          # 情况 1：push 且带了 tag
+          if [[ "$EVENT" == "push" && "$REF" == refs/tags/v* ]]; then
+            TAG="${REF#refs/tags/v}"
+            echo "Push with tag → build using tag: $TAG"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
+
+          # 情况 2：PR 合并到 master
+          elif [[ "$EVENT" == "pull_request" && "${{ github.base_ref }}" == "master" ]]; then
+            LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$LATEST" ]; then
+              VERSION="${LATEST#v}"
+              MAJOR=$(echo "$VERSION" | cut -d. -f1)
+              MINOR=$(echo "$VERSION" | cut -d. -f2)
+              PATCH=$(echo "$VERSION" | cut -d. -f3)
+              TAG="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            else
+              TAG="0.0.1"
+            fi
+            echo "PR merge to master → build with bumped: $TAG"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
+
+          # 情况 3：push 到 master（不带 tag）→ 不构建
+          else
+            echo "Push to master without tag → no build"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "image_tag=" >> $GITHUB_OUTPUT
+          fi
+
+  # ── 构建 ──
+  build:
+    needs: gate
+    if: needs.gate.outputs.should_build == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      image_tag: ${{ needs.gate.outputs.image_tag }}
+    secrets: inherit
+
+  # ── 部署（构建成功就执行，无需额外判断） ──
+  deploy:
+    needs: [gate, build]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      image_tag: ${{ needs.gate.outputs.image_tag }}
+    secrets: inherit

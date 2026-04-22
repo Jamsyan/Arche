@@ -1,59 +1,62 @@
-name: Release
+name: Release SDK
 
+# 手动触发，不自动执行
 on:
-  push:
-    branches: [master]
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SDK version (e.g., 0.1.0). Leave empty to auto-increment."
+        required: false
+        type: string
+        default: ""
 
 jobs:
-  # ── 1. 计算版本号 ──
-  version:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.compute.outputs.tag }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Compute version tag
-        id: compute
+      - name: Resolve version
+        id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Tag push: 直接用标签名，去掉 'v' 前缀
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "tag=${TAG}" >> $GITHUB_OUTPUT
-            echo "Using tag version: ${TAG}"
+          if [ -n "${{ inputs.version }}" ]; then
+            VER="${{ inputs.version }}"
           else
-            # Push to master: 基于最近标签递增 patch
             LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
             VERSION="${LATEST#v}"
             MAJOR=$(echo "$VERSION" | cut -d. -f1)
             MINOR=$(echo "$VERSION" | cut -d. -f2)
             PATCH=$(echo "$VERSION" | cut -d. -f3)
-            NEXT_PATCH=$((PATCH + 1))
-            NEW_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
-
-            git tag "$NEW_TAG"
-            git push origin "$NEW_TAG"
-
-            echo "tag=${NEW_TAG#v}" >> $GITHUB_OUTPUT
-            echo "Bumped to: ${NEW_TAG}"
+            VER="${MAJOR}.${MINOR}.$((PATCH + 1))"
           fi
+          echo "version=${VER}" >> $GITHUB_OUTPUT
+          echo "Releasing SDK v${VER}"
 
-  # ── 2. 构建镜像（自动登录，登录成功则推送） ──
-  build:
-    needs: version
-    uses: ./.github/workflows/build.yml
-    with:
-      image_tag: ${{ needs.version.outputs.tag }}
-    secrets: inherit
+      # ── TODO: 以下为 SDK 发布步骤，待 SDK 实现后启用 ──
 
-  # ── 3. 触发部署 ──
-  deploy:
-    needs: [version, build]
-    uses: ./.github/workflows/deploy.yml
-    with:
-      image_tag: ${{ needs.version.outputs.tag }}
-      ref: ${{ github.ref }}
-    secrets: inherit
+      # - name: Build SDK
+      #   run: |
+      #     # 构建 SDK 产物
+      #     echo "Build SDK v${{ steps.version.outputs.version }}"
+
+      # - name: Publish to PyPI / npm
+      #   run: |
+      #     # 发布到包管理平台
+      #     echo "Publish SDK package"
+
+      # - name: Create GitHub Release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     tag_name: sdk-v${{ steps.version.outputs.version }}
+      #     name: SDK v${{ steps.version.outputs.version }}
+      #     generate_release_notes: true
+
+      - name: Summary
+        run: |
+          echo "## SDK Release v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "SDK 发布流程已就绪，待 SDK 实现后自动启用打包和发布步骤。" >> $GITHUB_STEP_SUMMARY
