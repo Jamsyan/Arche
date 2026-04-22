@@ -15,7 +15,12 @@ if TYPE_CHECKING:
 
 
 class CloudStorageError(AppError):
-    def __init__(self, message: str = "阿里云 OSS 操作失败", code: str = "cloud_storage_error", status_code: int = 500):
+    def __init__(
+        self,
+        message: str = "阿里云 OSS 操作失败",
+        code: str = "cloud_storage_error",
+        status_code: int = 500,
+    ):
         super().__init__(message, code, status_code)
 
 
@@ -42,6 +47,7 @@ class CloudStorageService:
         Returns:
             对象键
         """
+
         def _do_upload():
             if isinstance(file_path, Path):
                 with open(file_path, "rb") as f:
@@ -65,6 +71,7 @@ class CloudStorageService:
         Returns:
             本地文件路径
         """
+
         def _do_download():
             local_path.parent.mkdir(parents=True, exist_ok=True)
             self._bucket.get_object_to_file(object_key, str(local_path))
@@ -73,12 +80,15 @@ class CloudStorageService:
         try:
             return await asyncio.to_thread(_do_download)
         except oss2.exceptions.NoSuchKey:
-            raise AppError("阿里云 OSS 文件不存在", code="cloud_file_not_found", status_code=404)
+            raise AppError(
+                "阿里云 OSS 文件不存在", code="cloud_file_not_found", status_code=404
+            )
         except oss2.exceptions.OssError as e:
             raise CloudStorageError(f"阿里云 OSS 下载失败: {e}")
 
     async def download_bytes(self, object_key: str) -> bytes:
         """从阿里云 OSS 下载文件为字节。"""
+
         def _do_download():
             result = self._bucket.get_object(object_key)
             return result.read()
@@ -86,12 +96,15 @@ class CloudStorageService:
         try:
             return await asyncio.to_thread(_do_download)
         except oss2.exceptions.NoSuchKey:
-            raise AppError("阿里云 OSS 文件不存在", code="cloud_file_not_found", status_code=404)
+            raise AppError(
+                "阿里云 OSS 文件不存在", code="cloud_file_not_found", status_code=404
+            )
         except oss2.exceptions.OssError as e:
             raise CloudStorageError(f"阿里云 OSS 下载失败: {e}")
 
     async def delete(self, object_key: str) -> None:
         """从阿里云 OSS 删除文件。"""
+
         def _do_delete():
             self._bucket.delete_object(object_key)
 
@@ -102,6 +115,7 @@ class CloudStorageService:
 
     async def list_objects(self, prefix: str = "") -> list[str]:
         """列举指定前缀的所有对象键。"""
+
         def _do_list():
             keys = []
             for obj in oss2.ObjectIterator(self._bucket, prefix=prefix):
