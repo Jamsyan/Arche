@@ -24,11 +24,10 @@ class BlogPost(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     slug: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="pending"
-    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     quality_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     views: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    access_level: Mapped[str] = mapped_column(String(8), nullable=False, default="A5")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -85,4 +84,31 @@ class BlogReport(Base):
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class BlogTag(Base):
+    """博客标签表。"""
+
+    __tablename__ = "blog_tags"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class BlogPostTag(Base):
+    """帖子-标签关联表（多对多）。"""
+
+    __tablename__ = "blog_post_tags"
+
+    post_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, nullable=False
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, nullable=False
     )

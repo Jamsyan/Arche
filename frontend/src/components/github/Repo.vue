@@ -16,66 +16,36 @@
           style="width: 220px"
           @search="doSearch"
         />
-        <a-button type="primary" size="small" @click="showAddRepoModal = true">
-          <template #icon><icon-plus /></template>
-          添加仓库
+        <a-button type="text" size="small" @click="clearCache">
+          <template #icon><icon-refresh /></template>
         </a-button>
       </a-space>
     </div>
 
-    <!-- 统计概览 -->
-    <div class="status-row">
+    <!-- 搜索结果显示 -->
+    <div v-if="searchResults.length > 0" class="status-row">
       <div class="status-card">
-        <div class="status-num">{{ stats.repos }}</div>
-        <div class="status-label">追踪仓库</div>
+        <div class="status-num">{{ searchResults.length }}</div>
+        <div class="status-label">搜索结果</div>
       </div>
       <div class="status-card">
-        <div class="status-num">{{ stats.stars }}</div>
+        <div class="status-num">{{ searchResults.reduce((s, r) => s + (r.stargazers_count || 0), 0) }}</div>
         <div class="status-label">总 Star</div>
       </div>
       <div class="status-card">
-        <div class="status-num">{{ stats.tasks }}</div>
-        <div class="status-label">活跃任务</div>
-      </div>
-      <div class="status-card">
-        <div class="status-num">{{ stats.langs }}</div>
+        <div class="status-num">{{ new Set(searchResults.map(r => r.language).filter(Boolean)).size }}</div>
         <div class="status-label">语言</div>
       </div>
     </div>
 
-    <!-- 活跃任务 -->
-    <div class="section-header">
-      <icon-sync class="section-icon spin" />
-      <span>活跃任务</span>
+    <!-- 搜索结果 -->
+    <div v-if="searchResults.length > 0" class="section-header">
+      <icon-search class="section-icon" />
+      <span>搜索结果</span>
     </div>
 
-    <div v-if="activeTasks.length === 0" class="empty-hint">暂无活跃任务</div>
-    <div v-else class="task-row">
-      <div v-for="task in activeTasks" :key="task.id" class="task-item">
-        <div class="task-left">
-          <a-tag :color="taskActionColor(task.action)" size="small">{{ task.actionLabel }}</a-tag>
-          <span class="task-repo">{{ task.repo }}</span>
-        </div>
-        <div class="task-right">
-          <a-progress :percent="task.progress" size="small" style="width: 100px" />
-          <span class="task-status">{{ task.statusLabel }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 仓库列表 -->
-    <div class="section-header">
-      <icon-apps class="section-icon" />
-      <span>追踪仓库</span>
-    </div>
-
-    <div v-if="repos.length === 0" class="empty-state">
-      <icon-github class="empty-icon" />
-      <p>暂无追踪的仓库</p>
-      <a-button type="primary" size="small" @click="showAddRepoModal = true">添加第一个仓库</a-button>
-    </div>
-    <div v-else class="repo-grid">
-      <div v-for="repo in repos" :key="repo.full_name" class="repo-card">
+    <div v-if="searchResults.length > 0" class="repo-grid">
+      <div v-for="repo in searchResults" :key="repo.id" class="repo-card">
         <div class="repo-top">
           <a-avatar :style="{ backgroundColor: '#1f2328', width: 32, height: 32, fontSize: 14 }">
             <icon-github />
@@ -88,102 +58,123 @@
         <div class="repo-desc">{{ repo.description || '暂无描述' }}</div>
         <div class="repo-meta">
           <span class="meta-item">
-            <icon-star /> {{ repo.stars }}
+            <icon-star /> {{ repo.stargazers_count || 0 }}
+          </span>
+          <span class="meta-item" v-if="repo.language">
+            <icon-language /> {{ repo.language }}
           </span>
           <span class="meta-item">
-            <icon-language /> {{ repo.lang }}
-          </span>
-          <span class="meta-item">
-            <icon-calendar /> {{ repo.updated }}
+            <icon-calendar /> {{ formatDate(repo.updated_at) }}
           </span>
         </div>
         <div class="repo-actions">
-          <a-button type="text" size="mini" @click="syncRepo(repo)">
-            <template #icon><icon-refresh /></template>
-            同步
-          </a-button>
-          <a-button type="text" size="mini" @click="crawlRepo(repo)">
-            <template #icon><icon-download /></template>
-            抓取
-          </a-button>
-          <a-button type="text" size="mini" status="danger" @click="removeRepo(repo)">
-            <template #icon><icon-delete /></template>
+          <a-button type="text" size="mini" @click="openRepo(repo.html_url)">
+            <template #icon><icon-link /></template>
+            打开
           </a-button>
         </div>
       </div>
     </div>
 
-    <!-- 添加仓库弹窗 -->
-    <a-modal v-model:visible="showAddRepoModal" title="添加 GitHub 仓库" @ok="addRepo">
-      <a-form :model="newRepo" layout="vertical">
-        <a-form-item label="仓库地址" field="url">
-          <a-input v-model="newRepo.url" placeholder="https://github.com/owner/repo" />
-        </a-form-item>
-        <a-form-item label="同步频率" field="sync">
-          <a-select v-model="newRepo.sync">
-            <a-option value="manual">手动同步</a-option>
-            <a-option value="daily">每天</a-option>
-            <a-option value="weekly">每周</a-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+    <a-empty v-else-if="hasSearched" description="未找到匹配的仓库" />
+
+    <!-- 使用说明 -->
+    <div v-if="!hasSearched" class="guide-card">
+      <icon-bulb class="guide-icon" />
+      <h3 class="guide-title">使用说明</h3>
+      <p class="guide-text">通过代理访问 GitHub API，搜索仓库、查看项目信息。</p>
+      <p class="guide-text">在上方搜索框输入关键词搜索仓库或用户。</p>
+      <div class="guide-examples">
+        <a-button type="text" size="mini" @click="quickSearch('vue')">Vue</a-button>
+        <a-button type="text" size="mini" @click="quickSearch('python')">Python</a-button>
+        <a-button type="text" size="mini" @click="quickSearch('llm')">LLM</a-button>
+        <a-button type="text" size="mini" @click="quickSearch('rust')">Rust</a-button>
+      </div>
+    </div>
+
+    <!-- 缓存状态 -->
+    <div class="cache-status">
+      <a-tag v-if="lastCacheHit" color="green">缓存命中</a-tag>
+      <a-tag v-else color="gray">未使用缓存</a-tag>
+      <span class="cache-hint">请求通过代理转发，自动缓存响应结果</span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
+import { useAuth } from '../../router/auth.js'
 import {
-  IconGithub, IconPlus, IconStar, IconLanguage, IconCalendar,
-  IconRefresh, IconDownload, IconDelete, IconApps, IconArrowLeft,
-  IconSync,
+  IconGithub, IconSearch, IconStar, IconLanguage, IconCalendar,
+  IconArrowLeft, IconRefresh, IconBulb, IconLink,
 } from '@arco-design/web-vue/es/icon'
 
+const { authHeaders } = useAuth()
 const searchQuery = ref('')
-const showAddRepoModal = ref(false)
+const searchResults = ref([])
+const hasSearched = ref(false)
+const lastCacheHit = ref(false)
 
-const newRepo = ref({ url: '', sync: 'daily' })
-
-const stats = ref({ repos: 0, stars: 0, tasks: 0, langs: 0 })
-
-const repos = ref([])
-const activeTasks = ref([])
-
-const TASK_ACTIONS = {
-  sync: { label: '同步', color: 'blue' },
-  crawl: { label: '抓取', color: 'green' },
-  mirror: { label: '镜像', color: 'orange' },
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function taskActionColor(action) { return TASK_ACTIONS[action]?.color ?? 'gray' }
+function openRepo(url) {
+  window.open(url, '_blank')
+}
 
-function doSearch() {
+async function doSearch() {
   if (!searchQuery.value.trim()) return
-  Message.info(`搜索: ${searchQuery.value}`)
-}
+  hasSearched.value = true
+  searchResults.value = []
 
-function syncRepo(repo) {
-  Message.info(`正在同步: ${repo.full_name}`)
-}
+  try {
+    // 通过代理搜索 GitHub API
+    const res = await fetch(`/api/github/search/repositories?q=${encodeURIComponent(searchQuery.value)}&per_page=30`, {
+      headers: authHeaders(),
+    })
+    const data = await res.json()
 
-function crawlRepo(repo) {
-  Message.info(`正在抓取: ${repo.full_name}`)
-}
-
-function removeRepo(repo) {
-  Message.info(`移除仓库: ${repo.full_name}`)
-}
-
-function addRepo() {
-  if (!newRepo.value.url) {
-    Message.warning('请输入仓库地址')
-    return
+    if (Array.isArray(data.items)) {
+      searchResults.value = data.items
+      lastCacheHit.value = false // 搜索结果通常不缓存
+    } else if (Array.isArray(data)) {
+      searchResults.value = data
+    } else {
+      Message.error('搜索失败：响应格式异常')
+    }
+  } catch {
+    Message.error('搜索失败：网络错误')
   }
-  Message.success(`仓库添加成功`)
-  showAddRepoModal.value = false
-  newRepo.value = { url: '', sync: 'daily' }
 }
+
+function quickSearch(term) {
+  searchQuery.value = term
+  doSearch()
+}
+
+async function clearCache() {
+  try {
+    const res = await fetch('/api/github/cache/clear', {
+      method: 'POST',
+      headers: authHeaders(),
+    })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      Message.success(result.message)
+    } else {
+      Message.error(result.message || '清理失败')
+    }
+  } catch {
+    Message.error('清理缓存失败')
+  }
+}
+
+onMounted(() => {
+  // 页面加载，无需额外操作
+})
 </script>
 
 <style scoped>
@@ -195,7 +186,7 @@ function addRepo() {
 .header-icon { width: 24px; height: 24px; color: var(--color-text-1); }
 .page-title { margin: 0; font-size: 20px; font-weight: 600; color: var(--color-text-1); }
 
-.status-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.status-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
 .status-card {
   background: rgba(255,255,255,0.75); backdrop-filter: blur(12px);
   border: 1px solid rgba(0,0,0,0.06); border-radius: var(--border-radius-large);
@@ -210,26 +201,6 @@ function addRepo() {
   margin-bottom: 12px; margin-top: 24px;
 }
 .section-icon { width: 16px; height: 16px; color: var(--color-text-4); }
-.spin { animation: spin 1.5s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-.empty-hint {
-  text-align: center; padding: 24px; color: var(--color-text-4);
-  background: rgba(255,255,255,0.5); border: 1px dashed var(--color-border-2);
-  border-radius: var(--border-radius-large); margin-bottom: 16px;
-}
-
-.task-row { display: flex; flex-direction: column; gap: 8px; }
-.task-item {
-  display: flex; justify-content: space-between; align-items: center;
-  background: rgba(255,255,255,0.75); backdrop-filter: blur(12px);
-  border: 1px solid rgba(0,0,0,0.06); border-radius: var(--border-radius-medium);
-  padding: 10px 16px;
-}
-.task-left { display: flex; align-items: center; gap: 8px; }
-.task-repo { font-size: 13px; font-weight: 500; }
-.task-right { display: flex; align-items: center; gap: 12px; }
-.task-status { font-size: 12px; color: var(--color-text-3); white-space: nowrap; }
 
 .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 .repo-card {
@@ -248,11 +219,16 @@ function addRepo() {
 .meta-item .arco-icon { width: 12px; height: 12px; }
 .repo-actions { display: flex; gap: 4px; border-top: 1px solid var(--color-border-1); padding-top: 8px; }
 
-.empty-state {
-  text-align: center; padding: 48px 24px; color: var(--color-text-4);
-  background: rgba(255,255,255,0.5); backdrop-filter: blur(12px);
-  border: 1px dashed var(--color-border-2); border-radius: var(--border-radius-large);
+.guide-card {
+  text-align: center; padding: 48px 24px;
+  background: rgba(255,255,255,0.5); border: 1px dashed var(--color-border-2);
+  border-radius: var(--border-radius-large);
 }
-.empty-icon { width: 48px; height: 48px; color: var(--color-border-2); margin-bottom: 12px; }
-.empty-state p { margin: 8px 0 16px; font-size: 14px; }
+.guide-icon { width: 48px; height: 48px; color: var(--color-border-2); margin-bottom: 12px; }
+.guide-title { margin: 8px 0 16px; font-size: 16px; font-weight: 600; color: var(--color-text-1); }
+.guide-text { margin: 4px 0; font-size: 14px; color: var(--color-text-3); }
+.guide-examples { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+
+.cache-status { display: flex; align-items: center; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border-1); }
+.cache-hint { font-size: 12px; color: var(--color-text-4); }
 </style>

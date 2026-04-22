@@ -12,7 +12,7 @@
         <h1 class="page-title">用户管理</h1>
       </div>
       <a-space>
-        <a-button type="text" size="small" @click="refreshUsers" :loading="refreshing">
+        <a-button type="text" size="small" @click="fetchUsers" :loading="refreshing">
           <template #icon><icon-refresh /></template>
         </a-button>
         <a-input-search v-model="searchQuery" placeholder="搜索用户..." size="small" style="width: 180px" @search="doSearch" />
@@ -30,28 +30,30 @@
         <div class="status-label">正常</div>
       </div>
       <div class="status-card s-banned">
-        <div class="status-num">{{ userStats.banned }}</div>
-        <div class="status-label">已封禁</div>
+        <div class="status-num">{{ userStats.disabled }}</div>
+        <div class="status-label">已禁用</div>
       </div>
       <div class="status-card">
-        <div class="status-num">{{ userStats.todayNew }}</div>
-        <div class="status-label">今日新增</div>
+        <div class="status-num">{{ users.length }}</div>
+        <div class="status-label">当前页</div>
       </div>
     </div>
 
     <!-- 用户列表 -->
     <a-table
-      :data="filteredUsers"
+      :data="users"
       :columns="userColumns"
       row-key="id"
       :bordered="false"
-      :pagination="{ pageSize: 10, showTotal: true }"
+      :pagination="pagination"
+      :loading="loading"
       class="user-table"
+      @page-change="onPageChange"
     >
       <template #user="{ record }">
         <div class="user-cell">
           <a-avatar :size="32" :style="{ backgroundColor: levelColor(record.level) }">
-            {{ record.username[0].toUpperCase() }}
+            {{ (record.username || 'U')[0].toUpperCase() }}
           </a-avatar>
           <div class="user-info">
             <span class="user-name">{{ record.username }}</span>
@@ -60,15 +62,17 @@
         </div>
       </template>
       <template #level="{ record }">
-        <LevelBadge :level="record.level" />
+        <LevelBadge :level="record.level ?? 5" />
       </template>
       <template #status="{ record }">
-        <a-tag :color="record.banned ? 'red' : 'green'">
-          {{ record.banned ? '已封禁' : '正常' }}
+        <a-tag :color="record.is_active === false ? 'red' : 'green'">
+          {{ record.is_active === false ? '已禁用' : '正常' }}
         </a-tag>
       </template>
       <template #joined="{ record }">
-        <span style="font-size: 12px; color: var(--color-text-3)">{{ record.created_at }}</span>
+        <span style="font-size: 12px; color: var(--color-text-3)">
+          {{ record.created_at ? new Date(record.created_at).toLocaleDateString('zh-CN') : '-' }}
+        </span>
       </template>
       <template #actions="{ record }">
         <a-dropdown trigger="click" position="bl">
@@ -81,13 +85,13 @@
               <template #icon><icon-swap /></template>
               修改等级
             </a-doption>
-            <a-doption v-if="!record.banned" @click="banUser(record)" class="danger-option">
+            <a-doption v-if="record.is_active !== false" @click="disableUser(record)" class="danger-option">
               <template #icon><icon-stop /></template>
-              封禁用户
+              禁用用户
             </a-doption>
-            <a-doption v-else @click="unbanUser(record)">
+            <a-doption v-else @click="enableUser(record)">
               <template #icon><icon-check /></template>
-              解除封禁
+              启用用户
             </a-doption>
             <a-doption @click="viewUserDetail(record)">
               <template #icon><icon-eye /></template>
@@ -99,9 +103,9 @@
     </a-table>
 
     <!-- 修改等级弹窗 -->
-    <a-modal v-model:visible="showLevelModal" title="修改用户等级" @ok="confirmLevelChange">
+    <a-modal v-model:visible="showLevelModal" title="修改用户等级" @ok="confirmLevelChange" :mask-closable="false">
       <p style="margin-bottom: 16px; color: var(--color-text-2)">
-        用户 <b>{{ targetUser?.username }}</b> 当前等级：
+        用户 <b>{{ targetUser?.username }}</b> 当前等级：P{{ targetUser?.level ?? '—' }}
       </p>
       <a-select v-model="newLevel" size="large" style="width: 100%">
         <a-option :value="0">P0 - 管理员</a-option>
@@ -118,20 +122,14 @@
       <div v-if="detailUser" class="detail-content">
         <div class="detail-section">
           <h4 class="detail-title">基本信息</h4>
+          <div class="detail-row"><span class="detail-label">ID</span><span class="detail-mono">{{ detailUser.id }}</span></div>
           <div class="detail-row"><span class="detail-label">用户名</span><span>{{ detailUser.username }}</span></div>
           <div class="detail-row"><span class="detail-label">邮箱</span><span>{{ detailUser.email || '未设置' }}</span></div>
-          <div class="detail-row"><span class="detail-label">等级</span><LevelBadge :level="detailUser.level" /></div>
+          <div class="detail-row"><span class="detail-label">等级</span><LevelBadge :level="detailUser.level ?? 5" /></div>
           <div class="detail-row"><span class="detail-label">状态</span>
-            <a-tag :color="detailUser.banned ? 'red' : 'green'">{{ detailUser.banned ? '已封禁' : '正常' }}</a-tag>
+            <a-tag :color="detailUser.is_active === false ? 'red' : 'green'">{{ detailUser.is_active === false ? '已禁用' : '正常' }}</a-tag>
           </div>
-          <div class="detail-row"><span class="detail-label">注册时间</span><span>{{ detailUser.created_at }}</span></div>
-        </div>
-        <div class="detail-section">
-          <h4 class="detail-title">活动统计</h4>
-          <div class="detail-row"><span class="detail-label">文章数</span><span>{{ detailUser.posts }}</span></div>
-          <div class="detail-row"><span class="detail-label">总阅读</span><span>{{ detailUser.views }}</span></div>
-          <div class="detail-row"><span class="detail-label">获赞</span><span>{{ detailUser.likes }}</span></div>
-          <div class="detail-row"><span class="detail-label">存储使用</span><span>{{ detailUser.storage }} MB</span></div>
+          <div class="detail-row"><span class="detail-label">注册时间</span><span>{{ detailUser.created_at ? new Date(detailUser.created_at).toLocaleString('zh-CN') : '-' }}</span></div>
         </div>
       </div>
     </a-drawer>
@@ -139,41 +137,31 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Message, Modal } from '@arco-design/web-vue'
 import LevelBadge from '../LevelBadge.vue'
+import { useAuth } from '../../router/auth.js'
 import {
   IconUser, IconArrowLeft, IconHome, IconRefresh, IconDown,
   IconSwap, IconStop, IconCheck, IconEye,
 } from '@arco-design/web-vue/es/icon'
 
+const { authHeaders } = useAuth()
 const searchQuery = ref('')
 const refreshing = ref(false)
+const loading = ref(true)
 const showLevelModal = ref(false)
 const showDetailDrawer = ref(false)
 const targetUser = ref(null)
 const detailUser = ref(null)
 const newLevel = ref(5)
 
-const userStats = ref({ total: 12, active: 11, banned: 1, todayNew: 2 })
-
-const users = ref([
-  { id: 1, username: 'admin', email: 'admin@veil.dev', level: 0, banned: false, created_at: '2026-04-15', posts: 5, views: 1200, likes: 86, storage: 45 },
-  { id: 2, username: 'jamd', email: 'jamd@veil.dev', level: 0, banned: false, created_at: '2026-04-16', posts: 3, views: 800, likes: 42, storage: 30 },
-  { id: 3, username: 'testuser', email: '', level: 4, banned: false, created_at: '2026-04-20', posts: 1, views: 12, likes: 0, storage: 2 },
-  { id: 4, username: 'spammer', email: 'spam@evil.com', level: 4, banned: true, created_at: '2026-04-21', posts: 0, views: 0, likes: 0, storage: 0 },
-  { id: 5, username: 'writer', email: 'writer@veil.dev', level: 3, banned: false, created_at: '2026-04-18', posts: 8, views: 2400, likes: 156, storage: 67 },
-  { id: 6, username: 'reviewer', email: 'reviewer@veil.dev', level: 1, banned: false, created_at: '2026-04-17', posts: 2, views: 560, likes: 23, storage: 15 },
-])
-
-const filteredUsers = computed(() => {
-  if (!searchQuery.value.trim()) return users.value
-  const q = searchQuery.value.toLowerCase()
-  return users.value.filter(u =>
-    u.username.toLowerCase().includes(q) ||
-    (u.email && u.email.toLowerCase().includes(q))
-  )
-})
+const userStats = ref({ total: 0, active: 0, disabled: 0 })
+const users = ref([])
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const pagination = { showTotal: true, pageSize: 20 }
 
 const LEVEL_COLORS = {
   0: '#cf222e', 1: '#d4a72c', 2: '#0969da',
@@ -185,58 +173,126 @@ function levelColor(level) { return LEVEL_COLORS[level] ?? '#aab8c2' }
 const userColumns = [
   { title: '用户', slotName: 'user', width: 240 },
   { title: '等级', slotName: 'level', width: 100 },
-  { title: '文章', dataIndex: 'posts', width: 60 },
   { title: '状态', slotName: 'status', width: 80 },
   { title: '注册时间', slotName: 'joined', width: 140 },
   { title: '操作', slotName: 'actions', width: 100, fixed: 'right' },
 ]
 
-function refreshUsers() {
-  refreshing.value = true
-  setTimeout(() => { refreshing.value = false }, 500)
+async function fetchUsers(status = null) {
+  loading.value = true
+  try {
+    const url = `/api/auth/users?page=${page.value}&page_size=${pageSize.value}${status ? `&status=${status}` : ''}`
+    const res = await fetch(url, { headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      const data = result.data || {}
+      users.value = data.items || []
+      total.value = data.total || 0
+      pagination.total = total.value
+      userStats.value.total = data.total ?? 0
+      // 分别统计 active/disabled
+      const [activeRes, disabledRes] = await Promise.all([
+        fetch(`/api/auth/users?page=1&page_size=1&status=active`, { headers: authHeaders() }),
+        fetch(`/api/auth/users?page=1&page_size=1&status=disabled`, { headers: authHeaders() }),
+      ])
+      const activeData = await activeRes.json()
+      const disabledData = await disabledRes.json()
+      userStats.value.active = activeData.data?.total ?? 0
+      userStats.value.disabled = disabledData.data?.total ?? 0
+    } else {
+      Message.error(result.message || '加载用户失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  } finally {
+    loading.value = false
+  }
 }
 
-function doSearch() { /* triggered by v-model filter */ }
+function onPageChange(p) {
+  page.value = p
+  fetchUsers()
+}
+
+function doSearch() {
+  if (!searchQuery.value.trim()) { fetchUsers(); return }
+  // 前端过滤
+  const q = searchQuery.value.toLowerCase()
+  users.value = users.value.filter(u =>
+    (u.username || '').toLowerCase().includes(q) ||
+    (u.email && u.email.toLowerCase().includes(q))
+  )
+}
 
 function changeLevel(user) {
   targetUser.value = user
-  newLevel.value = user.level
+  newLevel.value = user.level ?? 5
   showLevelModal.value = true
 }
 
-function confirmLevelChange() {
+async function confirmLevelChange() {
   if (!targetUser.value) return
-  const oldLevel = targetUser.value.level
-  targetUser.value.level = newLevel.value
-  Message.success(`已将 ${targetUser.value.username} 从 P${oldLevel} 调整为 P${newLevel.value}`)
-  showLevelModal.value = false
+  try {
+    const res = await fetch(`/api/auth/users/${targetUser.value.id}`, {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ level: newLevel.value }),
+    })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      const oldLevel = targetUser.value.level
+      targetUser.value.level = newLevel.value
+      Message.success(`已将 ${targetUser.value.username} 从 P${oldLevel} 调整为 P${newLevel.value}`)
+      showLevelModal.value = false
+    } else {
+      Message.error(result.message || '修改失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  }
 }
 
-function banUser(user) {
+async function disableUser(user) {
   Modal.confirm({
-    title: '确认封禁',
-    content: `确定封禁用户 "${user.username}" 吗？封禁后该用户将无法登录。`,
+    title: '确认禁用',
+    content: `确定禁用用户 "${user.username}" 吗？禁用后该用户将无法登录。`,
     buttonProps: { status: 'danger' },
-    onOk: () => {
-      user.banned = true
-      userStats.value.banned++
-      userStats.value.active--
-      Message.warning(`已封禁用户: ${user.username}`)
+    onOk: async () => {
+      try {
+        const res = await fetch(`/api/auth/users/${user.id}/disable`, { method: 'POST', headers: authHeaders() })
+        const result = await res.json()
+        if (result.code === 'ok') {
+          user.is_active = false
+          Message.warning(`已禁用用户: ${user.username}`)
+          await fetchUsers()
+        } else {
+          Message.error(result.message || '操作失败')
+        }
+      } catch { Message.error('网络错误') }
     },
   })
 }
 
-function unbanUser(user) {
-  user.banned = false
-  userStats.value.banned--
-  userStats.value.active++
-  Message.success(`已解除封禁: ${user.username}`)
+async function enableUser(user) {
+  try {
+    const res = await fetch(`/api/auth/users/${user.id}/enable`, { method: 'POST', headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      user.is_active = true
+      Message.success(`已启用用户: ${user.username}`)
+      await fetchUsers()
+    } else {
+      Message.error(result.message)
+    }
+  } catch { Message.error('网络错误') }
 }
 
 function viewUserDetail(user) {
   detailUser.value = user
   showDetailDrawer.value = true
 }
+
+onMounted(() => { fetchUsers() })
 </script>
 
 <style scoped>
@@ -267,9 +323,9 @@ function viewUserDetail(user) {
 .danger-option :deep(.arco-dropdown-option-content) { color: #cf222e; }
 
 .detail-content { display: flex; flex-direction: column; gap: 24px; }
-.detail-section { }
 .detail-title { font-size: 14px; font-weight: 600; color: var(--color-text-2); margin: 0 0 12px; }
 .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--color-border-1); }
 .detail-label { font-size: 13px; color: var(--color-text-4); }
 .detail-row span:not(.detail-label):not(.arco-tag) { font-size: 13px; color: var(--color-text-1); font-weight: 500; }
+.detail-mono { font-family: monospace; font-size: 11px; color: var(--color-text-3); }
 </style>

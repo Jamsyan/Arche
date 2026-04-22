@@ -149,7 +149,7 @@ function handleUploadError() {
 async function loadFiles() {
   loadingFiles.value = true
   try {
-    const res = await fetch('/api/oss/files', {
+    const res = await fetch('/api/oss/my', {
       headers: authHeaders(),
     })
     if (!res.ok) {
@@ -157,7 +157,7 @@ async function loadFiles() {
       return
     }
     const resData = await res.json()
-    fileList.value = resData.data ?? []
+    fileList.value = resData.data?.files ?? []
   } catch {
     Message.error('网络错误')
   } finally {

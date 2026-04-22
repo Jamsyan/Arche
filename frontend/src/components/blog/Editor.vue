@@ -7,6 +7,13 @@
         </a-button>
         <h1 class="page-title">{{ isEdit ? '编辑文章' : '发布新文章' }}</h1>
       </div>
+      <a-space>
+        <a-button type="text" @click="triggerImport" size="small">
+          <template #icon><icon-upload /></template>
+          导入文件
+        </a-button>
+        <input ref="importInput" type="file" accept=".md,.txt,.docx,.html,.htm" style="display:none" @change="handleImport">
+      </a-space>
     </div>
 
     <a-form
@@ -31,6 +38,29 @@
         />
       </a-form-item>
 
+      <a-form-item label="标签">
+        <a-select
+          v-model="form.tags"
+          multiple
+          filterable
+          allow-create
+          placeholder="输入标签后回车添加，最多 50 个"
+          :max-tag-count="5"
+          :limit="50"
+        />
+      </a-form-item>
+
+      <a-form-item label="阅读权限">
+        <a-select v-model="form.access_level" placeholder="选择可见权限等级">
+          <a-option
+            v-for="opt in availableAccessLevels"
+            :key="opt.value"
+            :value="opt.value"
+            :label="opt.label"
+          />
+        </a-select>
+      </a-form-item>
+
       <a-form-item>
         <a-space>
           <a-button type="primary" html-type="submit" :loading="submitting">
@@ -48,31 +78,110 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../../router/auth.js'
 import { Message } from '@arco-design/web-vue'
 
 const router = useRouter()
 const route = useRoute()
-const { isAuthenticated, authHeaders } = useAuth()
+const { isAuthenticated, authHeaders, userLevel } = useAuth()
 
 const form = ref({
   title: '',
   content: '',
+  tags: [],
+  access_level: 'A5',
 })
 const submitting = ref(false)
 const isEdit = ref(false)
+const loadingEdit = ref(false)
+const importInput = ref(null)
 
-onMounted(() => {
+// 根据用户等级计算可选的权限等级
+const availableAccessLevels = computed(() => {
+  const level = userLevel.value ?? 5
+  const levels = []
+  for (let i = level; i <= 9; i++) {
+    if (i <= 5) {
+      levels.push({ value: `A${i}`, label: `A${i} — 等级 <= P${i} 可见` })
+    } else {
+      levels.push({ value: `A${i}`, label: `A${i} — 所有人可见` })
+    }
+  }
+  return levels
+})
+
+onMounted(async () => {
   if (route.params.id) {
     isEdit.value = true
-    Message.info('编辑模式（加载文章内容待实现）')
+    await loadPostContent()
   }
 })
 
+async function loadPostContent() {
+  loadingEdit.value = true
+  try {
+    const res = await fetch(`/api/blog/posts/by-id/${route.params.id}`)
+    const result = await res.json()
+    if (result.code === 'ok' && result.data) {
+      form.value.title = result.data.title || ''
+      form.value.content = result.data.content || ''
+      form.value.tags = (result.data.tags || []).map(t => t.name)
+      form.value.access_level = result.data.access_level || 'A5'
+    } else {
+      Message.error('加载文章内容失败')
+    }
+  } catch {
+    Message.error('加载文章内容失败，网络错误')
+  } finally {
+    loadingEdit.value = false
+  }
+}
+
 function resetForm() {
-  form.value = { title: '', content: '' }
+  form.value = { title: '', content: '', tags: [], access_level: 'A5' }
+}
+
+function triggerImport() {
+  importInput.value?.click()
+}
+
+async function handleImport(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (!isAuthenticated.value) {
+    Message.warning('请先登录')
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('access_level', form.value.access_level)
+  if (form.value.tags.length > 0) {
+    formData.append('tags', form.value.tags.join(','))
+  }
+
+  try {
+    const res = await fetch('/api/blog/import', {
+      method: 'POST',
+      headers: authHeaders({}),
+      body: formData,
+    })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      Message.success('导入成功，文章等待审核')
+      form.value.title = result.data.title || ''
+      form.value.content = result.data.content || ''
+      form.value.tags = (result.data.tags || []).map(t => t.name)
+    } else {
+      Message.error(result.message || '导入失败')
+    }
+  } catch {
+    Message.error('导入失败，网络错误')
+  }
+  // 重置 input 以便重复选择同一文件
+  event.target.value = ''
 }
 
 async function handleSubmit() {
@@ -101,6 +210,8 @@ async function handleSubmit() {
     const body = {}
     if (form.value.title) body.title = form.value.title
     if (form.value.content) body.content = form.value.content
+    if (form.value.tags) body.tags = form.value.tags
+    if (form.value.access_level) body.access_level = form.value.access_level
 
     const res = await fetch(url, {
       method,
@@ -131,7 +242,7 @@ async function handleSubmit() {
 .page-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   margin-bottom: 24px;
 }
 .back-btn { padding: 2px; color: var(--color-text-3); }

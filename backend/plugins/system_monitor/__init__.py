@@ -35,32 +35,21 @@ class SystemMonitorPlugin(BasePlugin):
         container.register("system_monitor", lambda c: SystemMonitorService(c))
 
     def on_startup(self) -> None:
-        import asyncio
-        from backend.core.plugin_registry import registry as _reg
-
-        async def _start():
-            container = _reg.container
-            if "system_monitor" in container._factories:
-                svc = container.get("system_monitor")
-                svc.start_collection()
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(_start())
-            else:
-                loop.run_until_complete(_start())
-        except Exception:
-            pass
+        """启动系统监控采集任务。"""
+        if not self._app:
+            return
+        container = self._app.state.container
+        if container.is_available("system_monitor"):
+            svc = container.get("system_monitor")
+            svc.start_collection()
 
     def on_shutdown(self) -> None:
-        try:
-            from backend.core.container import container as gc
-            if gc.is_available("system_monitor"):
-                svc = gc.get("system_monitor")
-                svc.stop_collection()
-        except Exception:
-            pass
+        if not self._app:
+            return
+        container = self._app.state.container
+        if container.is_available("system_monitor"):
+            svc = container.get("system_monitor")
+            svc.stop_collection()
 
 
 plugin = SystemMonitorPlugin()

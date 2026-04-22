@@ -9,7 +9,7 @@
         <h1 class="page-title">爬虫仪表盘</h1>
       </div>
       <a-space>
-        <a-button type="text" size="small" @click="refreshData" :loading="refreshing">
+        <a-button type="text" size="small" @click="fetchTasks" :loading="refreshing">
           <template #icon><icon-refresh /></template>
         </a-button>
         <a-button type="primary" size="small" @click="showCreateModal = true">
@@ -22,23 +22,23 @@
     <!-- 统计概览 -->
     <div class="status-row">
       <div class="status-card">
-        <div class="status-num">{{ stats.total }}</div>
+        <div class="status-num">{{ stats.totalTasks }}</div>
         <div class="status-label">总任务</div>
       </div>
       <div class="status-card s-success">
-        <div class="status-num">{{ stats.success }}</div>
-        <div class="status-label">成功</div>
+        <div class="status-num">{{ stats.byStatus?.completed ?? 0 }}</div>
+        <div class="status-label">完成</div>
       </div>
       <div class="status-card s-running">
-        <div class="status-num">{{ stats.running }}</div>
+        <div class="status-num">{{ stats.byStatus?.running ?? 0 }}</div>
         <div class="status-label">运行中</div>
       </div>
       <div class="status-card s-fail">
-        <div class="status-num">{{ stats.failed }}</div>
+        <div class="status-num">{{ stats.byStatus?.failed ?? 0 }}</div>
         <div class="status-label">失败</div>
       </div>
       <div class="status-card s-info">
-        <div class="status-num">{{ stats.records }}</div>
+        <div class="status-num">{{ stats.totalResults }}</div>
         <div class="status-label">总数据条</div>
       </div>
     </div>
@@ -54,24 +54,18 @@
     <div v-else class="running-grid">
       <div v-for="task in runningTasks" :key="task.id" class="running-card">
         <div class="running-header">
-          <a-tag :color="taskTypeColor(task.type)" size="small">{{ task.typeLabel }}</a-tag>
-          <span class="running-url" :title="task.url">{{ task.url }}</span>
-          <span class="running-schedule">{{ task.schedule }}</span>
+          <span class="running-name">{{ task.name }}</span>
+          <a-tag color="blue" size="small">运行中</a-tag>
         </div>
         <div class="running-body">
-          <div class="running-progress">
-            <a-progress :percent="task.progress" size="small" :show-text="false" />
-            <span class="progress-text">{{ task.progress }}%</span>
-          </div>
           <div class="running-stats">
-            <span class="stat"><icon-file /> {{ task.records }} 条</span>
-            <span class="stat"><icon-clock-circle /> {{ task.duration }}</span>
-            <span class="stat"><icon-download /> {{ task.size }}</span>
+            <span class="stat">种子 {{ task.seed_urls?.length ?? 0 }} 个</span>
+            <span class="stat">间隔 {{ task.schedule_interval }}h</span>
           </div>
         </div>
         <div class="running-footer">
-          <a-button type="text" size="mini" @click="viewLogs(task)">日志</a-button>
-          <a-button type="text" size="mini" status="danger" @click="stopTask(task)">停止</a-button>
+          <a-button type="text" size="mini" @click="runTask(task)">执行</a-button>
+          <a-button type="text" size="mini" status="danger" @click="deleteTask(task)">删除</a-button>
         </div>
       </div>
     </div>
@@ -87,13 +81,13 @@
       :columns="taskColumns"
       row-key="id"
       :bordered="false"
-      :pagination="{ pageSize: 10 }"
+      :pagination="pagination"
       class="task-table"
+      @page-change="onPageChange"
     >
       <template #name="{ record }">
         <div class="task-name-cell">
           <span class="task-name">{{ record.name }}</span>
-          <a-tag :color="taskTypeColor(record.type)" size="mini">{{ record.typeLabel }}</a-tag>
         </div>
       </template>
       <template #status="{ record }">
@@ -101,57 +95,36 @@
           {{ taskStatusLabel(record.status) }}
         </a-tag>
       </template>
-      <template #progress="{ record }">
-        <a-progress v-if="record.status === 'running'" :percent="record.progress" size="small" />
-        <span v-else class="progress-done">—</span>
+      <template #seed_urls="{ record }">
+        <span class="seed-urls">{{ (record.seed_urls || []).slice(0, 2).join(', ') }}{{ (record.seed_urls || []).length > 2 ? '...' : '' }}</span>
       </template>
       <template #actions="{ record }">
         <a-space size="small">
-          <a-button type="text" size="mini" @click="viewLogs(record)">日志</a-button>
+          <a-button v-if="record.status !== 'running'" type="text" size="mini" @click="runTask(record)">执行</a-button>
+          <a-button v-if="record.status === 'running'" type="text" size="mini" status="warning" @click="pauseTask(record)">暂停</a-button>
           <a-button v-if="record.status === 'paused'" type="text" size="mini" @click="resumeTask(record)">恢复</a-button>
-          <a-button v-if="record.status === 'running'" type="text" size="mini" status="danger" @click="stopTask(record)">停止</a-button>
-          <a-button v-if="record.status === 'success' || record.status === 'failed'" type="text" size="mini" @click="restartTask(record)">重试</a-button>
+          <a-button type="text" size="mini" status="danger" @click="deleteTask(record)">删除</a-button>
         </a-space>
       </template>
     </a-table>
 
-    <!-- 日志面板 -->
-    <a-drawer v-model:visible="logDrawerVisible" title="任务日志" width="640">
-      <div v-if="currentLogTask" class="log-panel">
-        <div class="log-header">
-          <span class="log-task-name">{{ currentLogTask.name }}</span>
-          <a-tag :color="taskStatusColor(currentLogTask.status)">{{ taskStatusLabel(currentLogTask.status) }}</a-tag>
-        </div>
-        <div class="log-content">
-          <pre v-for="(line, i) in currentLogTask.logs" :key="i" class="log-line">{{ line }}</pre>
-        </div>
-      </div>
-    </a-drawer>
-
     <!-- 新建任务弹窗 -->
-    <a-modal v-model:visible="showCreateModal" title="新建爬虫任务" @ok="createTask">
+    <a-modal v-model:visible="showCreateModal" title="新建爬虫任务" @ok="createTask" :mask-closable="false">
       <a-form :model="newTask" layout="vertical">
-        <a-form-item label="任务名称" field="name">
+        <a-form-item label="任务名称" field="name" :rules="[{ required: true, message: '请输入任务名称' }]">
           <a-input v-model="newTask.name" placeholder="例如：知乎热榜抓取" />
         </a-form-item>
-        <a-form-item label="目标 URL" field="url">
-          <a-input v-model="newTask.url" placeholder="https://..." />
+        <a-form-item label="种子 URL" field="seedUrls" :rules="[{ required: true, message: '请输入至少一个 URL' }]">
+          <a-textarea
+            v-model="newTask.seedUrlsText"
+            placeholder="每行一个 URL"
+            :auto-size="{ minRows: 3, maxRows: 6 }"
+          />
         </a-form-item>
-        <a-form-item label="任务类型" field="type">
-          <a-select v-model="newTask.type">
-            <a-option value="full">全站抓取</a-option>
-            <a-option value="page">单页抓取</a-option>
-            <a-option value="api">API 数据</a-option>
-            <a-option value="rss">RSS 订阅</a-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="调度规则" field="schedule">
-          <a-select v-model="newTask.schedule">
-            <a-option value="once">仅执行一次</a-option>
-            <a-option value="hourly">每小时</a-option>
-            <a-option value="daily">每天</a-option>
-            <a-option value="weekly">每周</a-option>
-          </a-select>
+        <a-form-item label="调度间隔（小时）" field="scheduleInterval">
+          <a-input-number v-model="newTask.schedule_interval" :min="0" :max="168">
+            <template #suffix>小时（0 = 仅一次）</template>
+          </a-input-number>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -159,39 +132,30 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
+import { useAuth } from '../../router/auth.js'
 import {
   IconBug, IconPlus, IconSync, IconArrowLeft,
-  IconRefresh, IconList, IconFile, IconClockCircle, IconDownload,
+  IconRefresh, IconList,
 } from '@arco-design/web-vue/es/icon'
 
+const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const showCreateModal = ref(false)
-const logDrawerVisible = ref(false)
-const currentLogTask = ref(null)
-
-const newTask = ref({ name: '', url: '', type: 'full', schedule: 'daily' })
-
-const stats = ref({ total: 0, success: 0, running: 0, failed: 0, records: 0 })
-
 const allTasks = ref([])
+const stats = ref({ totalTasks: 0, byStatus: {}, totalResults: 0 })
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
+const pagination = { showTotal: true, pageSize: 20 }
 const runningTasks = computed(() => allTasks.value.filter(t => t.status === 'running'))
-
-const TASK_TYPES = {
-  full: { label: '全站', color: 'blue' },
-  page: { label: '单页', color: 'orange' },
-  api: { label: 'API', color: 'green' },
-  rss: { label: 'RSS', color: 'purple' },
-}
-
-function taskTypeColor(type) { return TASK_TYPES[type]?.color ?? 'gray' }
 
 const TASK_STATUS = {
   running: { label: '运行中', color: 'blue' },
   paused: { label: '已暂停', color: 'orange' },
-  success: { label: '完成', color: 'green' },
+  completed: { label: '完成', color: 'green' },
   failed: { label: '失败', color: 'red' },
   pending: { label: '等待中', color: 'gray' },
 }
@@ -200,59 +164,113 @@ function taskStatusColor(status) { return TASK_STATUS[status]?.color ?? 'gray' }
 function taskStatusLabel(status) { return TASK_STATUS[status]?.label ?? status }
 
 const taskColumns = [
-  { title: '名称', dataIndex: 'name', slotName: 'name', width: 260 },
-  { title: '目标 URL', dataIndex: 'url', ellipsis: true, tooltip: true },
+  { title: '名称', slotName: 'name', width: 200 },
   { title: '状态', slotName: 'status', width: 90 },
-  { title: '进度', slotName: 'progress', width: 140 },
-  { title: '数据量', dataIndex: 'records', width: 80 },
-  { title: '更新时间', dataIndex: 'updated_at', width: 160 },
-  { title: '操作', slotName: 'actions', width: 180, fixed: 'right' },
+  { title: '种子 URL', slotName: 'seed_urls', ellipsis: true, tooltip: true },
+  { title: '调度间隔', dataIndex: 'schedule_interval', width: 100,
+    formatter: ({ cellValue }) => cellValue ? `${cellValue}h` : '一次' },
+  { title: '创建时间', dataIndex: 'created_at', width: 160,
+    formatter: ({ cellValue }) => cellValue ? new Date(cellValue).toLocaleString('zh-CN') : '-' },
+  { title: '操作', slotName: 'actions', width: 200, fixed: 'right' },
 ]
 
-function refreshData() {
+const newTask = ref({ name: '', seedUrlsText: '', schedule_interval: 0 })
+
+async function fetchTasks() {
   refreshing.value = true
-  setTimeout(() => { refreshing.value = false }, 500)
-}
-
-function viewLogs(task) {
-  currentLogTask.value = {
-    ...task,
-    logs: [
-      `[${task.updated_at}] 开始抓取 ${task.url}`,
-      '[INFO] 初始化爬虫引擎...',
-      '[INFO] 加载请求头伪装...',
-      '[INFO] 代理池连接成功',
-      '[INFO] 目标站点响应 200 OK',
-      '[INFO] 解析 HTML 结构...',
-      `[INFO] 已提取 ${task.records} 条数据`,
-      '[INFO] 数据清洗完成',
-      '[INFO] 写入本地存储...',
-    ],
+  try {
+    const [tasksRes, statsRes] = await Promise.all([
+      fetch(`/api/crawler/tasks?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() }),
+      fetch('/api/crawler/stats', { headers: authHeaders() }),
+    ])
+    const tasksData = await tasksRes.json()
+    const statsData = await statsRes.json()
+    if (tasksData.code === 'ok') {
+      allTasks.value = tasksData.data.items || []
+      total.value = tasksData.data.total || 0
+      pagination.total = total.value
+    }
+    if (statsData.code === 'ok') {
+      stats.value = statsData.data
+    }
+  } catch {
+    Message.error('加载数据失败')
+  } finally {
+    refreshing.value = false
   }
-  logDrawerVisible.value = true
 }
 
-function stopTask(task) {
-  Message.info(`已停止任务: ${task.name}`)
+function onPageChange(p) {
+  page.value = p
+  fetchTasks()
 }
 
-function resumeTask(task) {
-  Message.info(`已恢复任务: ${task.name}`)
-}
+async function createTask() {
+  if (!newTask.value.name?.trim()) { Message.warning('请填写任务名称'); return }
+  const urls = newTask.value.seedUrlsText.split('\n').map(u => u.trim()).filter(Boolean)
+  if (urls.length === 0) { Message.warning('请输入至少一个 URL'); return }
 
-function restartTask(task) {
-  Message.info(`重新执行任务: ${task.name}`)
-}
-
-function createTask() {
-  if (!newTask.value.name || !newTask.value.url) {
-    Message.warning('请填写任务名称和目标 URL')
-    return
+  try {
+    const res = await fetch('/api/crawler/tasks', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        name: newTask.value.name,
+        seed_urls: urls,
+        schedule_interval: newTask.value.schedule_interval,
+      }),
+    })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      Message.success('任务创建成功')
+      showCreateModal.value = false
+      newTask.value = { name: '', seedUrlsText: '', schedule_interval: 0 }
+      await fetchTasks()
+    } else {
+      Message.error(result.message || '创建失败')
+    }
+  } catch {
+    Message.error('网络错误')
   }
-  Message.success(`任务创建成功: ${newTask.value.name}`)
-  showCreateModal.value = false
-  newTask.value = { name: '', url: '', type: 'full', schedule: 'daily' }
 }
+
+async function runTask(task) {
+  try {
+    const res = await fetch(`/api/crawler/tasks/${task.id}/run`, { method: 'POST', headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') { Message.success('执行完成'); await fetchTasks() }
+    else Message.error(result.message || '执行失败')
+  } catch { Message.error('网络错误') }
+}
+
+async function pauseTask(task) {
+  try {
+    const res = await fetch(`/api/crawler/tasks/${task.id}/pause`, { method: 'POST', headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') { Message.success('已暂停'); await fetchTasks() }
+    else Message.error(result.message)
+  } catch { Message.error('网络错误') }
+}
+
+async function resumeTask(task) {
+  try {
+    const res = await fetch(`/api/crawler/tasks/${task.id}/resume`, { method: 'POST', headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') { Message.success('已恢复'); await fetchTasks() }
+    else Message.error(result.message)
+  } catch { Message.error('网络错误') }
+}
+
+async function deleteTask(task) {
+  try {
+    const res = await fetch(`/api/crawler/tasks/${task.id}`, { method: 'DELETE', headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') { Message.success('已删除'); await fetchTasks() }
+    else Message.error(result.message)
+  } catch { Message.error('网络错误') }
+}
+
+onMounted(() => { fetchTasks() })
 </script>
 
 <style scoped>
@@ -299,26 +317,14 @@ function createTask() {
   padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.03);
 }
 .running-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.running-url { font-size: 13px; color: var(--color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.running-schedule { font-size: 11px; color: var(--color-text-4); background: var(--color-fill-2); padding: 2px 8px; border-radius: 8px; }
+.running-name { font-size: 15px; font-weight: 600; flex: 1; }
 .running-body { margin-bottom: 8px; }
-.running-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.progress-text { font-size: 12px; color: var(--color-text-3); white-space: nowrap; }
 .running-stats { display: flex; gap: 16px; }
-.stat { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-text-3); }
-.stat .arco-icon { width: 12px; height: 12px; }
+.stat { font-size: 12px; color: var(--color-text-3); }
 .running-footer { display: flex; justify-content: flex-end; gap: 4px; border-top: 1px solid var(--color-border-1); padding-top: 8px; }
 
 .task-table { border-radius: var(--border-radius-large); overflow: hidden; }
-.task-table :deep(.arco-table) { border-radius: var(--border-radius-large); }
 .task-name-cell { display: flex; align-items: center; gap: 8px; }
 .task-name { font-weight: 500; }
-.progress-done { color: var(--color-text-4); }
-
-.log-panel { display: flex; flex-direction: column; height: 100%; }
-.log-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--color-border-1); }
-.log-task-name { font-weight: 600; font-size: 14px; }
-.log-content { flex: 1; overflow-y: auto; background: #1f2328; border-radius: var(--border-radius-medium); padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.6; }
-.log-line { margin: 0; color: #c9d1d9; }
-.log-line:nth-child(odd) { color: #8b949e; }
+.seed-urls { font-size: 12px; color: var(--color-text-3); font-family: monospace; }
 </style>

@@ -62,6 +62,9 @@ const authRoutes = [
   guarded('/editor', 'blog-editor',
     () => import('../components/blog/Editor.vue'),
     3),
+  guarded('/editor/:id', 'blog-editor-edit',
+    () => import('../components/blog/Editor.vue'),
+    3),
 
   // P2+（中级用户）：文件上传
   guarded('/upload', 'file-upload',
@@ -77,7 +80,7 @@ const authRoutes = [
     1),
   guarded('/moderation', 'moderation',
     () => import('../components/blog/Moderation.vue'),
-    1),
+    0),
 
   // P0（最高权限）：运维面板、管理后台
   guarded('/ops/crawler', 'crawler-dashboard',

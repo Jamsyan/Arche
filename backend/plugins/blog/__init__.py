@@ -15,7 +15,14 @@ if TYPE_CHECKING:
     from backend.core.container import ServiceContainer
 
 # 导入模型，确保在 create_all 前注册到 Base
-from backend.plugins.blog.models import BlogPost, BlogComment, BlogLike, BlogReport  # noqa: F401
+from backend.plugins.blog.models import (  # noqa: F401
+    BlogPost,
+    BlogComment,
+    BlogLike,
+    BlogReport,
+    BlogTag,
+    BlogPostTag,
+)
 from backend.plugins.blog.routes import router
 from backend.plugins.blog.services import BlogService
 
@@ -40,16 +47,20 @@ class BlogPlugin(BasePlugin):
 
     def on_startup(self) -> None:
         """启动时初始化敏感词过滤器。"""
-        from backend.core.plugin_registry import registry as plugin_registry
         from backend.plugins.blog.sensitive_words import init_filter
 
         # 从容器获取配置
         # 延迟导入避免循环
         try:
             from backend.core.container import container as global_container
+
             config = global_container.get("config")
             words_str = config.get("SENSITIVE_WORDS", "")
-            words = [w.strip() for w in words_str.split(",") if w.strip()] if words_str else []
+            words = (
+                [w.strip() for w in words_str.split(",") if w.strip()]
+                if words_str
+                else []
+            )
             init_filter(words)
         except Exception:
             init_filter([])

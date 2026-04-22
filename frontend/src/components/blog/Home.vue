@@ -19,7 +19,25 @@
             <icon-filter class="panel-icon" />
             筛选
           </div>
-          <div class="panel-hint">暂无筛选条件</div>
+          <a-select
+            v-model="selectedTag"
+            placeholder="按标签筛选"
+            allow-clear
+            size="small"
+            :loading="tagsLoading"
+            @change="onTagChange"
+          >
+            <a-option
+              v-for="tag in allTags"
+              :key="tag.name"
+              :value="tag.name"
+              :label="tag.name"
+            />
+          </a-select>
+          <div v-if="selectedTag" class="tag-badge">
+            当前标签: {{ selectedTag }}
+            <a-button type="text" size="mini" @click="clearTag">清除</a-button>
+          </div>
         </div>
 
         <div class="panel">
@@ -72,6 +90,18 @@
                   {{ item.likes || 0 }}
                 </span>
                 <LevelBadge :level="getLevel(item.quality_score)" />
+                <a-tag v-if="item.access_level && item.access_level !== 'A5'" size="small" color="orangered">
+                  {{ item.access_level }}
+                </a-tag>
+                <a-tag
+                  v-for="tag in (item.tags || []).slice(0, 3)"
+                  :key="tag.name"
+                  size="small"
+                  color="arcoblue"
+                  @click.stop="goToTag(tag.name)"
+                >
+                  {{ tag.name }}
+                </a-tag>
                 <span class="stat-item stat-time">
                   <icon-clock-circle />
                   {{ formatDate(item.created_at) }}
@@ -139,6 +169,41 @@ const total = ref(0)
 const sortBy = ref('created_at')
 const paragraphComment = ref(false)
 
+// 标签筛选
+const allTags = ref([])
+const tagsLoading = ref(false)
+const selectedTag = ref('')
+
+async function fetchTags() {
+  tagsLoading.value = true
+  try {
+    const res = await fetch('/api/blog/tags?page=1&page_size=200')
+    const result = await res.json()
+    allTags.value = (result.data?.items || [])
+  } catch {
+    allTags.value = []
+  } finally {
+    tagsLoading.value = false
+  }
+}
+
+function onTagChange() {
+  page.value = 1
+  fetchPosts()
+}
+
+function clearTag() {
+  selectedTag.value = ''
+  page.value = 1
+  fetchPosts()
+}
+
+function goToTag(tagName) {
+  selectedTag.value = tagName
+  page.value = 1
+  fetchPosts()
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
@@ -162,9 +227,11 @@ function goToPost(slug) {
 async function fetchPosts() {
   loading.value = true
   try {
-    const res = await fetch(
-      `/api/blog/posts?page=${page.value}&page_size=${pageSize.value}&sort_by=${sortBy.value}`
-    )
+    let url = `/api/blog/posts?page=${page.value}&page_size=${pageSize.value}&sort_by=${sortBy.value}`
+    if (selectedTag.value) {
+      url = `/api/blog/posts/by-tag/${selectedTag.value}?page=${page.value}&page_size=${pageSize.value}`
+    }
+    const res = await fetch(url)
     const result = await res.json()
     const data = result.data || {}
     posts.value = data.items || []
@@ -176,7 +243,7 @@ async function fetchPosts() {
   }
 }
 
-watch([page, sortBy], () => {
+watch([page, sortBy, selectedTag], () => {
   fetchPosts()
 })
 
@@ -186,6 +253,7 @@ function onPageChange(p) {
 
 onMounted(() => {
   fetchPosts()
+  fetchTags()
 })
 </script>
 
@@ -239,6 +307,17 @@ onMounted(() => {
   font-size: 12px;
   color: var(--color-text-4);
   margin-top: 4px;
+}
+.tag-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-primary);
+  background: var(--color-primary-light-1);
+  border-radius: 4px;
+  padding: 4px 8px;
 }
 .stat-row {
   display: flex;

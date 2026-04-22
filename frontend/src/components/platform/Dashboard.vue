@@ -431,6 +431,16 @@ async function fetchStatus() {
       const data = await modRes.json()
       moderationPending.value = data.data?.total || 0
     }
+    // 存储用量
+    const storageRes = await fetch('/api/oss/storage/stats?user_scope=true', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (storageRes.ok) {
+      const sData = await storageRes.json()
+      if (sData.code === 'ok') {
+        storageUsed.value = Math.round((sData.data.total_size || 0) / 1024 / 1024)
+      }
+    }
   } catch {}
 }
 

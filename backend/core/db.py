@@ -10,10 +10,13 @@ class Base(DeclarativeBase):
     pass
 
 
+# 模块级变量，供 on_startup 等场景使用
+engine = None
+session_factory = None
 _initialized = False
 
 
-async def ensure_tables(engine) -> None:
+async def ensure_tables() -> None:
     """Lazy create tables on first async context (avoids event loop conflicts)."""
     global _initialized
     if _initialized:
@@ -24,6 +27,7 @@ async def ensure_tables(engine) -> None:
 
 
 def init_db(database_url: str) -> tuple:
+    global engine, session_factory
     engine = create_async_engine(database_url, echo=False)
     session_factory = async_sessionmaker(engine, class_=AsyncSession)
     return engine, session_factory

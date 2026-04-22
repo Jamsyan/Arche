@@ -46,11 +46,14 @@ class PluginRegistry:
             if hasattr(plugin, "register_services"):
                 plugin.register_services(container)
 
-    def on_startup(self) -> None:
+    async def on_startup(self) -> None:
+        import asyncio
         for name in self._active:
             plugin = self._plugins.get(name)
             if plugin and hasattr(plugin, "on_startup"):
-                plugin.on_startup()
+                result = plugin.on_startup()
+                if asyncio.iscoroutine(result):
+                    await result
 
     def on_shutdown(self) -> None:
         for name in reversed(self._active):

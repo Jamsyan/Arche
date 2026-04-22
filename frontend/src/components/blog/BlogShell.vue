@@ -77,7 +77,7 @@ import {
 } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
-const { level, user, isAuthenticated, logout } = useAuth()
+const { level, user, isAuthenticated, logout, loadUser } = useAuth()
 
 const userLevel = computed(() => level.value ?? 5)
 const userInitial = computed(() => user.value?.username ? user.value.username[0].toUpperCase() : 'U')

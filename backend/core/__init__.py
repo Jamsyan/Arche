@@ -57,8 +57,8 @@ def create_app() -> FastAPI:
     # 8. Startup / Shutdown hooks
     @app.on_event("startup")
     async def startup():
-        await ensure_tables(engine)
-        registry.on_startup()
+        await ensure_tables()
+        await registry.on_startup()
 
     @app.on_event("shutdown")
     async def shutdown():

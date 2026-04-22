@@ -13,6 +13,9 @@
               <a-tag color="arcoblue">
                 <icon-eye /> {{ post.views || 0 }} 阅读
               </a-tag>
+              <a-tag v-if="post.access_level && post.access_level !== 'A5'" color="orangered" size="small">
+                {{ post.access_level }}
+              </a-tag>
               <LevelBadge :level="getLevel(post.quality_score)" />
             </a-space>
           </template>
@@ -26,9 +29,21 @@
           <span>{{ post.author_username || '匿名用户' }}</span>
         </a-space>
 
-        <!-- 文章内容 -->
+        <!-- 标签 -->
+        <a-space v-if="post.tags && post.tags.length > 0" style="margin-bottom: 16px" wrap>
+          <a-tag
+            v-for="tag in post.tags"
+            :key="tag.name"
+            size="small"
+            color="arcoblue"
+          >
+            {{ tag.name }}
+          </a-tag>
+        </a-space>
+
+        <!-- 文章内容（Markdown 渲染） -->
         <a-card :bordered="false" style="margin-bottom: 24px">
-          <pre class="post-content">{{ post.content }}</pre>
+          <div class="markdown-body" v-html="renderedContent" />
         </a-card>
 
         <!-- 操作栏 -->
@@ -42,7 +57,32 @@
               <template #icon><icon-thumb-up /></template>
               {{ liked ? '已点赞' : '点赞' }}
             </a-button>
+            <a-button
+              v-if="canDelete"
+              type="secondary"
+              status="danger"
+              @click="deletePost"
+            >
+              <template #icon><icon-delete /></template>
+              删除
+            </a-button>
+            <a-button
+              v-if="isAuthenticated && !canDelete"
+              type="secondary"
+              @click="showReport"
+            >
+              <template #icon><icon-bug /></template>
+              举报
+            </a-button>
           </a-space>
+          <a-button
+            v-if="isAuthor"
+            type="primary"
+            @click="$router.push(`/editor/${post.id}`)"
+          >
+            <template #icon><icon-edit /></template>
+            编辑
+          </a-button>
         </a-row>
 
         <!-- 评论区 -->
@@ -126,18 +166,30 @@
         </template>
       </a-result>
     </a-spin>
+
+    <!-- 举报弹窗 -->
+    <a-modal v-model:visible="showReportModal" title="举报文章" @ok="submitReport" :mask-closable="false">
+      <a-textarea
+        v-model="reportReason"
+        placeholder="请输入举报原因（选填）"
+        :auto-size="{ minRows: 3, maxRows: 6 }"
+      />
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../router/auth.js'
 import LevelBadge from '../LevelBadge.vue'
-import { Message } from '@arco-design/web-vue'
+import { Message, Modal } from '@arco-design/web-vue'
+import MarkdownIt from 'markdown-it'
+import { IconDelete, IconEdit, IconBug } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
-const { isAuthenticated, user, authHeaders } = useAuth()
+const router = useRouter()
+const { isAuthenticated, user, authHeaders, level } = useAuth()
 
 const post = ref(null)
 const loading = ref(true)
@@ -146,6 +198,27 @@ const comments = ref([])
 const commentContent = ref('')
 const replyingTo = ref(null)
 const replyContents = ref({})
+
+const showReportModal = ref(false)
+const reportReason = ref('')
+
+const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
+
+const renderedContent = computed(() => {
+  if (!post.value?.content) return ''
+  return md.render(post.value.content)
+})
+
+const isAuthor = computed(() => {
+  if (!post.value || !user.value) return false
+  return post.value.author_id === user.value.id
+})
+
+const canDelete = computed(() => {
+  if (!post.value || !user.value) return false
+  const userLevel = level.value ?? 5
+  return isAuthor.value || userLevel === 0
+})
 
 const userAvatar = computed(() => {
   if (user.value?.username) {
@@ -177,7 +250,7 @@ function getLevel(qualityScore) {
 }
 
 function getCommentAuthor(comment) {
-  return comment.author_username || `用户 ${comment.author_id.slice(0, 8)}`
+  return comment.author_username || `用户 ${(comment.author_id || '').slice(0, 8)}`
 }
 
 function getCommentAvatar(comment) {
@@ -300,6 +373,56 @@ async function submitReply(parentId) {
   }
 }
 
+async function deletePost() {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定删除文章《${post.value.title}》吗？此操作不可恢复。`,
+    okText: '删除',
+    buttonProps: { status: 'danger' },
+    onOk: async () => {
+      try {
+        const res = await fetch(`/api/blog/posts/${post.value.id}`, {
+          method: 'DELETE',
+          headers: authHeaders(),
+        })
+        const result = await res.json()
+        if (result.code === 'ok') {
+          Message.success('删除成功')
+          router.push('/')
+        } else {
+          Message.error(result.message || '删除失败')
+        }
+      } catch {
+        Message.error('网络错误')
+      }
+    },
+  })
+}
+
+function showReport() {
+  reportReason.value = ''
+  showReportModal.value = true
+}
+
+async function submitReport() {
+  try {
+    const res = await fetch('/api/blog/reports', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ post_id: post.value.id, reason: reportReason.value }),
+    })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      Message.success('举报成功，我们会尽快处理')
+      showReportModal.value = false
+    } else {
+      Message.error(result.message || '举报失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  }
+}
+
 onMounted(async () => {
   await fetchPost()
   if (post.value) {
@@ -320,5 +443,72 @@ onMounted(async () => {
   line-height: 1.8;
   font-size: 15px;
   margin: 0;
+}
+
+/* Markdown 渲染样式 */
+.markdown-body :deep(h1), .markdown-body :deep(h2), .markdown-body :deep(h3) {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.markdown-body :deep(h1) { font-size: 2em; border-bottom: 1px solid var(--color-border-2); padding-bottom: 0.3em; }
+.markdown-body :deep(h2) { font-size: 1.5em; border-bottom: 1px solid var(--color-border-2); padding-bottom: 0.3em; }
+.markdown-body :deep(h3) { font-size: 1.25em; }
+.markdown-body :deep(p) { margin-bottom: 16px; line-height: 1.8; }
+.markdown-body :deep(code) {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: var(--color-fill-2);
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.markdown-body :deep(pre) {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: var(--color-fill-2);
+  border-radius: 6px;
+}
+.markdown-body :deep(pre code) {
+  padding: 0;
+  margin: 0;
+  font-size: 100%;
+  background: transparent;
+}
+.markdown-body :deep(blockquote) {
+  padding: 0 1em;
+  color: var(--color-text-3);
+  border-left: 0.25em solid var(--color-border-2);
+  margin: 0 0 16px 0;
+}
+.markdown-body :deep(ul), .markdown-body :deep(ol) {
+  padding-left: 2em;
+  margin-bottom: 16px;
+}
+.markdown-body :deep(img) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.markdown-body :deep(a) {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+}
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+.markdown-body :deep(table th), .markdown-body :deep(table td) {
+  padding: 6px 13px;
+  border: 1px solid var(--color-border-2);
+}
+.markdown-body :deep(table tr:nth-child(2n)) {
+  background-color: var(--color-fill-1);
 }
 </style>
