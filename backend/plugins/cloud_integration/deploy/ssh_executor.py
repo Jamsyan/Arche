@@ -15,7 +15,12 @@ if TYPE_CHECKING:
 
 
 class SSHError(AppError):
-    def __init__(self, message: str = "SSH 操作失败", code: str = "ssh_error", status_code: int = 500):
+    def __init__(
+        self,
+        message: str = "SSH 操作失败",
+        code: str = "ssh_error",
+        status_code: int = 500,
+    ):
         super().__init__(message, code, status_code)
 
 

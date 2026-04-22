@@ -24,7 +24,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/auth/refresh",
         # 博客公开路由
         "/api/blog/posts",
+        "/api/blog/tags",
     }
+
+    # 博客公开 GET 路由前缀（所有博客 GET 端点都是公开浏览）
+    BLOG_PUBLIC_PREFIXES = (
+        "/api/blog/posts/",
+        "/api/blog/tags/",
+    )
 
     # FastAPI 内置路由（/docs, /openapi.json 等）跳过认证
     INTERNAL_PREFIXES = ("/docs", "/openapi.json", "/redoc")
@@ -35,13 +42,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
+        method = request.method
 
         # 公开路由和 FastAPI 内置路由直接放行
         if path in self.PUBLIC_PATHS or path.startswith(self.INTERNAL_PREFIXES):
             return await call_next(request)
 
-        # 博客公开路由前缀匹配
-        if path.startswith("/api/blog/posts/") and not path.startswith("/api/blog/posts/{"):
+        # 博客公开 GET 路由放行（限定具体前缀，避免放行 moderation 等管理端点）
+        if method == "GET" and path.startswith(self.BLOG_PUBLIC_PREFIXES):
             return await call_next(request)
 
         # 提取 Authorization header
@@ -62,6 +70,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # 注入用户信息到 request.state
         request.state.user = {
             "id": payload["sub"],
+            "email": payload.get("email", ""),
             "username": payload.get("username", ""),
             "level": payload["level"],
             "blog_quality_level": payload.get("blog_quality_level", 0),

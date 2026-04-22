@@ -91,4 +91,8 @@ async def clear_cache(request: Request):
     container: ServiceContainer = request.app.state.container
     proxy_service = container.get("github_proxy")
     count = proxy_service.clear_cache()
-    return {"code": "ok", "message": f"已清空 {count} 条缓存", "data": {"cleared": count}}
+    return {
+        "code": "ok",
+        "message": f"已清空 {count} 条缓存",
+        "data": {"cleared": count},
+    }

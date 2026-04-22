@@ -58,20 +58,29 @@ class FetchStage(BaseStage):
             # 提取链接
             links = []
             seen_links: set[str] = set()
-            for m in re.finditer(r'<a[^>]+href=["\']([^"\']+)["\']', html, re.IGNORECASE):
+            for m in re.finditer(
+                r'<a[^>]+href=["\']([^"\']+)["\']', html, re.IGNORECASE
+            ):
                 href = m.group(1).strip()
                 if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
                     continue
                 from urllib.parse import urljoin
 
                 abs_url = urljoin(item.url, href)
-                if abs_url.startswith(("http://", "https://")) and abs_url not in seen_links:
+                if (
+                    abs_url.startswith(("http://", "https://"))
+                    and abs_url not in seen_links
+                ):
                     seen_links.add(abs_url)
                     links.append(abs_url)
 
             # 简易文本提取
-            text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
-            text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(
+                r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+            )
+            text = re.sub(
+                r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE
+            )
             text = re.sub(r"<[^>]+>", " ", text)
             text = re.sub(r"\s+", " ", text).strip()
 

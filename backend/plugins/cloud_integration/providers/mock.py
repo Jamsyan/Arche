@@ -86,10 +86,16 @@ class MockProvider(CloudProvider):
 
         return {
             "status": instance["status"],
-            "gpu_util": random.uniform(60, 98) if instance["status"] == "running" else 0,
-            "mem_used": random.randint(8000, 16000) if instance["status"] == "running" else 0,
+            "gpu_util": random.uniform(60, 98)
+            if instance["status"] == "running"
+            else 0,
+            "mem_used": random.randint(8000, 16000)
+            if instance["status"] == "running"
+            else 0,
             "mem_total": 40960,
-            "temperature": random.uniform(45, 80) if instance["status"] == "running" else 25,
+            "temperature": random.uniform(45, 80)
+            if instance["status"] == "running"
+            else 25,
             "uptime_seconds": uptime,
         }
 

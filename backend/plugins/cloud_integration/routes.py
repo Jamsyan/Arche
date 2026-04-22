@@ -22,7 +22,9 @@ class CreateJobRequest(BaseModel):
 
 
 class CreateInstanceRequest(BaseModel):
-    instance_name: str = Field(..., min_length=1, max_length=256, description="实例名称")
+    instance_name: str = Field(
+        ..., min_length=1, max_length=256, description="实例名称"
+    )
     gpu_type: str = Field(..., min_length=1, max_length=64, description="GPU 类型")
     provider: str = Field(default="mock", description="Provider 名称")
 
@@ -228,18 +230,10 @@ async def get_costs(
 @require_level(0)
 async def get_gpu_metrics(instance_id: str, request: Request):
     """GPU 实时指标（P0）。"""
-    container: ServiceContainer = request.app.state.container
-    service = container.get("cloud_training")
-
-    # 获取实例信息
-    instance = await service.list_instances(
-        job_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),  # placeholder
-        page=1,
-        page_size=1,
-    )
 
     # 通过 Provider 获取 GPU 指标
     from backend.plugins.cloud_integration.providers.registry import get_provider
+
     cloud_provider = get_provider("mock")
     try:
         metrics = await cloud_provider.get_gpu_metrics(instance_id)

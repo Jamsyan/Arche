@@ -69,12 +69,14 @@ def aggregate_costs(instances: list[dict]) -> dict:
             provider=inst.get("provider", "mock"),
             gpu_type=inst.get("gpu_type", "A100"),
         )
-        breakdown.append({
-            "instance_id": inst.get("instance_id", ""),
-            "provider": inst.get("provider", "mock"),
-            "gpu_type": inst.get("gpu_type", "A100"),
-            "cost": cost,
-        })
+        breakdown.append(
+            {
+                "instance_id": inst.get("instance_id", ""),
+                "provider": inst.get("provider", "mock"),
+                "gpu_type": inst.get("gpu_type", "A100"),
+                "cost": cost,
+            }
+        )
         total += cost
 
     return {

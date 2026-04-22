@@ -16,7 +16,12 @@ if TYPE_CHECKING:
 
 
 class GitHubProxyError(AppError):
-    def __init__(self, message: str = "GitHub 代理请求失败", code: str = "github_proxy_error", status_code: int = 502):
+    def __init__(
+        self,
+        message: str = "GitHub 代理请求失败",
+        code: str = "github_proxy_error",
+        status_code: int = 502,
+    ):
         super().__init__(message, code, status_code)
 
 
@@ -28,7 +33,9 @@ RATE_LIMIT_MAX_REQUESTS = 60  # 每分钟最大请求数
 class CacheEntry:
     """简单的内存缓存条目。"""
 
-    def __init__(self, data: Any, status_code: int, headers: dict[str, str], ttl: int = 300):
+    def __init__(
+        self, data: Any, status_code: int, headers: dict[str, str], ttl: int = 300
+    ):
         self.data = data
         self.status_code = status_code
         self.headers = headers
@@ -47,7 +54,9 @@ class GitHubProxyService:
         config = container.get("config")
         self.github_token = config.get_required("GITHUB_TOKEN")
         self.base_url = config.get("GITHUB_API_BASE", "https://api.github.com")
-        self.raw_base_url = config.get("GITHUB_RAW_BASE", "https://raw.githubusercontent.com")
+        self.raw_base_url = config.get(
+            "GITHUB_RAW_BASE", "https://raw.githubusercontent.com"
+        )
         self.default_ttl = config.get("GITHUB_CACHE_TTL", 300)
         self.timeout = config.get("GITHUB_TIMEOUT", 30)
 
@@ -95,13 +104,22 @@ class GitHubProxyService:
             del self._cache[key]
         return None
 
-    def _set_cache(self, key: str, data: Any, status_code: int, headers: dict[str, str], ttl: int | None = None) -> None:
+    def _set_cache(
+        self,
+        key: str,
+        data: Any,
+        status_code: int,
+        headers: dict[str, str],
+        ttl: int | None = None,
+    ) -> None:
         if ttl is None:
             ttl = self.default_ttl
         if ttl > 0:
             self._cache[key] = CacheEntry(data, status_code, headers, ttl)
 
-    def _build_headers(self, extra_headers: dict[str, str] | None = None) -> dict[str, str]:
+    def _build_headers(
+        self, extra_headers: dict[str, str] | None = None
+    ) -> dict[str, str]:
         """构建转发到 GitHub 的请求头，替换 Authorization 为配置的 Token。"""
         headers = {
             "Authorization": f"token {self.github_token}",
@@ -153,9 +171,13 @@ class GitHubProxyService:
                 content=body,
             )
         except httpx.TimeoutException:
-            raise GitHubProxyError("GitHub API 请求超时", code="github_timeout", status_code=504)
+            raise GitHubProxyError(
+                "GitHub API 请求超时", code="github_timeout", status_code=504
+            )
         except httpx.ConnectError:
-            raise GitHubProxyError("无法连接 GitHub", code="github_connect_error", status_code=502)
+            raise GitHubProxyError(
+                "无法连接 GitHub", code="github_connect_error", status_code=502
+            )
 
         status_code = response.status_code
 
@@ -171,7 +193,11 @@ class GitHubProxyService:
             ttl = self._parse_cache_ttl(cache_control)
             self._set_cache(cache_key, data, status_code, resp_headers, ttl)
 
-        x_cache_status = "HIT" if (method.upper() == "GET" and self._get_cached(cache_key)) else "MISS"
+        x_cache_status = (
+            "HIT"
+            if (method.upper() == "GET" and self._get_cached(cache_key))
+            else "MISS"
+        )
 
         return {
             "data": data,
@@ -192,13 +218,19 @@ class GitHubProxyService:
                 "cached": True,
             }
 
-        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout, follow_redirects=True
+        ) as client:
             try:
                 response = await client.get(f"{self.raw_base_url}/{path.lstrip('/')}")
             except httpx.TimeoutException:
-                raise GitHubProxyError("GitHub 静态资源请求超时", code="github_timeout", status_code=504)
+                raise GitHubProxyError(
+                    "GitHub 静态资源请求超时", code="github_timeout", status_code=504
+                )
             except httpx.ConnectError:
-                raise GitHubProxyError("无法连接 GitHub", code="github_connect_error", status_code=502)
+                raise GitHubProxyError(
+                    "无法连接 GitHub", code="github_connect_error", status_code=502
+                )
 
             status_code = response.status_code
             content = response.content

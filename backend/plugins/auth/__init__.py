@@ -44,21 +44,7 @@ class AuthPlugin(BasePlugin):
         secret_key = container.get("config").get_required("SECRET_KEY")
         self._app.add_middleware(AuthMiddleware, secret_key=secret_key)
 
-    async def on_startup(self) -> None:
-        """确保 is_active 列存在（兼容已有数据库）。"""
-        from sqlalchemy import text
-        from backend.core.db import engine
-
-        try:
-            async with engine.connect() as conn:
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT true")
-                )
-                await conn.commit()
-        except Exception:
-            pass  # 列已存在或表尚未创建，忽略
-
-    def on_shutdown(self) -> None:
+    def on_startup(self) -> None:
         pass
 
 

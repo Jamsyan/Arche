@@ -41,14 +41,16 @@ class ArtifactManager:
             remote_sha = await self._ssh.compute_sha256(conn_key, remote_path)
             local_sha = await self._ssh.compute_local_sha256(local_path)
 
-            artifacts.append({
-                "filename": filename,
-                "local_path": str(local_path),
-                "remote_path": remote_path,
-                "sha256": local_sha,
-                "size_bytes": local_path.stat().st_size,
-                "verified": remote_sha == local_sha,
-            })
+            artifacts.append(
+                {
+                    "filename": filename,
+                    "local_path": str(local_path),
+                    "remote_path": remote_path,
+                    "sha256": local_sha,
+                    "size_bytes": local_path.stat().st_size,
+                    "verified": remote_sha == local_sha,
+                }
+            )
 
         return artifacts
 

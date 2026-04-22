@@ -12,7 +12,13 @@ from fastapi.responses import JSONResponse
 class AppError(Exception):
     """Base error for application-level errors."""
 
-    def __init__(self, message: str, code: str = "error", status_code: int = 400, data: dict | None = None):
+    def __init__(
+        self,
+        message: str,
+        code: str = "error",
+        status_code: int = 400,
+        data: dict | None = None,
+    ):
         self.message = message
         self.code = code
         self.status_code = status_code
@@ -21,16 +27,28 @@ class AppError(Exception):
 
 
 class AuthError(AppError):
-    def __init__(self, message: str = "未认证或认证已过期", code: str = "auth_error", status_code: int = 401):
+    def __init__(
+        self,
+        message: str = "未认证或认证已过期",
+        code: str = "auth_error",
+        status_code: int = 401,
+    ):
         super().__init__(message, code, status_code)
 
 
 class PermissionError(AppError):  # noqa: A001 — intentional shadow of builtin for domain clarity
-    def __init__(self, message: str = "权限不足", code: str = "permission_denied", status_code: int = 403):
+    def __init__(
+        self,
+        message: str = "权限不足",
+        code: str = "permission_denied",
+        status_code: int = 403,
+    ):
         super().__init__(message, code, status_code)
 
 
-def error_response(message: str, code: str = "error", status_code: int = 400, data: dict | None = None) -> JSONResponse:
+def error_response(
+    message: str, code: str = "error", status_code: int = 400, data: dict | None = None
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content={"code": code, "message": message, "data": data or {}},
@@ -44,7 +62,9 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
-        return error_response("内部服务器错误", "internal_error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return error_response(
+            "内部服务器错误", "internal_error", status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 def setup_cors(app: FastAPI, origins: list[str]) -> None:
@@ -79,16 +99,13 @@ def require_level(min_level: int):
         async def wrapper(*args, **kwargs):
             request = kwargs.get("request")
             if request is None:
-                for arg in args:
-                    if hasattr(arg, "headers") and hasattr(arg, "state"):
-                        request = arg
-                        break
-            if request is None:
-                raise AuthError("无法获取请求上下文")
+                raise AuthError("路由必须传入 request 参数")
             user = require_user(request)
             user_level = user.get("level", 5)
             if user_level > min_level:
                 raise PermissionError(f"需要等级 <= {min_level}，当前等级 {user_level}")
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

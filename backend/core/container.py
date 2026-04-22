@@ -45,3 +45,7 @@ class ServiceContainer:
         for instance in reversed(list(self._instances.values())):
             if hasattr(instance, "close"):
                 instance.close()
+
+
+# 全局单例，供插件 on_startup 等异步生命周期访问
+container = ServiceContainer()

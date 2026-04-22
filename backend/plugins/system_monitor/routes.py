@@ -65,17 +65,28 @@ async def get_history(
     """历史数据（P0）。"""
     container: ServiceContainer = request.app.state.container
     svc = container.get("system_monitor")
-    return {"code": "ok", "message": "获取成功", "data": svc.get_history(page=page, page_size=page_size)}
+    return {
+        "code": "ok",
+        "message": "获取成功",
+        "data": svc.get_history(page=page, page_size=page_size),
+    }
 
 
 @router.get("/processes")
 @require_level(0)
 async def get_processes(
     request: Request,
-    sort_by: str = Query("cpu_percent", description="排序字段：cpu_percent/memory_percent/pid/create_time"),
+    sort_by: str = Query(
+        "cpu_percent",
+        description="排序字段：cpu_percent/memory_percent/pid/create_time",
+    ),
     limit: int = Query(50, ge=1, le=200, description="返回数量上限"),
 ):
     """进程列表（P0）。"""
     container: ServiceContainer = request.app.state.container
     svc = container.get("system_monitor")
-    return {"code": "ok", "message": "获取成功", "data": svc.get_processes(sort_by=sort_by, limit=limit)}
+    return {
+        "code": "ok",
+        "message": "获取成功",
+        "data": svc.get_processes(sort_by=sort_by, limit=limit),
+    }

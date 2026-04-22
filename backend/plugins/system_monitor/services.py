@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 from collections import deque
 from typing import TYPE_CHECKING
@@ -82,16 +83,28 @@ class SystemMonitorService:
         except (OSError, NotImplementedError):
             load = [0.0, 0.0, 0.0]
 
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        net = psutil.net_io_counters()
+
         return {
-            "cpu_pct": psutil.cpu_percent(interval=0),
+            "cpu_percent": psutil.cpu_percent(interval=0),
             "cpu_count": psutil.cpu_count(),
-            "mem_pct": psutil.virtual_memory().percent,
-            "disk_pct": psutil.disk_usage("/").percent,
+            "memory_used_gb": round(mem.used / 1024**3, 2),
+            "memory_total_gb": round(mem.total / 1024**3, 2),
+            "memory_percent": mem.percent,
+            "disk_used_gb": round(disk.used / 1024**3, 2),
+            "disk_total_gb": round(disk.total / 1024**3, 2),
+            "disk_percent": disk.percent,
+            "net_sent": net.bytes_sent,
+            "net_recv": net.bytes_recv,
+            "process_count": len(psutil.pids()),
+            "python_version": sys.version.split()[0],
+            "uptime": time.time() - psutil.boot_time(),
+            "platform": sys.platform,
             "load_1": load[0],
             "load_5": load[1],
             "load_15": load[2],
-            "uptime": time.time() - psutil.boot_time(),
-            "boot_time": psutil.boot_time(),
         }
 
     def get_cpu_detail(self) -> dict:
@@ -137,15 +150,17 @@ class SystemMonitorService:
         for part in psutil.disk_partitions(all=False):
             try:
                 u = psutil.disk_usage(part.mountpoint)
-                partitions.append({
-                    "device": part.device,
-                    "mountpoint": part.mountpoint,
-                    "fstype": part.fstype,
-                    "total": u.total,
-                    "used": u.used,
-                    "free": u.free,
-                    "percent": u.percent,
-                })
+                partitions.append(
+                    {
+                        "device": part.device,
+                        "mountpoint": part.mountpoint,
+                        "fstype": part.fstype,
+                        "total": u.total,
+                        "used": u.used,
+                        "free": u.free,
+                        "percent": u.percent,
+                    }
+                )
             except (PermissionError, OSError):
                 pass
 
@@ -192,19 +207,25 @@ class SystemMonitorService:
         ):
             try:
                 info = proc.info
-                procs.append({
-                    "pid": info["pid"],
-                    "name": info["name"] or "unknown",
-                    "status": info["status"],
-                    "cpu_percent": info["cpu_percent"] or 0.0,
-                    "memory_percent": round(info["memory_percent"] or 0.0, 2),
-                    "create_time": info["create_time"],
-                })
+                procs.append(
+                    {
+                        "pid": info["pid"],
+                        "name": info["name"] or "unknown",
+                        "status": info["status"],
+                        "cpu_percent": info["cpu_percent"] or 0.0,
+                        "memory_percent": round(info["memory_percent"] or 0.0, 2),
+                        "create_time": info["create_time"],
+                    }
+                )
             except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess):
                 pass
 
         reverse = True
-        key = sort_by if sort_by in ("cpu_percent", "memory_percent", "pid", "create_time") else "cpu_percent"
+        key = (
+            sort_by
+            if sort_by in ("cpu_percent", "memory_percent", "pid", "create_time")
+            else "cpu_percent"
+        )
         procs.sort(key=lambda p: p[key], reverse=reverse)
 
-        return {"processes": procs[:limit], "total": len(procs), "limit": limit}
+        return {"items": procs[:limit], "total": len(procs), "limit": limit}

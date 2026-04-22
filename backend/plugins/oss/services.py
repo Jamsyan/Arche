@@ -467,15 +467,12 @@ class StorageService:
         for oss_file in files:
             try:
                 local_path = self._safe_path(Path(oss_file.path))
-                if not await self._get_local_backend().exists(local_path):
+                local = self._get_local_backend()
+                if not await local.exists(local_path):
                     continue
 
-                # 流式读取本地文件并上传到阿里云
-                async def local_stream() -> AsyncGenerator[bytes, None]:
-                    async for chunk in self._get_local_backend().download(local_path):
-                        yield chunk
-
-                await aliyun.upload(local_path, local_stream(), oss_file.size)
+                # 用本地文件路径直接上传到阿里云（避免内存缓冲）
+                await aliyun.upload_from_file(oss_file.path, local_path)
 
                 # 更新数据库记录
                 async with self.session_factory() as session:
@@ -487,7 +484,7 @@ class StorageService:
                     await session.commit()
 
                 # 删除本地文件
-                await self._get_local_backend().delete(local_path)
+                await local.delete(local_path)
                 migrated += 1
             except Exception as e:
                 logger.warning(f"[OSS] 冷迁移失败 file_id={oss_file.id}: {e}")

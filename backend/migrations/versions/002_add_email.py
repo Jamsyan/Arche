@@ -1,0 +1,35 @@
+"""add email to users
+
+Revision ID: 002_add_email
+Revises: 001_initial
+Create Date: 2026-04-22
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers
+revision: str = "002_add_email"
+down_revision: Union[str, None] = "001_initial"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.add_column(sa.Column("email", sa.String(128), nullable=True))
+        # 为现有行设置默认值（后续需要手动更新）
+        batch_op.execute(
+            "UPDATE users SET email = username || '@local' WHERE email IS NULL"
+        )
+        batch_op.alter_column("email", nullable=False)
+        batch_op.create_unique_constraint("uq_users_email", ["email"])
+
+
+def downgrade() -> None:
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.drop_constraint("uq_users_email", type_="unique")
+        batch_op.drop_column("email")

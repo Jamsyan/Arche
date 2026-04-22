@@ -112,10 +112,13 @@ class AliyunBackend(StorageBackend):
     async def upload_stream(
         self, path: Path, stream: AsyncGenerator[bytes, None], size: int
     ) -> None:
-        content = b""
-        async for chunk in stream:
-            content += chunk
+        chunks = [chunk async for chunk in stream]
+        content = b"".join(chunks)
         await self._cloud.upload(str(path), content)
+
+    async def upload_from_file(self, object_key: str, local_path: Path) -> str:
+        """从本地文件上传到阿里云（用于冷热迁移）。"""
+        return await self._cloud.upload(object_key, local_path)
 
     async def download(self, path: Path) -> AsyncGenerator[bytes, None]:
         content = await self._cloud.download_bytes(str(path))
@@ -126,11 +129,7 @@ class AliyunBackend(StorageBackend):
         await self._cloud.delete(str(path))
 
     async def exists(self, path: Path) -> bool:
-        try:
-            await self._cloud.download_bytes(str(path))
-            return True
-        except Exception:
-            return False
+        return await self._cloud.object_exists(str(path))
 
     def get_disk_usage(self, root: Path) -> int:
         return 0

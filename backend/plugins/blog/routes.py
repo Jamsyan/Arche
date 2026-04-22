@@ -63,10 +63,14 @@ async def get_posts(
 
 @router.get("/posts/by-id/{post_id}")
 async def get_post_by_id(post_id: str, request: Request):
-    """按 ID 获取帖子详情（含标签，用于编辑器加载）。"""
+    """按 ID 获取帖子详情（含标签，按权限过滤）。"""
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
-    result = await blog_service.get_post_detail_by_id(uuid.UUID(post_id))
+    user = get_current_user(request)
+    user_level = user["level"] if user else None
+    result = await blog_service.get_post_detail_by_id(
+        uuid.UUID(post_id), user_level=user_level
+    )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 

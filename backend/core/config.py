@@ -27,10 +27,19 @@ class Config:
 
     def _load_os_environ(self) -> None:
         for key, value in os.environ.items():
-            if key in self._values or key.startswith("VEIL_") or key in (
-                "DATABASE_URL", "SECRET_KEY", "STORAGE_PATH",
-                "OSS_ACCESS_KEY_ID", "OSS_ACCESS_KEY_SECRET",
-                "CORS_ORIGINS", "CRAWLER_SEEDS",
+            if (
+                key in self._values
+                or key.startswith("VEIL_")
+                or key
+                in (
+                    "DATABASE_URL",
+                    "SECRET_KEY",
+                    "STORAGE_PATH",
+                    "OSS_ACCESS_KEY_ID",
+                    "OSS_ACCESS_KEY_SECRET",
+                    "CORS_ORIGINS",
+                    "CRAWLER_SEEDS",
+                )
             ):
                 self._values[key] = value
 

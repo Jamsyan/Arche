@@ -48,6 +48,7 @@ class PluginRegistry:
 
     async def on_startup(self) -> None:
         import asyncio
+
         for name in self._active:
             plugin = self._plugins.get(name)
             if plugin and hasattr(plugin, "on_startup"):

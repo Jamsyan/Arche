@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Query, Request
@@ -15,12 +17,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # --- 请求体模型 ---
 class RegisterRequest(BaseModel):
+    email: str = Field(..., min_length=1, max_length=128, description="邮箱")
     username: str = Field(..., min_length=3, max_length=64, description="用户名")
     password: str = Field(..., min_length=6, max_length=128, description="密码")
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(..., description="用户名")
+    identity: str = Field(..., description="邮箱或用户名")
     password: str = Field(..., description="密码")
 
 
@@ -35,6 +38,7 @@ async def register(req: RegisterRequest, request: Request):
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.register(
+        email=req.email,
         username=req.username,
         password=req.password,
     )
@@ -47,7 +51,7 @@ async def login(req: LoginRequest, request: Request):
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.login(
-        username=req.username,
+        identity=req.identity,
         password=req.password,
     )
     return {"code": "ok", "message": "登录成功", "data": result}
@@ -97,7 +101,9 @@ async def list_users(
     """用户列表（P0）。"""
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
-    result = await auth_service.list_users(page=page, page_size=page_size, status_filter=status)
+    result = await auth_service.list_users(
+        page=page, page_size=page_size, status_filter=status
+    )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 
@@ -105,8 +111,6 @@ async def list_users(
 @require_level(0)
 async def get_user(user_id: str, request: Request):
     """用户详情（P0）。"""
-    import uuid
-
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.get_user(uuid.UUID(user_id))
@@ -119,7 +123,6 @@ async def get_user(user_id: str, request: Request):
 @require_level(0)
 async def update_user(user_id: str, req: UpdateUserRequest, request: Request):
     """修改用户等级/状态（P0）。"""
-    import uuid
 
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
@@ -133,7 +136,6 @@ async def update_user(user_id: str, req: UpdateUserRequest, request: Request):
 @require_level(0)
 async def delete_user(user_id: str, request: Request):
     """禁用用户（P0）。"""
-    import uuid
 
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
@@ -145,7 +147,6 @@ async def delete_user(user_id: str, request: Request):
 @require_level(0)
 async def disable_user(user_id: str, request: Request):
     """禁用用户（P0）。不能禁用自己。"""
-    import uuid
 
     current_user = require_user(request)
     if str(current_user["id"]) == user_id:
@@ -161,9 +162,30 @@ async def disable_user(user_id: str, request: Request):
 @require_level(0)
 async def enable_user(user_id: str, request: Request):
     """启用用户（P0）。"""
-    import uuid
 
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.enable_user(uuid.UUID(user_id))
     return {"code": "ok", "message": "用户已启用", "data": result}
+
+
+class CreateUserRequest(BaseModel):
+    email: str = Field(..., min_length=1, max_length=128, description="邮箱")
+    username: str = Field(..., min_length=3, max_length=64, description="用户名")
+    password: str = Field(..., min_length=6, max_length=128, description="密码")
+    level: int | None = Field(None, ge=0, le=10, description="用户等级（默认 5）")
+
+
+@router.post("/admin/users")
+@require_level(0)
+async def admin_create_user(req: CreateUserRequest, request: Request):
+    """管理员手动创建用户（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    result = await auth_service.admin_create_user(
+        email=req.email,
+        username=req.username,
+        password=req.password,
+        level=req.level if req.level is not None else 5,
+    )
+    return {"code": "ok", "message": "创建成功", "data": result}

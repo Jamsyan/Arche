@@ -25,11 +25,25 @@ class AuthService:
         self.refresh_token_expire_days = 7
 
     # --- 用户注册 ---
-    async def register(self, username: str, password: str, level: int = 5) -> dict:
+    async def register(
+        self, email: str, username: str, password: str, level: int = 5
+    ) -> dict:
         """注册新用户。第一个注册用户自动成为 P0（最高权限），后续默认 P5。"""
         from backend.plugins.auth.models import User
 
+        # email 格式简单校验
+        if "@" not in email or not email.strip():
+            raise AppError("邮箱格式不正确", code="invalid_email", status_code=400)
+        email = email.strip().lower()
+
         async with self.session_factory() as session:
+            # 检查邮箱是否已存在
+            result = await session.execute(
+                select(User).where(func.lower(User.email) == email)
+            )
+            if result.scalar_one_or_none():
+                raise AppError("邮箱已被使用", code="email_exists", status_code=409)
+
             # 检查用户名是否已存在
             result = await session.execute(
                 select(User).where(User.username == username)
@@ -49,6 +63,7 @@ class AuthService:
             ).decode("utf-8")
 
             user = User(
+                email=email,
                 username=username,
                 password_hash=password_hash,
                 level=effective_level,
@@ -58,8 +73,12 @@ class AuthService:
             await session.refresh(user)
 
             # 签发 token
-            access_token = self._create_token(user, expires_hours=self.access_token_expire_hours)
-            refresh_token = self._create_token(user, expires_days=self.refresh_token_expire_days)
+            access_token = self._create_token(
+                user, expires_hours=self.access_token_expire_hours
+            )
+            refresh_token = self._create_token(
+                user, expires_days=self.refresh_token_expire_days
+            )
 
             return {
                 "user": self._user_to_dict(user),
@@ -68,29 +87,37 @@ class AuthService:
             }
 
     # --- 用户登录 ---
-    async def login(self, username: str, password: str) -> dict:
-        """验证用户名密码，返回 JWT token。"""
+    async def login(self, identity: str, password: str) -> dict:
+        """验证邮箱或用户名+密码，返回 JWT token。"""
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
+            # 先按 email 查，再按 username 查
             result = await session.execute(
-                select(User).where(User.username == username)
+                select(User).where(
+                    (func.lower(User.email) == identity.lower())
+                    | (User.username == identity)
+                )
             )
             user = result.scalar_one_or_none()
             if not user:
-                raise AuthError("用户名或密码错误")
+                raise AuthError("邮箱/用户名或密码错误")
 
             # 验证密码
             if not bcrypt.checkpw(
                 password.encode("utf-8"), user.password_hash.encode("utf-8")
             ):
-                raise AuthError("用户名或密码错误")
+                raise AuthError("邮箱/用户名或密码错误")
 
             if not user.is_active:
                 raise AuthError("账号已被禁用，请联系管理员")
 
-            access_token = self._create_token(user, expires_hours=self.access_token_expire_hours)
-            refresh_token = self._create_token(user, expires_days=self.refresh_token_expire_days)
+            access_token = self._create_token(
+                user, expires_hours=self.access_token_expire_hours
+            )
+            refresh_token = self._create_token(
+                user, expires_days=self.refresh_token_expire_days
+            )
 
             return {
                 "user": self._user_to_dict(user),
@@ -110,9 +137,7 @@ class AuthService:
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
-            result = await session.execute(
-                select(User).where(User.id == user_id)
-            )
+            result = await session.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
             if user:
                 return self._user_to_dict(user)
@@ -141,7 +166,9 @@ class AuthService:
         return {"access_token": new_access_token}
 
     # --- JWT 内部方法 ---
-    def _create_token(self, user, expires_hours: int | None = None, expires_days: int | None = None) -> str:
+    def _create_token(
+        self, user, expires_hours: int | None = None, expires_days: int | None = None
+    ) -> str:
         """签发 JWT token。"""
         now = datetime.now(timezone.utc)
         if expires_hours is not None:
@@ -153,6 +180,7 @@ class AuthService:
 
         payload = {
             "sub": str(user.id),
+            "email": user.email,
             "username": user.username,
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
@@ -174,6 +202,7 @@ class AuthService:
         """将 User 对象转为字典（用于返回）。"""
         return {
             "id": str(user.id),
+            "email": user.email,
             "username": user.username,
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
@@ -183,7 +212,9 @@ class AuthService:
         }
 
     # --- 用户管理（P0） ---
-    async def list_users(self, page: int = 1, page_size: int = 20, status_filter: str | None = None) -> dict:
+    async def list_users(
+        self, page: int = 1, page_size: int = 20, status_filter: str | None = None
+    ) -> dict:
         """分页查询用户列表，支持 active/disabled 过滤。"""
         from backend.plugins.auth.models import User
 
@@ -195,17 +226,25 @@ class AuthService:
                 query = query.where(User.is_active.is_(False))
 
             # 总数
-            count_query = select(func.count()).select_from(query.subquery())
+            count_query = select(func.count(User.id))
+            if status_filter == "active":
+                count_query = count_query.where(User.is_active.is_(True))
+            elif status_filter == "disabled":
+                count_query = count_query.where(User.is_active.is_(False))
             total_result = await session.execute(count_query)
-            total = total_result.scalar()
+            total = total_result.scalar_one()
 
             # 分页
-            query = query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+            query = (
+                query.order_by(User.created_at.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
             result = await session.execute(query)
             users = result.scalars().all()
 
             return {
-                "users": [self._user_to_dict(u) for u in users],
+                "items": [self._user_to_dict(u) for u in users],
                 "total": total,
                 "page": page,
                 "page_size": page_size,
@@ -216,22 +255,23 @@ class AuthService:
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
-            result = await session.execute(
-                select(User).where(User.id == user_id)
-            )
+            result = await session.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
             if user:
                 return self._user_to_dict(user)
             return None
 
-    async def update_user(self, user_id: uuid.UUID, level: int | None = None, is_active: bool | None = None) -> dict:
+    async def update_user(
+        self,
+        user_id: uuid.UUID,
+        level: int | None = None,
+        is_active: bool | None = None,
+    ) -> dict:
         """修改用户等级或状态。"""
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
-            result = await session.execute(
-                select(User).where(User.id == user_id)
-            )
+            result = await session.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
             if not user:
                 raise AppError("用户不存在", code="user_not_found", status_code=404)
@@ -252,3 +292,42 @@ class AuthService:
     async def enable_user(self, user_id: uuid.UUID) -> dict:
         """启用用户。"""
         return await self.update_user(user_id, is_active=True)
+
+    # --- 管理员创建用户 ---
+    async def admin_create_user(
+        self, email: str, username: str, password: str, level: int = 5
+    ) -> dict:
+        """管理员手动创建用户（不自动赋予 P0）。"""
+        from backend.plugins.auth.models import User
+
+        if "@" not in email or not email.strip():
+            raise AppError("邮箱格式不正确", code="invalid_email", status_code=400)
+        email = email.strip().lower()
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(User).where(func.lower(User.email) == email)
+            )
+            if result.scalar_one_or_none():
+                raise AppError("邮箱已被使用", code="email_exists", status_code=409)
+
+            result = await session.execute(
+                select(User).where(User.username == username)
+            )
+            if result.scalar_one_or_none():
+                raise AppError("用户名已存在", code="username_exists", status_code=409)
+
+            password_hash = bcrypt.hashpw(
+                password.encode("utf-8"), bcrypt.gensalt()
+            ).decode("utf-8")
+
+            user = User(
+                email=email,
+                username=username,
+                password_hash=password_hash,
+                level=level,
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            return self._user_to_dict(user)

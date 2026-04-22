@@ -85,9 +85,13 @@ class AliyunProvider(CloudProvider):
             )
 
         instance_type = config.get("instance_type", DEFAULT_INSTANCE_TYPE)
-        gpu_info = GPU_INSTANCE_MAP.get(instance_type, GPU_INSTANCE_MAP[DEFAULT_INSTANCE_TYPE])
+        gpu_info = GPU_INSTANCE_MAP.get(
+            instance_type, GPU_INSTANCE_MAP[DEFAULT_INSTANCE_TYPE]
+        )
 
-        from aliyunsdkecs.request.v20140526.RunInstancesRequest import RunInstancesRequest
+        from aliyunsdkecs.request.v20140526.RunInstancesRequest import (
+            RunInstancesRequest,
+        )
 
         request = RunInstancesRequest()
         request.set_accept_format("json")
@@ -103,8 +107,10 @@ class AliyunProvider(CloudProvider):
 
         result = await _run_sync(self._do_action, request)
 
-        instance_id = result.get("InstanceIdSets", {}).get("InstanceIdSet", [{}])[0].get(
-            "InstanceId", ""
+        instance_id = (
+            result.get("InstanceIdSets", {})
+            .get("InstanceIdSet", [{}])[0]
+            .get("InstanceId", "")
         )
 
         instance = {
@@ -125,7 +131,9 @@ class AliyunProvider(CloudProvider):
 
     async def start_instance(self, instance_id: str) -> dict:
         """启动 ECS 实例。"""
-        from aliyunsdkecs.request.v20140526.StartInstanceRequest import StartInstanceRequest
+        from aliyunsdkecs.request.v20140526.StartInstanceRequest import (
+            StartInstanceRequest,
+        )
 
         request = StartInstanceRequest()
         request.set_accept_format("json")
@@ -142,7 +150,9 @@ class AliyunProvider(CloudProvider):
 
     async def stop_instance(self, instance_id: str) -> dict:
         """停止 ECS 实例。"""
-        from aliyunsdkecs.request.v20140526.StopInstanceRequest import StopInstanceRequest
+        from aliyunsdkecs.request.v20140526.StopInstanceRequest import (
+            StopInstanceRequest,
+        )
 
         request = StopInstanceRequest()
         request.set_accept_format("json")
@@ -159,7 +169,9 @@ class AliyunProvider(CloudProvider):
 
     async def delete_instance(self, instance_id: str) -> None:
         """释放 ECS 实例。"""
-        from aliyunsdkecs.request.v20140526.DeleteInstanceRequest import DeleteInstanceRequest
+        from aliyunsdkecs.request.v20140526.DeleteInstanceRequest import (
+            DeleteInstanceRequest,
+        )
 
         request = DeleteInstanceRequest()
         request.set_accept_format("json")
@@ -186,15 +198,22 @@ class AliyunProvider(CloudProvider):
             instances = result.get("Instances", {}).get("Instance", [])
             if instances:
                 aliyun_status = instances[0].get("Status", "Stopped")
-                status_map = {"Running": "running", "Stopped": "stopped", "Pending": "pending"}
+                status_map = {
+                    "Running": "running",
+                    "Stopped": "stopped",
+                    "Pending": "pending",
+                }
                 aliyun_status = status_map.get(aliyun_status, "stopped")
 
                 instance = self._instances.get(instance_id)
                 if instance:
                     instance["status"] = aliyun_status
                     if aliyun_status == "running" and not instance.get("host"):
-                        instance["host"] = instances[0].get(
-                            "PublicIpAddress", {}).get("IpAddress", [""])[0]
+                        instance["host"] = (
+                            instances[0]
+                            .get("PublicIpAddress", {})
+                            .get("IpAddress", [""])[0]
+                        )
                         if not instance["host"]:
                             eips = instances[0].get("EipAddress", {})
                             instance["host"] = eips.get("IpAddress", "")

@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 class BasePlugin(ABC):
     name: str = ""
     version: str = "0.1.0"
-    requires: list[str] = []       # 硬依赖，没有就启动失败
-    optional: list[str] = []       # 软依赖，没有就优雅降级
+    requires: list[str] = []  # 硬依赖，没有就启动失败
+    optional: list[str] = []  # 软依赖，没有就优雅降级
 
     @abstractmethod
     def setup(self, app: "FastAPI") -> None:

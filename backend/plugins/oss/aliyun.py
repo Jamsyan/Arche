@@ -113,6 +113,20 @@ class CloudStorageService:
         except oss2.exceptions.OssError as e:
             raise CloudStorageError(f"阿里云 OSS 删除失败: {e}")
 
+    async def object_exists(self, object_key: str) -> bool:
+        """检查 OSS 对象是否存在（HEAD 请求，不下载内容）。"""
+
+        def _do_check():
+            try:
+                self._bucket.head_object(object_key)
+                return True
+            except oss2.exceptions.NoSuchKey:
+                return False
+            except oss2.exceptions.OssError:
+                return False
+
+        return await asyncio.to_thread(_do_check)
+
     async def list_objects(self, prefix: str = "") -> list[str]:
         """列举指定前缀的所有对象键。"""
 

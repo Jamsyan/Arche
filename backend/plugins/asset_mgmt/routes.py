@@ -57,7 +57,11 @@ async def search_assets(
         date_from=date_from,
         date_to=date_to,
     )
-    return {"code": "ok", "message": "搜索成功", "data": {"items": results, "total": len(results)}}
+    return {
+        "code": "ok",
+        "message": "搜索成功",
+        "data": {"items": results, "total": len(results)},
+    }
 
 
 @router.get("/stats")

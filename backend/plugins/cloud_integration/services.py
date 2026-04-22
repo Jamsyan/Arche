@@ -58,14 +58,20 @@ class CloudTrainingService:
     def _get_ssh(self):
         """获取 SSH 执行器。"""
         if self._ssh_executor is None:
-            from backend.plugins.cloud_integration.deploy.ssh_executor import SSHExecutor
+            from backend.plugins.cloud_integration.deploy.ssh_executor import (
+                SSHExecutor,
+            )
+
             self._ssh_executor = SSHExecutor()
         return self._ssh_executor
 
     def _get_artifact_manager(self):
         """获取产物管理器。"""
         if self._artifact_manager is None:
-            from backend.plugins.cloud_integration.deploy.artifact_manager import ArtifactManager
+            from backend.plugins.cloud_integration.deploy.artifact_manager import (
+                ArtifactManager,
+            )
+
             self._artifact_manager = ArtifactManager(self._get_ssh())
         return self._artifact_manager
 
@@ -216,7 +222,9 @@ class CloudTrainingService:
             await session.refresh(job)
             return self._job_to_dict(job)
 
-    async def complete_job(self, job_id: uuid.UUID, result_path: str | None = None) -> dict:
+    async def complete_job(
+        self, job_id: uuid.UUID, result_path: str | None = None
+    ) -> dict:
         """标记任务完成（running -> completed）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -273,8 +281,7 @@ class CloudTrainingService:
                 # 获取该任务的运行实例
                 async with self.session_factory() as session:
                     inst_result = await session.execute(
-                        select(TrainingInstance)
-                        .where(
+                        select(TrainingInstance).where(
                             TrainingInstance.job_id == job_id,
                             TrainingInstance.status == "running",
                         )
@@ -289,7 +296,9 @@ class CloudTrainingService:
                         user=inst.ssh_user or "root",
                         key_path=inst.ssh_key_path,
                     )
-                    log_content = await ssh.execute(conn_key, f"tail -n {lines} {job.logs_path}")
+                    log_content = await ssh.execute(
+                        conn_key, f"tail -n {lines} {job.logs_path}"
+                    )
                     await ssh.close(conn_key)
                 else:
                     log_content = f"日志文件路径: {job.logs_path}（无运行中的实例）"
@@ -323,16 +332,20 @@ class CloudTrainingService:
             total = sum(c.total_cost for c in costs)
             breakdown = []
             for c in costs:
-                breakdown.append({
-                    "instance_id": str(c.instance_id),
-                    "provider": c.provider,
-                    "gpu_type": c.gpu_type,
-                    "hourly_rate": c.hourly_rate,
-                    "duration_hours": round(c.duration_hours, 2),
-                    "total_cost": c.total_cost,
-                    "currency": c.currency,
-                    "recorded_at": c.recorded_at.isoformat() if c.recorded_at else None,
-                })
+                breakdown.append(
+                    {
+                        "instance_id": str(c.instance_id),
+                        "provider": c.provider,
+                        "gpu_type": c.gpu_type,
+                        "hourly_rate": c.hourly_rate,
+                        "duration_hours": round(c.duration_hours, 2),
+                        "total_cost": c.total_cost,
+                        "currency": c.currency,
+                        "recorded_at": c.recorded_at.isoformat()
+                        if c.recorded_at
+                        else None,
+                    }
+                )
 
             return {
                 "total_cost": round(total, 2),
@@ -398,7 +411,9 @@ class CloudTrainingService:
                 config={"gpu_type": gpu_type, "gpu_count": 1},
             )
         except Exception as e:
-            raise AppError(f"Provider 创建实例失败: {e}", code="provider_error", status_code=502)
+            raise AppError(
+                f"Provider 创建实例失败: {e}", code="provider_error", status_code=502
+            )
 
         async with self.session_factory() as session:
             instance = TrainingInstance(
@@ -493,7 +508,12 @@ class CloudTrainingService:
                 provider=instance.provider,
                 gpu_type=instance.gpu_type,
                 hourly_rate=rate,
-                duration_hours=(instance.stopped_at - instance.started_at).total_seconds() / 3600 if instance.started_at else 0,
+                duration_hours=(
+                    instance.stopped_at - instance.started_at
+                ).total_seconds()
+                / 3600
+                if instance.started_at
+                else 0,
                 total_cost=cost,
             )
             session.add(cost_record)
@@ -535,7 +555,13 @@ class CloudTrainingService:
             "ssh_port": instance.ssh_port,
             "ssh_user": instance.ssh_user,
             "status": instance.status,
-            "created_at": instance.created_at.isoformat() if instance.created_at else None,
-            "started_at": instance.started_at.isoformat() if instance.started_at else None,
-            "stopped_at": instance.stopped_at.isoformat() if instance.stopped_at else None,
+            "created_at": instance.created_at.isoformat()
+            if instance.created_at
+            else None,
+            "started_at": instance.started_at.isoformat()
+            if instance.started_at
+            else None,
+            "stopped_at": instance.stopped_at.isoformat()
+            if instance.stopped_at
+            else None,
         }

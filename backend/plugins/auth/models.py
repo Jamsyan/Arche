@@ -13,13 +13,14 @@ from backend.core.db import Base
 
 
 class User(Base):
-    """用户表：id, username, password_hash, level, blog_quality_level, created_at, updated_at"""
+    """用户表：id, email, username, password_hash, level, blog_quality_level, created_at, updated_at"""
 
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    email: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     level: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
