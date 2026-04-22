@@ -1,0 +1,29 @@
+name: Bug Report
+description: 报告一个 Bug 或异常行为
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 发生了什么？你期望的行为是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 如何触发这个问题？
+      placeholder: |
+        1. 进入 ...
+        2. 点击 ...
+        3. 观察到错误 ...
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      description: 浏览器、操作系统、或相关的版本信息
