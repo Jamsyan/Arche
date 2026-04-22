@@ -98,6 +98,9 @@ const authRoutes = [
   guarded('/admin/users', 'user-management',
     () => import('../components/admin/UserManagement.vue'),
     0),
+  guarded('/admin/oss', 'oss-admin',
+    () => import('../components/oss/OssAdminPanel.vue'),
+    0),
 ]
 
 // 将所有等级路由添加到 router
