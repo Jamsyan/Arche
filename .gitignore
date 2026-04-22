@@ -7,4 +7,5 @@ frontend/dist/
 *.env
 .idea
 .venv
+*.db
 
