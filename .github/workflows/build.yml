@@ -19,7 +19,7 @@ on:
         value: ${{ jobs.summary.outputs.frontend_image }}
 
 env:
-  REGISTRY: ${{ secrets.ALIYUN_REGISTRY_SERVER }}
+  REGISTRY: crpi-furbxf8d6ydk7jxx.cn-shanghai.personal.cr.aliyuncs.com
   IMAGE_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
   IMAGE_REPO: arche
 
