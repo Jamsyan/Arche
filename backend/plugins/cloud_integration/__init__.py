@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
@@ -16,12 +17,17 @@ if TYPE_CHECKING:
 
 # 导入模型，确保在 create_all 前注册到 Base
 from backend.plugins.cloud_integration.models import (
-    TrainingJob as TrainingJob,
-    TrainingInstance as TrainingInstance,
     TrainingCost as TrainingCost,
+    TrainingInstance as TrainingInstance,
+    TrainingJob as TrainingJob,
+    TrainingTaskStep as TrainingTaskStep,
 )
+from backend.plugins.cloud_integration.orchestrator import TrainingOrchestrator
 from backend.plugins.cloud_integration.routes import router
 from backend.plugins.cloud_integration.services import CloudTrainingService
+
+# 全局引用，用于 on_shutdown
+_orchestrator_ref = None
 
 
 class CloudIntegrationPlugin(BasePlugin):
@@ -39,14 +45,33 @@ class CloudIntegrationPlugin(BasePlugin):
         app.include_router(router)
 
     def register_services(self, container: "ServiceContainer") -> None:
-        """注册 CloudTrainingService 到容器。"""
+        """注册 CloudTrainingService 和 TrainingOrchestrator 到容器。"""
         container.register("cloud_training", lambda c: CloudTrainingService(c))
+        container.register("cloud_orchestrator", lambda c: TrainingOrchestrator(c))
 
     def on_startup(self) -> None:
-        pass
+        """启动训练任务编排守护进程。"""
+        global _orchestrator_ref
+        try:
+            from backend.core.container import container as global_container
+
+            orchestrator = global_container.get("cloud_orchestrator")
+            if orchestrator:
+                _orchestrator_ref = orchestrator
+                loop = asyncio.get_running_loop()
+                loop.create_task(orchestrator.start())
+        except RuntimeError:
+            pass
 
     def on_shutdown(self) -> None:
-        pass
+        """停止训练任务编排守护进程。"""
+        global _orchestrator_ref
+        if _orchestrator_ref:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(_orchestrator_ref.stop())
+            except RuntimeError:
+                pass
 
 
 # 自注册
