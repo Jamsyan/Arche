@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 
 class CircularDependencyError(Exception):
@@ -17,14 +17,14 @@ class ServiceContainer:
     """Lightweight IoC container with lazy instantiation and cycle detection."""
 
     def __init__(self):
-        self._factories: dict[str, Callable] = {}
-        self._instances: dict[str, object] = {}
+        self._factories: dict[str, Callable[[ServiceContainer], Any]] = {}
+        self._instances: dict[str, Any] = {}
         self._resolving: list[str] = []
 
-    def register(self, name: str, factory: Callable) -> None:
+    def register(self, name: str, factory: Callable[[ServiceContainer], Any]) -> None:
         self._factories[name] = factory
 
-    def get(self, name: str) -> object:
+    def get(self, name: str) -> Any:
         if name in self._resolving:
             cycle = " -> ".join(self._resolving + [name])
             raise CircularDependencyError(f"循环依赖: {cycle}")

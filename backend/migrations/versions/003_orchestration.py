@@ -7,6 +7,7 @@ Create Date: 2026-04-23
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "003_orchestration"
 down_revision = "002_add_email"
@@ -71,8 +72,8 @@ def upgrade() -> None:
     # 新建 training_task_steps 表
     op.create_table(
         "training_task_steps",
-        sa.Column("id", sa.String(), nullable=False),
-        sa.Column("job_id", sa.String(), nullable=False),
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("job_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("step_name", sa.String(64), nullable=False),
         sa.Column("status", sa.String(32), nullable=False, server_default="pending"),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),

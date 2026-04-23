@@ -29,7 +29,7 @@ services:
     container_name: arche-postgres
     env_file: .env
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-postgres}
       interval: 5s
@@ -46,7 +46,7 @@ services:
       - "9000"
       - "9001"
     volumes:
-      - minio-data:/data
+      - ./data/minio:/data
     restart: unless-stopped
 
 volumes:

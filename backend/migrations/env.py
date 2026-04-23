@@ -41,15 +41,29 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def get_url():
+def get_url() -> str:
     """从 .env 或环境变量读取 DATABASE_URL，覆盖 alembic.ini 的硬编码值。"""
     import os
+    from pathlib import Path
 
-    url = os.getenv("DATABASE_URL")
+    # 先读取 .env 文件
+    env_path = Path(".env")
+    env_values: dict[str, str] = {}
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, value = line.partition("=")
+                env_values[key.strip()] = value.strip().strip("\"'")
+
+    # 优先级：系统环境变量 > .env 文件 > alembic.ini
+    url = os.getenv("DATABASE_URL") or env_values.get("DATABASE_URL")
     if url:
         return url
     # fallback to alembic.ini 中的值
-    return config.get_main_option("sqlalchemy.url")
+    return (
+        config.get_main_option("sqlalchemy.url") or "sqlite+aiosqlite:///./data/arche.db"
+    )
 
 
 def run_migrations_offline() -> None:

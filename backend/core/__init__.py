@@ -97,7 +97,7 @@ async def _seed_default_config(config: Config, session_factory) -> None:
 
 def _setup_logging(config: Config) -> None:
     """Configure unified logging: console + optional file handler."""
-    log_level = config.get("LOG_LEVEL", "INFO").upper()
+    log_level = (config.get("LOG_LEVEL", "INFO") or "INFO").upper()
     log_file = config.get("LOG_FILE")
 
     handlers = ["console"]
@@ -176,7 +176,9 @@ def create_app() -> FastAPI:
     registry.register_services(container)
 
     # 7. Middleware
-    cors_origins = config.get("CORS_ORIGINS", "http://localhost:5173")
+    cors_origins = (
+        config.get("CORS_ORIGINS", "http://localhost:5173") or "http://localhost:5173"
+    )
     setup_cors(app, [o.strip() for o in cors_origins.split(",")])
     register_error_handlers(app)
 

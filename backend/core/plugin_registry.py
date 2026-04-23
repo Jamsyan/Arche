@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -20,10 +20,10 @@ class PluginRegistry:
     """Singleton registry that manages plugin discovery, ordering, and activation."""
 
     def __init__(self):
-        self._plugins: dict[str, object] = {}
+        self._plugins: dict[str, Any] = {}
         self._active: list[str] = []
 
-    def register(self, name: str, plugin: object) -> None:
+    def register(self, name: str, plugin: Any) -> None:
         self._plugins[name] = plugin
 
     def activate(self, name: str, app: FastAPI) -> None:

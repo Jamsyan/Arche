@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from typing import Optional
+
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    AsyncEngine,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -11,8 +18,8 @@ class Base(DeclarativeBase):
 
 
 # 模块级变量，供 on_startup 等场景使用
-engine = None
-session_factory = None
+engine: Optional[AsyncEngine] = None
+session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 _initialized = False
 
 
@@ -21,6 +28,7 @@ async def ensure_tables() -> None:
     global _initialized
     if _initialized:
         return
+    assert engine is not None, "Database not initialized. Call init_db() first."
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     _initialized = True
@@ -35,6 +43,7 @@ def init_db(database_url: str) -> tuple:
 
 async def validate_schema() -> None:
     """启动时校验数据库 schema 是否与模型一致。"""
+    assert engine is not None, "Database not initialized. Call init_db() first."
     async with engine.begin() as conn:
         result = await conn.run_sync(_validate_schema_sync)
         if result:
