@@ -19,6 +19,18 @@ router = APIRouter(prefix="/api/cloud", tags=["cloud"])
 class CreateJobRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=256, description="任务名称")
     config: dict = Field(..., description="模型配置（JSON）")
+    repo_url: str = Field(..., description="Git 仓库 URL（必填）")
+    repo_branch: str = Field(default="main", description="分支名")
+    repo_token: str | None = Field(default=None, description="Git 认证 token")
+    dataset_config: dict = Field(default={}, description="数据集配置")
+    training_script: str = Field(default="train.py", description="训练脚本路径")
+    requirements_file: str = Field(
+        default="requirements.txt", description="依赖文件路径"
+    )
+    log_pattern: str | None = Field(default=None, description="日志解析正则")
+    provider: str = Field(default="mock", description="Provider 名称")
+    gpu_type: str = Field(default="RTX4090", description="GPU 类型")
+    instance_name: str | None = Field(default=None, description="实例名称")
 
 
 class CreateInstanceRequest(BaseModel):
@@ -68,10 +80,25 @@ async def create_job(req: CreateJobRequest, request: Request):
 
     container: ServiceContainer = request.app.state.container
     service = container.get("cloud_training")
+
+    # 将 provider/gpu_type/instance_name 存入 model_config
+    model_config = dict(req.config)
+    model_config.setdefault("provider", req.provider)
+    model_config.setdefault("gpu_type", req.gpu_type)
+    if req.instance_name:
+        model_config.setdefault("instance_name", req.instance_name)
+
     result = await service.create_job(
         creator_id=creator_id,
         name=req.name,
-        config=req.config,
+        model_config=model_config,
+        repo_url=req.repo_url,
+        repo_branch=req.repo_branch,
+        repo_token=req.repo_token,
+        dataset_config=req.dataset_config,
+        training_script=req.training_script,
+        requirements_file=req.requirements_file,
+        log_pattern=req.log_pattern,
     )
     return {"code": "ok", "message": "创建成功", "data": result}
 
@@ -230,13 +257,59 @@ async def get_costs(
 @require_level(0)
 async def get_gpu_metrics(instance_id: str, request: Request):
     """GPU 实时指标（P0）。"""
+    from sqlalchemy import select
 
-    # 通过 Provider 获取 GPU 指标
+    from backend.plugins.cloud_integration.models import TrainingInstance
     from backend.plugins.cloud_integration.providers.registry import get_provider
 
-    cloud_provider = get_provider("mock")
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+
+    async with service.session_factory() as session:
+        inst_result = await session.execute(
+            select(TrainingInstance).where(
+                TrainingInstance.id == uuid.UUID(instance_id)
+            )
+        )
+        inst = inst_result.scalar_one_or_none()
+
+    if not inst:
+        return {"code": "error", "message": "实例不存在", "data": {}}
+
+    cloud_provider = get_provider(inst.provider)
     try:
         metrics = await cloud_provider.get_gpu_metrics(instance_id)
         return {"code": "ok", "message": "获取成功", "data": metrics}
     except Exception as e:
         return {"code": "error", "message": str(e), "data": {}}
+
+
+# --- 编排控制（P1） ---
+@router.post("/jobs/{job_id}/launch")
+@require_level(0)
+async def launch_job(job_id: str, request: Request):
+    """一键启动全链路（P1）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.launch_job(uuid.UUID(job_id))
+    return {"code": "ok", "message": "已提交编排任务", "data": result}
+
+
+@router.get("/jobs/{job_id}/progress")
+@require_level(0)
+async def get_job_progress(job_id: str, request: Request):
+    """查询实时训练进度（P1）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.get_job_progress(uuid.UUID(job_id))
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.get("/jobs/{job_id}/steps")
+@require_level(0)
+async def get_job_steps(job_id: str, request: Request):
+    """查询步骤执行历史（P1）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.get_job_steps(uuid.UUID(job_id))
+    return {"code": "ok", "message": "获取成功", "data": result}

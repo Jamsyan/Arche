@@ -279,18 +279,17 @@ async function fetchSysInfo() {
 const showPicker = ref(false)
 const canvasRef = ref(null)
 const todoRef = ref(null)
-const pinnedIds = ref([])
+const pinnedIds = ref(new Set())
 
 function onAddWidget(type) {
   if (canvasRef.value) canvasRef.value.addWidget(type)
 }
 
 function togglePin(widgetId) {
-  const idx = pinnedIds.value.indexOf(widgetId)
-  if (idx > -1) {
-    pinnedIds.value.splice(idx, 1)
+  if (pinnedIds.value.has(widgetId)) {
+    pinnedIds.value.delete(widgetId)
   } else {
-    pinnedIds.value.push(widgetId)
+    pinnedIds.value.add(widgetId)
   }
 }
 

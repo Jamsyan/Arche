@@ -17,7 +17,7 @@ on:
         default: "latest"
 
 env:
-  SYNC_FILES: docker-compose.yml
+  SYNC_FILES: docker-compose.yml .env scripts/deploy.sh
 
 jobs:
   # ── 1a. 检查部署方式 ──
@@ -81,11 +81,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 10m
           script: |
-            cd ${{ vars.DEPLOY_WORK_DIR }}
-            echo "Deploying image tag: ${{ inputs.image_tag }}"
-            docker compose pull
-            docker compose up -d
-            echo "${{ inputs.image_tag }}" > .deployed-version
+            bash /home/admin/arche/scripts/deploy.sh
+            echo "${{ inputs.image_tag }}" > /home/admin/arche/.deployed-version
 
   # ── 2b. SSH + 文件同步 ──
   deploy-ssh-sync:
@@ -103,7 +100,7 @@ jobs:
           username: ${{ secrets.DEPLOY_SSH_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: ${{ env.SYNC_FILES }}
-          target: ${{ vars.DEPLOY_WORK_DIR }}/
+          target: /home/admin/arche/
           strip_components: 0
           overwrite: true
 
@@ -116,11 +113,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 10m
           script: |
-            cd ${{ vars.DEPLOY_WORK_DIR }}
-            echo "Deploying image tag: ${{ inputs.image_tag }} (config synced)"
-            docker compose pull
-            docker compose up -d
-            echo "${{ inputs.image_tag }}" > .deployed-version
+            bash /home/admin/arche/scripts/deploy.sh
+            echo "${{ inputs.image_tag }}" > /home/admin/arche/.deployed-version
 
   # ── 2c. Webhook（文件未变） ──
   deploy-webhook:
@@ -132,19 +126,33 @@ jobs:
         run: |
           curl -sf -X POST "${{ vars.DEPLOY_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d '{"image_tag":"${{ inputs.image_tag }}"}'
+            -d '{"token":"${{ secrets.DEPLOY_TOKEN }}"}'
 
-  # ── 2d. Webhook + 文件同步通知 ──
+  # ── 2d. Webhook + 文件同步 ──
   deploy-webhook-sync:
     needs: [validate, sync-check]
     if: needs.validate.outputs.mode == 'webhook' && needs.sync-check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger deploy webhook (with sync flag)
+      - uses: actions/checkout@v4
+
+      - name: Sync files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.DEPLOY_SSH_HOST }}
+          port: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+          username: ${{ secrets.DEPLOY_SSH_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: ${{ env.SYNC_FILES }}
+          target: /home/admin/arche/
+          strip_components: 0
+          overwrite: true
+
+      - name: Trigger deploy webhook
         run: |
           curl -sf -X POST "${{ vars.DEPLOY_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d '{"image_tag":"${{ inputs.image_tag }}","files_changed":true}'
+            -d '{"token":"${{ secrets.DEPLOY_TOKEN }}"}'
 
   # ── 3. 汇总 ──
   summary:

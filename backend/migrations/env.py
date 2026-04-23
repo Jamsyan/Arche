@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # 导入项目 Base 和所有模型，确保 alembic 能检测到表结构
 sys.path.insert(0, "")  # 保证项目根目录在 sys.path
 from backend.core.db import Base
+from backend.core.models import ConfigEntry  # noqa: F401
 
 # 导入所有模型（让 Base.metadata 包含全部表）
 from backend.plugins.auth.models import User  # noqa: F401

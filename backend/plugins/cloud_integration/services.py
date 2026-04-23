@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 
 from backend.core.middleware import AppError
 
-from .models import TrainingJob, TrainingInstance, TrainingCost
+from .models import TrainingJob, TrainingInstance, TrainingCost, TrainingTaskStep
 from .providers.registry import get_provider
 
 VALID_JOB_STATUSES = {"pending", "running", "completed", "failed", "cancelled"}
@@ -152,14 +152,33 @@ class CloudTrainingService:
         creator_id: uuid.UUID,
         name: str,
         model_config: dict,
+        repo_url: str | None = None,
+        repo_branch: str | None = "main",
+        repo_token: str | None = None,
+        dataset_config: dict | None = None,
+        training_script: str | None = None,
+        requirements_file: str | None = None,
+        log_pattern: str | None = None,
     ) -> dict:
         """创建新的训练任务，初始状态为 pending。"""
+        if not repo_url:
+            raise AppError(
+                "必须配置 git 仓库 URL", code="missing_repo", status_code=400
+            )
+
         async with self.session_factory() as session:
             job = TrainingJob(
                 creator_id=creator_id,
                 name=name,
                 model_config=model_config,
                 status="pending",
+                repo_url=repo_url,
+                repo_branch=repo_branch,
+                repo_token=repo_token,
+                dataset_config=dataset_config or {},
+                training_script=training_script,
+                requirements_file=requirements_file,
+                log_pattern=log_pattern,
             )
             session.add(job)
             await session.commit()
@@ -330,6 +349,14 @@ class CloudTrainingService:
             query = select(TrainingCost)
             if job_id:
                 query = query.where(TrainingCost.job_id == job_id)
+            if start_date:
+                query = query.where(
+                    TrainingCost.recorded_at >= datetime.fromisoformat(start_date)
+                )
+            if end_date:
+                query = query.where(
+                    TrainingCost.recorded_at <= datetime.fromisoformat(end_date)
+                )
 
             result = await session.execute(query)
             costs = result.scalars().all()
@@ -522,9 +549,100 @@ class CloudTrainingService:
                 total_cost=cost,
             )
             session.add(cost_record)
+
+            # 回写 Job 级别的 GPU 小时和费用
+            job_result = await session.execute(
+                select(TrainingJob).where(TrainingJob.id == instance.job_id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.gpu_hours += (
+                    (instance.stopped_at - instance.started_at).total_seconds() / 3600
+                    if instance.started_at
+                    else 0
+                )
+                job.total_cost += cost
+
             await session.commit()
             await session.refresh(instance)
             return self._instance_to_dict(instance)
+
+    # --- 编排控制 ---
+
+    async def launch_job(self, job_id: uuid.UUID) -> dict:
+        """一键启动全链路（将 orchestrator_step 从 idle 设为 creating_instance）。"""
+        from sqlalchemy import text
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(TrainingJob).where(TrainingJob.id == job_id)
+            )
+            job = result.scalar_one_or_none()
+            if not job:
+                raise AppError("训练任务不存在", code="job_not_found", status_code=404)
+            if job.orchestrator_step not in ("idle", None):
+                raise AppError(
+                    f"任务已在编排流程中（当前步骤: {job.orchestrator_step}）",
+                    code="already_launched",
+                    status_code=400,
+                )
+            if not job.repo_url:
+                raise AppError(
+                    "任务未配置仓库 URL，无法启动",
+                    code="missing_repo_url",
+                    status_code=400,
+                )
+
+            await session.execute(
+                text(
+                    "UPDATE training_jobs SET orchestrator_step = 'creating_instance' "
+                    "WHERE id = :job_id"
+                ),
+                {"job_id": str(job_id)},
+            )
+            await session.commit()
+            return await self.get_job(job_id)
+
+    async def get_job_progress(self, job_id: uuid.UUID) -> dict:
+        """查询实时训练进度。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(TrainingJob).where(TrainingJob.id == job_id)
+            )
+            job = result.scalar_one_or_none()
+            if not job:
+                raise AppError("训练任务不存在", code="job_not_found", status_code=404)
+            return {
+                "job_id": str(job_id),
+                "status": job.status,
+                "orchestrator_step": job.orchestrator_step,
+                "progress_info": job.progress_info or {},
+            }
+
+    async def get_job_steps(self, job_id: uuid.UUID) -> list[dict]:
+        """查询训练任务的所有步骤执行历史。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(TrainingTaskStep)
+                .where(TrainingTaskStep.job_id == job_id)
+                .order_by(TrainingTaskStep.created_at)
+            )
+            steps = result.scalars().all()
+            return [
+                {
+                    "id": str(s.id),
+                    "step_name": s.step_name,
+                    "status": s.status,
+                    "started_at": s.started_at.isoformat() if s.started_at else None,
+                    "completed_at": s.completed_at.isoformat()
+                    if s.completed_at
+                    else None,
+                    "error_message": s.error_message,
+                    "retry_count": s.retry_count,
+                    "result_data": s.result_data,
+                }
+                for s in steps
+            ]
 
     # --- 数据转换 ---
 
@@ -542,6 +660,15 @@ class CloudTrainingService:
             "total_cost": job.total_cost,
             "artifacts": job.artifacts,
             "artifact_verified": bool(job.artifact_verified),
+            "repo_url": job.repo_url,
+            "repo_branch": job.repo_branch,
+            "dataset_config": job.dataset_config,
+            "training_script": job.training_script,
+            "requirements_file": job.requirements_file,
+            "log_file_path": job.log_file_path,
+            "progress_info": job.progress_info or {},
+            "orchestrator_step": job.orchestrator_step,
+            "orchestrator_error": job.orchestrator_error,
             "created_at": job.created_at.isoformat() if job.created_at else None,
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "completed_at": job.completed_at.isoformat() if job.completed_at else None,

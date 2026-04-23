@@ -20,7 +20,6 @@ def config():
     c = Config()
     c.set("DATABASE_URL", "sqlite+aiosqlite:///./test_veil.db")
     c.set("SECRET_KEY", "test-secret-key")
-    c.set("STORAGE_PATH", "./test_storage")
     return c
 
 
