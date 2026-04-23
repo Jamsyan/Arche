@@ -20,7 +20,7 @@ on:
 
 env:
   REGISTRY: crpi-furbxf8d6ydk7jxx.cn-shanghai.personal.cr.aliyuncs.com
-  IMAGE_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
+  IMAGE_NAMESPACE: jamd
   IMAGE_REPO: arche
 
 jobs:
