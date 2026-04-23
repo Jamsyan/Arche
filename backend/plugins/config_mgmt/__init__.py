@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from backend.core.base_plugin import BasePlugin
 from backend.core.models import ConfigEntry  # noqa: F401 — 确保模型注册到 Base.metadata
 from backend.core.plugin_registry import registry
-from backend.core.config_mgmt.routes import router
+from backend.plugins.config_mgmt.routes import router
 
 if TYPE_CHECKING:
     from backend.core.container import ServiceContainer
