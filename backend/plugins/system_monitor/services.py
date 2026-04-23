@@ -21,7 +21,8 @@ class SystemMonitorService:
     def __init__(self, container: "ServiceContainer"):
         self.container = container
         config = container.get("config")
-        self._collect_interval = config.get("MONITOR_COLLECT_INTERVAL", 10)
+        interval = config.get("MONITOR_COLLECT_INTERVAL", "10")
+        self._collect_interval = int(interval) if str(interval).strip() else 10
 
         self._scheduler: AsyncIOScheduler | None = None
         self._history: deque = deque(maxlen=self.MAX_HISTORY)

@@ -9,9 +9,8 @@ from __future__ import annotations
 import jwt
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from backend.core.middleware import AuthError
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -55,7 +54,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # 提取 Authorization header
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
-            raise AuthError("缺少认证信息")
+            return JSONResponse(
+                status_code=401,
+                content={"code": "auth_error", "message": "缺少认证信息", "data": {}},
+            )
 
         token = auth_header[7:]  # 去掉 "Bearer " 前缀
 
@@ -63,9 +65,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
-            raise AuthError("Token 已过期")
+            return JSONResponse(
+                status_code=401,
+                content={"code": "token_expired", "message": "Token 已过期", "data": {}},
+            )
         except jwt.InvalidTokenError:
-            raise AuthError("无效 Token")
+            return JSONResponse(
+                status_code=401,
+                content={"code": "invalid_token", "message": "无效 Token", "data": {}},
+            )
 
         # 注入用户信息到 request.state
         request.state.user = {

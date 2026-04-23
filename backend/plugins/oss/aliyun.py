@@ -91,7 +91,12 @@ class CloudStorageService:
 
         def _do_download():
             result = self._bucket.get_object(object_key)
-            return result.read()
+            data = result.read()
+            if isinstance(data, bytes):
+                return data
+            if isinstance(data, str):
+                return data.encode("utf-8")
+            return bytes(data)
 
         try:
             return await asyncio.to_thread(_do_download)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING, AsyncIterator
 
 CHUNK_SIZE = 64 * 1024
 
@@ -19,13 +19,13 @@ class StorageBackend(ABC):
 
     @abstractmethod
     async def upload_stream(
-        self, key: str, stream: AsyncGenerator[bytes, None], size: int
+        self, key: str, stream: AsyncIterator[bytes], size: int
     ) -> None:
         """流式写入文件。"""
         ...
 
     @abstractmethod
-    async def download(self, key: str) -> AsyncGenerator[bytes, None]:
+    async def download(self, key: str) -> AsyncIterator[bytes]:
         """流式读取文件，返回字节生成器。"""
         ...
 
@@ -37,6 +37,11 @@ class StorageBackend(ABC):
     @abstractmethod
     async def exists(self, key: str) -> bool:
         """检查文件是否存在。"""
+        ...
+
+    @abstractmethod
+    async def list(self, prefix: str = "") -> list[str]:
+        """列出指定前缀的文件。"""
         ...
 
     @abstractmethod
@@ -63,7 +68,7 @@ class MinIOBackend(StorageBackend):
             self._client.make_bucket(self._bucket)
 
     async def upload_stream(
-        self, key: str, stream: AsyncGenerator[bytes, None], size: int
+        self, key: str, stream: AsyncIterator[bytes], size: int
     ) -> None:
         self._ensure_bucket()
 
@@ -77,7 +82,7 @@ class MinIOBackend(StorageBackend):
             length=len(data),
         )
 
-    async def download(self, key: str) -> AsyncGenerator[bytes, None]:
+    async def download(self, key: str) -> AsyncIterator[bytes]:  # type: ignore
         response = self._client.get_object(self._bucket, key)
         try:
             while True:
@@ -99,6 +104,11 @@ class MinIOBackend(StorageBackend):
         except Exception:
             return False
 
+    async def list(self, prefix: str = "") -> list[str]:
+        """列出指定前缀的文件。"""
+        objects = self._client.list_objects(self._bucket, prefix=prefix, recursive=True)
+        return [obj.object_name for obj in objects if obj.object_name is not None]
+
     def get_disk_usage(self) -> int:
         """统计桶中所有对象的总大小。"""
         total = 0
@@ -118,7 +128,7 @@ class AliyunBackend(StorageBackend):
         self._cloud = cloud_service
 
     async def upload_stream(
-        self, key: str, stream: AsyncGenerator[bytes, None], size: int
+        self, key: str, stream: AsyncIterator[bytes], size: int
     ) -> None:
         chunks = [chunk async for chunk in stream]
         content = b"".join(chunks)
@@ -128,7 +138,7 @@ class AliyunBackend(StorageBackend):
         """从本地文件上传到阿里云（用于冷热迁移）。"""
         return await self._cloud.upload(key, local_path)
 
-    async def download(self, key: str) -> AsyncGenerator[bytes, None]:
+    async def download(self, key: str) -> AsyncIterator[bytes]:  # type: ignore
         content = await self._cloud.download_bytes(key)
         for i in range(0, len(content), CHUNK_SIZE):
             yield content[i : i + CHUNK_SIZE]
@@ -138,6 +148,11 @@ class AliyunBackend(StorageBackend):
 
     async def exists(self, key: str) -> bool:
         return await self._cloud.object_exists(key)
+
+    async def list(self, prefix: str = "") -> list[str]:
+        """列出指定前缀的文件。"""
+        result = await self._cloud.list_objects(prefix)
+        return [str(key) for key in result if key is not None]
 
     def get_disk_usage(self) -> int:
         return 0

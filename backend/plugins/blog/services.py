@@ -7,7 +7,7 @@ import re
 import uuid
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from fastapi import UploadFile
 
 from backend.core.middleware import AppError
@@ -43,7 +43,7 @@ def can_user_see_post(access_level: str, user_level: int) -> bool:
     return user_level <= max_p
 
 
-def get_access_level_filter(user_level: int) -> str:
+def get_access_level_filter(user_level: int) -> list[str]:
     """根据用户等级生成 SQL 过滤条件（access_level 列表）。"""
     # 用户能看到所有 access_level 对应的 max_visible_p >= user_level 的帖子
     allowed = [al for al, max_p in ACCESS_LEVEL_MAP.items() if max_p >= user_level]
@@ -387,16 +387,14 @@ class BlogService:
 
             # 删除关联数据
             await session.execute(
-                BlogComment.__table__.delete().where(BlogComment.post_id == post_id)
+                delete(BlogComment).where(BlogComment.post_id == post_id)
+            )
+            await session.execute(delete(BlogLike).where(BlogLike.post_id == post_id))
+            await session.execute(
+                delete(BlogReport).where(BlogReport.post_id == post_id)
             )
             await session.execute(
-                BlogLike.__table__.delete().where(BlogLike.post_id == post_id)
-            )
-            await session.execute(
-                BlogReport.__table__.delete().where(BlogReport.post_id == post_id)
-            )
-            await session.execute(
-                BlogPostTag.__table__.delete().where(BlogPostTag.post_id == post_id)
+                delete(BlogPostTag).where(BlogPostTag.post_id == post_id)
             )
             await session.delete(post)
             await session.commit()
@@ -782,19 +780,23 @@ class BlogService:
         # 获取或创建标签
         tag = await self.get_tag_by_name(tag_name)
         if not tag:
-            tag = await self.create_tag(tag_name)
+            tag_dict = await self.create_tag(tag_name)
+            tag_id = uuid.UUID(tag_dict["id"])
+        else:
+            tag_dict = self._tag_to_dict(tag)
+            tag_id = tag.id
 
         async with self.session_factory() as session:
             result = await session.execute(
                 select(BlogPostTag).where(
                     BlogPostTag.post_id == post_id,
-                    BlogPostTag.tag_id == tag["id"],
+                    BlogPostTag.tag_id == tag_id,
                 )
             )
             if result.scalar_one_or_none():
                 raise AppError("标签已存在", code="tag_already_exists", status_code=400)
 
-            post_tag = BlogPostTag(post_id=post_id, tag_id=uuid.UUID(tag["id"]))
+            post_tag = BlogPostTag(post_id=post_id, tag_id=tag_id)
             session.add(post_tag)
             await session.commit()
 
@@ -826,7 +828,7 @@ class BlogService:
             result = await session.execute(
                 select(BlogPostTag).where(
                     BlogPostTag.post_id == post_id,
-                    BlogPostTag.tag_id == uuid.UUID(tag["id"]),
+                    BlogPostTag.tag_id == tag.id,
                 )
             )
             post_tag = result.scalar_one_or_none()
@@ -948,7 +950,7 @@ class BlogService:
         doc = Document(io.BytesIO(content))
         parts = []
         for para in doc.paragraphs:
-            if para.style.name.startswith("Heading"):
+            if para.style and para.style.name and para.style.name.startswith("Heading"):
                 level = para.style.name.replace("Heading ", "")
                 prefix = "#" * int(level) if level.isdigit() else "#"
                 parts.append(f"{prefix} {para.text}")

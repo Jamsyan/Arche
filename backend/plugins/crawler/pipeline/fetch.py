@@ -85,7 +85,6 @@ class FetchStage(BaseStage):
             text = re.sub(r"\s+", " ", text).strip()
 
             item.raw_html = html
-            item.html = html
             item.title = title
             item.content = text[:10000]
             item.links = links

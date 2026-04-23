@@ -42,7 +42,8 @@ class AuthPlugin(BasePlugin):
 
         # 挂载 JWT 中间件（需要 SECRET_KEY）
         secret_key = container.get("config").get_required("SECRET_KEY")
-        self._app.add_middleware(AuthMiddleware, secret_key=secret_key)
+        if self._app:
+            self._app.add_middleware(AuthMiddleware, secret_key=secret_key)
 
     def on_startup(self) -> None:
         pass

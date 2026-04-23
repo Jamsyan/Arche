@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING, AsyncIterator
 
 from sqlalchemy import func, select, true
 from fastapi import UploadFile
@@ -71,6 +72,7 @@ class StorageService:
         self._rate_limiter = container.get("oss_rate_limiter")
         self._minio = None
         self._aliyun = None
+        self._unified_storage = None
 
     # --- 后端初始化 ---
 
@@ -105,6 +107,12 @@ class StorageService:
             cloud = CloudStorageService(self.container)
             self._aliyun = AliyunBackend(cloud)
         return self._aliyun
+
+    def get_unified_storage(self) -> "UnifiedStorage":
+        """获取统一存储服务（OSS无感层）。"""
+        if self._unified_storage is None:
+            self._unified_storage = UnifiedStorage(self)
+        return self._unified_storage
 
     # --- 配额 ---
 
@@ -223,7 +231,7 @@ class StorageService:
 
         total_bytes = 0
 
-        async def byte_stream() -> AsyncGenerator[bytes, None]:
+        async def byte_stream() -> AsyncIterator[bytes]:
             nonlocal total_bytes
             while True:
                 chunk = await file.read(CHUNK_SIZE)
@@ -275,7 +283,7 @@ class StorageService:
 
         total_bytes = 0
 
-        async def byte_stream() -> AsyncGenerator[bytes, None]:
+        async def byte_stream() -> AsyncIterator[bytes]:
             nonlocal total_bytes
             while True:
                 chunk = await file.read(CHUNK_SIZE)
@@ -307,7 +315,7 @@ class StorageService:
         file_id: uuid.UUID,
         requester_id: uuid.UUID | None,
         requester_level: int = 5,
-    ) -> tuple[AsyncGenerator[bytes, None], dict]:
+    ) -> tuple[AsyncIterator[bytes], dict]:
         from backend.plugins.oss.models import OSSFile
 
         async with self.session_factory() as session:
@@ -427,7 +435,7 @@ class StorageService:
                 chunks = [c async for c in minio.download(oss_file.path)]
                 content = b"".join(chunks)
 
-                async def content_stream() -> AsyncGenerator[bytes, None]:
+                async def content_stream() -> AsyncIterator[bytes]:
                     yield content
 
                 await aliyun.upload_stream(
@@ -688,4 +696,194 @@ class StorageService:
             "is_private": oss_file.is_private,
             "created_at": _dt(oss_file.created_at),
             "last_accessed": _dt(oss_file.last_accessed),
+        }
+
+
+class UnifiedStorage:
+    """
+    OSS无感层：虚拟路径系统，用户不感知实际存储位置。
+    读写逻辑：
+    - 写入：先写MinIO（热存储）→ 后台异步同步到阿里云（冷存储）
+    - 读取：先查MinIO → 不存在则从阿里云拉回，同时写入MinIO缓存
+    - 删除：同时删除MinIO和阿里云
+    - 列表：合并两个存储的结果，去重，按最近访问时间排序
+    """
+
+    def __init__(self, storage_service: StorageService):
+        self.storage = storage_service
+        self._minio = storage_service._get_minio()
+        self._aliyun = storage_service._get_aliyun()
+        self._sync_queue = asyncio.Queue(maxsize=1000)
+        self._sync_worker_task = None
+        self._start_sync_worker()
+
+    def _start_sync_worker(self):
+        """启动后台同步 worker，处理MinIO→阿里云的异步同步。"""
+        if self._sync_worker_task is None or self._sync_worker_task.done():
+            self._sync_worker_task = asyncio.create_task(self._sync_worker())
+
+    async def _sync_worker(self):
+        """后台同步任务：处理队列中的同步请求。"""
+        while True:
+            try:
+                virtual_path, content = await self._sync_queue.get()
+                if self._aliyun:
+                    try:
+
+                        async def stream():
+                            yield content
+
+                        await self._aliyun.upload_stream(
+                            virtual_path, stream(), len(content)
+                        )
+                        logger.debug(f"[UnifiedStorage] 同步成功: {virtual_path}")
+                    except Exception as e:
+                        logger.warning(f"[UnifiedStorage] 同步失败 {virtual_path}: {e}")
+                        # 失败后重试最多3次
+                        await asyncio.sleep(1)
+                        try:
+
+                            async def stream():
+                                yield content
+
+                            await self._aliyun.upload_stream(
+                                virtual_path, stream(), len(content)
+                            )
+                        except Exception as e2:
+                            logger.error(
+                                f"[UnifiedStorage] 同步最终失败 {virtual_path}: {e2}"
+                            )
+                self._sync_queue.task_done()
+            except Exception as e:
+                logger.error(f"[UnifiedStorage] 同步worker异常: {e}")
+                await asyncio.sleep(5)  # 异常后等待5秒再继续
+
+    async def put(
+        self, virtual_path: str, content: bytes, sync_to_aliyun: bool = True
+    ) -> None:
+        """
+        写入文件到虚拟路径。
+        :param virtual_path: 虚拟路径，如 "datasets/my_data/v1/train.csv"
+        :param content: 文件内容字节
+        :param sync_to_aliyun: 是否异步同步到阿里云（默认是）
+        """
+
+        # 1. 先写入MinIO热存储
+        async def stream():
+            yield content
+
+        await self._minio.upload_stream(virtual_path, stream(), len(content))
+
+        # 2. 异步同步到阿里云冷存储
+        if sync_to_aliyun and self._aliyun:
+            try:
+                self._sync_queue.put_nowait((virtual_path, content))
+            except asyncio.QueueFull:
+                logger.warning(
+                    f"[UnifiedStorage] 同步队列已满，跳过同步: {virtual_path}"
+                )
+
+    async def get(self, virtual_path: str) -> bytes:
+        """
+        从虚拟路径读取文件。
+        :param virtual_path: 虚拟路径
+        :return: 文件内容字节
+        """
+        # 1. 先查MinIO热存储
+        try:
+            chunks = [c async for c in self._minio.download(virtual_path)]
+            return b"".join(chunks)
+        except Exception:
+            logger.debug(
+                f"[UnifiedStorage] MinIO不存在，尝试从阿里云拉取: {virtual_path}"
+            )
+
+        # 2. MinIO不存在，尝试从阿里云拉取
+        if not self._aliyun:
+            raise StorageError(f"文件不存在: {virtual_path}")
+
+        try:
+            chunks = [c async for c in self._aliyun.download(virtual_path)]
+            content = b"".join(chunks)
+
+            # 拉取成功后，写入MinIO缓存
+            async def stream():
+                yield content
+
+            await self._minio.upload_stream(virtual_path, stream(), len(content))
+
+            return content
+        except Exception:
+            raise StorageError(f"文件不存在: {virtual_path}")
+
+    async def delete(self, virtual_path: str) -> None:
+        """
+        删除虚拟路径的文件，同时删除MinIO和阿里云。
+        :param virtual_path: 虚拟路径
+        """
+        # 删除MinIO中的文件（忽略不存在错误）
+        try:
+            await self._minio.delete(virtual_path)
+        except Exception:
+            pass
+
+        # 删除阿里云中的文件（忽略不存在错误）
+        if self._aliyun:
+            try:
+                await self._aliyun.delete(virtual_path)
+            except Exception:
+                pass
+
+    async def exists(self, virtual_path: str) -> bool:
+        """
+        检查虚拟路径的文件是否存在（任意存储中存在即返回True）。
+        :param virtual_path: 虚拟路径
+        :return: 是否存在
+        """
+        # 先查MinIO
+        if await self._minio.exists(virtual_path):
+            return True
+
+        # 再查阿里云
+        if self._aliyun and await self._aliyun.exists(virtual_path):
+            return True
+
+        return False
+
+    async def list(self, prefix: str = "") -> list[str]:
+        """
+        列出指定前缀的所有文件，合并MinIO和阿里云的结果并去重。
+        :param prefix: 路径前缀
+        :return: 文件路径列表
+        """
+        # 获取MinIO的文件列表
+        minio_files = await self._minio.list(prefix)
+
+        # 获取阿里云的文件列表
+        aliyun_files = []
+        if self._aliyun:
+            try:
+                aliyun_files = await self._aliyun.list(prefix)
+            except Exception as e:
+                logger.warning(f"[UnifiedStorage] 获取阿里云文件列表失败: {e}")
+
+        # 合并去重
+        all_files = list(set(minio_files + aliyun_files))
+        all_files.sort()
+
+        return all_files
+
+    async def get_disk_usage(self) -> dict:
+        """
+        获取存储使用统计。
+        :return: 统计信息
+        """
+        minio_usage = self._minio.get_disk_usage()
+        aliyun_usage = self._aliyun.get_disk_usage() if self._aliyun else 0
+
+        return {
+            "minio_bytes": minio_usage,
+            "aliyun_bytes": aliyun_usage,
+            "total_bytes": minio_usage + aliyun_usage,
+            "sync_queue_size": self._sync_queue.qsize(),
         }

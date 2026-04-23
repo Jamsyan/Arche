@@ -113,8 +113,8 @@ class GitHubProxyService:
         ttl: int | None = None,
     ) -> None:
         if ttl is None:
-            ttl = self.default_ttl
-        if ttl > 0:
+            ttl = self.default_ttl if self.default_ttl is not None else 300
+        if isinstance(ttl, int) and ttl > 0:
             self._cache[key] = CacheEntry(data, status_code, headers, ttl)
 
     def _build_headers(

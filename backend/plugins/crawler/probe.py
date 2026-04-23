@@ -77,7 +77,7 @@ class ProbeService:
             response = await client.get(url)
             html = response.text[:5000]  # 只取前 5KB 用于分析
             title = self._extract_title(html)
-            path = urlparse(response.url).path.lower()
+            path = urlparse(str(response.url)).path.lower()
 
             # 判断是否为功能性页面
             is_functional = any(p in path for p in _FUNCTIONAL_PATTERNS)
