@@ -83,6 +83,10 @@
         <template #icon><icon-storage /></template>
         OSS 管理
       </a-button>
+      <a-button type="outline" @click="$router.push('/admin/config')">
+        <template #icon><icon-settings /></template>
+        配置管理
+      </a-button>
     </div>
   </div>
 </template>
@@ -93,7 +97,7 @@ import { Message } from '@arco-design/web-vue'
 import { useAuth } from '../../router/auth.js'
 import {
   IconLock, IconArrowLeft, IconDashboard, IconDesktop,
-  IconApps, IconUser, IconStorage, IconRefresh,
+  IconApps, IconUser, IconStorage, IconRefresh, IconSettings,
 } from '@arco-design/web-vue/es/icon'
 
 const { authHeaders } = useAuth()
