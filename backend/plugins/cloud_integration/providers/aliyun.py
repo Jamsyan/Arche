@@ -38,12 +38,13 @@ class AliyunProvider(CloudProvider):
     name = "aliyun"
 
     def __init__(self, credentials: dict | None = None):
-        self._access_key_id = credentials.get("access_key_id", "")
-        self._access_key_secret = credentials.get("access_key_secret", "")
-        self._region = credentials.get("region", "cn-shanghai")
-        self._security_group_id = credentials.get("security_group_id", "")
-        self._vswitch_id = credentials.get("vswitch_id", "")
-        self._image_id = credentials.get("image_id", "")
+        creds = credentials or {}
+        self._access_key_id = creds.get("access_key_id", "")
+        self._access_key_secret = creds.get("access_key_secret", "")
+        self._region = creds.get("region", "cn-shanghai")
+        self._security_group_id = creds.get("security_group_id", "")
+        self._vswitch_id = creds.get("vswitch_id", "")
+        self._image_id = creds.get("image_id", "")
 
         self._client = None
         self._instances: dict[str, dict] = {}
@@ -73,7 +74,9 @@ class AliyunProvider(CloudProvider):
         response = client.do_action_with_exception(request)
         import json
 
-        return json.loads(response)
+        if isinstance(response, bytes):
+            return json.loads(response.decode("utf-8"))
+        return json.loads(response) if response else {}
 
     async def create_instance(self, job_id: str, config: dict) -> dict:
         """创建 ECS GPU 实例。"""
@@ -95,7 +98,9 @@ class AliyunProvider(CloudProvider):
 
         request = RunInstancesRequest()
         request.set_accept_format("json")
-        request.set_RegionId(self._region)
+        set_region = getattr(request, "set_RegionId", None)
+        if set_region:
+            set_region(self._region)
         request.set_ImageId(self._image_id)
         request.set_InstanceType(instance_type)
         request.set_SecurityGroupId(self._security_group_id)

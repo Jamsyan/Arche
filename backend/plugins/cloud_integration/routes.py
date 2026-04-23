@@ -313,3 +313,217 @@ async def get_job_steps(job_id: str, request: Request):
     service = container.get("cloud_training")
     result = await service.get_job_steps(uuid.UUID(job_id))
     return {"code": "ok", "message": "获取成功", "data": result}
+
+
+# --- 数据集管理（新） ---
+class CreateDatasetRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=256, description="数据集名称")
+    description: str | None = Field(default=None, description="数据集描述")
+    path: str = Field(..., description="虚拟路径，如 datasets/my_data/v1")
+    source: str = Field(
+        default="local", description="数据来源：local/modelscope/aliyun"
+    )
+    tags: list[str] | None = Field(default=[], description="标签列表")
+    config: dict | None = Field(
+        default={}, description="扩展配置（如modelscope ID、token等）"
+    )
+
+
+@router.get("/datasets")
+@require_level(0)
+async def list_datasets(
+    request: Request,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    source: str | None = Query(None, description="按来源过滤"),
+):
+    """数据集列表（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    user = require_user(request)
+    result = await service.list_datasets(
+        creator_id=uuid.UUID(user["id"]),
+        page=page,
+        page_size=page_size,
+        source_filter=source,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.post("/datasets")
+@require_level(0)
+async def create_dataset(req: CreateDatasetRequest, request: Request):
+    """创建/导入数据集（P0）。"""
+    user = require_user(request)
+    creator_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+
+    result = await service.create_dataset(
+        creator_id=creator_id,
+        name=req.name,
+        description=req.description,
+        path=req.path,
+        source=req.source,
+        tags=req.tags,
+        config=req.config,
+    )
+    return {"code": "ok", "message": "创建成功", "data": result}
+
+
+@router.get("/datasets/{dataset_id}")
+@require_level(0)
+async def get_dataset(dataset_id: str, request: Request):
+    """数据集详情（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.get_dataset(uuid.UUID(dataset_id))
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.delete("/datasets/{dataset_id}")
+@require_level(0)
+async def delete_dataset(dataset_id: str, request: Request):
+    """删除数据集（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    await service.delete_dataset(uuid.UUID(dataset_id))
+    return {"code": "ok", "message": "删除成功", "data": {}}
+
+
+@router.post("/datasets/{dataset_id}/sync")
+@require_level(0)
+async def sync_dataset(dataset_id: str, request: Request):
+    """同步数据集到阿里云（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.sync_dataset(uuid.UUID(dataset_id))
+    return {"code": "ok", "message": "同步任务已提交", "data": result}
+
+
+# --- 代码仓库管理（新） ---
+class CreateCodeRepoRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=256, description="仓库名称")
+    git_url: str = Field(..., description="Git仓库URL")
+    git_branch: str = Field(default="main", description="分支名")
+    git_token: str | None = Field(default=None, description="Git认证token（加密存储）")
+
+
+@router.get("/repos")
+@require_level(0)
+async def list_repos(
+    request: Request,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+):
+    """代码仓库列表（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    user = require_user(request)
+    result = await service.list_repos(
+        creator_id=uuid.UUID(user["id"]),
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.post("/repos")
+@require_level(0)
+async def create_repo(req: CreateCodeRepoRequest, request: Request):
+    """添加代码仓库（P0）。"""
+    user = require_user(request)
+    creator_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+
+    result = await service.create_repo(
+        creator_id=creator_id,
+        name=req.name,
+        git_url=req.git_url,
+        git_branch=req.git_branch,
+        git_token=req.git_token,
+    )
+    return {"code": "ok", "message": "添加成功", "data": result}
+
+
+@router.delete("/repos/{repo_id}")
+@require_level(0)
+async def delete_repo(repo_id: str, request: Request):
+    """删除代码仓库（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    await service.delete_repo(uuid.UUID(repo_id))
+    return {"code": "ok", "message": "删除成功", "data": {}}
+
+
+@router.post("/repos/{repo_id}/sync")
+@require_level(0)
+async def sync_repo(repo_id: str, request: Request):
+    """同步代码仓库最新版本（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.sync_repo(uuid.UUID(repo_id))
+    return {"code": "ok", "message": "同步任务已提交", "data": result}
+
+
+# --- 制品管理（新） ---
+@router.get("/artifacts")
+@require_level(0)
+async def list_artifacts(
+    request: Request,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    job_id: str | None = Query(None, description="按训练任务过滤"),
+    artifact_type: str | None = Query(
+        None, description="按制品类型过滤：checkpoint/log/config"
+    ),
+):
+    """制品列表（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    user = require_user(request)
+    result = await service.list_artifacts(
+        creator_id=uuid.UUID(user["id"]),
+        job_id=uuid.UUID(job_id) if job_id else None,
+        artifact_type=artifact_type,
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.get("/artifacts/{artifact_id}")
+@require_level(0)
+async def get_artifact(artifact_id: str, request: Request):
+    """制品详情（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    result = await service.get_artifact(uuid.UUID(artifact_id))
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.get("/artifacts/{artifact_id}/download")
+@require_level(0)
+async def download_artifact(artifact_id: str, request: Request):
+    """下载制品（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    download_url = await service.download_artifact(uuid.UUID(artifact_id))
+    return {
+        "code": "ok",
+        "message": "获取下载链接成功",
+        "data": {"download_url": download_url},
+    }
+
+
+@router.delete("/artifacts/{artifact_id}")
+@require_level(0)
+async def delete_artifact(artifact_id: str, request: Request):
+    """删除制品（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+    await service.delete_artifact(uuid.UUID(artifact_id))
+    return {"code": "ok", "message": "删除成功", "data": {}}

@@ -55,8 +55,9 @@ class ZhixingyunProvider(CloudProvider):
     name = "zhixingyun"
 
     def __init__(self, credentials: dict | None = None):
-        self._api_key = credentials.get("api_key", "")
-        self._api_secret = credentials.get("api_secret", "")
+        creds = credentials or {}
+        self._api_key = creds.get("api_key", "")
+        self._api_secret = creds.get("api_secret", "")
         self._instances: dict[str, dict] = {}
 
     def _api_call_sync(self, endpoint: str, data: dict) -> dict:

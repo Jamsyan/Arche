@@ -294,7 +294,7 @@ class TrainingOrchestrator:
             ssh = self._get_service()._get_ssh()
 
             cmd = StepCommandBuilder.clone_repo(
-                repo_url=job.repo_url,
+                repo_url=job.repo_url or "",
                 branch=job.repo_branch or "main",
                 token=job.repo_token,
             )
@@ -454,7 +454,9 @@ class TrainingOrchestrator:
             )
 
             # 解析进度
-            pattern = job.log_pattern or LogParser.DEFAULT_LOG_PATTERN
+            from backend.plugins.cloud_integration.log_parser import DEFAULT_LOG_PATTERN
+
+            pattern = job.log_pattern or DEFAULT_LOG_PATTERN
             progress = LogParser.parse_training_log(log_content, pattern)
 
             # 如果没有匹配，尝试 HuggingFace JSON 格式

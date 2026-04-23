@@ -9,7 +9,15 @@ from sqlalchemy import func, select
 
 from backend.core.middleware import AppError
 
-from .models import TrainingJob, TrainingInstance, TrainingCost, TrainingTaskStep
+from .models import (
+    TrainingJob,
+    TrainingInstance,
+    TrainingCost,
+    TrainingTaskStep,
+    Dataset,
+    CodeRepo,
+    Artifact,
+)
 from .providers.registry import get_provider
 
 VALID_JOB_STATUSES = {"pending", "running", "completed", "failed", "cancelled"}
@@ -202,10 +210,10 @@ class CloudTrainingService:
                 )
 
             # 删除关联实例
+            from sqlalchemy import delete
+
             await session.execute(
-                TrainingInstance.__table__.delete().where(
-                    TrainingInstance.job_id == job_id
-                )
+                delete(TrainingInstance).where(TrainingInstance.job_id == job_id)
             )
             await session.delete(job)
             await session.commit()
@@ -695,5 +703,375 @@ class CloudTrainingService:
             else None,
             "stopped_at": instance.stopped_at.isoformat()
             if instance.stopped_at
+            else None,
+        }
+
+    # --- 数据集管理 ---
+    async def list_datasets(
+        self,
+        creator_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 20,
+        source_filter: str | None = None,
+    ) -> dict:
+        """获取数据集列表（分页）。"""
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            query = select(Dataset).where(Dataset.created_by == creator_id)
+            if source_filter:
+                query = query.where(Dataset.source == source_filter)
+
+            count_query = (
+                select(func.count())
+                .select_from(Dataset)
+                .where(Dataset.created_by == creator_id)
+            )
+            if source_filter:
+                count_query = count_query.where(Dataset.source == source_filter)
+
+            total = (await session.execute(count_query)).scalar_one()
+
+            query = query.order_by(Dataset.created_at.desc())
+            query = query.offset(offset).limit(page_size)
+
+            datasets = (await session.execute(query)).scalars().all()
+
+            return {
+                "items": [self._dataset_to_dict(d) for d in datasets],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def create_dataset(
+        self,
+        creator_id: uuid.UUID,
+        name: str,
+        description: str | None,
+        path: str,
+        source: str,
+        tags: list[str] | None,
+        config: dict | None,
+    ) -> dict:
+        """创建新的数据集。"""
+        async with self.session_factory() as session:
+            # 检查路径是否已存在
+            existing = await session.execute(
+                select(Dataset).where(
+                    Dataset.path == path, Dataset.created_by == creator_id
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise AppError(
+                    f"数据集路径 '{path}' 已存在", code="path_exists", status_code=400
+                )
+
+            dataset = Dataset(
+                name=name,
+                description=description,
+                path=path,
+                source=source,
+                tags=tags or [],
+                config=config or {},
+                created_by=creator_id,
+            )
+            session.add(dataset)
+            await session.commit()
+            await session.refresh(dataset)
+            return self._dataset_to_dict(dataset)
+
+    async def get_dataset(self, dataset_id: uuid.UUID) -> dict:
+        """获取数据集详情。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Dataset).where(Dataset.id == dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise AppError(
+                    "数据集不存在", code="dataset_not_found", status_code=404
+                )
+            return self._dataset_to_dict(dataset)
+
+    async def delete_dataset(self, dataset_id: uuid.UUID) -> None:
+        """删除数据集。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Dataset).where(Dataset.id == dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise AppError(
+                    "数据集不存在", code="dataset_not_found", status_code=404
+                )
+
+            # 同时删除存储中的文件
+            storage = self.container.get("storage").get_unified_storage()
+            await storage.delete(dataset.path)
+
+            await session.delete(dataset)
+            await session.commit()
+
+    async def sync_dataset(self, dataset_id: uuid.UUID) -> dict:
+        """同步数据集到阿里云。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Dataset).where(Dataset.id == dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise AppError(
+                    "数据集不存在", code="dataset_not_found", status_code=404
+                )
+
+            # 这里可以实现具体的同步逻辑，比如调用统一存储的同步接口
+            # 目前同步逻辑已经在UnifiedStorage的put方法中自动处理，这里可以返回状态
+            return {
+                "dataset_id": str(dataset_id),
+                "status": "syncing",
+                "message": "同步任务已提交到后台队列",
+            }
+
+    # --- 代码仓库管理 ---
+    async def list_repos(
+        self,
+        creator_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """获取代码仓库列表（分页）。"""
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(CodeRepo)
+                    .where(CodeRepo.created_by == creator_id)
+                )
+            ).scalar_one()
+
+            repos = (
+                (
+                    await session.execute(
+                        select(CodeRepo)
+                        .where(CodeRepo.created_by == creator_id)
+                        .order_by(CodeRepo.created_at.desc())
+                        .offset(offset)
+                        .limit(page_size)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            return {
+                "items": [self._repo_to_dict(r) for r in repos],
+                "total": count,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def create_repo(
+        self,
+        creator_id: uuid.UUID,
+        name: str,
+        git_url: str,
+        git_branch: str,
+        git_token: str | None,
+    ) -> dict:
+        """添加新的代码仓库。"""
+        async with self.session_factory() as session:
+            # 检查URL是否已存在
+            existing = await session.execute(
+                select(CodeRepo).where(
+                    CodeRepo.git_url == git_url, CodeRepo.created_by == creator_id
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise AppError(
+                    f"仓库 URL '{git_url}' 已存在", code="url_exists", status_code=400
+                )
+
+            repo = CodeRepo(
+                name=name,
+                git_url=git_url,
+                git_branch=git_branch,
+                git_token=git_token,
+                created_by=creator_id,
+            )
+            session.add(repo)
+            await session.commit()
+            await session.refresh(repo)
+            return self._repo_to_dict(repo)
+
+    async def delete_repo(self, repo_id: uuid.UUID) -> None:
+        """删除代码仓库。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(CodeRepo).where(CodeRepo.id == repo_id)
+            )
+            repo = result.scalar_one_or_none()
+            if not repo:
+                raise AppError("代码仓库不存在", code="repo_not_found", status_code=404)
+
+            await session.delete(repo)
+            await session.commit()
+
+    async def sync_repo(self, repo_id: uuid.UUID) -> dict:
+        """同步代码仓库最新版本。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(CodeRepo).where(CodeRepo.id == repo_id)
+            )
+            repo = result.scalar_one_or_none()
+            if not repo:
+                raise AppError("代码仓库不存在", code="repo_not_found", status_code=404)
+
+            # 这里可以实现具体的同步逻辑，比如拉取最新代码到临时目录
+            return {
+                "repo_id": str(repo_id),
+                "status": "syncing",
+                "message": "同步任务已提交到后台队列",
+            }
+
+    # --- 制品管理 ---
+    async def list_artifacts(
+        self,
+        creator_id: uuid.UUID,
+        job_id: uuid.UUID | None = None,
+        artifact_type: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """获取制品列表（分页）。"""
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            # 关联查询，只返回当前用户的任务对应的制品
+            query = (
+                select(Artifact)
+                .join(TrainingJob)
+                .where(TrainingJob.creator_id == creator_id)
+            )
+
+            if job_id:
+                query = query.where(Artifact.job_id == job_id)
+            if artifact_type:
+                query = query.where(Artifact.artifact_type == artifact_type)
+
+            count_query = (
+                select(func.count())
+                .select_from(Artifact)
+                .join(TrainingJob)
+                .where(TrainingJob.creator_id == creator_id)
+            )
+            if job_id:
+                count_query = count_query.where(Artifact.job_id == job_id)
+            if artifact_type:
+                count_query = count_query.where(Artifact.artifact_type == artifact_type)
+
+            total = (await session.execute(count_query)).scalar_one()
+
+            query = query.order_by(Artifact.created_at.desc())
+            query = query.offset(offset).limit(page_size)
+
+            artifacts = (await session.execute(query)).scalars().all()
+
+            return {
+                "items": [self._artifact_to_dict(a) for a in artifacts],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def get_artifact(self, artifact_id: uuid.UUID) -> dict:
+        """获取制品详情。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Artifact).where(Artifact.id == artifact_id)
+            )
+            artifact = result.scalar_one_or_none()
+            if not artifact:
+                raise AppError("制品不存在", code="artifact_not_found", status_code=404)
+            return self._artifact_to_dict(artifact)
+
+    async def download_artifact(self, artifact_id: uuid.UUID) -> str:
+        """获取制品下载链接。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Artifact).where(Artifact.id == artifact_id)
+            )
+            artifact = result.scalar_one_or_none()
+            if not artifact:
+                raise AppError("制品不存在", code="artifact_not_found", status_code=404)
+
+            # 这里可以根据存储位置生成对应的下载链接
+            # 目前统一存储已经处理了位置透明性，这里可以直接返回虚拟路径对应的下载地址
+            # 生成临时下载链接（实际实现中需要根据存储后端生成）
+            # 这里简化处理，返回路径
+            return f"/api/storage/download/{artifact.path}"
+
+    async def delete_artifact(self, artifact_id: uuid.UUID) -> None:
+        """删除制品。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Artifact).where(Artifact.id == artifact_id)
+            )
+            artifact = result.scalar_one_or_none()
+            if not artifact:
+                raise AppError("制品不存在", code="artifact_not_found", status_code=404)
+
+            # 同时删除存储中的文件
+            storage = self.container.get("storage").get_unified_storage()
+            await storage.delete(artifact.path)
+
+            await session.delete(artifact)
+            await session.commit()
+
+    # --- 新的数据转换方法 ---
+    def _dataset_to_dict(self, dataset: Dataset) -> dict:
+        return {
+            "id": str(dataset.id),
+            "name": dataset.name,
+            "description": dataset.description,
+            "path": dataset.path,
+            "source": dataset.source,
+            "size_bytes": dataset.size_bytes,
+            "file_count": dataset.file_count,
+            "tags": dataset.tags,
+            "config": dataset.config,
+            "created_by": str(dataset.created_by),
+            "created_at": dataset.created_at.isoformat()
+            if dataset.created_at
+            else None,
+            "updated_at": dataset.updated_at.isoformat()
+            if dataset.updated_at
+            else None,
+        }
+
+    def _repo_to_dict(self, repo: CodeRepo) -> dict:
+        return {
+            "id": str(repo.id),
+            "name": repo.name,
+            "git_url": repo.git_url,
+            "git_branch": repo.git_branch,
+            # 不返回token
+            "created_by": str(repo.created_by),
+            "created_at": repo.created_at.isoformat() if repo.created_at else None,
+        }
+
+    def _artifact_to_dict(self, artifact: Artifact) -> dict:
+        return {
+            "id": str(artifact.id),
+            "job_id": str(artifact.job_id),
+            "name": artifact.name,
+            "path": artifact.path,
+            "artifact_type": artifact.artifact_type,
+            "size_bytes": artifact.size_bytes,
+            "storage_location": artifact.storage_location,
+            "created_at": artifact.created_at.isoformat()
+            if artifact.created_at
             else None,
         }

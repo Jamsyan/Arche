@@ -72,9 +72,10 @@ class SSHExecutor:
 
         try:
             result = await conn.run(cmd, timeout=timeout, check=True)
-            return result.stdout or ""
+            stdout = result.stdout
+            return stdout.decode() if isinstance(stdout, bytes) else (stdout or "")
         except asyncssh.Error as e:
-            raise SSHError(f"远程命令执行失败: {cmd}\n{e.stderr}")
+            raise SSHError(f"远程命令执行失败: {cmd}\n{str(e)}")
         except Exception as e:
             raise SSHError(f"SSH 执行失败: {e}")
 

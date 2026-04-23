@@ -13,6 +13,10 @@ class CloudProvider(ABC):
 
     name: str = ""
 
+    def __init__(self, credentials: dict | None = None) -> None:
+        """初始化 Provider，传入认证凭据（具体字段由 Provider 定义）。"""
+        pass
+
     @abstractmethod
     async def create_instance(self, job_id: str, config: dict) -> dict:
         """创建云实例。
