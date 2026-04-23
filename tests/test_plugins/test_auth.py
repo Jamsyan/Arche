@@ -7,7 +7,6 @@ import jwt
 from datetime import datetime, timedelta, timezone
 
 
-
 def test_password_hashing():
     """密码应该被 bcrypt hash 存储。"""
     password = "testpassword123"
