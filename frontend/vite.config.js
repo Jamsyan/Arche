@@ -1,8 +1,26 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+// 测试模式下处理静态资源引用，避免 jsdom 报错
+const testAssetPlugin = () => ({
+  name: 'test-asset-mock',
+  enforce: 'pre',
+  transform(code, id) {
+    if (id.endsWith('.vue') && process.env.VITEST) {
+      return code.replace(/src="\/logo\.png"/g, 'src="data:image/png;base64,iVBORw0KGgo="')
+    }
+    return null
+  },
+})
+
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [testAssetPlugin(), vue()],
+  test: {
+    environment: 'jsdom',
+    globalSetup: ['./tests/setup.js'],
+    setupFiles: ['./tests/setup.js'],
+    singleFork: true,
+  },
   build: {
     rollupOptions: {
       output: {
