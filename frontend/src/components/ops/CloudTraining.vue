@@ -53,7 +53,23 @@
           <span class="training-name">{{ job.name }}</span>
           <a-tag color="blue" size="small">训练中</a-tag>
         </div>
+
+        <!-- 进度信息 -->
+        <div v-if="job.progress_info && (job.progress_info.epoch || job.progress_info.loss)" class="progress-section">
+          <div class="progress-info">
+            <span v-if="job.progress_info.epoch !== undefined">Epoch {{ job.progress_info.epoch }}</span>
+            <span v-if="job.progress_info.loss !== undefined">Loss: {{ job.progress_info.loss.toFixed(4) }}</span>
+            <span v-if="job.progress_info.step !== undefined">Step {{ job.progress_info.step }}</span>
+          </div>
+        </div>
+
+        <!-- 当前步骤 -->
+        <div v-if="job.orchestrator_step && job.orchestrator_step !== 'idle'" class="step-badge">
+          <a-tag color="cyan" size="small">{{ stepLabel(job.orchestrator_step) }}</a-tag>
+        </div>
+
         <div class="training-footer">
+          <a-button type="text" size="mini" @click="viewSteps(job)">步骤</a-button>
           <a-button type="text" size="mini" @click="viewLogs(job)">日志</a-button>
           <a-button type="text" size="mini" status="danger" @click="stopJob(job)">停止</a-button>
         </div>
@@ -81,13 +97,24 @@
       <template #status="{ record }">
         <a-tag :color="jobStatusColor(record.status)">{{ jobStatusLabel(record.status) }}</a-tag>
       </template>
-      <template #created_at="{ record }">
-        {{ record.created_at ? new Date(record.created_at).toLocaleString('zh-CN') : '-' }}
+      <template #step="{ record }">
+        <a-tag v-if="record.orchestrator_step && record.orchestrator_step !== 'idle'" color="cyan" size="small">
+          {{ stepLabel(record.orchestrator_step) }}
+        </a-tag>
+        <span v-else class="text-muted">-</span>
+      </template>
+      <template #progress="{ record }">
+        <span v-if="record.progress_info && record.progress_info.epoch" class="progress-text">
+          Epoch {{ record.progress_info.epoch }}
+        </span>
+        <span v-else class="text-muted">-</span>
       </template>
       <template #actions="{ record }">
         <a-space size="small">
-          <a-button v-if="record.status === 'pending'" type="text" size="mini" @click="startJob(record)">启动</a-button>
+          <a-button v-if="record.status === 'pending' && !record.orchestrator_step" type="text" size="mini" @click="launchJob(record)">启动</a-button>
+          <a-button v-if="record.status === 'pending' && record.orchestrator_step" type="text" size="mini" @click="startJob(record)">手动启动</a-button>
           <a-button v-if="record.status === 'running'" type="text" size="mini" status="danger" @click="stopJob(record)">停止</a-button>
+          <a-button type="text" size="mini" @click="viewSteps(record)">步骤</a-button>
           <a-button type="text" size="mini" @click="viewLogs(record)">日志</a-button>
           <a-button type="text" size="mini" status="danger" @click="deleteJob(record)">删除</a-button>
         </a-space>
@@ -103,17 +130,84 @@
       </div>
     </a-drawer>
 
+    <!-- 步骤时间线 -->
+    <a-drawer v-model:visible="stepsDrawerVisible" title="编排步骤" width="640">
+      <a-timeline v-if="steps.length > 0" class="steps-timeline">
+        <a-timeline-item
+          v-for="step in steps"
+          :key="step.step_name"
+          :color="stepStatusColor(step.status)"
+        >
+          <div class="step-item">
+            <span class="step-name">{{ stepLabel(step.step_name) }}</span>
+            <a-tag :color="stepStatusColor(step.status)" size="small">{{ step.status }}</a-tag>
+            <div v-if="step.error_message" class="step-error">{{ step.error_message }}</div>
+            <div v-if="step.started_at" class="step-time">
+              {{ new Date(step.started_at).toLocaleString('zh-CN') }}
+              <span v-if="step.retry_count > 0"> · 重试 {{ step.retry_count }} 次</span>
+            </div>
+          </div>
+        </a-timeline-item>
+      </a-timeline>
+      <div v-else class="empty-steps">暂无步骤记录</div>
+    </a-drawer>
+
     <!-- 新建训练弹窗 -->
-    <a-modal v-model:visible="showCreateModal" title="新建训练任务" @ok="createJob" :mask-closable="false">
+    <a-modal v-model:visible="showCreateModal" title="新建训练任务" @ok="createJob" :mask-closable="false" width="600">
       <a-form :model="newJob" layout="vertical">
         <a-form-item label="任务名称" field="name" :rules="[{ required: true, message: '请输入任务名称' }]">
           <a-input v-model="newJob.name" placeholder="例如：文章分类微调" />
         </a-form-item>
+
+        <a-divider style="margin: 12px 0">仓库配置</a-divider>
+
+        <a-form-item label="Git 仓库 URL" field="repoUrl" :rules="[{ required: true, message: '请输入仓库 URL' }]">
+          <a-input v-model="newJob.repoUrl" placeholder="https://github.com/user/repo.git" />
+        </a-form-item>
+        <a-row :gutter="8">
+          <a-col :span="12">
+            <a-form-item label="分支">
+              <a-input v-model="newJob.repoBranch" placeholder="main" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="训练脚本">
+              <a-input v-model="newJob.trainingScript" placeholder="train.py" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="Git Token（私有仓库必填）">
+          <a-input v-model="newJob.repoToken" placeholder="ghp_xxxx（可选）" />
+        </a-form-item>
+
+        <a-divider style="margin: 12px 0">资源选择</a-divider>
+
+        <a-row :gutter="8">
+          <a-col :span="12">
+            <a-form-item label="Provider">
+              <a-select v-model="newJob.provider">
+                <a-option value="mock">Mock（开发）</a-option>
+                <a-option value="zhixingyun">智星云</a-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="GPU 类型">
+              <a-select v-model="newJob.gpuType">
+                <a-option value="RTX4090">RTX 4090</a-option>
+                <a-option value="A100">A100</a-option>
+                <a-option value="H100">H100</a-option>
+                <a-option value="V100">V100</a-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+
         <a-form-item label="模型配置" field="config">
           <a-textarea
             v-model="newJob.configText"
-            placeholder='{"model": "qwen-7b", "epochs": 10}'
-            :auto-size="{ minRows: 4, maxRows: 8 }"
+            placeholder='{"epochs": 10, "learning_rate": 2e-5}'
+            :auto-size="{ minRows: 3, maxRows: 6 }"
           />
         </a-form-item>
       </a-form>
@@ -134,7 +228,9 @@ const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const showCreateModal = ref(false)
 const logDrawerVisible = ref(false)
+const stepsDrawerVisible = ref(false)
 const logContent = ref('')
+const steps = ref([])
 const allJobs = ref([])
 const stats = ref({ total: 0, byStatus: {} })
 const page = ref(1)
@@ -150,21 +246,56 @@ const JOB_STATUS = {
   completed: { label: '完成', color: 'green' },
   failed: { label: '失败', color: 'red' },
   stopped: { label: '已停止', color: 'gray' },
+  cancelled: { label: '已取消', color: 'gray' },
+}
+
+const STEP_LABELS = {
+  idle: '未开始',
+  creating_instance: '创建实例',
+  waiting_instance: '等待实例',
+  connecting_ssh: 'SSH 连接',
+  setting_up_env: '环境配置',
+  cloning_repo: '拉取代码',
+  installing_deps: '安装依赖',
+  fetching_dataset: '拉取数据集',
+  starting_training: '启动训练',
+  monitoring_training: '训练中',
+  collecting_artifacts: '回收产物',
+  shutting_down: '关停实例',
+  completed: '完成',
+  failed: '失败',
 }
 
 function jobStatusColor(status) { return JOB_STATUS[status]?.color ?? 'gray' }
 function jobStatusLabel(status) { return JOB_STATUS[status]?.label ?? status }
+function stepLabel(step) { return STEP_LABELS[step] ?? step }
+
+function stepStatusColor(status) {
+  const map = { completed: 'green', running: 'blue', failed: 'red', pending: 'gray', skipped: 'gray' }
+  return map[status] ?? 'gray'
+}
 
 const logLines = computed(() => logContent.value ? logContent.value.split('\n') : [])
 
 const jobColumns = [
-  { title: '名称', slotName: 'name', width: 200 },
+  { title: '名称', slotName: 'name', width: 180 },
   { title: '状态', slotName: 'status', width: 90 },
-  { title: '创建时间', slotName: 'created_at', width: 180 },
-  { title: '操作', slotName: 'actions', width: 220, fixed: 'right' },
+  { title: '当前步骤', slotName: 'step', width: 120 },
+  { title: '进度', slotName: 'progress', width: 100 },
+  { title: '创建时间', slotName: 'created_at', width: 160 },
+  { title: '操作', slotName: 'actions', width: 260, fixed: 'right' },
 ]
 
-const newJob = ref({ name: '', configText: '{"model": "qwen-7b", "epochs": 10}' })
+const newJob = ref({
+  name: '',
+  repoUrl: '',
+  repoBranch: 'main',
+  repoToken: '',
+  trainingScript: 'train.py',
+  provider: 'mock',
+  gpuType: 'RTX4090',
+  configText: '{"epochs": 10}',
+})
 
 async function fetchJobs() {
   refreshing.value = true
@@ -192,6 +323,7 @@ function onPageChange(p) {
 
 async function createJob() {
   if (!newJob.value.name?.trim()) { Message.warning('请填写任务名称'); return }
+  if (!newJob.value.repoUrl?.trim()) { Message.warning('请填写 Git 仓库 URL'); return }
   let config = {}
   try {
     config = JSON.parse(newJob.value.configText || '{}')
@@ -204,13 +336,22 @@ async function createJob() {
     const res = await fetch('/api/cloud/jobs', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ name: newJob.value.name, config }),
+      body: JSON.stringify({
+        name: newJob.value.name,
+        config,
+        repo_url: newJob.value.repoUrl,
+        repo_branch: newJob.value.repoBranch,
+        repo_token: newJob.value.repoToken || undefined,
+        training_script: newJob.value.trainingScript,
+        provider: newJob.value.provider,
+        gpu_type: newJob.value.gpuType,
+      }),
     })
     const result = await res.json()
     if (result.code === 'ok') {
       Message.success('训练任务创建成功')
       showCreateModal.value = false
-      newJob.value = { name: '', configText: '{"model": "qwen-7b", "epochs": 10}' }
+      newJob.value = { name: '', repoUrl: '', repoBranch: 'main', repoToken: '', trainingScript: 'train.py', provider: 'mock', gpuType: 'RTX4090', configText: '{"epochs": 10}' }
       await fetchJobs()
     } else {
       Message.error(result.message || '创建失败')
@@ -218,6 +359,15 @@ async function createJob() {
   } catch {
     Message.error('网络错误')
   }
+}
+
+async function launchJob(job) {
+  try {
+    const res = await fetch(`/api/cloud/jobs/${job.id}/launch`, { method: 'POST', headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') { Message.success('已提交编排任务，自动执行中...'); await fetchJobs() }
+    else Message.error(result.message)
+  } catch { Message.error('网络错误') }
 }
 
 async function startJob(job) {
@@ -252,10 +402,25 @@ async function viewLogs(job) {
     const res = await fetch(`/api/cloud/jobs/${job.id}/logs?lines=200`, { headers: authHeaders() })
     const result = await res.json()
     if (result.code === 'ok') {
-      logContent.value = result.data?.logs || result.data?.content || '暂无日志'
+      logContent.value = result.data?.content || result.data?.logs || '暂无日志'
       logDrawerVisible.value = true
     } else {
       Message.error(result.message || '获取日志失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  }
+}
+
+async function viewSteps(job) {
+  try {
+    const res = await fetch(`/api/cloud/jobs/${job.id}/steps`, { headers: authHeaders() })
+    const result = await res.json()
+    if (result.code === 'ok') {
+      steps.value = result.data || []
+      stepsDrawerVisible.value = true
+    } else {
+      Message.error(result.message || '获取步骤失败')
     }
   } catch {
     Message.error('网络错误')
@@ -307,15 +472,27 @@ onMounted(() => { fetchJobs() })
   border: 1px solid rgba(0,0,0,0.06); border-radius: var(--border-radius-large);
   padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.03);
 }
-.training-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.training-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .training-name { font-size: 15px; font-weight: 600; flex: 1; }
+.progress-section { margin-bottom: 8px; }
+.progress-info { font-size: 13px; color: var(--color-text-3); display: flex; gap: 12px; }
+.step-badge { margin-bottom: 8px; }
 .training-footer { display: flex; justify-content: flex-end; gap: 4px; border-top: 1px solid var(--color-border-1); padding-top: 8px; }
 
 .task-table { border-radius: var(--border-radius-large); overflow: hidden; }
 .job-name { font-weight: 500; }
+.text-muted { color: var(--color-text-4); }
+.progress-text { font-size: 13px; color: var(--color-text-3); }
 
 .log-panel { display: flex; flex-direction: column; height: 100%; }
 .log-content { flex: 1; overflow-y: auto; background: #1f2328; border-radius: var(--border-radius-medium); padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.6; }
 .log-line { margin: 0; color: #c9d1d9; }
 .log-line:nth-child(odd) { color: #8b949e; }
+
+.steps-timeline { padding: 0 8px; }
+.step-item { display: flex; flex-direction: column; gap: 4px; }
+.step-name { font-weight: 500; font-size: 14px; }
+.step-error { color: #cf222e; font-size: 12px; }
+.step-time { color: var(--color-text-4); font-size: 12px; }
+.empty-steps { text-align: center; padding: 32px; color: var(--color-text-4); }
 </style>
