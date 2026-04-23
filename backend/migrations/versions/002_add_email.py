@@ -24,9 +24,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("email", sa.String(128), nullable=True))
 
     # 2. 为现有行设置默认值（batch 外执行 DML）
-    op.execute(
-        "UPDATE users SET email = username || '@local' WHERE email IS NULL"
-    )
+    op.execute("UPDATE users SET email = username || '@local' WHERE email IS NULL")
 
     # 3. 设为 NOT NULL 并创建唯一约束
     with op.batch_alter_table("users") as batch_op:
