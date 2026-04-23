@@ -48,14 +48,7 @@ const authRoutes = [
   // P4+（注册用户）：仪表盘
   guarded('/platform', 'platform',
     () => import('../components/platform/Dashboard.vue'),
-    4, [
-      {
-        path: '',
-        name: 'dashboard',
-        component: () => import('../components/platform/Dashboard.vue'),
-        meta: { requiredLevel: 4 },
-      },
-    ]),
+    4),
 
   // P3+（初级用户）：博客编辑器
   guarded('/editor', 'blog-editor',
@@ -85,9 +78,18 @@ const authRoutes = [
   guarded('/ops/crawler', 'crawler-dashboard',
     () => import('../components/ops/CrawlerDashboard.vue'),
     0),
-  guarded('/ops/cloud', 'cloud-training',
-    () => import('../components/ops/CloudTraining.vue'),
-    0),
+  // 云训练工作台
+  guarded('/ops/cloud', 'cloud-workspace',
+    () => import('../components/ops/CloudWorkspace.vue'),
+    0,
+    [
+      { path: '', redirect: { name: 'cloud-tasks' } },
+      { path: 'tasks', name: 'cloud-tasks', component: () => import('../components/ops/CloudTasks.vue') },
+      { path: 'datasets', name: 'cloud-datasets', component: () => import('../components/ops/CloudDatasets.vue') },
+      { path: 'repos', name: 'cloud-repos', component: () => import('../components/ops/CloudRepos.vue') },
+      { path: 'artifacts', name: 'cloud-artifacts', component: () => import('../components/ops/CloudArtifacts.vue') },
+    ]
+  ),
   guarded('/ops/assets', 'asset-management',
     () => import('../components/ops/AssetManagement.vue'),
     0),

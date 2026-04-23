@@ -24,7 +24,11 @@ const registry = {
   1: {},
   0: {
     CrawlerDashboard: () => import('../components/ops/CrawlerDashboard.vue'),
-    CloudTraining: () => import('../components/ops/CloudTraining.vue'),
+    CloudWorkspace: () => import('../components/ops/CloudWorkspace.vue'),
+    CloudTasks: () => import('../components/ops/CloudTasks.vue'),
+    CloudDatasets: () => import('../components/ops/CloudDatasets.vue'),
+    CloudRepos: () => import('../components/ops/CloudRepos.vue'),
+    CloudArtifacts: () => import('../components/ops/CloudArtifacts.vue'),
     AssetManagement: () => import('../components/ops/AssetManagement.vue'),
     AdminPanel: () => import('../components/admin/AdminPanel.vue'),
     UserManagement: () => import('../components/admin/UserManagement.vue'),

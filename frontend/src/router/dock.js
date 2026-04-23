@@ -46,11 +46,12 @@ loadPinned()
 
 /**
  * 获取当前用户可见的 dock 项目。
- * @param {number} userLevel
+ * @param {Ref<number>} userLevelRef
  * @returns {{ pinned: Array, available: Array, showDockPanel: Ref }}
  */
-export function useDock(userLevel) {
-  const level = ref(userLevel ?? 5)
+export function useDock(userLevelRef) {
+  // 使用传入的 ref，或回退到 ref(5)
+  const level = userLevelRef || ref(5)
 
   // 始终显示的项目（如首页）
   const alwaysItems = AVAILABLE_ITEMS.filter(i => i.always)
@@ -64,7 +65,7 @@ export function useDock(userLevel) {
   const pinned = computed(() =>
     pinnedIds.value
       .map(id => visibleItems.value.find(i => i.id === id))
-      .filter(Boolean)
+      .filter(item => item != null)
   )
 
   // 未钉住但可钉的项目

@@ -1,17 +1,4 @@
 <template>
-  <!-- 操作按钮插槽，会显示在工作台的顶部标题栏右侧 -->
-  <template #actions>
-    <a-button type="text" size="small" @click="fetchJobs" :loading="refreshing">
-      <template #icon><icon-refresh /></template>
-      刷新
-    </a-button>
-    <a-button type="primary" size="small" @click="showCreateModal = true">
-      <template #icon><icon-plus /></template>
-      新建训练
-    </a-button>
-  </template>
-
-  <!-- 页面内容 -->
   <div class="cloud-tasks">
     <!-- 统计概览 -->
     <div class="status-row">

@@ -44,8 +44,16 @@
       <div class="main-header">
         <h1>{{ currentPageTitle }}</h1>
         <div class="header-actions">
-          <!-- 页面操作按钮将由子页面通过插槽提供 -->
-          <router-view name="actions" />
+          <!-- 刷新按钮（所有页面通用） -->
+          <a-button type="text" size="small" @click="refreshCurrentPage" :loading="refreshing">
+            <template #icon><icon-refresh /></template>
+            刷新
+          </a-button>
+          <!-- 创建按钮（仅任务页显示） -->
+          <a-button v-if="isTasksPage" type="primary" size="small" @click="$emit('createJob')">
+            <template #icon><icon-plus /></template>
+            新建训练
+          </a-button>
         </div>
       </div>
       <div class="main-content">
@@ -57,16 +65,21 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   IconCloud,
   IconServer,
   IconDatabase,
   IconGitBranch,
   IconFileArchive,
+  IconRefresh,
+  IconPlus,
 } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
+const router = useRouter()
+
+const refreshing = ref(false)
 
 // 导航项配置
 const navItems = [
@@ -106,6 +119,17 @@ const currentPageTitle = computed(() => {
   const currentItem = navItems.find(item => item.name === route.name)
   return currentItem?.label || '云训练'
 })
+
+const isTasksPage = computed(() => route.name === 'cloud-tasks')
+
+// 刷新当前页面数据
+function refreshCurrentPage() {
+  refreshing.value = true
+  // 触发子组件刷新事件（后续通过事件总线或 provide/inject 实现）
+  setTimeout(() => {
+    refreshing.value = false
+  }, 500)
+}
 
 // 页面加载时获取真实统计
 onMounted(() => {

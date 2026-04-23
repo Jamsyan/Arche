@@ -15,7 +15,7 @@
       <!-- 中：Dock 快捷入口 -->
       <nav class="menubar-center">
         <router-link
-          v-for="item in dock.alwaysItems"
+          v-for="item in alwaysItems"
           :key="item.id"
           :to="item.route"
           class="dock-item"
@@ -25,10 +25,10 @@
           <component :is="`icon-${item.icon}`" class="dock-icon" />
         </router-link>
 
-        <div v-if="dock.pinned.length > 0" class="dock-divider"></div>
+        <div v-if="pinned.length > 0" class="dock-divider"></div>
 
         <router-link
-          v-for="item in dock.pinned"
+          v-for="item in pinned"
           :key="item.id"
           :to="item.route"
           class="dock-item pinned"
@@ -83,10 +83,10 @@
       <div class="dock-panel">
         <div class="dock-section">
           <span class="dock-section-label">已添加</span>
-          <div v-if="dock.pinned.length === 0" class="dock-empty">暂无快捷入口</div>
+          <div v-if="pinned.length === 0" class="dock-empty">暂无快捷入口</div>
           <div v-else class="dock-list" id="dock-pinned-list">
             <div
-              v-for="item in dock.pinned"
+              v-for="item in pinned"
               :key="item.id"
               class="dock-list-item"
               :draggable="true"
@@ -96,18 +96,18 @@
               <icon-drag-dot-vertical class="dock-drag-handle" />
               <component :is="`icon-${item.icon}`" class="dock-list-icon" />
               <span class="dock-list-title">{{ item.title }}</span>
-              <a-button type="text" size="mini" @click="dock.unpin(item.id)">移除</a-button>
+              <a-button type="text" size="mini" @click="unpin(item.id)">移除</a-button>
             </div>
           </div>
         </div>
         <div class="dock-section">
           <span class="dock-section-label">可添加</span>
-          <div v-if="dock.available.length === 0" class="dock-empty">没有更多可添加的入口</div>
+          <div v-if="available.length === 0" class="dock-empty">没有更多可添加的入口</div>
           <div v-else class="dock-list">
-            <div v-for="item in dock.available" :key="item.id" class="dock-list-item available">
+            <div v-for="item in available" :key="item.id" class="dock-list-item available">
               <component :is="`icon-${item.icon}`" class="dock-list-icon" />
               <span class="dock-list-title">{{ item.title }}</span>
-              <a-button type="text" size="mini" @click="dock.pin(item.id)">添加</a-button>
+              <a-button type="text" size="mini" @click="pin(item.id)">添加</a-button>
             </div>
           </div>
         </div>
@@ -133,9 +133,17 @@ const { user, logout, level } = useAuth()
 
 const props = defineProps({ userLevel: { type: Number, default: 5 } })
 
-const dockData = useDock(level.value ?? 5)
-const showDockPanel = dockData.showDockPanel
-const dock = dockData
+const {
+  alwaysItems,
+  pinned,
+  available,
+  pin,
+  unpin,
+  isPinned,
+  reorder,
+  updateLevel,
+  showDockPanel
+} = useDock(level)
 
 const fileInput = ref(null)
 const avatarUrl = ref(localStorage.getItem('veil_avatar') || '')
@@ -243,11 +251,11 @@ onMounted(() => {
     const newOrder = []
     items.forEach(el => {
       const title = el.querySelector('.dock-list-title')?.textContent
-      const found = dock.pinned.find(p => p.title === title)
+      const found = pinned.value.find(p => p.title === title)
       if (found) newOrder.push(found.id)
     })
     if (newOrder.length > 0) {
-      dock.reorder(newOrder)
+      reorder(newOrder)
     }
   })
 })

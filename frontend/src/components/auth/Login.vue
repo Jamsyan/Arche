@@ -37,7 +37,7 @@
             <a-input-password v-model="form.password" placeholder="输入密码" />
           </a-form-item>
 
-          <a-alert v-if="error" type="error" :content="error" style="margin-bottom: 16px" />
+          <a-alert v-if="error" type="error" style="margin-bottom: 16px">{{ error }}</a-alert>
 
           <a-button type="primary" html-type="submit" long :loading="loading" class="submit-btn">
             登录

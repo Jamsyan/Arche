@@ -42,7 +42,7 @@
             <a-input-password v-model="form.confirmPassword" placeholder="再次输入密码" />
           </a-form-item>
 
-          <a-alert v-if="error" type="error" :content="error" style="margin-bottom: 16px" />
+          <a-alert v-if="error" type="error" style="margin-bottom: 16px">{{ error }}</a-alert>
 
           <a-button type="primary" html-type="submit" long :loading="loading" class="submit-btn">
             注册
@@ -94,7 +94,7 @@ async function handleRegister() {
   const result = await register(form.email, form.username, form.password)
   loading.value = false
   if (result.ok) {
-    router.push('/platform')
+    router.push('/')
   } else {
     error.value = result.error
   }
