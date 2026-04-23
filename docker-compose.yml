@@ -1,9 +1,7 @@
 services:
   nginx:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    container_name: veil-nginx
+    image: crpi-furbxf8d6ydk7jxx.cn-shanghai.personal.cr.aliyuncs.com/jamd/arche:frontend-latest
+    container_name: arche-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -11,34 +9,35 @@ services:
       - /ssl:/ssl:ro
     depends_on:
       - backend
+    restart: unless-stopped
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: veil-backend
+    image: crpi-furbxf8d6ydk7jxx.cn-shanghai.personal.cr.aliyuncs.com/jamd/arche:backend-latest
+    container_name: arche-backend
     expose:
       - "8000"
     env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
   postgres:
-    image: postgres:17-alpine
-    container_name: veil-postgres
+    image: postgres:latest
+    container_name: arche-postgres
     env_file: .env
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U veil
+      test: pg_isready -U ${POSTGRES_USER:-postgres}
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
   minio:
     image: minio/minio:latest
-    container_name: veil-minio
+    container_name: arche-minio
     command: server /data --console-address ":9001"
     env_file: .env
     expose:
@@ -46,6 +45,7 @@ services:
       - "9001"
     volumes:
       - minio-data:/data
+    restart: unless-stopped
 
 volumes:
   pgdata:
