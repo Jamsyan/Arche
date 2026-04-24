@@ -165,7 +165,7 @@
           @dragend="onDragEnd"
           @click="card.onClick"
         >
-          <div class="card-drag-handle" title="拖拽">
+          <div class="card-drag-handle" title="拖拽" @click.stop>
             <icon-drag-dot-vertical />
           </div>
           <div class="creator-header">
@@ -197,7 +197,7 @@
           @dragend="onDragEnd"
           @click="card.onClick"
         >
-          <div class="card-drag-handle" title="拖拽">
+          <div class="card-drag-handle" title="拖拽" @click.stop>
             <icon-drag-dot-vertical />
           </div>
           <div class="card-header">
