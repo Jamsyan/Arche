@@ -221,11 +221,11 @@ async def seed_cloud_data():
         await session.commit()
 
     print("OK")
-    print(f"   - Repos: 2")
-    print(f"   - Datasets: 2")
-    print(f"   - Jobs: 3 (running x1, success x1, failed x1)")
-    print(f"   - Steps: 3")
-    print(f"   - Artifacts: 2")
+    print("   - Repos: 2")
+    print("   - Datasets: 2")
+    print("   - Jobs: 3 (running x1, success x1, failed x1)")
+    print("   - Steps: 3")
+    print("   - Artifacts: 2")
 
 
 if __name__ == "__main__":
