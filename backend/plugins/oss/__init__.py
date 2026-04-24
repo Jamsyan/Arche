@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.oss.settings import OssSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -105,6 +107,9 @@ class OSSPlugin(BasePlugin):
         except Exception:
             return None
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("oss", OssSettings)
 
 # 自注册
 plugin = OSSPlugin()

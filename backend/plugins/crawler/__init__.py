@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.crawler.settings import CrawlerSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -57,6 +59,9 @@ class CrawlerPlugin(BasePlugin):
             except RuntimeError:
                 pass
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("crawler", CrawlerSettings)
 
 # 自注册
 plugin = CrawlerPlugin()

@@ -9,7 +9,9 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.cloud_integration.settings import CloudIntegrationSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -73,6 +75,9 @@ class CloudIntegrationPlugin(BasePlugin):
             except RuntimeError:
                 pass
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("cloud_integration", CloudIntegrationSettings)
 
 # 自注册
 plugin = CloudIntegrationPlugin()

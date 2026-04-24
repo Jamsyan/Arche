@@ -8,7 +8,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.system_monitor.settings import SystemMonitorSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -51,6 +53,9 @@ class SystemMonitorPlugin(BasePlugin):
             svc = container.get("system_monitor")
             svc.stop_collection()
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("system_monitor", SystemMonitorSettings)
 
 plugin = SystemMonitorPlugin()
 registry.register("system_monitor", plugin)

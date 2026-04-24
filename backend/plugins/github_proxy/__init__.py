@@ -8,7 +8,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.github_proxy.settings import GitHubProxySettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -42,6 +44,9 @@ class GithubProxyPlugin(BasePlugin):
     def on_shutdown(self) -> None:
         pass
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("github_proxy", GitHubProxySettings)
 
 # 自注册
 plugin = GithubProxyPlugin()
