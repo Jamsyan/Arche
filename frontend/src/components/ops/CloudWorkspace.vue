@@ -18,10 +18,6 @@
           <component :is="item.icon" class="nav-icon" />
           <span class="nav-label">{{ item.label }}</span>
           <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
-          <!-- 运行状态指示器 -->
-          <div v-if="item.status" class="status-indicator" :class="item.status">
-            <div class="status-dot"></div>
-          </div>
         </router-link>
       </nav>
 
@@ -66,18 +62,20 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuth } from '../../router/auth.js'
 import {
   IconCloud,
-  IconServer,
-  IconDatabase,
-  IconGitBranch,
-  IconFileArchive,
+  IconDesktop,
+  IconStorage,
+  IconGithub,
+  IconApps,
   IconRefresh,
   IconPlus,
 } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
 const router = useRouter()
+const { authHeaders } = useAuth()
 
 const refreshing = ref(false)
 
@@ -87,32 +85,31 @@ const navItems = [
     path: '/ops/cloud/tasks',
     name: 'cloud-tasks',
     label: '训练任务',
-    icon: IconServer,
-    status: ref('running'), // 暂时模拟有运行中的任务
+    icon: IconDesktop,
   },
   {
     path: '/ops/cloud/datasets',
     name: 'cloud-datasets',
     label: '数据集',
-    icon: IconDatabase,
+    icon: IconStorage,
   },
   {
     path: '/ops/cloud/repos',
     name: 'cloud-repos',
     label: '代码仓库',
-    icon: IconGitBranch,
+    icon: IconGithub,
   },
   {
     path: '/ops/cloud/artifacts',
     name: 'cloud-artifacts',
     label: '制品中心',
-    icon: IconFileArchive,
+    icon: IconApps,
   },
 ]
 
-// 统计数据（模拟）
-const runningJobsCount = ref(2)
-const runningInstancesCount = ref(3)
+// 统计数据
+const runningJobsCount = ref(0)
+const runningInstancesCount = ref(0)
 
 // 当前页面标题
 const currentPageTitle = computed(() => {
@@ -122,18 +119,26 @@ const currentPageTitle = computed(() => {
 
 const isTasksPage = computed(() => route.name === 'cloud-tasks')
 
-// 刷新当前页面数据
-function refreshCurrentPage() {
+// 刷新工作台统计
+async function refreshCurrentPage() {
   refreshing.value = true
-  // 触发子组件刷新事件（后续通过事件总线或 provide/inject 实现）
-  setTimeout(() => {
+  try {
+    const res = await fetch('/api/cloud/stats', { headers: authHeaders() })
+    const data = await res.json()
+    if (data.code === 'ok') {
+      runningJobsCount.value = data.data.running_jobs || 0
+      runningInstancesCount.value = data.data.running_instances || 0
+    }
+  } catch {
+    // 静默失败
+  } finally {
     refreshing.value = false
-  }, 500)
+  }
 }
 
-// 页面加载时获取真实统计
+// 页面加载时获取统计
 onMounted(() => {
-  // 后续实现：调用API获取真实的运行中任务和实例数量
+  refreshCurrentPage()
 })
 </script>
 

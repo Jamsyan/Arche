@@ -1,16 +1,4 @@
 <template>
-  <!-- 操作按钮插槽 -->
-  <template #actions>
-    <a-button type="text" size="small" @click="fetchDatasets" :loading="refreshing">
-      <template #icon><icon-refresh /></template>
-      刷新
-    </a-button>
-    <a-button type="primary" size="small" @click="showImportModal = true">
-      <template #icon><icon-plus /></template>
-      导入数据集
-    </a-button>
-  </template>
-
   <div class="cloud-datasets">
     <!-- 统计卡片 -->
     <div class="status-row">

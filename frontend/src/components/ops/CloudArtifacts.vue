@@ -1,12 +1,4 @@
 <template>
-  <!-- 操作按钮插槽 -->
-  <template #actions>
-    <a-button type="text" size="small" @click="fetchArtifacts" :loading="refreshing">
-      <template #icon><icon-refresh /></template>
-      刷新
-    </a-button>
-  </template>
-
   <div class="cloud-artifacts">
     <!-- 筛选栏 -->
     <div class="filter-bar">
@@ -105,7 +97,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import { useAuth } from '../../router/auth.js'
 import {
-  IconRefresh, IconFile, IconDatabase, IconFileText,
+  IconRefresh, IconFile, IconStorage,
   IconSettings, IconDownload, IconDelete,
 } from '@arco-design/web-vue/es/icon'
 

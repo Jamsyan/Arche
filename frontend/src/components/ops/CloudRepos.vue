@@ -1,16 +1,4 @@
 <template>
-  <!-- 操作按钮插槽 -->
-  <template #actions>
-    <a-button type="text" size="small" @click="fetchRepos" :loading="refreshing">
-      <template #icon><icon-refresh /></template>
-      刷新
-    </a-button>
-    <a-button type="primary" size="small" @click="showAddModal = true">
-      <template #icon><icon-plus /></template>
-      添加仓库
-    </a-button>
-  </template>
-
   <div class="cloud-repos">
     <!-- 统计卡片 -->
     <div class="status-row">
@@ -44,7 +32,7 @@
     >
       <template #name="{ record }">
         <div class="repo-item">
-          <icon-git class="repo-icon" />
+          <icon-github class="repo-icon" />
           <div class="repo-info">
             <span class="repo-name">{{ record.name }}</span>
             <a-link :href="record.git_url" target="_blank" class="repo-url">{{ record.git_url }}</a-link>
@@ -125,7 +113,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import { useAuth } from '../../router/auth.js'
 import {
-  IconPlus, IconRefresh, IconGit, IconSync,
+  IconPlus, IconRefresh, IconGithub, IconSync,
   IconEdit, IconDelete,
 } from '@arco-design/web-vue/es/icon'
 
