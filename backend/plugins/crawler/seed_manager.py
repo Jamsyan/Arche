@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from urllib.parse import urlparse
 
 from backend.core.container import ServiceContainer
@@ -20,7 +19,8 @@ class SeedManager:
 
     async def initialize(self) -> None:
         """从环境变量读初始种子。"""
-        seeds_env = os.environ.get("CRAWLER_SEEDS", "")
+        config = self.container.get("config")
+        seeds_env = config.get("CRAWLER_SEEDS", "") if config else ""
         if seeds_env:
             for url in seeds_env.split(","):
                 url = url.strip()
