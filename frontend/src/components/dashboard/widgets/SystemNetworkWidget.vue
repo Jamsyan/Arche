@@ -14,9 +14,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { system } from '../../../api'
 
-const { authHeaders } = useAuth()
 const netSent = ref(0)
 const netRecv = ref(0)
 const size = defineProps({ size: { type: String, default: 'medium' } })
@@ -30,18 +29,17 @@ function formatBytes(bytes) {
   return `${v.toFixed(1)} ${units[i]}`
 }
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/system/summary', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      netSent.value = data.data.net_sent || 0
-      netRecv.value = data.data.net_recv || 0
+    const data = await system.summary()
+    if (data) {
+      netSent.value = data.net_sent || 0
+      netRecv.value = data.net_recv || 0
     }
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 10000) })
+onMounted(() => { load(); timer = setInterval(load, 10000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

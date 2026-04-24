@@ -4,7 +4,7 @@
       <!-- 左：Logo + 应用名 -->
       <div class="menubar-left">
         <router-link to="/" class="menubar-brand">
-          <img src="/logo.png" alt="锦年志" class="menubar-logo" />
+          <img src="/logo.svg" alt="锦年志" class="menubar-logo" />
         </router-link>
         <span class="menubar-appname">锦年志</span>
         <span class="menubar-divider"></span>
@@ -18,7 +18,7 @@
           <span class="nav-label">首页</span>
         </router-link>
         <template v-if="isAuthenticated">
-          <router-link to="/platform" class="nav-item" :class="{ active: route.path === '/platform' }" title="任务中心">
+          <router-link to="/monitor" class="nav-item" :class="{ active: route.path === '/monitor' }" title="监控大屏">
             <icon-apps class="nav-icon" />
             <span class="nav-label">任务</span>
           </router-link>
@@ -43,7 +43,7 @@
               </div>
             </div>
             <template #content>
-              <a-doption @click="$router.push('/platform')">
+              <a-doption @click="$router.push('/monitor')">
                 <template #icon><icon-apps /></template>
                 任务中心
               </a-doption>
@@ -281,7 +281,7 @@ onMounted(() => {
 
 .avatar-wrap:hover .avatar-img { box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 
-.blog-main { flex: 1; max-width: 1280px; width: 100%; margin: 0 auto; padding: 20px 24px; }
+.blog-main { flex: 1; width: 100%; margin: 0 auto; padding: 0; }
 
 @media (max-width: 768px) {
   .menubar-left { min-width: auto; }

@@ -1,4 +1,4 @@
-"""GitHub proxy plugin settings."""
+"""GitHub 代理插件设置。"""
 
 from __future__ import annotations
 

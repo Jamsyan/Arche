@@ -1,45 +1,69 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import ArcoVue from '@arco-design/web-vue'
 import ArcoVueIcon from '@arco-design/web-vue/es/icon'
 import '@arco-design/web-vue/dist/arco.css'
 import router from './router/index.js'
+import './styles/tokens.css'
 
-// 全局覆盖 Arco 设计令牌：低饱和配色 + 大圆角 + 舒适间距
+// 全局覆盖 Arco 设计令牌：深棕红 + 青蓝配色（基于 Logo 色系）
 const themeStyle = document.createElement('style')
 themeStyle.textContent = `
   :root {
-    /* 主色：低饱和灰蓝，不要高饱和纯蓝 */
-    --color-primary: #5b7fa4;
-    --color-primary-light-1: #e8eef4;
-    --color-primary-light-2: #d1dfe9;
-    --color-primary-light-3: #b9cddd;
-    --color-primary-light-4: #a2bccf;
-    --color-primary-dark-1: #4a6a8a;
-    --color-primary-dark-2: #395670;
+    /* 主色：深棕红（Logo 主色调） */
+    --primary: #5C3D2E;
+    --primary-light: #8B5A3C;
+    --primary-dark: #3D2520;
+    --primary-light-1: #F5EDE9;
+    --primary-light-2: #E8D5CC;
+    --primary-light-3: #D4B8A8;
+    --primary-light-4: #B89580;
 
-    /* 文字色：不用纯黑，用暖灰 */
-    --color-text-1: #2c3e50;
-    --color-text-2: #5a6c7d;
-    --color-text-3: #8899a6;
-    --color-text-4: #aab8c2;
+    /* 辅色：青蓝（Logo 点缀色） */
+    --secondary: #5BA0B5;
+    --secondary-light: #8BC5D4;
+    --secondary-dark: #3D7A8C;
 
-    /* 边框：更柔和 */
-    --color-border-1: #e1e8ed;
-    --color-border-2: #c9d4dc;
-    --color-border-3: #b0bec5;
+    /* 主色变量兼容 Arco */
+    --color-primary: #5C3D2E;
+    --color-primary-light-1: #F5EDE9;
+    --color-primary-light-2: #E8D5CC;
+    --color-primary-light-3: #D4B8A8;
+    --color-primary-light-4: #B89580;
+    --color-primary-dark-1: #3D2520;
+    --color-primary-dark-2: #2E1A15;
+
+    /* 文字色：温暖深灰 */
+    --color-text-1: #2C2420;
+    --color-text-2: #5A4F48;
+    --color-text-3: #8A7F75;
+    --color-text-4: #B5A99D;
+
+    /* 边框：暖灰 */
+    --color-border: var(--color-border-1);
+    --color-border-1: #E8E2DC;
+    --color-border-2: #D5CCC4;
+    --color-border-3: #BEB4AA;
 
     /* 填充色 */
-    --color-fill-1: #f7f9fb;
-    --color-fill-2: #eef2f5;
-    --color-fill-3: #e3e9ee;
-    --color-fill-4: #d5dde4;
+    --color-fill-1: #FAF8F6;
+    --color-fill-2: #F2EDE8;
+    --color-fill-3: #E8E0D8;
+    --color-fill-4: #DCD2C8;
 
     /* 背景 */
-    --color-bg-1: #ffffff;
-    --color-bg-2: #f7f9fb;
-    --color-bg-3: #eef2f5;
-    --color-bg-4: #e3e9ee;
+    --color-bg-1: #FFFFFF;
+    --color-bg-2: #FAF8F6;
+    --color-bg-3: #F2EDE8;
+    --color-bg-4: #E8E0D8;
+
+    /* 标签徽章专用色 */
+    --tag-bg: #F2EDE8;
+    --tag-text: #5A4F48;
+    --tag-border: #E0D6CC;
+    --tag-hover: #E8DCD2;
+    --primary-light: #E8D5CC;
 
     /* 圆角：更大更柔和 */
     --border-radius-none: 0;
@@ -96,7 +120,7 @@ themeStyle.textContent = `
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
-  /* 去掉 Arco 默认的主按钮高饱和蓝渐变 */
+  /* 主按钮：深棕红 */
   .arco-btn-primary {
     background: var(--color-primary) !important;
     border-color: var(--color-primary) !important;
@@ -107,12 +131,14 @@ themeStyle.textContent = `
   }
   /* 链接颜色 */
   a {
-    color: var(--color-primary) !important;
+    color: var(--primary) !important;
   }
 `
 document.head.appendChild(themeStyle)
 
 const app = createApp(App)
+const pinia = createPinia()
+app.use(pinia)
 app.use(ArcoVue)
 app.use(ArcoVueIcon)
 app.use(router)

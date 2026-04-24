@@ -1,4 +1,4 @@
-"""Deploy webhook plugin settings."""
+"""部署 Webhook 插件设置。"""
 
 from __future__ import annotations
 

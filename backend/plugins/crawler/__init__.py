@@ -1,4 +1,4 @@
-"""Crawler plugin — 漫游爬虫插件：24 小时常驻后台服务，纯 HTTP 请求。"""
+"""爬虫插件 —— 漫游爬虫插件：24 小时常驻后台服务，纯 HTTP 请求。"""
 
 from __future__ import annotations
 

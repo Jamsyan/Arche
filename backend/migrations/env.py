@@ -1,4 +1,4 @@
-"""Alembic env.py — 异步 SQLAlchemy + SQLite / PostgreSQL 支持."""
+"""Alembic env.py —— 异步 SQLAlchemy + SQLite / PostgreSQL 支持。"""
 
 import asyncio
 import sys
@@ -23,6 +23,7 @@ from backend.plugins.blog.models import (  # noqa: F401
     BlogReport,
     BlogTag,
     BlogPostTag,
+    BlogFavorite,
 )
 from backend.plugins.crawler.models import CrawlRecord  # noqa: F401
 from backend.plugins.oss.models import OSSFile, UserOSSQuota  # noqa: F401
@@ -32,6 +33,7 @@ from backend.plugins.cloud_integration.models import (  # noqa: F401
     TrainingCost,
 )
 from backend.plugins.asset_mgmt.models import AssetIndex  # noqa: F401
+from backend.plugins.monitor.models import MonitorTemplate  # noqa: F401
 
 config = context.config
 
@@ -60,9 +62,10 @@ def get_url() -> str:
     url = os.getenv("DATABASE_URL") or env_values.get("DATABASE_URL")
     if url:
         return url
-    # fallback to alembic.ini 中的值
+    # 回退到 alembic.ini 中的值
     return (
-        config.get_main_option("sqlalchemy.url") or "sqlite+aiosqlite:///./data/arche.db"
+        config.get_main_option("sqlalchemy.url")
+        or "sqlite+aiosqlite:///./data/arche.db"
     )
 
 
@@ -116,10 +119,10 @@ def run_migrations_online() -> None:
         # SQLite 必须用异步方式（aiosqlite）
         asyncio.run(run_async_migrations())
     elif url and ("asyncpg" in url or "postgresql+asyncpg" in url):
-        # PostgreSQL async
+        # PostgreSQL 异步
         asyncio.run(run_async_migrations())
     else:
-        # 同步数据库（fallback）
+        # 同步数据库（备用方案）
         connectable = config.attributes.get("connection", None)
         if connectable is None:
             connectable = async_engine_from_config(

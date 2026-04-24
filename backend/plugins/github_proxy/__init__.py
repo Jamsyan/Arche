@@ -1,4 +1,4 @@
-"""GitHub Proxy plugin — GitHub API 反向代理插件。
+"""GitHub 代理插件 —— GitHub API 反向代理插件。
 
 负责代理 GitHub API 和静态资源，支持缓存和 Token 注入。
 """

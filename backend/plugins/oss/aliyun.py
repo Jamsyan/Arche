@@ -1,4 +1,4 @@
-"""Aliyun OSS cloud storage service — cold storage backend."""
+"""阿里云 OSS 云存储服务 —— 冷存储后端。"""
 
 from __future__ import annotations
 

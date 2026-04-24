@@ -111,13 +111,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { cloud } from '../../api'
 import {
   IconPlus, IconRefresh, IconGithub, IconSync,
   IconEdit, IconDelete,
 } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const showAddModal = ref(false)
 const showSyncModal = ref(false)
@@ -170,26 +168,23 @@ function getPlatform(url) {
 async function fetchRepos() {
   refreshing.value = true
   try {
-    const res = await fetch(`/api/cloud/repos?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      repos.value = data.data.items || []
-      total.value = data.data.total || 0
-      pagination.total = total.value
+    const data = await cloud.listRepos({ page: page.value, page_size: pageSize.value })
+    repos.value = data?.items || []
+    total.value = data?.total || 0
+    pagination.total = total.value
 
-      // 统计平台
-      const byPlatform = { github: 0, gitee: 0, other: 0 }
-      repos.value.forEach(repo => {
-        const platform = getPlatform(repo.git_url)
-        byPlatform[platform] = (byPlatform[platform] || 0) + 1
-      })
-      stats.value = {
-        total: total.value,
-        byPlatform,
-      }
+    // 统计平台
+    const byPlatform = { github: 0, gitee: 0, other: 0 }
+    repos.value.forEach(repo => {
+      const platform = getPlatform(repo.git_url)
+      byPlatform[platform] = (byPlatform[platform] || 0) + 1
+    })
+    stats.value = {
+      total: total.value,
+      byPlatform,
     }
-  } catch {
-    Message.error('加载代码仓库失败')
+  } catch (err) {
+    Message.error(err.message || '加载代码仓库失败')
   } finally {
     refreshing.value = false
   }
@@ -218,9 +213,6 @@ async function saveRepo() {
   if (!repoForm.value.git_branch?.trim()) { Message.warning('请输入分支名称'); return }
 
   try {
-    const url = isEdit.value ? `/api/cloud/repos/${repoForm.value.id}` : '/api/cloud/repos'
-    const method = isEdit.value ? 'PUT' : 'POST'
-
     const body = {
       name: repoForm.value.name,
       git_url: repoForm.value.git_url,
@@ -232,23 +224,18 @@ async function saveRepo() {
       body.git_token = repoForm.value.git_token.trim()
     }
 
-    const res = await fetch(url, {
-      method,
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(body),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success(isEdit.value ? '仓库更新成功' : '仓库添加成功')
-      showAddModal.value = false
-      repoForm.value = { id: undefined, name: '', git_url: '', git_branch: 'main', git_token: '' }
-      isEdit.value = false
-      await fetchRepos()
+    if (isEdit.value) {
+      await cloud.updateRepo(repoForm.value.id, body)
     } else {
-      Message.error(result.message || '保存失败')
+      await cloud.createRepo(body)
     }
-  } catch {
-    Message.error('网络错误')
+    Message.success(isEdit.value ? '仓库更新成功' : '仓库添加成功')
+    showAddModal.value = false
+    repoForm.value = { id: undefined, name: '', git_url: '', git_branch: 'main', git_token: '' }
+    isEdit.value = false
+    await fetchRepos()
+  } catch (err) {
+    Message.error(err.message || '保存失败')
   }
 }
 
@@ -261,32 +248,22 @@ async function confirmSync() {
   if (!syncingRepo.value) return
 
   try {
-    const res = await fetch(`/api/cloud/repos/${syncingRepo.value.id}/sync`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('同步任务已提交，将在后台拉取最新代码')
-      showSyncModal.value = false
-      syncingRepo.value = null
-    } else {
-      Message.error(result.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    await cloud.syncRepo(syncingRepo.value.id)
+    Message.success('同步任务已提交，将在后台拉取最新代码')
+    showSyncModal.value = false
+    syncingRepo.value = null
+  } catch (err) {
+    Message.error(err.message || '网络错误')
   }
 }
 
 async function deleteRepo(repo) {
   try {
-    const res = await fetch(`/api/cloud/repos/${repo.id}`, { method: 'DELETE', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('代码仓库已删除')
-      await fetchRepos()
-    } else {
-      Message.error(result.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    await cloud.deleteRepo(repo.id)
+    Message.success('代码仓库已删除')
+    await fetchRepos()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
   }
 }
 

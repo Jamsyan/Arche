@@ -61,10 +61,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import { IconArrowLeft, IconSettings, IconRefresh } from '@arco-design/web-vue/es/icon'
-import { useAuth } from '../../router/auth.js'
+import { admin } from '../../api'
 
 const router = useRouter()
-const { authHeaders } = useAuth()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -111,20 +110,17 @@ function getFormData(groupKey) {
 async function fetchConfigs() {
   loading.value = true
   try {
-    const res = await fetch('/api/admin/config', { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      allEntries.value = result.data
+    const result = await admin.configList()
+    if (result) {
+      allEntries.value = result
       // 初始化表单状态（非敏感字段用真实值，敏感字段留空供编辑）
       formState.value = {}
-      for (const entry of result.data) {
+      for (const entry of result) {
         formState.value[entry.key] = entry.is_sensitive ? '' : entry.value
       }
-    } else {
-      Message.error(result.message || '获取配置失败')
     }
-  } catch {
-    Message.error('网络错误')
+  } catch (err) {
+    Message.error(err.message || '获取配置失败')
   } finally {
     loading.value = false
   }
@@ -137,13 +133,8 @@ async function saveGroup(groupKey) {
     let success = 0
     for (const field of fields) {
       const value = formState.value[field.key] ?? ''
-      const res = await fetch(`/api/admin/config/${encodeURIComponent(field.key)}`, {
-        method: 'PUT',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ value }),
-      })
-      const result = await res.json()
-      if (result.code === 'ok') {
+      const result = await admin.configSet(field.key, { value })
+      if (result) {
         success++
       }
     }
@@ -153,8 +144,8 @@ async function saveGroup(groupKey) {
       Message.warning(`部分保存成功 (${success}/${fields.length})`)
     }
     await fetchConfigs()
-  } catch {
-    Message.error('网络错误')
+  } catch (err) {
+    Message.error(err.message || '保存失败')
   } finally {
     saving.value = false
   }
@@ -163,17 +154,11 @@ async function saveGroup(groupKey) {
 async function reloadAll() {
   reloading.value = true
   try {
-    const res = await fetch('/api/admin/config/reload', {
-      method: 'POST',
-      headers: authHeaders(),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('缓存已清除，下次请求时生效')
-      await fetchConfigs()
-    }
-  } catch {
-    Message.error('网络错误')
+    await admin.configReload()
+    Message.success('缓存已清除，下次请求时生效')
+    await fetchConfigs()
+  } catch (err) {
+    Message.error(err.message || '重载失败')
   } finally {
     reloading.value = false
   }

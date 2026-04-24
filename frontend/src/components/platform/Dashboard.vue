@@ -4,45 +4,57 @@
     <aside class="sidebar">
       <!-- 用户身份面板 -->
       <div class="identity-panel">
-        <div class="avatar-section">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="identity-avatar" />
-          <div v-else class="identity-avatar-placeholder">{{ userInitial }}</div>
-        </div>
-        <div class="identity-info">
-          <h2 class="identity-name">{{ userInfo?.username ?? '加载中...' }}</h2>
-          <div class="identity-meta">
-            <LevelBadge :level="level ?? 5" />
-            <span class="identity-role">{{ roleLabel }}</span>
-          </div>
-          <div class="identity-detail">
-            <span class="detail-item">
-              <icon-calendar class="detail-icon" />
-              {{ formatDate(userInfo?.created_at) }} 加入
-            </span>
-            <span class="detail-item" v-if="userInfo?.email">
-              <icon-email class="detail-icon" />
-              {{ userInfo.email }}
-            </span>
+        <!-- 骨架屏 -->
+        <div v-if="loading" class="identity-skeleton">
+          <div class="sk-avatar"></div>
+          <div class="sk-info">
+            <div class="sk-line sk-title"></div>
+            <div class="sk-line sk-meta"></div>
+            <div class="sk-line sk-meta short"></div>
           </div>
         </div>
-        <div class="identity-stats">
-          <div class="stat-block">
-            <div class="stat-num">—</div>
-            <div class="stat-label">文章</div>
+        <!-- 真实内容 -->
+        <template v-else>
+          <div class="avatar-section">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="identity-avatar" />
+            <div v-else class="identity-avatar-placeholder">{{ userInitial }}</div>
           </div>
-          <div class="stat-block">
-            <div class="stat-num">—</div>
-            <div class="stat-label">阅读</div>
+          <div class="identity-info">
+            <h2 class="identity-name">{{ userInfo?.username ?? '游客' }}</h2>
+            <div class="identity-meta">
+              <LevelBadge :level="level ?? 5" />
+              <span class="identity-role">{{ roleLabel }}</span>
+            </div>
+            <div class="identity-detail">
+              <span class="detail-item">
+                <icon-calendar class="detail-icon" />
+                {{ formatDate(userInfo?.created_at) }} 加入
+              </span>
+              <span class="detail-item" v-if="userInfo?.email">
+                <icon-email class="detail-icon" />
+                {{ userInfo.email }}
+              </span>
+            </div>
           </div>
-          <div class="stat-block">
-            <div class="stat-num">—</div>
-            <div class="stat-label">获赞</div>
+          <div class="identity-stats">
+            <div class="stat-block">
+              <div class="stat-num">{{ postCount || '—' }}</div>
+              <div class="stat-label">文章</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-num">{{ totalViews || '—' }}</div>
+              <div class="stat-label">阅读</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-num">{{ totalLikes || '—' }}</div>
+              <div class="stat-label">获赞</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-num">{{ storageUsed }}</div>
+              <div class="stat-label">MB</div>
+            </div>
           </div>
-          <div class="stat-block">
-            <div class="stat-num">{{ storageUsed }}</div>
-            <div class="stat-label">MB</div>
-          </div>
-        </div>
+        </template>
       </div>
 
       <!-- 管理员监控面板（仅 P0） -->
@@ -217,20 +229,22 @@
 import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import LevelBadge from '../LevelBadge.vue'
-import { useAuth } from '../../router/auth.js'
+import { system, blog, oss } from '../../api'
 import WidgetCanvas from '../dashboard/WidgetCanvas.vue'
 import WidgetPicker from '../dashboard/WidgetPicker.vue'
 import TodoPanel from '../dashboard/TodoPanel.vue'
 import {
   IconCalendar, IconEmail, IconBarChart, IconEdit, IconUpload,
   IconCheck, IconCheckCircle, IconBug, IconCloud, IconStorage,
-  IconApps, IconClose, IconLock, IconDesktop,
+  IconApps, IconClose, IconLock, IconDesktop, IconDashboard,
   IconGithub, IconPushpin, IconUser, IconSettings,
   IconDragDotVertical,
 } from '@arco-design/web-vue/es/icon'
 
 const router = useRouter()
-const { loadUser, user, level, authHeaders } = useAuth()
+
+// ====== 加载状态 ======
+const loading = ref(true)
 
 // ====== 用户信息 ======
 const userInfo = ref(null)
@@ -258,19 +272,14 @@ const sysInfo = ref({
 async function fetchSysInfo() {
   if (level.value === null || level.value > 0) return
   try {
-    const res = await fetch('/api/system/summary', { headers: authHeaders() })
-    if (res.ok) {
-      const data = await res.json()
-      if (data.code === 'ok') {
-        sysInfo.value = {
-          cpu: Math.round(data.data.cpu_pct || 0),
-          memoryPercent: Math.round(data.data.mem_pct || 0),
-          diskPercent: Math.round(data.data.disk_pct || 0),
-          onlineUsers: 0,
-          qps: 0,
-          requests: 0,
-        }
-      }
+    const data = await system.summary()
+    sysInfo.value = {
+      cpu: Math.round(data.cpu_pct || 0),
+      memoryPercent: Math.round(data.mem_pct || 0),
+      diskPercent: Math.round(data.disk_pct || 0),
+      onlineUsers: 0,
+      qps: 0,
+      requests: 0,
     }
   } catch {}
 }
@@ -322,100 +331,109 @@ const creatorCards = computed(() => [
   {
     id: 'articles', icon: IconEdit, title: '文章总览',
     onClick: () => router.push('/editor'),
-    body: () => h('div', { class: 'creator-stat' }, [
-      h('span', { class: 'creator-num' }, postCount.value),
-      h('span', { class: 'creator-unit' }, '篇'),
-    ]),
-    footer: () => h('div', { class: 'creator-footer-inner' }, [
-      h('span', { class: 'footer-label' }, '阅读'),
-      h('span', { class: 'footer-value' }, totalViews.value),
-      h('span', { class: 'footer-divider' }, '|'),
-      h('span', { class: 'footer-label' }, '获赞'),
-      h('span', { class: 'footer-value' }, totalLikes.value),
-    ]),
+    body: () => loading.value
+      ? h('div', { class: 'sk-block tall' })
+      : h('div', { class: 'creator-stat' }, [
+          h('span', { class: 'creator-num' }, postCount.value || 0),
+          h('span', { class: 'creator-unit' }, '篇'),
+        ]),
+    footer: () => loading.value
+      ? h('div', { class: 'sk-block short' })
+      : h('div', { class: 'creator-footer-inner' }, [
+          h('span', { class: 'footer-label' }, '阅读'),
+          h('span', { class: 'footer-value' }, totalViews.value || 0),
+          h('span', { class: 'footer-divider' }, '|'),
+          h('span', { class: 'footer-label' }, '获赞'),
+          h('span', { class: 'footer-value' }, totalLikes.value || 0),
+        ]),
   },
   {
     id: 'files', icon: IconUpload, title: '文件管理',
     onClick: () => router.push('/upload'),
-    body: () => h('div', null, [
-      h('div', { class: 'creator-stat' }, [
-        h('span', { class: 'creator-num' }, '0'),
-        h('span', { class: 'creator-unit' }, '个'),
-      ]),
-    ]),
-    footer: () => h('div', { class: 'creator-footer-inner' }, [
-      h('span', { class: 'footer-label' }, '已用'),
-      h('span', { class: 'footer-value' }, storageUsed.value + ' MB'),
-      h('span', { class: 'footer-divider' }, '/'),
-      h('span', { class: 'footer-value' }, storageTotal.value + ' MB'),
-    ]),
+    body: () => loading.value
+      ? h('div', { class: 'sk-block tall' })
+      : h('div', null, [
+          h('div', { class: 'creator-stat' }, [
+            h('span', { class: 'creator-num' }, storageUsed.value),
+            h('span', { class: 'creator-unit' }, 'MB'),
+          ]),
+        ]),
+    footer: () => loading.value
+      ? h('div', { class: 'sk-block short' })
+      : h('div', { class: 'creator-footer-inner' }, [
+          h('span', { class: 'footer-label' }, '已用'),
+          h('span', { class: 'footer-value' }, storageUsed.value + ' MB'),
+          h('span', { class: 'footer-divider' }, '/'),
+          h('span', { class: 'footer-value' }, storageTotal.value + ' MB'),
+        ]),
   },
   {
     id: 'moderation', icon: IconCheck, title: '审核队列',
     onClick: () => router.push('/moderation'),
-    body: () => moderationPending.value > 0
-      ? h('div', { class: 'moderation-list' }, [
-          h('span', { class: 'mod-item' }, [
-            h('span', { class: 'mod-dot pending' }),
-            `待审核 ${moderationPending.value}`,
+    body: () => loading.value
+      ? h('div', { class: 'sk-block tall' })
+      : moderationPending.value > 0
+        ? h('div', { class: 'moderation-list' }, [
+            h('span', { class: 'mod-item' }, [
+              h('span', { class: 'mod-dot pending' }),
+              `待审核 ${moderationPending.value}`,
+            ]),
+          ])
+        : h('div', { class: 'mod-empty' }, [
+            h('span', null, '暂无待审内容'),
           ]),
-        ])
-      : h('div', { class: 'mod-empty' }, [
-          h('span', null, '暂无待审内容'),
-        ]),
-    footer: () => moderationPending.value > 0
-      ? h('span', { class: 'footer-status pending' }, '需要处理')
-      : h('span', { class: 'footer-status done' }, '全部完成'),
+    footer: () => loading.value
+      ? h('div', { class: 'sk-block short' })
+      : moderationPending.value > 0
+        ? h('span', { class: 'footer-status pending' }, '需要处理')
+        : h('span', { class: 'footer-status done' }, '全部完成'),
   },
 ])
 
 // ====== 系统任务卡片 ======
-const taskCards = computed(() => {
-  const cards = [
-    {
-      id: 'crawler', icon: IconBug, title: '爬虫任务',
-      onClick: () => router.push('/ops/crawler'),
-      body: () => h('div', { class: 'task-empty' }, [h('span', null, '暂无爬虫任务')]),
-    },
-    {
-      id: 'cloud', icon: IconCloud, title: '云训练',
-      onClick: () => router.push('/ops/cloud'),
-      body: () => h('div', { class: 'task-empty' }, [h('span', null, '暂无训练任务')]),
-    },
-    {
-      id: 'storage', icon: IconStorage, title: '存储管理',
-      onClick: () => router.push('/storage'),
-      body: () => h('div', { class: 'storage-detail' }, [
-        h('div', { class: 'storage-item' }, [
-          h('span', { class: 'storage-label' }, '本地'),
-          h('span', { class: 'storage-value' }, `${storageUsed.value}/${storageTotal.value}M`),
+const taskCards = computed(() => [
+  {
+    id: 'crawler', icon: IconBug, title: '爬虫任务',
+    onClick: () => router.push('/ops/crawler'),
+    body: () => h('div', { class: loading.value ? 'sk-block tall' : 'task-empty' }, loading.value ? null : [h('span', null, '点击查看爬虫状态')]),
+  },
+  {
+    id: 'cloud', icon: IconCloud, title: '云训练',
+    onClick: () => router.push('/ops/cloud'),
+    body: () => h('div', { class: loading.value ? 'sk-block tall' : 'task-empty' }, loading.value ? null : [h('span', null, '点击查看训练任务')]),
+  },
+  {
+    id: 'storage', icon: IconStorage, title: '存储管理',
+    onClick: () => router.push('/storage'),
+    body: () => loading.value
+      ? h('div', { class: 'sk-block tall' })
+      : h('div', { class: 'storage-detail' }, [
+          h('div', { class: 'storage-item' }, [
+            h('span', { class: 'storage-label' }, '本地'),
+            h('span', { class: 'storage-value' }, `${storageUsed.value}/${storageTotal.value}M`),
+          ]),
         ]),
-      ]),
-    },
-    {
-      id: 'github', icon: IconGithub, title: 'GitHub 代理',
-      onClick: () => router.push('/github'),
-      body: () => h('div', { class: 'task-empty' }, [h('span', null, '管理追踪仓库')]),
-    },
-    {
-      id: 'assets', icon: IconApps, title: '资产管理',
-      onClick: () => router.push('/ops/assets'),
-      body: () => h('div', { class: 'task-empty' }, [h('span', null, '暂无资产')]),
-    },
-  ]
-
-  if (level.value !== null && level.value <= 0) {
-    cards.push({
-      id: 'admin', icon: IconLock, title: '管理员面板',
-      adminOnly: true, onClick: () => router.push('/admin'),
-      body: () => h('div', { class: 'admin-task-body' }, [
-        h('span', { class: 'admin-stat' }, [h('span', null, `${sysInfo.value.onlineUsers} 在线`)]),
-      ]),
-    })
-  }
-
-  return cards
-})
+  },
+  {
+    id: 'github', icon: IconGithub, title: 'GitHub 代理',
+    onClick: () => router.push('/github'),
+    body: () => h('div', { class: loading.value ? 'sk-block tall' : 'task-empty' }, loading.value ? null : [h('span', null, '管理追踪仓库')]),
+  },
+  {
+    id: 'assets', icon: IconApps, title: '资产管理',
+    onClick: () => router.push('/ops/assets'),
+    body: () => h('div', { class: loading.value ? 'sk-block tall' : 'task-empty' }, loading.value ? null : [h('span', null, '点击查看资产')]),
+  },
+  ...(level.value !== null && level.value <= 0 ? [{
+    id: 'admin', icon: IconLock, title: '管理员面板',
+    adminOnly: true, onClick: () => router.push('/admin'),
+    body: () => loading.value
+      ? h('div', { class: 'sk-block tall' })
+      : h('div', { class: 'admin-task-body' }, [
+          h('span', { class: 'admin-stat' }, [h('span', null, `${sysInfo.value.onlineUsers} 在线`)]),
+        ]),
+  }] : []),
+])
 
 function formatDate(dateStr) {
   if (!dateStr) return '未知'
@@ -425,21 +443,11 @@ function formatDate(dateStr) {
 // ====== 状态加载 ======
 async function fetchStatus() {
   try {
-    const modRes = await fetch('/api/blog/moderation/pending?page=1&page_size=1', {
-      headers: authHeaders(),
-    })
-    if (modRes.ok) {
-      const data = await modRes.json()
-      moderationPending.value = data.data?.total || 0
-    }
-    const storageRes = await fetch('/api/oss/storage/stats?user_scope=true', {
-      headers: authHeaders(),
-    })
-    if (storageRes.ok) {
-      const sData = await storageRes.json()
-      if (sData.code === 'ok') {
-        storageUsed.value = Math.round((sData.data.total_bytes || 0) / 1024 / 1024)
-      }
+    const modData = await blog.moderationPending({ page: 1, page_size: 1 })
+    moderationPending.value = modData.total || 0
+    const sData = await oss.storageStats({ user_scope: true })
+    if (sData) {
+      storageUsed.value = Math.round((sData.total_bytes || 0) / 1024 / 1024)
     }
   } catch {}
 }
@@ -447,14 +455,14 @@ async function fetchStatus() {
 let sysInfoTimer = null
 
 onMounted(async () => {
-  await loadUser()
-  if (user.value) {
-    userInfo.value = user.value
-    const saved = localStorage.getItem('veil_avatar')
-    if (saved) avatarUrl.value = saved
-  }
-  fetchStatus()
-  fetchSysInfo()
+  // 不阻塞：页面立即显示，数据异步填充
+  loadUser()
+
+  // 并行拉取所有数据，全部完成后解除 loading
+  await Promise.all([fetchStatus(), fetchSysInfo()])
+  loading.value = false
+
+  // 恢复时刷新
   sysInfoTimer = setInterval(fetchSysInfo, 10000)
 
   // 关注焦点 drop handler
@@ -811,6 +819,19 @@ onUnmounted(() => {
 .storage-item { display: flex; align-items: center; gap: 8px; }
 .storage-label { font-size: 11px; color: var(--color-text-3); width: 40px; flex-shrink: 0; }
 .storage-value { font-size: 11px; color: var(--color-text-2); }
+
+/* ===== 骨架屏 ===== */
+.identity-skeleton { display: flex; gap: 16px; align-items: flex-start; }
+.sk-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--color-fill-3); animation: sk-pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
+.sk-info { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.sk-line { height: 12px; background: var(--color-fill-3); border-radius: 6px; animation: sk-pulse 1.5s ease-in-out infinite; }
+.sk-title { width: 80px; }
+.sk-meta { width: 120px; }
+.sk-meta.short { width: 80px; }
+.sk-block { background: var(--color-fill-3); border-radius: 6px; animation: sk-pulse 1.5s ease-in-out infinite; }
+.sk-block.tall { height: 48px; }
+.sk-block.short { height: 16px; width: 60%; }
+@keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* ===== 拖拽手柄 ===== */
 .card-drag-handle {

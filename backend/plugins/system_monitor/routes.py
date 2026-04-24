@@ -1,4 +1,4 @@
-"""System Monitor plugin — 路由端点。"""
+"""系统监控插件 —— 路由端点。"""
 
 from __future__ import annotations
 

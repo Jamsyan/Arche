@@ -1,4 +1,4 @@
-"""Auth plugin — 用户认证服务：CRUD、密码验证、JWT 签发/验证。"""
+"""认证插件 —— 用户认证服务：CRUD、密码验证、JWT 签发/验证。"""
 
 from __future__ import annotations
 

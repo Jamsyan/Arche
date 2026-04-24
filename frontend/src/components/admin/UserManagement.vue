@@ -169,13 +169,12 @@
 import { ref, onMounted } from 'vue'
 import { Message, Modal } from '@arco-design/web-vue'
 import LevelBadge from '../LevelBadge.vue'
-import { useAuth } from '../../router/auth.js'
+import { auth } from '../../api'
 import {
   IconUser, IconArrowLeft, IconHome, IconRefresh, IconDown, IconPlus,
   IconSwap, IconStop, IconCheck, IconEye,
 } from '@arco-design/web-vue/es/icon'
 
-const { authHeaders } = useAuth()
 const searchQuery = ref('')
 const refreshing = ref(false)
 const loading = ref(true)
@@ -213,29 +212,25 @@ const userColumns = [
 async function fetchUsers(status = null) {
   loading.value = true
   try {
-    const url = `/api/auth/users?page=${page.value}&page_size=${pageSize.value}${status ? `&status=${status}` : ''}`
-    const res = await fetch(url, { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      const data = result.data || {}
-      users.value = data.items || []
-      total.value = data.total || 0
-      pagination.total = total.value
-      userStats.value.total = data.total ?? 0
-      // 分别统计 active/disabled
-      const [activeRes, disabledRes] = await Promise.all([
-        fetch(`/api/auth/users?page=1&page_size=1&status=active`, { headers: authHeaders() }),
-        fetch(`/api/auth/users?page=1&page_size=1&status=disabled`, { headers: authHeaders() }),
-      ])
-      const activeData = await activeRes.json()
-      const disabledData = await disabledRes.json()
-      userStats.value.active = activeData.data?.total ?? 0
-      userStats.value.disabled = disabledData.data?.total ?? 0
-    } else {
-      Message.error(result.message || '加载用户失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const result = await auth.listUsers({
+      page: page.value,
+      page_size: pageSize.value,
+      ...(status ? { status } : {}),
+    })
+    const data = result || {}
+    users.value = data.items || []
+    total.value = data.total || 0
+    pagination.total = total.value
+    userStats.value.total = data.total ?? 0
+    // 分别统计 active/disabled
+    const [activeData, disabledData] = await Promise.all([
+      auth.listUsers({ page: 1, page_size: 1, status: 'active' }),
+      auth.listUsers({ page: 1, page_size: 1, status: 'disabled' }),
+    ])
+    userStats.value.active = activeData?.total ?? 0
+    userStats.value.disabled = disabledData?.total ?? 0
+  } catch (err) {
+    Message.error(err.message || '加载用户失败')
   } finally {
     loading.value = false
   }
@@ -265,22 +260,15 @@ function changeLevel(user) {
 async function confirmLevelChange() {
   if (!targetUser.value) return
   try {
-    const res = await fetch(`/api/auth/users/${targetUser.value.id}`, {
-      method: 'PUT',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ level: newLevel.value }),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
+    const result = await auth.updateUser(targetUser.value.id, { level: newLevel.value })
+    if (result) {
       const oldLevel = targetUser.value.level
       targetUser.value.level = newLevel.value
       Message.success(`已将 ${targetUser.value.username} 从 P${oldLevel} 调整为 P${newLevel.value}`)
       showLevelModal.value = false
-    } else {
-      Message.error(result.message || '修改失败')
     }
-  } catch {
-    Message.error('网络错误')
+  } catch (err) {
+    Message.error(err.message || '修改失败')
   }
 }
 
@@ -291,32 +279,26 @@ async function disableUser(user) {
     buttonProps: { status: 'danger' },
     onOk: async () => {
       try {
-        const res = await fetch(`/api/auth/users/${user.id}/disable`, { method: 'POST', headers: authHeaders() })
-        const result = await res.json()
-        if (result.code === 'ok') {
-          user.is_active = false
-          Message.warning(`已禁用用户: ${user.username}`)
-          await fetchUsers()
-        } else {
-          Message.error(result.message || '操作失败')
-        }
-      } catch { Message.error('网络错误') }
+        await auth.disableUser(user.id)
+        user.is_active = false
+        Message.warning(`已禁用用户: ${user.username}`)
+        await fetchUsers()
+      } catch (err) {
+        Message.error(err.message || '操作失败')
+      }
     },
   })
 }
 
 async function enableUser(user) {
   try {
-    const res = await fetch(`/api/auth/users/${user.id}/enable`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      user.is_active = true
-      Message.success(`已启用用户: ${user.username}`)
-      await fetchUsers()
-    } else {
-      Message.error(result.message)
-    }
-  } catch { Message.error('网络错误') }
+    await auth.enableUser(user.id)
+    user.is_active = true
+    Message.success(`已启用用户: ${user.username}`)
+    await fetchUsers()
+  } catch (err) {
+    Message.error(err.message || '启用失败')
+  }
 }
 
 function viewUserDetail(user) {
@@ -338,27 +320,18 @@ async function confirmCreateUser() {
     return
   }
   try {
-    const res = await fetch('/api/auth/admin/users', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        email: createForm.value.email.trim().toLowerCase(),
-        username: createForm.value.username,
-        password: createForm.value.password,
-        level: createForm.value.level,
-      }),
+    await auth.adminUsers({
+      email: createForm.value.email.trim().toLowerCase(),
+      username: createForm.value.username,
+      password: createForm.value.password,
+      level: createForm.value.level,
     })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success(`用户 ${createForm.value.username} 创建成功`)
-      showCreateModal.value = false
-      createForm.value = { email: '', username: '', password: '', level: 5 }
-      await fetchUsers()
-    } else {
-      Message.error(result.message || '创建失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    Message.success(`用户 ${createForm.value.username} 创建成功`)
+    showCreateModal.value = false
+    createForm.value = { email: '', username: '', password: '', level: 5 }
+    await fetchUsers()
+  } catch (err) {
+    Message.error(err.message || '创建失败')
   }
 }
 

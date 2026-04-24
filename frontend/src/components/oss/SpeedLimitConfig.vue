@@ -62,9 +62,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { oss } from '../../api'
 
-const { authHeaders } = useAuth()
 const globalRateMB = ref(10)
 const saving = ref(false)
 const userRates = ref([])
@@ -84,10 +83,9 @@ function shortId(id) {
 
 async function loadGlobalRate() {
   try {
-    const res = await fetch('/api/oss/admin/rate-limit', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      globalRateMB.value = data.data.global_rate_mb
+    const data = await oss.rateLimit()
+    if (data) {
+      globalRateMB.value = data.global_rate_mb
     }
   } catch { /* 使用默认值 */ }
 }
@@ -96,19 +94,10 @@ async function saveGlobalRate() {
   saving.value = true
   try {
     const rateBytes = Math.round(globalRateMB.value * 1024 * 1024)
-    const res = await fetch('/api/oss/admin/rate-limit', {
-      method: 'PUT',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ global_rate_bytes: rateBytes }),
-    })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      Message.success('全局限速更新成功')
-    } else {
-      Message.error(data.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    await oss.setRateLimit({ global_rate_bytes: rateBytes })
+    Message.success('全局限速更新成功')
+  } catch (err) {
+    Message.error(err.message || '更新失败')
   } finally {
     saving.value = false
   }
@@ -117,11 +106,10 @@ async function saveGlobalRate() {
 async function loadUserRates() {
   loading.value = true
   try {
-    const res = await fetch('/api/oss/admin/quotas?limit=200', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') userRates.value = data.data.items || []
-  } catch {
-    Message.error('加载用户倍率失败')
+    const data = await oss.adminQuotas({ limit: 200 })
+    if (data) userRates.value = data.items || []
+  } catch (err) {
+    Message.error(err.message || '加载用户倍率失败')
   } finally {
     loading.value = false
   }
@@ -129,17 +117,10 @@ async function loadUserRates() {
 
 async function saveUserRate(record) {
   try {
-    const res = await fetch(`/api/oss/admin/rate-limit/users/${record.user_id}`, {
-      method: 'PUT',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ speed_multiplier: record.speed_multiplier }),
-    })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      Message.success(`${shortId(record.user_id)} 倍率已更新为 ${record.speed_multiplier}x`)
-    }
-  } catch {
-    Message.error('保存失败')
+    await oss.setUserRateLimit(record.user_id, { speed_multiplier: record.speed_multiplier })
+    Message.success(`${shortId(record.user_id)} 倍率已更新为 ${record.speed_multiplier}x`)
+  } catch (err) {
+    Message.error(err.message || '保存失败')
   }
 }
 

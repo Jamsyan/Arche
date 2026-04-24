@@ -1,4 +1,4 @@
-"""Crawler plugin — 质检车间：排除功能性页面。"""
+"""爬虫插件 —— 质检车间：排除功能性页面。"""
 
 from __future__ import annotations
 

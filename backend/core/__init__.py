@@ -1,13 +1,13 @@
-"""Arche Core — Microkernel App Factory
+"""Arche Core — 微内核应用工厂
 
-Assembly order:
-1. Configure Logging
-2. Initialize Database
-3. Create ServiceContainer, register config
-4. Activate plugins (DAG-ordered setup)
-5. Register plugin services into container
-6. Setup middleware (CORS, error handlers)
-7. Register startup/shutdown hooks
+组装顺序：
+1. 配置日志
+2. 初始化数据库
+3. 创建ServiceContainer，注册配置文件
+4. 激活插件（DAG 排序设置）
+5. 将插件服务注册到容器中
+6. 设置中间件（CORS，错误处理程序）
+7. 寄存启动/关机钩子
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ async def _seed_default_config(session_factory) -> None:
 
 
 def _setup_logging() -> None:
-    """Configure unified logging: console + optional file handler."""
+    """配置统一日志：控制台 + 可选文件处理器。"""
     log_level = (config_manager.get("LOG_LEVEL", "INFO") or "INFO").upper()
     log_file = config_manager.get("LOG_FILE")
 
@@ -143,20 +143,24 @@ def create_app() -> FastAPI:
     # 2. Create container, register config
     container = ServiceContainer()
 
-    # Sync to module-level singleton for plugins that import it directly
+    # 同步到模块级单例，供直接导入它的插件使用
     from backend.core import container as _container_mod
 
     _container_mod.container = container
 
-    container.register("config", lambda c: config_manager)
+    def _config_factory(c):
+        return config_manager
+
+    container.register("config", _config_factory)
 
     # 3. Init database
     database_url = config_manager.get_required("DATABASE_URL")
     engine, session_factory = init_db(database_url)
 
-    container.register(
-        "db", lambda c: {"engine": engine, "session_factory": session_factory}
-    )
+    def _db_factory(c):
+        return {"engine": engine, "session_factory": session_factory}
+
+    container.register("db", _db_factory)
 
     # 4. Create app
     app = FastAPI(title="Arche", version="0.1.0")
@@ -183,21 +187,25 @@ def create_app() -> FastAPI:
         from alembic.config import Config as AlembicConfig
         from alembic import command
 
-        # Run migrations
+        # 运行数据库迁移
         migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
         alembic_cfg = AlembicConfig()
         alembic_cfg.set_main_option("script_location", str(migrations_dir))
         alembic_cfg.set_main_option("sqlalchemy.url", database_url)
 
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: command.upgrade(alembic_cfg, "head"))
 
-        # Validate schema
+        def _run_migrations():
+            command.upgrade(alembic_cfg, "head")
+
+        await loop.run_in_executor(None, _run_migrations)
+
+        # 校验数据库 schema
         from .db import validate_schema
 
         await validate_schema()
 
-        # Inject session factory for DB fallback
+        # 注入 session factory 供数据库降级使用
         config_manager.set_session_factory(session_factory)
 
         # Seed default config (first run only)

@@ -1,4 +1,4 @@
-"""Crawler plugin — 存储车间：通过 OSS 服务写入，统一元数据注册。"""
+"""爬虫插件 —— 存储车间：通过 OSS 服务写入，统一元数据注册。"""
 
 from __future__ import annotations
 

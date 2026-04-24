@@ -1,4 +1,4 @@
-"""Service container — lazy registration, retrieval, and circular dependency detection."""
+"""服务容器 —— 延迟注册、检索及循环依赖检测。"""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ class ServiceNotFoundError(Exception):
 
 
 class ServiceContainer:
-    """Lightweight IoC container with lazy instantiation and cycle detection."""
+    """轻量级 IoC 容器，支持延迟实例化和循环检测。"""
 
     def __init__(self):
         self._factories: dict[str, Callable[[ServiceContainer], Any]] = {}

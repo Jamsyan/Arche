@@ -1,26 +1,30 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// 公共路由（无需登录）
+// 公共路由（无需登录，使用 BlogShell）
 const publicRoutes = [
   {
     path: '/',
     name: 'blog-home',
     component: () => import('../components/blog/Home.vue'),
+    meta: { shell: 'blog' }
   },
   {
     path: '/post/:slug',
     name: 'blog-post',
     component: () => import('../components/blog/Post.vue'),
+    meta: { shell: 'blog' }
   },
   {
     path: '/login',
     name: 'login',
     component: () => import('../components/auth/Login.vue'),
+    meta: { shell: 'blog' }
   },
   {
     path: '/register',
     name: 'register',
     component: () => import('../components/auth/Register.vue'),
+    meta: { shell: 'blog' }
   },
 ]
 
@@ -43,11 +47,16 @@ function guarded(path, name, component, requiredLevel, children = []) {
   }
 }
 
-// 等级路由（需登录，按权限动态添加）
+// 等级路由（需登录，按权限动态添加，使用 PlatformShell）
 const authRoutes = [
-  // P4+（注册用户）：仪表盘
+  // P4+（注册用户）：仪表盘/任务中心
   guarded('/platform', 'platform',
     () => import('../components/platform/Dashboard.vue'),
+    4),
+
+  // P4+（注册用户）：监控大屏
+  guarded('/monitor', 'monitor',
+    () => import('../components/monitor/Dashboard.vue'),
     4),
 
   // P3+（初级用户）：博客编辑器
@@ -105,6 +114,11 @@ const authRoutes = [
   guarded('/admin/config', 'config-management',
     () => import('../components/admin/ConfigManagement.vue'),
     0),
+
+  // P4+（注册用户）：账号管理
+  guarded('/account', 'account',
+    () => import('../components/account/Account.vue'),
+    4),
 ]
 
 // 将所有等级路由添加到 router

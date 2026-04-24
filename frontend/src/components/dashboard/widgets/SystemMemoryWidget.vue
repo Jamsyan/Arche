@@ -8,29 +8,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { system } from '../../../api'
 
-const { authHeaders } = useAuth()
 const used = ref(0)
 const total = ref(0)
 const percent = ref(0)
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/system/summary', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      used.value = data.data.memory_used_gb || 0
-      total.value = data.data.memory_total_gb || 0
-      percent.value = Math.round(data.data.memory_percent || 0)
+    const data = await system.summary()
+    if (data) {
+      used.value = data.memory_used_gb || 0
+      total.value = data.memory_total_gb || 0
+      percent.value = Math.round(data.memory_percent || 0)
     }
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 10000) })
+onMounted(() => { load(); timer = setInterval(load, 10000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

@@ -9,9 +9,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { oss } from '../../../api'
 
-const { authHeaders } = useAuth()
 const stats = ref({})
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
@@ -24,15 +23,14 @@ function formatBytes(bytes) {
   return `${v.toFixed(1)} ${units[i]}`
 }
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/oss/admin/stats', { headers: authHeaders() })
-    const d = await res.json()
-    if (d.code === 'ok') stats.value = d.data || {}
+    const d = await oss.adminStats()
+    if (d) stats.value = d || {}
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 30000) })
+onMounted(() => { load(); timer = setInterval(load, 30000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

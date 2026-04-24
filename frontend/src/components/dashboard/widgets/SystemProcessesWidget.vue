@@ -8,9 +8,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { system } from '../../../api'
 
-const { authHeaders } = useAuth()
 const processes = ref([])
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
@@ -22,15 +21,14 @@ const columns = [
   { title: '内存%', dataIndex: 'memory_percent', width: 70, formatter: ({ cellValue }) => cellValue?.toFixed(1) },
 ]
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/system/processes?limit=10&sort_by=cpu_percent', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') processes.value = data.data?.items || data.data || []
+    const data = await system.processes({ limit: 10, sort_by: 'cpu_percent' })
+    if (data) processes.value = data.items || data || []
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 15000) })
+onMounted(() => { load(); timer = setInterval(load, 15000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

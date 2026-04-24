@@ -9,30 +9,27 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { auth } from '../../../api'
 
-const { authHeaders } = useAuth()
 const activeCount = ref(0)
 const disabledCount = ref(0)
 const totalCount = ref(0)
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
 
-async function fetch() {
+async function load() {
   try {
-    const [activeRes, disabledRes] = await Promise.all([
-      fetch('/api/auth/users?page=1&page_size=1&status=active', { headers: authHeaders() }),
-      fetch('/api/auth/users?page=1&page_size=1&status=disabled', { headers: authHeaders() }),
+    const [a, d] = await Promise.all([
+      auth.listUsers({ page: 1, page_size: 1, status: 'active' }),
+      auth.listUsers({ page: 1, page_size: 1, status: 'disabled' }),
     ])
-    const a = await activeRes.json()
-    const d = await disabledRes.json()
-    if (a.code === 'ok') activeCount.value = a.data?.total || 0
-    if (d.code === 'ok') disabledCount.value = d.data?.total || 0
+    if (a) activeCount.value = a.total || 0
+    if (d) disabledCount.value = d.total || 0
     totalCount.value = activeCount.value + disabledCount.value
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 30000) })
+onMounted(() => { load(); timer = setInterval(load, 30000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

@@ -1,4 +1,4 @@
-"""Crawler plugin — API 路由：状态、种子、黑名单、记录查询。"""
+"""爬虫插件 —— API 路由：状态、种子、黑名单、记录查询。"""
 
 from __future__ import annotations
 

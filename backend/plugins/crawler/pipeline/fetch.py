@@ -1,4 +1,4 @@
-"""Crawler plugin — 抓取车间：纯 HTTP 请求，带上正常浏览器请求头。"""
+"""爬虫插件 —— 抓取车间：纯 HTTP 请求，带上正常浏览器请求头。"""
 
 from __future__ import annotations
 

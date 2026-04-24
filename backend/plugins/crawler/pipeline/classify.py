@@ -1,4 +1,4 @@
-"""Crawler plugin — 分类车间：页面类型分类打标。"""
+"""爬虫插件 —— 分类车间：页面类型分类打标。"""
 
 from __future__ import annotations
 

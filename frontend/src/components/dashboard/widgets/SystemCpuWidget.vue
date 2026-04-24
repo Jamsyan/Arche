@@ -9,24 +9,22 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { system } from '../../../api'
 
-const { authHeaders } = useAuth()
 const cpuPercent = ref(0)
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/system/summary', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') cpuPercent.value = Math.round(data.data.cpu_percent || 0)
+    const data = await system.summary()
+    if (data) cpuPercent.value = Math.round(data.cpu_percent || 0)
   } catch {}
 }
 
 const cpuColor = ''
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 10000) })
+onMounted(() => { load(); timer = setInterval(load, 10000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

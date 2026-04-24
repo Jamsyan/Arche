@@ -1,4 +1,4 @@
-"""Database layer — async engine + lazy create_all."""
+"""数据库层 —— 异步引擎 + 延迟建表。"""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ _initialized = False
 
 
 async def ensure_tables() -> None:
-    """Lazy create tables on first async context (avoids event loop conflicts)."""
+    """延迟创建表，在首次异步上下文中执行（避免事件循环冲突）。"""
     global _initialized
     if _initialized:
         return

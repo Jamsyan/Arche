@@ -141,13 +141,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { cloud } from '../../api'
 import {
   IconPlus, IconRefresh, IconFolder, IconSync,
   IconEye, IconDelete, IconFile,
 } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const showImportModal = ref(false)
 const fileDrawerVisible = ref(false)
@@ -213,25 +211,22 @@ function formatTime(timeStr) {
 async function fetchDatasets() {
   refreshing.value = true
   try {
-    const res = await fetch(`/api/cloud/datasets?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      datasets.value = data.data.items || []
-      total.value = data.data.total || 0
-      pagination.total = total.value
+    const data = await cloud.listDatasets({ page: page.value, page_size: pageSize.value })
+    datasets.value = data?.items || []
+    total.value = data?.total || 0
+    pagination.total = total.value
 
-      // 统计来源
-      const bySource = {}
-      datasets.value.forEach(ds => {
-        bySource[ds.source] = (bySource[ds.source] || 0) + 1
-      })
-      stats.value = {
-        total: total.value,
-        bySource,
-      }
+    // 统计来源
+    const bySource = {}
+    datasets.value.forEach(ds => {
+      bySource[ds.source] = (bySource[ds.source] || 0) + 1
+    })
+    stats.value = {
+      total: total.value,
+      bySource,
     }
-  } catch {
-    Message.error('加载数据集失败')
+  } catch (err) {
+    Message.error(err.message || '加载数据集失败')
   } finally {
     refreshing.value = false
   }
@@ -262,66 +257,44 @@ async function importDataset() {
   }
 
   try {
-    const res = await fetch('/api/cloud/datasets', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        name: newDataset.value.name,
-        description: newDataset.value.description,
-        path: newDataset.value.path,
-        source: newDataset.value.source,
-        tags: newDataset.value.tags,
-        config,
-      }),
+    await cloud.createDataset({
+      name: newDataset.value.name,
+      description: newDataset.value.description,
+      path: newDataset.value.path,
+      source: newDataset.value.source,
+      tags: newDataset.value.tags,
+      config,
     })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('数据集导入成功')
-      showImportModal.value = false
-      newDataset.value = { name: '', description: '', source: 'local', path: '', tags: [], configText: '{}', config: {} }
-      await fetchDatasets()
-    } else {
-      Message.error(result.message || '导入失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    Message.success('数据集导入成功')
+    showImportModal.value = false
+    newDataset.value = { name: '', description: '', source: 'local', path: '', tags: [], configText: '{}', config: {} }
+    await fetchDatasets()
+  } catch (err) {
+    Message.error(err.message || '导入失败')
   }
 }
 
 async function syncDataset(dataset) {
   try {
-    const res = await fetch(`/api/cloud/datasets/${dataset.id}/sync`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('同步任务已提交，将在后台进行')
-    } else {
-      Message.error(result.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    await cloud.syncDataset(dataset.id)
+    Message.success('同步任务已提交，将在后台进行')
+  } catch (err) {
+    Message.error(err.message || '网络错误')
   }
 }
 
 async function viewDataset(dataset) {
   currentDataset.value = dataset
   fileDrawerVisible.value = true
-  // 这里可以实现获取文件列表的逻辑
-  // const res = await fetch(`/api/cloud/datasets/${dataset.id}/files`, { headers: authHeaders() })
-  // fileList.value = ...
 }
 
 async function deleteDataset(dataset) {
   try {
-    const res = await fetch(`/api/cloud/datasets/${dataset.id}`, { method: 'DELETE', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('数据集已删除')
-      await fetchDatasets()
-    } else {
-      Message.error(result.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    await cloud.deleteDataset(dataset.id)
+    Message.success('数据集已删除')
+    await fetchDatasets()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
   }
 }
 

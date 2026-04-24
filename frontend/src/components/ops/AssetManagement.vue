@@ -68,10 +68,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { assets as assetApi } from '../../api'
 import { IconApps, IconArrowLeft, IconRefresh } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const loading = ref(true)
 const refreshing = ref(false)
 const assets = ref([])
@@ -98,22 +96,16 @@ function assetTypeColor(type) { return ASSET_TYPE_COLORS[type] ?? 'gray' }
 async function fetchAssets() {
   loading.value = true
   try {
-    const [listRes, statsRes] = await Promise.all([
-      fetch(`/api/assets?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() }),
-      fetch('/api/assets/stats', { headers: authHeaders() }),
+    const [listData, statsData] = await Promise.all([
+      assetApi.list({ page: page.value, page_size: pageSize.value }),
+      assetApi.stats(),
     ])
-    const listData = await listRes.json()
-    const statsData = await statsRes.json()
-    if (listData.code === 'ok') {
-      assets.value = listData.data.items || []
-      total.value = listData.data.total || 0
-      pagination.total = total.value
-    }
-    if (statsData.code === 'ok') {
-      assetStats.value = statsData.data
-    }
-  } catch {
-    Message.error('加载资产失败')
+    assets.value = listData?.items || []
+    total.value = listData?.total || 0
+    pagination.total = total.value
+    assetStats.value = statsData || {}
+  } catch (err) {
+    Message.error(err.message || '加载资产失败')
   } finally {
     loading.value = false
   }
@@ -123,19 +115,12 @@ async function doSearch() {
   if (!searchKeyword.value.trim()) { fetchAssets(); return }
   loading.value = true
   try {
-    const res = await fetch(`/api/assets/search?keyword=${encodeURIComponent(searchKeyword.value)}`, {
-      headers: authHeaders(),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      assets.value = result.data.items || []
-      total.value = result.data.total || 0
-      pagination.total = total.value
-    } else {
-      Message.error(result.message || '搜索失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await assetApi.search({ keyword: searchKeyword.value })
+    assets.value = data?.items || []
+    total.value = data?.total || 0
+    pagination.total = total.value
+  } catch (err) {
+    Message.error(err.message || '搜索失败')
   } finally {
     loading.value = false
   }

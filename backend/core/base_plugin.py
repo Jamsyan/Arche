@@ -1,4 +1,4 @@
-"""BasePlugin — Abstract interface that all plugins must implement."""
+"""BasePlugin —— 所有插件必须实现的抽象接口。"""
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING

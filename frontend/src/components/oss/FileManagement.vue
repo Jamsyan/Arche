@@ -70,9 +70,8 @@
 import { ref, onMounted } from 'vue'
 import { Message, Modal } from '@arco-design/web-vue'
 import { IconRefresh, IconFile } from '@arco-design/web-vue/es/icon'
-import { useAuth } from '../../router/auth.js'
+import { oss } from '../../api'
 
-const { authHeaders } = useAuth()
 const files = ref([])
 const userOptions = ref([])
 const filterUserId = ref(null)
@@ -109,14 +108,13 @@ function formatBytes(bytes) {
 async function loadFiles() {
   loading.value = true
   try {
-    const params = new URLSearchParams({ limit: 200, offset: 0 })
-    if (filterUserId.value) params.set('user_id', filterUserId.value)
+    const params = { limit: 200, offset: 0 }
+    if (filterUserId.value) params.user_id = filterUserId.value
 
-    const res = await fetch(`/api/oss/admin/files?${params}`, { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') files.value = data.data.files || []
-  } catch {
-    Message.error('加载文件失败')
+    const data = await oss.adminFiles(params)
+    if (data) files.value = data.files || []
+  } catch (err) {
+    Message.error(err.message || '加载文件失败')
   } finally {
     loading.value = false
   }
@@ -124,9 +122,8 @@ async function loadFiles() {
 
 async function loadUserOptions() {
   try {
-    const res = await fetch('/api/oss/admin/quotas?limit=200', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') userOptions.value = data.data.items || []
+    const data = await oss.adminQuotas({ limit: 200 })
+    if (data) userOptions.value = data.items || []
   } catch { /* 忽略 */ }
 }
 
@@ -136,19 +133,11 @@ function confirmDelete(record) {
     content: `确定删除文件 "${fileName(record)}" 吗？此操作不可恢复。`,
     onOk: async () => {
       try {
-        const res = await fetch(`/api/oss/admin/files/${record.id}`, {
-          method: 'DELETE',
-          headers: authHeaders(),
-        })
-        const result = await res.json()
-        if (result.code === 'ok') {
-          Message.success('删除成功')
-          await loadFiles()
-        } else {
-          Message.error(result.message || '删除失败')
-        }
-      } catch {
-        Message.error('网络错误')
+        await oss.adminDeleteFile(record.id)
+        Message.success('删除成功')
+        await loadFiles()
+      } catch (err) {
+        Message.error(err.message || '删除失败')
       }
     },
   })

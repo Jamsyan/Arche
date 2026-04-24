@@ -83,6 +83,7 @@ import {
   IconArrowLeft,
 } from '@arco-design/web-vue/es/icon'
 import { useAuth } from '../../router/auth.js'
+import { oss } from '../../api'
 
 const { authHeaders } = useAuth()
 
@@ -149,17 +150,10 @@ function handleUploadError() {
 async function loadFiles() {
   loadingFiles.value = true
   try {
-    const res = await fetch('/api/oss/my', {
-      headers: authHeaders(),
-    })
-    if (!res.ok) {
-      Message.error('获取文件列表失败')
-      return
-    }
-    const resData = await res.json()
-    fileList.value = resData.data?.files ?? []
-  } catch {
-    Message.error('网络错误')
+    const resData = await oss.myFiles()
+    fileList.value = resData?.files ?? []
+  } catch (err) {
+    Message.error(err.message || '获取文件列表失败')
   } finally {
     loadingFiles.value = false
   }

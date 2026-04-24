@@ -48,9 +48,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { oss } from '../../api'
 
-const { authHeaders } = useAuth()
 const stats = ref({
   total_files: 0,
   total_size: 0,
@@ -84,17 +83,15 @@ function formatBytes(bytes) {
 async function loadData() {
   loading.value = true
   try {
-    const [statsRes, topRes] = await Promise.all([
-      fetch('/api/oss/admin/stats', { headers: authHeaders() }),
-      fetch('/api/oss/admin/stats/top-users?limit=10', { headers: authHeaders() }),
+    const [statsData, topData] = await Promise.all([
+      oss.adminStats(),
+      oss.topUsers({ limit: 10 }),
     ])
-    const statsData = await statsRes.json()
-    const topData = await topRes.json()
 
-    if (statsData.code === 'ok') stats.value = statsData.data
-    if (topData.code === 'ok') topUsers.value = topData.data.users || []
-  } catch {
-    Message.error('加载统计失败')
+    if (statsData) stats.value = statsData
+    if (topData) topUsers.value = topData.users || []
+  } catch (err) {
+    Message.error(err.message || '加载统计失败')
   } finally {
     loading.value = false
   }

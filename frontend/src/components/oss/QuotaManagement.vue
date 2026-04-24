@@ -66,9 +66,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { oss } from '../../api'
 
-const { authHeaders } = useAuth()
 const quotas = ref([])
 const loading = ref(false)
 const showEditModal = ref(false)
@@ -110,11 +109,10 @@ function multiplierColor(m) {
 async function loadQuotas() {
   loading.value = true
   try {
-    const res = await fetch('/api/oss/admin/quotas?limit=200', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') quotas.value = data.data.items || []
-  } catch {
-    Message.error('加载配额失败')
+    const data = await oss.adminQuotas({ limit: 200 })
+    if (data) quotas.value = data.items || []
+  } catch (err) {
+    Message.error(err.message || '加载配额失败')
   } finally {
     loading.value = false
   }
@@ -132,24 +130,15 @@ function editQuota(record) {
 async function saveQuota() {
   const quotaBytes = Math.round(editForm.value.quota_gb * 1024**3)
   try {
-    const res = await fetch(`/api/oss/admin/quotas/${editForm.value.user_id}`, {
-      method: 'PUT',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        quota_bytes: quotaBytes,
-        speed_multiplier: editForm.value.speed_multiplier,
-      }),
+    await oss.updateQuota(editForm.value.user_id, {
+      quota_bytes: quotaBytes,
+      speed_multiplier: editForm.value.speed_multiplier,
     })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      Message.success('配额更新成功')
-      showEditModal.value = false
-      await loadQuotas()
-    } else {
-      Message.error(data.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    Message.success('配额更新成功')
+    showEditModal.value = false
+    await loadQuotas()
+  } catch (err) {
+    Message.error(err.message || '更新失败')
   }
 }
 

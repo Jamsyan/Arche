@@ -104,13 +104,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
 import {
   IconGithub, IconSearch, IconStar, IconLanguage, IconCalendar,
   IconArrowLeft, IconRefresh, IconBulb, IconLink,
 } from '@arco-design/web-vue/es/icon'
+import { github } from '../../api'
 
-const { authHeaders } = useAuth()
 const searchQuery = ref('')
 const searchResults = ref([])
 const hasSearched = ref(false)
@@ -132,10 +131,7 @@ async function doSearch() {
 
   try {
     // 通过代理搜索 GitHub API
-    const res = await fetch(`/api/github/search/repositories?q=${encodeURIComponent(searchQuery.value)}&per_page=30`, {
-      headers: authHeaders(),
-    })
-    const data = await res.json()
+    const data = await github.searchRepos({ q: searchQuery.value, per_page: 30 })
 
     if (Array.isArray(data.items)) {
       searchResults.value = data.items
@@ -145,8 +141,8 @@ async function doSearch() {
     } else {
       Message.error('搜索失败：响应格式异常')
     }
-  } catch {
-    Message.error('搜索失败：网络错误')
+  } catch (err) {
+    Message.error(err.message || '搜索失败：网络错误')
   }
 }
 
@@ -157,18 +153,10 @@ function quickSearch(term) {
 
 async function clearCache() {
   try {
-    const res = await fetch('/api/github/cache/clear', {
-      method: 'POST',
-      headers: authHeaders(),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success(result.message)
-    } else {
-      Message.error(result.message || '清理失败')
-    }
-  } catch {
-    Message.error('清理缓存失败')
+    await github.clearCache()
+    Message.success('缓存已清理')
+  } catch (err) {
+    Message.error(err.message || '清理失败')
   }
 }
 

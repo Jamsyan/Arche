@@ -1,4 +1,4 @@
-"""OSS plugin settings."""
+"""对象存储插件设置。"""
 
 from __future__ import annotations
 

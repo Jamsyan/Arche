@@ -2,12 +2,31 @@
   <div class="moderation-panel">
     <div class="page-header">
       <div class="header-left">
-        <a-button type="text" size="mini" @click="$router.push('/platform')" class="back-btn">
+        <a-button type="text" size="mini" @click="$router.push('/monitor')" class="back-btn">
           <template #icon><icon-arrow-left /></template>
         </a-button>
         <h1 class="page-title">审核面板</h1>
       </div>
-      <span class="page-subtitle">待审核的文章列表</span>
+      <a-space>
+        <a-button
+          v-if="selectedKeys.length > 0"
+          type="primary"
+          size="small"
+          status="success"
+          @click="batchApprove"
+        >
+          批量通过 ({{ selectedKeys.length }})
+        </a-button>
+        <a-button
+          v-if="selectedKeys.length > 0"
+          type="primary"
+          size="small"
+          status="danger"
+          @click="batchReject"
+        >
+          批量拒绝 ({{ selectedKeys.length }})
+        </a-button>
+      </a-space>
     </div>
 
     <a-table
@@ -15,8 +34,10 @@
       :data="posts"
       :loading="loading"
       :pagination="pagination"
+      :row-selection="{ type: 'checkbox', showCheckedAll: true, onlyCurrent: false }"
       row-key="id"
       @page-change="onPageChange"
+      @selection-change="onSelectionChange"
     >
       <template #title="{ record }">
         <a-link @click="$router.push(`/post/${record.slug}`)">
@@ -62,18 +83,19 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth } from '../../router/auth.js'
+import { blog } from '../../api'
 import { Message, Modal } from '@arco-design/web-vue'
 import LevelBadge from '../LevelBadge.vue'
+import { IconArrowLeft, IconCheck, IconClose } from '@arco-design/web-vue/es/icon'
 
 const router = useRouter()
-const { authHeaders } = useAuth()
 
 const posts = ref([])
 const loading = ref(true)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const selectedKeys = ref([])
 
 const pagination = {
   showTotal: true,
@@ -113,21 +135,12 @@ function getLevel(qualityScore) {
 async function fetchPendingPosts() {
   loading.value = true
   try {
-    const res = await fetch(
-      `/api/blog/moderation/pending?page=${page.value}&page_size=${pageSize.value}`,
-      { headers: authHeaders() }
-    )
-    const result = await res.json()
-    if (result.code === 'ok') {
-      const data = result.data || {}
-      posts.value = data.items || []
-      total.value = data.total || 0
-      pagination.total = total.value
-    } else {
-      Message.error(result.message || '加载失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await blog.moderationPending({ page: page.value, page_size: pageSize.value })
+    posts.value = data.items || []
+    total.value = data.total || 0
+    pagination.total = total.value
+  } catch (err) {
+    Message.error(err.message || '加载失败')
   } finally {
     loading.value = false
   }
@@ -138,6 +151,51 @@ function onPageChange(p) {
   fetchPendingPosts()
 }
 
+function onSelectionChange(keys) {
+  selectedKeys.value = keys
+}
+
+async function batchApprove() {
+  if (selectedKeys.value.length === 0) return
+  Modal.confirm({
+    title: '确认批量通过',
+    content: `确定通过选中的 ${selectedKeys.value.length} 篇文章吗？`,
+    okText: '通过',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await blog.batchApprove({ ids: selectedKeys.value })
+        Message.success('批量通过成功')
+        selectedKeys.value = []
+        await fetchPendingPosts()
+      } catch (err) {
+        Message.error(err.message || '操作失败')
+      }
+    },
+  })
+}
+
+async function batchReject() {
+  if (selectedKeys.value.length === 0) return
+  Modal.confirm({
+    title: '确认批量拒绝',
+    content: `确定拒绝选中的 ${selectedKeys.value.length} 篇文章吗？`,
+    okText: '拒绝',
+    cancelText: '取消',
+    buttonProps: { status: 'danger' },
+    onOk: async () => {
+      try {
+        await blog.batchReject({ ids: selectedKeys.value })
+        Message.success('批量拒绝成功')
+        selectedKeys.value = []
+        await fetchPendingPosts()
+      } catch (err) {
+        Message.error(err.message || '操作失败')
+      }
+    },
+  })
+}
+
 async function approve(record) {
   Modal.confirm({
     title: '确认通过',
@@ -146,19 +204,11 @@ async function approve(record) {
     cancelText: '取消',
     onOk: async () => {
       try {
-        const res = await fetch(
-          `/api/blog/moderation/${record.id}/approve`,
-          { method: 'POST', headers: authHeaders() }
-        )
-        const result = await res.json()
-        if (result.code === 'ok') {
-          Message.success('审核通过')
-          await fetchPendingPosts()
-        } else {
-          Message.error(result.message || '操作失败')
-        }
-      } catch {
-        Message.error('网络错误')
+        await blog.approvePost(record.id)
+        Message.success('审核通过')
+        await fetchPendingPosts()
+      } catch (err) {
+        Message.error(err.message || '操作失败')
       }
     },
   })
@@ -173,19 +223,11 @@ async function reject(record) {
     buttonProps: { status: 'danger' },
     onOk: async () => {
       try {
-        const res = await fetch(
-          `/api/blog/moderation/${record.id}/reject`,
-          { method: 'POST', headers: authHeaders() }
-        )
-        const result = await res.json()
-        if (result.code === 'ok') {
-          Message.success('已拒绝')
-          await fetchPendingPosts()
-        } else {
-          Message.error(result.message || '操作失败')
-        }
-      } catch {
-        Message.error('网络错误')
+        await blog.rejectPost(record.id)
+        Message.success('已拒绝')
+        await fetchPendingPosts()
+      } catch (err) {
+        Message.error(err.message || '操作失败')
       }
     },
   })

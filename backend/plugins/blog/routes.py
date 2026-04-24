@@ -1,4 +1,4 @@
-"""Blog plugin — API routes."""
+"""博客插件 —— API 路由。"""
 
 from __future__ import annotations
 
@@ -44,8 +44,10 @@ async def get_posts(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     sort_by: str = Query("created_at", description="排序字段"),
+    q: str | None = Query(None, description="搜索关键词（标题+内容）"),
+    tag: str | None = Query(None, description="按标签筛选"),
 ):
-    """帖子列表（公开，按权限过滤）。"""
+    """帖子列表（公开，支持搜索和标签筛选，按权限过滤）。"""
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
     # 获取当前用户等级（未登录按最高等级处理）
@@ -57,6 +59,8 @@ async def get_posts(
         status_filter="published",
         sort_by=sort_by,
         user_level=user_level,
+        search_query=q,
+        tag_filter=tag,
     )
     return {"code": "ok", "message": "获取成功", "data": result}
 
@@ -103,6 +107,31 @@ async def create_post(req: CreatePostRequest, request: Request):
         user_level=user["level"],
     )
     return {"code": "ok", "message": "发帖成功，等待审核", "data": result}
+
+
+# --- 需登录：我的帖子 ---
+@router.get("/my-posts")
+async def get_my_posts(
+    request: Request,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    status: str | None = Query(
+        None, description="状态过滤：pending/published/rejected/draft"
+    ),
+):
+    """我的帖子列表（需登录，包含所有状态）。"""
+    user = require_user(request)
+    author_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.list_my_posts(
+        author_id=author_id,
+        page=page,
+        page_size=page_size,
+        status_filter=status,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
 
 
 # --- 作者本人：编辑 ---
@@ -232,6 +261,120 @@ async def reject_post(post_id: str, request: Request):
     blog_service = container.get("blog")
     result = await blog_service.reject_post(uuid.UUID(post_id))
     return {"code": "ok", "message": "审核拒绝", "data": result}
+
+
+# 批量审核请求体
+class BatchModerationRequest(BaseModel):
+    post_ids: list[str] = Field(..., description="帖子 ID 列表")
+
+
+@router.post("/moderation/batch-approve")
+@require_level(0)
+async def batch_approve_posts(req: BatchModerationRequest, request: Request):
+    """批量通过审核（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    success = 0
+    failed = 0
+    for post_id in req.post_ids:
+        try:
+            await blog_service.approve_post(uuid.UUID(post_id))
+            success += 1
+        except Exception:
+            failed += 1
+    return {
+        "code": "ok",
+        "message": f"成功 {success}，失败 {failed}",
+        "data": {"success": success, "failed": failed},
+    }
+
+
+@router.post("/moderation/batch-reject")
+@require_level(0)
+async def batch_reject_posts(req: BatchModerationRequest, request: Request):
+    """批量拒绝审核（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    success = 0
+    failed = 0
+    for post_id in req.post_ids:
+        try:
+            await blog_service.reject_post(uuid.UUID(post_id))
+            success += 1
+        except Exception:
+            failed += 1
+    return {
+        "code": "ok",
+        "message": f"成功 {success}，失败 {failed}",
+        "data": {"success": success, "failed": failed},
+    }
+
+
+# --- 需登录：收藏 ---
+@router.post("/favorites/{post_id}")
+async def add_favorite(post_id: str, request: Request):
+    """收藏帖子（需登录）。"""
+    user = require_user(request)
+    user_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.add_favorite(
+        post_id=uuid.UUID(post_id),
+        user_id=user_id,
+    )
+    return {"code": "ok", "message": "收藏成功", "data": result}
+
+
+@router.delete("/favorites/{post_id}")
+async def remove_favorite(post_id: str, request: Request):
+    """取消收藏（需登录）。"""
+    user = require_user(request)
+    user_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.remove_favorite(
+        post_id=uuid.UUID(post_id),
+        user_id=user_id,
+    )
+    return {"code": "ok", "message": "已取消收藏", "data": result}
+
+
+@router.get("/favorites")
+async def get_favorites(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """我的收藏列表（需登录）。"""
+    user = require_user(request)
+    user_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.list_favorites(
+        user_id=user_id,
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.get("/posts/{post_id}/favorite-status")
+async def get_favorite_status(post_id: str, request: Request):
+    """检查收藏状态（需登录）。"""
+    user = get_current_user(request)
+    if not user:
+        return {"code": "ok", "data": {"favorited": False}}
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    favorited = await blog_service.check_favorite(
+        post_id=uuid.UUID(post_id),
+        user_id=uuid.UUID(user["id"]),
+    )
+    return {"code": "ok", "data": {"favorited": favorited}}
 
 
 # --- 需登录：举报 ---

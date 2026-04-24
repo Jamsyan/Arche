@@ -1,4 +1,4 @@
-"""Crawler plugin — 总调度器：CrawlerOrchestrator。
+"""爬虫插件 —— 总调度器：CrawlerOrchestrator。
 
 全局并发控制、流水线编排、状态查询。
 """

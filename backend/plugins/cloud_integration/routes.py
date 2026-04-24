@@ -1,4 +1,4 @@
-"""Cloud Integration plugin — API 路由。"""
+"""云集成插件 —— API 路由。"""
 
 from __future__ import annotations
 

@@ -95,13 +95,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { cloud } from '../../api'
 import {
   IconRefresh, IconFile, IconStorage,
   IconSettings, IconDownload, IconDelete,
 } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const artifacts = ref([])
 const jobs = ref([])
@@ -167,11 +165,8 @@ function formatTime(timeStr) {
 // 获取任务列表（用于筛选）
 async function fetchJobs() {
   try {
-    const res = await fetch('/api/cloud/jobs?page_size=100', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      jobs.value = data.data.items || []
-    }
+    const data = await cloud.listJobs({ page_size: 100 })
+    jobs.value = data?.items || []
   } catch (e) {
     console.error('获取任务列表失败', e)
   }
@@ -180,35 +175,32 @@ async function fetchJobs() {
 async function fetchArtifacts() {
   refreshing.value = true
   try {
-    const params = new URLSearchParams({
+    const params = {
       page: page.value,
       page_size: pageSize.value,
-    })
-    if (filterJobId.value) params.append('job_id', filterJobId.value)
-    if (filterType.value) params.append('artifact_type', filterType.value)
-
-    const res = await fetch(`/api/cloud/artifacts?${params}`, { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      artifacts.value = data.data.items || []
-      total.value = data.data.total || 0
-      pagination.total = total.value
-
-      // 统计类型和大小
-      const byType = {}
-      let totalSize = 0
-      artifacts.value.forEach(art => {
-        byType[art.artifact_type] = (byType[art.artifact_type] || 0) + 1
-        totalSize += art.size_bytes || 0
-      })
-      stats.value = {
-        total: total.value,
-        byType,
-        totalSize,
-      }
     }
-  } catch {
-    Message.error('加载制品列表失败')
+    if (filterJobId.value) params.job_id = filterJobId.value
+    if (filterType.value) params.artifact_type = filterType.value
+
+    const data = await cloud.listArtifacts(params)
+    artifacts.value = data?.items || []
+    total.value = data?.total || 0
+    pagination.total = total.value
+
+    // 统计类型和大小
+    const byType = {}
+    let totalSize = 0
+    artifacts.value.forEach(art => {
+      byType[art.artifact_type] = (byType[art.artifact_type] || 0) + 1
+      totalSize += art.size_bytes || 0
+    })
+    stats.value = {
+      total: total.value,
+      byType,
+      totalSize,
+    }
+  } catch (err) {
+    Message.error(err.message || '加载制品列表失败')
   } finally {
     refreshing.value = false
   }
@@ -227,32 +219,22 @@ watch([filterJobId, filterType], () => {
 
 async function downloadArtifact(artifact) {
   try {
-    const res = await fetch(`/api/cloud/artifacts/${artifact.id}/download`, { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      // 打开下载链接
-      window.open(result.data.download_url, '_blank')
-      Message.success('已开始下载')
-    } else {
-      Message.error(result.message || '获取下载链接失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await cloud.downloadArtifact(artifact.id)
+    // 打开下载链接
+    window.open(data.download_url, '_blank')
+    Message.success('已开始下载')
+  } catch (err) {
+    Message.error(err.message || '获取下载链接失败')
   }
 }
 
 async function deleteArtifact(artifact) {
   try {
-    const res = await fetch(`/api/cloud/artifacts/${artifact.id}`, { method: 'DELETE', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('制品已删除')
-      await fetchArtifacts()
-    } else {
-      Message.error(result.message)
-    }
-  } catch {
-    Message.error('网络错误')
+    await cloud.deleteArtifact(artifact.id)
+    Message.success('制品已删除')
+    await fetchArtifacts()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
   }
 }
 

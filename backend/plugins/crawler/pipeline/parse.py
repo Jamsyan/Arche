@@ -1,4 +1,4 @@
-"""Crawler plugin — 解析车间：从 HTML 提取正文、标题、链接。"""
+"""爬虫插件 —— 解析车间：从 HTML 提取正文、标题、链接。"""
 
 from __future__ import annotations
 

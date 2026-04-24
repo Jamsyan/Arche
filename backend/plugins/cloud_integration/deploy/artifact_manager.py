@@ -1,4 +1,4 @@
-"""Artifact manager — pulls training outputs from remote instances and verifies integrity."""
+"""制品管理器 —— 从远程实例拉取训练产物并验证完整性。"""
 
 from __future__ import annotations
 

@@ -28,9 +28,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { IconPushpin, IconCheck, IconBug, IconCheckCircle, IconStorage } from '@arco-design/web-vue/es/icon'
-import { useAuth } from '../../router/auth.js'
+import { blog, crawler, oss } from '../../api'
 
-const { authHeaders } = useAuth()
 const todos = ref([])
 let timer = null
 
@@ -50,18 +49,16 @@ function addTodo(todo) {
 async function detectTodos() {
   const token = localStorage.getItem('veil_token')
   if (!token) return
-  const headers = authHeaders()
   const newTodos = []
 
   // 审核任务
   try {
-    const res = await fetch('/api/blog/moderation/pending?page=1&page_size=1', { headers })
-    const d = await res.json()
-    if (d.code === 'ok' && d.data?.total > 0) {
+    const d = await blog.moderationPending({ page: 1, page_size: 1 })
+    if (d?.total > 0) {
       newTodos.push({
         id: 'moderation_pending',
         title: '帖子审核',
-        desc: `${d.data.total} 篇帖子待审核`,
+        desc: `${d.total} 篇帖子待审核`,
         icon: IconCheckCircle,
         priority: 'high',
       })
@@ -70,9 +67,8 @@ async function detectTodos() {
 
   // 爬虫状态
   try {
-    const res = await fetch('/api/crawler/status', { headers })
-    const d = await res.json()
-    if (d.code === 'ok' && !d.data?.running) {
+    const d = await crawler.status()
+    if (!d?.running) {
       newTodos.push({
         id: 'crawler_stopped',
         title: '爬虫已停止',
@@ -85,13 +81,12 @@ async function detectTodos() {
 
   // 存储告警
   try {
-    const res = await fetch('/api/oss/admin/stats', { headers })
-    const d = await res.json()
-    if (d.code === 'ok' && d.data?.disk_percent > 80) {
+    const d = await oss.adminStats()
+    if (d?.disk_percent > 80) {
       newTodos.push({
         id: 'disk_warning',
         title: '磁盘空间不足',
-        desc: `磁盘使用率 ${d.data.disk_percent}%`,
+        desc: `磁盘使用率 ${d.disk_percent}%`,
         icon: IconStorage,
         priority: 'medium',
       })

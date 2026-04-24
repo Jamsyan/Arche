@@ -8,9 +8,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { oss } from '../../../api'
 
-const { authHeaders } = useAuth()
 const users = ref([])
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
@@ -29,15 +28,14 @@ const columns = [
   { title: '用量', width: 120, formatter: ({ record }) => formatBytes(record.total_size) },
 ]
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/oss/admin/stats/top-users?limit=10', { headers: authHeaders() })
-    const d = await res.json()
-    if (d.code === 'ok') users.value = d.data?.users || []
+    const d = await oss.topUsers({ limit: 10 })
+    if (d) users.value = d.users || []
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 30000) })
+onMounted(() => { load(); timer = setInterval(load, 30000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

@@ -15,6 +15,11 @@ function initAuth() {
   if (token) {
     isAuthenticated.value = true
     level.value = storedLevel !== null ? parseInt(storedLevel, 10) : null
+    // 防御：有 token 但 level 缺失 → 降级为 P4（最低权限）
+    if (level.value === null) {
+      level.value = 4
+      localStorage.setItem(LEVEL_KEY, '4')
+    }
   }
 }
 

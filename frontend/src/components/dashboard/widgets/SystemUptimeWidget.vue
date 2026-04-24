@@ -8,26 +8,24 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { system } from '../../../api'
 
-const { authHeaders } = useAuth()
 const uptime = ref('—')
 const platform = ref('')
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/system/summary', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      uptime.value = data.data.uptime || '—'
-      platform.value = data.data.platform || ''
+    const data = await system.summary()
+    if (data) {
+      uptime.value = data.uptime || '—'
+      platform.value = data.platform || ''
     }
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 30000) })
+onMounted(() => { load(); timer = setInterval(load, 30000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

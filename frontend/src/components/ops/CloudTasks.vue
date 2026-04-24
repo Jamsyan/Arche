@@ -3,19 +3,19 @@
     <!-- 统计概览 -->
     <div class="status-row">
       <div class="status-card">
-        <div class="status-num">{{ stats.total ?? 0 }}</div>
+        <div class="status-num sk-num">{{ stats.total === null ? '—' : (stats.total ?? 0) }}</div>
         <div class="status-label">总任务</div>
       </div>
       <div class="status-card s-success">
-        <div class="status-num">{{ stats.byStatus?.completed ?? 0 }}</div>
+        <div class="status-num sk-num">{{ stats.total === null ? '—' : (stats.byStatus?.completed ?? 0) }}</div>
         <div class="status-label">完成</div>
       </div>
       <div class="status-card s-running">
-        <div class="status-num">{{ stats.byStatus?.running ?? 0 }}</div>
+        <div class="status-num sk-num">{{ stats.total === null ? '—' : (stats.byStatus?.running ?? 0) }}</div>
         <div class="status-label">训练中</div>
       </div>
       <div class="status-card s-fail">
-        <div class="status-num">{{ stats.byStatus?.failed ?? 0 }}</div>
+        <div class="status-num sk-num">{{ stats.total === null ? '—' : (stats.byStatus?.failed ?? 0) }}</div>
         <div class="status-label">失败</div>
       </div>
     </div>
@@ -210,13 +210,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { cloud } from '../../api'
 import {
   IconPlus, IconSync, IconRefresh, IconList,
 } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
+const loading = ref(true)
 const showCreateModal = ref(false)
 const logDrawerVisible = ref(false)
 const stepsDrawerVisible = ref(false)
@@ -224,7 +223,7 @@ const logContent = ref('')
 const steps = ref([])
 const allJobs = ref([])
 const datasets = ref([])
-const stats = ref({ total: 0, byStatus: {} })
+const stats = ref({ total: null, byStatus: {} })
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -314,11 +313,8 @@ function formatBytes(bytes) {
 // 获取数据集列表（用于新建任务时选择）
 async function fetchDatasets() {
   try {
-    const res = await fetch('/api/cloud/datasets?page_size=100', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      datasets.value = data.data.items || []
-    }
+    const data = await cloud.listDatasets({ page_size: 100 })
+    datasets.value = data?.items || []
   } catch (e) {
     console.error('获取数据集失败', e)
   }
@@ -327,29 +323,25 @@ async function fetchDatasets() {
 async function fetchJobs() {
   refreshing.value = true
   try {
-    const [jobsRes] = await Promise.all([
-      fetch(`/api/cloud/jobs?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() }),
-    ])
-    const jobsData = await jobsRes.json()
-    if (jobsData.code === 'ok') {
-      allJobs.value = jobsData.data.items || []
-      total.value = jobsData.data.total || 0
-      pagination.total = total.value
+    const data = await cloud.listJobs({ page: page.value, page_size: pageSize.value })
+    allJobs.value = data?.items || []
+    total.value = data?.total || 0
+    pagination.total = total.value
 
-      // 统计状态
-      const byStatus = {}
-      allJobs.value.forEach(job => {
-        byStatus[job.status] = (byStatus[job.status] || 0) + 1
-      })
-      stats.value = {
-        total: total.value,
-        byStatus,
-      }
+    // 统计状态
+    const byStatus = {}
+    allJobs.value.forEach(job => {
+      byStatus[job.status] = (byStatus[job.status] || 0) + 1
+    })
+    stats.value = {
+      total: total.value,
+      byStatus,
     }
-  } catch {
-    Message.error('加载任务失败')
+  } catch (err) {
+    Message.error(err.message || '加载任务失败')
   } finally {
     refreshing.value = false
+    loading.value = false
   }
 }
 
@@ -375,97 +367,82 @@ async function createJob() {
   }
 
   try {
-    const res = await fetch('/api/cloud/jobs', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        name: newJob.value.name,
-        config,
-        repo_url: newJob.value.repoUrl,
-        repo_branch: newJob.value.repoBranch,
-        repo_token: newJob.value.repoToken || undefined,
-        training_script: newJob.value.trainingScript,
-        provider: newJob.value.provider,
-        gpu_type: newJob.value.gpuType,
-      }),
+    await cloud.createJob({
+      name: newJob.value.name,
+      config,
+      repo_url: newJob.value.repoUrl,
+      repo_branch: newJob.value.repoBranch,
+      repo_token: newJob.value.repoToken || undefined,
+      training_script: newJob.value.trainingScript,
+      provider: newJob.value.provider,
+      gpu_type: newJob.value.gpuType,
     })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('训练任务创建成功')
-      showCreateModal.value = false
-      newJob.value = { name: '', repoUrl: '', repoBranch: 'main', repoToken: '', trainingScript: 'train.py', provider: 'mock', gpuType: 'RTX4090', datasetId: undefined, configText: '{"epochs": 10}' }
-      await fetchJobs()
-    } else {
-      Message.error(result.message || '创建失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    Message.success('训练任务创建成功')
+    showCreateModal.value = false
+    newJob.value = { name: '', repoUrl: '', repoBranch: 'main', repoToken: '', trainingScript: 'train.py', provider: 'mock', gpuType: 'RTX4090', datasetId: undefined, configText: '{"epochs": 10}' }
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '创建失败')
   }
 }
 
 async function launchJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/launch`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('已提交编排任务，自动执行中...'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.launchJob(job.id)
+    Message.success('已提交编排任务，自动执行中...')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function startJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/start`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('启动成功'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.startJob(job.id)
+    Message.success('启动成功')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function stopJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/stop`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('已停止'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.stopJob(job.id)
+    Message.success('已停止')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function deleteJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}`, { method: 'DELETE', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('已删除'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.deleteJob(job.id)
+    Message.success('已删除')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function viewLogs(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/logs?lines=500`, { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      logContent.value = result.data?.content || result.data?.logs || '暂无日志'
-      logDrawerVisible.value = true
-    } else {
-      Message.error(result.message || '获取日志失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await cloud.jobLogs(job.id, { lines: 500 })
+    logContent.value = data?.content || data?.logs || '暂无日志'
+    logDrawerVisible.value = true
+  } catch (err) {
+    Message.error(err.message || '获取日志失败')
   }
 }
 
 async function viewSteps(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/steps`, { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      steps.value = result.data || []
-      stepsDrawerVisible.value = true
-    } else {
-      Message.error(result.message || '获取步骤失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await cloud.jobSteps(job.id)
+    steps.value = data || []
+    stepsDrawerVisible.value = true
+  } catch (err) {
+    Message.error(err.message || '获取步骤失败')
   }
 }
 
@@ -513,6 +490,14 @@ onMounted(() => {
   line-height: 1;
   margin-bottom: 8px;
 }
+.sk-num {
+  background: #e8e8e8;
+  border-radius: 6px;
+  animation: sk-pulse 1.5s ease-in-out infinite;
+  display: inline-block;
+  min-width: 48px;
+}
+@keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 .status-card.s-success .status-num { color: #00b42a; }
 .status-card.s-running .status-num { color: #165dff; }

@@ -1,4 +1,4 @@
-"""Cloud Integration plugin — 数据模型。"""
+"""云集成插件 —— 数据模型。"""
 
 from __future__ import annotations
 

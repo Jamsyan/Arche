@@ -1,4 +1,4 @@
-"""Blog plugin — service layer."""
+"""博客插件 —— 服务层。"""
 
 from __future__ import annotations
 
@@ -7,17 +7,25 @@ import re
 import uuid
 from pathlib import Path
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, or_
 from fastapi import UploadFile
 
 from backend.core.middleware import AppError
 
-from .models import BlogPost, BlogComment, BlogLike, BlogReport, BlogTag, BlogPostTag
+from .models import (
+    BlogPost,
+    BlogComment,
+    BlogLike,
+    BlogReport,
+    BlogTag,
+    BlogPostTag,
+    BlogFavorite,
+)
 
 MAX_TAGS_PER_POST = 50
 
 # A 等级 → 最大可见用户 P 等级（数字越小权限越高）
-# A0=仅P0, A1=P0-P1, A2=P0-P2, A3=P0-P3, A4=P0-P4, A5+=所有人
+# A0=仅限 P0, A1=P0~P1, A2=P0~P2, A3=P0~P3, A4=P0~P4, A5+=所有人
 ACCESS_LEVEL_MAP = {
     "A0": 0,
     "A1": 1,
@@ -96,31 +104,51 @@ class BlogService:
         status_filter: str | None = "published",
         sort_by: str = "created_at",
         user_level: int | None = None,
+        search_query: str | None = None,
+        tag_filter: str | None = None,
     ) -> dict:
-        """获取帖子列表（公开，分页）。"""
+        """获取帖子列表（公开，分页，支持搜索和标签筛选）。"""
         offset = (page - 1) * page_size
 
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
             query = select(BlogPost)
+            count_query = select(func.count()).select_from(BlogPost)
+
             if status_filter:
                 query = query.where(BlogPost.status == status_filter)
+                count_query = count_query.where(BlogPost.status == status_filter)
+
+            # 搜索过滤（标题或内容）
+            if search_query:
+                search_pattern = f"%{search_query}%"
+                search_filter = or_(
+                    BlogPost.title.ilike(search_pattern),
+                    BlogPost.content.ilike(search_pattern),
+                )
+                query = query.where(search_filter)
+                count_query = count_query.where(search_filter)
+
+            # 标签筛选
+            if tag_filter:
+                tag_posts = (
+                    select(BlogPostTag.post_id)
+                    .join(BlogTag, BlogTag.id == BlogPostTag.tag_id)
+                    .where(BlogTag.name == tag_filter)
+                )
+                query = query.where(BlogPost.id.in_(tag_posts))
+                count_query = count_query.where(BlogPost.id.in_(tag_posts))
 
             # 权限过滤
             if user_level is not None:
                 allowed_levels = get_access_level_filter(user_level)
                 query = query.where(BlogPost.access_level.in_(allowed_levels))
-
-            # 总数
-            count_query = select(func.count()).select_from(BlogPost)
-            if status_filter:
-                count_query = count_query.where(BlogPost.status == status_filter)
-            if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
                 count_query = count_query.where(
                     BlogPost.access_level.in_(allowed_levels)
                 )
+
+            # 总数
             total_result = await session.execute(count_query)
             total = total_result.scalar_one()
 
@@ -155,6 +183,78 @@ class BlogService:
                     self._post_to_dict(
                         p,
                         author_username=author_map.get(p.author_id),
+                        likes_count=likes_map.get(p.id, 0),
+                    )
+                    for p in posts
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def list_my_posts(
+        self,
+        author_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 20,
+        status_filter: str | None = None,
+    ) -> dict:
+        """我的帖子列表（包含所有状态，供作者查看）。"""
+        from backend.plugins.auth.models import User
+
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            query = select(BlogPost).where(BlogPost.author_id == author_id)
+            count_query = (
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.author_id == author_id)
+            )
+
+            if status_filter:
+                query = query.where(BlogPost.status == status_filter)
+                count_query = count_query.where(BlogPost.status == status_filter)
+
+            # 排序
+            query = query.order_by(BlogPost.created_at.desc())
+            query = query.offset(offset).limit(page_size)
+
+            # 总数
+            total_result = await session.execute(count_query)
+            total = total_result.scalar_one()
+
+            result = await session.execute(query)
+            posts = result.scalars().all()
+
+            if not posts:
+                return {
+                    "items": [],
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                }
+
+            # 获取作者信息
+            author_result = await session.execute(
+                select(User.username).where(User.id == author_id)
+            )
+            author_row = author_result.scalar_one_or_none()
+            author_username = author_row if author_row else "未知"
+
+            # 获取点赞数
+            likes_result = await session.execute(
+                select(BlogLike.post_id, func.count(BlogLike.id))
+                .where(BlogLike.post_id.in_([p.id for p in posts]))
+                .group_by(BlogLike.post_id)
+            )
+            likes_map = {row.post_id: row.count for row in likes_result.all()}
+
+            return {
+                "items": [
+                    self._post_to_dict(
+                        p,
+                        author_username=author_username,
                         likes_count=likes_map.get(p.id, 0),
                     )
                     for p in posts
@@ -622,7 +722,7 @@ class BlogService:
         page: int = 1,
         page_size: int = 50,
     ) -> dict:
-        """获取标签列表（公开）。"""
+        """获取标签列表（公开，包含文章数量）。"""
         offset = (page - 1) * page_size
 
         async with self.session_factory() as session:
@@ -639,8 +739,25 @@ class BlogService:
             )
             tags = result.scalars().all()
 
+            # 批量获取每个标签的文章数量
+            if tags:
+                tag_ids = [t.id for t in tags]
+                post_count_result = await session.execute(
+                    select(BlogPostTag.tag_id, func.count(BlogPostTag.post_id))
+                    .where(BlogPostTag.tag_id.in_(tag_ids))
+                    .group_by(BlogPostTag.tag_id)
+                )
+                post_count_map = {
+                    row.tag_id: row.count for row in post_count_result.all()
+                }
+            else:
+                post_count_map = {}
+
             return {
-                "items": [self._tag_to_dict(t) for t in tags],
+                "items": [
+                    {**self._tag_to_dict(t), "post_count": post_count_map.get(t.id, 0)}
+                    for t in tags
+                ],
                 "total": total,
                 "page": page,
                 "page_size": page_size,
@@ -957,6 +1074,147 @@ class BlogService:
             else:
                 parts.append(para.text)
         return "\n\n".join(p for p in parts if p.strip())
+
+    # --- 收藏 ---
+
+    async def add_favorite(
+        self,
+        post_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict:
+        """收藏帖子（需登录）。"""
+        # 验证帖子存在
+        await self.get_post_by_id(post_id)
+
+        async with self.session_factory() as session:
+            # 检查是否已收藏
+            result = await session.execute(
+                select(BlogFavorite).where(
+                    BlogFavorite.post_id == post_id,
+                    BlogFavorite.user_id == user_id,
+                )
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                return {"action": "already_favorited", "favorite_id": str(existing.id)}
+
+            # 创建收藏
+            favorite = BlogFavorite(post_id=post_id, user_id=user_id)
+            session.add(favorite)
+            await session.commit()
+            await session.refresh(favorite)
+
+            return {"action": "favorited", "favorite_id": str(favorite.id)}
+
+    async def remove_favorite(
+        self,
+        post_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict:
+        """取消收藏（需登录）。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(BlogFavorite).where(
+                    BlogFavorite.post_id == post_id,
+                    BlogFavorite.user_id == user_id,
+                )
+            )
+            favorite = result.scalar_one_or_none()
+            if favorite:
+                await session.delete(favorite)
+                await session.commit()
+
+            return {"action": "unfavorited"}
+
+    async def check_favorite(
+        self,
+        post_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> bool:
+        """检查是否已收藏。"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(BlogFavorite).where(
+                    BlogFavorite.post_id == post_id,
+                    BlogFavorite.user_id == user_id,
+                )
+            )
+            return result.scalar_one_or_none() is not None
+
+    async def list_favorites(
+        self,
+        user_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """我的收藏列表（需登录）。"""
+        from backend.plugins.auth.models import User
+
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            # 查询收藏的帖子
+            query = (
+                select(BlogFavorite)
+                .join(BlogPost, BlogPost.id == BlogFavorite.post_id)
+                .where(BlogPost.status == "published")
+                .order_by(BlogFavorite.created_at.desc())
+            )
+
+            # 总数
+            count_query = select(func.count()).select_from(BlogFavorite)
+            count_result = await session.execute(count_query)
+            total = count_result.scalar_one()
+
+            # 分页
+            query = query.offset(offset).limit(page_size)
+            result = await session.execute(query)
+            favorites = result.scalars().all()
+
+            if not favorites:
+                return {
+                    "items": [],
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                }
+
+            # 获取帖子详情
+            post_ids = [f.post_id for f in favorites]
+            posts_result = await session.execute(
+                select(BlogPost).where(BlogPost.id.in_(post_ids))
+            )
+            posts_map = {p.id: p for p in posts_result.scalars().all()}
+
+            # 获取作者信息
+            author_ids = [p.author_id for p in posts_map.values()]
+            author_result = await session.execute(
+                select(User.id, User.username).where(User.id.in_(author_ids))
+            )
+            author_map = {row.id: row.username for row in author_result.all()}
+
+            # 获取点赞数
+            likes_result = await session.execute(
+                select(BlogLike.post_id, func.count(BlogLike.id))
+                .where(BlogLike.post_id.in_(post_ids))
+                .group_by(BlogLike.post_id)
+            )
+            likes_map = {row.post_id: row.count for row in likes_result.all()}
+
+            return {
+                "items": [
+                    self._post_to_dict(
+                        posts_map[f.post_id],
+                        author_username=author_map.get(posts_map[f.post_id].author_id),
+                        likes_count=likes_map.get(f.post_id, 0),
+                    )
+                    for f in favorites
+                    if f.post_id in posts_map
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
 
     # --- 举报 ---
 

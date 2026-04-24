@@ -10,24 +10,22 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { cloud } from '../../../api'
 
-const { authHeaders } = useAuth()
 const stats = ref({})
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/cloud/jobs?page=1&page_size=1', { headers: authHeaders() })
-    const d = await res.json()
-    if (d.code === 'ok') {
-      stats.value = { total: d.data?.total || 0 }
+    const d = await cloud.listJobs({ page: 1, page_size: 1 })
+    if (d) {
+      stats.value = { total: d.total || 0 }
     }
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 30000) })
+onMounted(() => { load(); timer = setInterval(load, 30000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

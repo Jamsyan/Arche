@@ -1,4 +1,4 @@
-"""Configuration management — unified env + pydantic-settings + DB cache."""
+"""配置管理 —— 统一环境变量 + pydantic-settings + 数据库缓存。"""
 
 from __future__ import annotations
 
@@ -76,24 +76,24 @@ class ConfigManager:
                 key, _, value = line.partition("=")
                 self._values[key.strip()] = value.strip().strip("\"'")
 
-        # OS 环境变量覆盖 .env
+        # 操作系统环境变量覆盖 .env
         for key, value in os.environ.items():
             self._values[key] = value
 
     def get(self, key: str, default: str | None = None) -> str | None:
         """获取配置值，分层读取：内存 > DB缓存 > .env/环境变量 > 默认值。"""
-        # Layer 1: 内存中的值（最高优先级）
+        # 第一层：内存中的值（最高优先级）
         if key in self._values:
             return self._values[key]
 
-        # Layer 2: DB 缓存
+        # 第二层：数据库缓存
         if key in self._cache:
             value, expiry = self._cache[key]
             if time.time() < expiry:
                 return value
             del self._cache[key]
 
-        # Layer 3: 从数据库查询
+        # 第三层：从数据库查询
         if self._session_factory:
             db_value = self._fetch_from_db(key)
             if db_value is not None:
@@ -150,9 +150,18 @@ class ConfigManager:
     def app_settings(self) -> AppSettings:
         """获取应用设置（懒加载）。"""
         if self._app_settings is None:
-            env_dict = {k: v for k, v in self._values.items() if k in [
-                "DATABASE_URL", "SECRET_KEY", "CORS_ORIGINS", "LOG_LEVEL", "LOG_FILE"
-            ]}
+            env_dict = {
+                k: v
+                for k, v in self._values.items()
+                if k
+                in [
+                    "DATABASE_URL",
+                    "SECRET_KEY",
+                    "CORS_ORIGINS",
+                    "LOG_LEVEL",
+                    "LOG_FILE",
+                ]
+            }
             self._app_settings = AppSettings(**env_dict)
         return self._app_settings
 
@@ -187,7 +196,9 @@ class ConfigManager:
                     if default is None:
                         default_str = ""
                     elif isinstance(default, (list, dict, set)):
-                        default_str = ",".join(str(v) for v in default) if default else ""
+                        default_str = (
+                            ",".join(str(v) for v in default) if default else ""
+                        )
                     else:
                         default_str = str(default)
                     lines.append(f"{field_name}={default_str}")

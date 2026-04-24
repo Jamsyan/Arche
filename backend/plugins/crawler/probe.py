@@ -1,4 +1,4 @@
-"""Crawler plugin — 探嗅回路：httpx 轻量 HTTP 探测。"""
+"""爬虫插件 —— 探嗅回路：httpx 轻量 HTTP 探测。"""
 
 from __future__ import annotations
 

@@ -25,11 +25,13 @@
         <div class="resource-stats">
           <div class="stat-item">
             <span class="stat-label">运行中任务</span>
-            <span class="stat-value">{{ runningJobsCount }}</span>
+            <span class="stat-value sk-value" v-if="runningJobsCount === null">—</span>
+            <span class="stat-value" v-else>{{ runningJobsCount }}</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">GPU 实例</span>
-            <span class="stat-value">{{ runningInstancesCount }}</span>
+            <span class="stat-value sk-value" v-if="runningInstancesCount === null">—</span>
+            <span class="stat-value" v-else>{{ runningInstancesCount }}</span>
           </div>
         </div>
       </div>
@@ -62,7 +64,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuth } from '../../router/auth.js'
+import { cloud } from '../../api'
 import {
   IconCloud,
   IconDesktop,
@@ -75,9 +77,9 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const { authHeaders } = useAuth()
 
 const refreshing = ref(false)
+const loading = ref(true)
 
 // 导航项配置
 const navItems = [
@@ -108,8 +110,8 @@ const navItems = [
 ]
 
 // 统计数据
-const runningJobsCount = ref(0)
-const runningInstancesCount = ref(0)
+const runningJobsCount = ref(null)
+const runningInstancesCount = ref(null)
 
 // 当前页面标题
 const currentPageTitle = computed(() => {
@@ -123,12 +125,9 @@ const isTasksPage = computed(() => route.name === 'cloud-tasks')
 async function refreshCurrentPage() {
   refreshing.value = true
   try {
-    const res = await fetch('/api/cloud/stats', { headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      runningJobsCount.value = data.data.running_jobs || 0
-      runningInstancesCount.value = data.data.running_instances || 0
-    }
+    const data = await cloud.stats()
+    runningJobsCount.value = data?.running_jobs ?? 0
+    runningInstancesCount.value = data?.running_instances ?? 0
   } catch {
     // 静默失败
   } finally {
@@ -137,8 +136,9 @@ async function refreshCurrentPage() {
 }
 
 // 页面加载时获取统计
-onMounted(() => {
-  refreshCurrentPage()
+onMounted(async () => {
+  await refreshCurrentPage()
+  loading.value = false
 })
 </script>
 
@@ -303,6 +303,14 @@ onMounted(() => {
   font-weight: 600;
   color: #1d2129;
 }
+.sk-value {
+  background: #e8e8e8;
+  border-radius: 4px;
+  animation: sk-pulse 1.5s ease-in-out infinite;
+  min-width: 24px;
+  display: inline-block;
+}
+@keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* 主内容区 */
 .workspace-main {

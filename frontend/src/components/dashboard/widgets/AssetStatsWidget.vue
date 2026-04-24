@@ -10,22 +10,20 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { assets } from '../../../api'
 
-const { authHeaders } = useAuth()
 const stats = ref({})
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/assets/stats', { headers: authHeaders() })
-    const d = await res.json()
-    if (d.code === 'ok') stats.value = d.data || {}
+    const d = await assets.stats()
+    if (d) stats.value = d || {}
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 30000) })
+onMounted(() => { load(); timer = setInterval(load, 30000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

@@ -218,13 +218,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { cloud } from '../../api'
 import {
   IconCloud, IconPlus, IconSync, IconArrowLeft,
   IconRefresh, IconList,
 } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const showCreateModal = ref(false)
 const logDrawerVisible = ref(false)
@@ -300,17 +298,12 @@ const newJob = ref({
 async function fetchJobs() {
   refreshing.value = true
   try {
-    const [jobsRes] = await Promise.all([
-      fetch(`/api/cloud/jobs?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() }),
-    ])
-    const jobsData = await jobsRes.json()
-    if (jobsData.code === 'ok') {
-      allJobs.value = jobsData.data.items || []
-      total.value = jobsData.data.total || 0
-      pagination.total = total.value
-    }
-  } catch {
-    Message.error('加载任务失败')
+    const data = await cloud.listJobs({ page: page.value, page_size: pageSize.value })
+    allJobs.value = data?.items || []
+    total.value = data?.total || 0
+    pagination.total = total.value
+  } catch (err) {
+    Message.error(err.message || '加载任务失败')
   } finally {
     refreshing.value = false
   }
@@ -333,97 +326,82 @@ async function createJob() {
   }
 
   try {
-    const res = await fetch('/api/cloud/jobs', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        name: newJob.value.name,
-        config,
-        repo_url: newJob.value.repoUrl,
-        repo_branch: newJob.value.repoBranch,
-        repo_token: newJob.value.repoToken || undefined,
-        training_script: newJob.value.trainingScript,
-        provider: newJob.value.provider,
-        gpu_type: newJob.value.gpuType,
-      }),
+    await cloud.createJob({
+      name: newJob.value.name,
+      config,
+      repo_url: newJob.value.repoUrl,
+      repo_branch: newJob.value.repoBranch,
+      repo_token: newJob.value.repoToken || undefined,
+      training_script: newJob.value.trainingScript,
+      provider: newJob.value.provider,
+      gpu_type: newJob.value.gpuType,
     })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('训练任务创建成功')
-      showCreateModal.value = false
-      newJob.value = { name: '', repoUrl: '', repoBranch: 'main', repoToken: '', trainingScript: 'train.py', provider: 'mock', gpuType: 'RTX4090', configText: '{"epochs": 10}' }
-      await fetchJobs()
-    } else {
-      Message.error(result.message || '创建失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    Message.success('训练任务创建成功')
+    showCreateModal.value = false
+    newJob.value = { name: '', repoUrl: '', repoBranch: 'main', repoToken: '', trainingScript: 'train.py', provider: 'mock', gpuType: 'RTX4090', configText: '{"epochs": 10}' }
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '创建失败')
   }
 }
 
 async function launchJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/launch`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('已提交编排任务，自动执行中...'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.launchJob(job.id)
+    Message.success('已提交编排任务，自动执行中...')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function startJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/start`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('启动成功'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.startJob(job.id)
+    Message.success('启动成功')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function stopJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/stop`, { method: 'POST', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('已停止'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.stopJob(job.id)
+    Message.success('已停止')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function deleteJob(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}`, { method: 'DELETE', headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') { Message.success('已删除'); await fetchJobs() }
-    else Message.error(result.message)
-  } catch { Message.error('网络错误') }
+    await cloud.deleteJob(job.id)
+    Message.success('已删除')
+    await fetchJobs()
+  } catch (err) {
+    Message.error(err.message || '网络错误')
+  }
 }
 
 async function viewLogs(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/logs?lines=200`, { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      logContent.value = result.data?.content || result.data?.logs || '暂无日志'
-      logDrawerVisible.value = true
-    } else {
-      Message.error(result.message || '获取日志失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await cloud.jobLogs(job.id, { lines: 200 })
+    logContent.value = data?.content || data?.logs || '暂无日志'
+    logDrawerVisible.value = true
+  } catch (err) {
+    Message.error(err.message || '获取日志失败')
   }
 }
 
 async function viewSteps(job) {
   try {
-    const res = await fetch(`/api/cloud/jobs/${job.id}/steps`, { headers: authHeaders() })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      steps.value = result.data || []
-      stepsDrawerVisible.value = true
-    } else {
-      Message.error(result.message || '获取步骤失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    const data = await cloud.jobSteps(job.id)
+    steps.value = data || []
+    stepsDrawerVisible.value = true
+  } catch (err) {
+    Message.error(err.message || '获取步骤失败')
   }
 }
 

@@ -109,13 +109,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Message, Modal } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
 import {
   IconStorage, IconCloud, IconUpload, IconArrowLeft,
   IconRefresh, IconFile,
 } from '@arco-design/web-vue/es/icon'
+import { oss } from '../../api'
 
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
 const filesLoading = ref(false)
 const myFiles = ref([])
@@ -147,20 +146,17 @@ function formatBytes(bytes) {
 async function refreshStorage() {
   refreshing.value = true
   try {
-    const [quotaRes, statsRes, filesRes] = await Promise.all([
-      fetch('/api/oss/quota', { headers: authHeaders() }),
-      fetch('/api/oss/storage/stats?user_scope=true', { headers: authHeaders() }),
-      fetch('/api/oss/my?limit=200&offset=0', { headers: authHeaders() }),
+    const [quotaData, statsData, filesData] = await Promise.all([
+      oss.quota(),
+      oss.storageStats({ user_scope: true }),
+      oss.myFiles({ limit: 200, offset: 0 }),
     ])
-    const quotaData = await quotaRes.json()
-    const statsData = await statsRes.json()
-    const filesData = await filesRes.json()
 
-    if (quotaData.code === 'ok') quota.value = quotaData.data
-    if (statsData.code === 'ok') globalStats.value = statsData.data
-    if (filesData.code === 'ok') myFiles.value = filesData.data?.files ?? []
-  } catch {
-    Message.error('加载存储信息失败')
+    if (quotaData) quota.value = quotaData
+    if (statsData) globalStats.value = statsData
+    if (filesData) myFiles.value = filesData.files ?? []
+  } catch (err) {
+    Message.error(err.message || '加载存储信息失败')
   } finally {
     refreshing.value = false
   }
@@ -176,19 +172,11 @@ async function deleteFile(file) {
     content: `确定删除文件 "${file.path?.split('/').pop()}" 吗？`,
     onOk: async () => {
       try {
-        const res = await fetch(`/api/oss/files/${file.id}`, {
-          method: 'DELETE',
-          headers: authHeaders(),
-        })
-        const result = await res.json()
-        if (result.code === 'ok') {
-          Message.success('删除成功')
-          await refreshStorage()
-        } else {
-          Message.error(result.message || '删除失败')
-        }
-      } catch {
-        Message.error('网络错误')
+        await oss.deleteFile(file.id)
+        Message.success('删除成功')
+        await refreshStorage()
+      } catch (err) {
+        Message.error(err.message || '删除失败')
       }
     },
   })

@@ -1,1 +1,1 @@
-"""Backend scripts package."""
+"""后端脚本包。"""

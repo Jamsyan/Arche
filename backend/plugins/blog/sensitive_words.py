@@ -1,10 +1,10 @@
-"""Sensitive word filter — loads words from config and checks text content."""
+"""敏感词过滤器 —— 从配置加载敏感词列表并检查文本内容。"""
 
 from __future__ import annotations
 
 
 class SensitiveWordFilter:
-    """Simple string-matching sensitive word filter."""
+    """简单的字符串匹配敏感词过滤器。"""
 
     def __init__(self, words: list[str] | None = None):
         self._words: list[str] = words or []

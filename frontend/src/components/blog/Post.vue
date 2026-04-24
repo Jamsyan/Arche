@@ -58,6 +58,13 @@
               {{ liked ? '已点赞' : '点赞' }}
             </a-button>
             <a-button
+              :type="favorited ? 'primary' : 'secondary'"
+              @click="toggleFavorite"
+            >
+              <template #icon><icon-star /></template>
+              {{ favorited ? '已收藏' : '收藏' }}
+            </a-button>
+            <a-button
               v-if="canDelete"
               type="secondary"
               status="danger"
@@ -106,8 +113,8 @@
             />
           </template>
         </a-comment>
-        <a-alert v-else type="warning" style="margin-bottom: 16px">
-          登录后才能发表评论
+        <a-alert v-else type="warning" style="margin-bottom: 16px; cursor: pointer" @click="router.push('/login')">
+          登录后才能发表评论（点击登录）
         </a-alert>
 
         <!-- 评论列表 -->
@@ -121,7 +128,7 @@
             :datetime="formatDate(comment.created_at)"
           >
             <template #actions>
-              <a-button type="text" size="mini" @click="toggleReply(comment)">
+              <a-button type="text" size="mini" @click="onReply(comment)">
                 回复
               </a-button>
             </template>
@@ -182,18 +189,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../router/auth.js'
+import { blog } from '../../api'
 import LevelBadge from '../LevelBadge.vue'
 import { Message, Modal } from '@arco-design/web-vue'
 import MarkdownIt from 'markdown-it'
-import { IconDelete, IconEdit, IconBug } from '@arco-design/web-vue/es/icon'
+import { IconDelete, IconEdit, IconBug, IconStar, IconEye, IconThumbUp } from '@arco-design/web-vue/es/icon'
 
 const route = useRoute()
 const router = useRouter()
-const { isAuthenticated, user, authHeaders, level } = useAuth()
+const { isAuthenticated, user, level } = useAuth()
 
 const post = ref(null)
 const loading = ref(true)
 const liked = ref(false)
+const favorited = ref(false)
 const comments = ref([])
 const commentContent = ref('')
 const replyingTo = ref(null)
@@ -268,25 +277,57 @@ function getReplies(parentId) {
 async function fetchPost() {
   loading.value = true
   try {
-    const res = await fetch(`/api/blog/posts/${route.params.slug}`)
-    const result = await res.json()
-    if (result.code === 'ok') {
-      post.value = result.data
-    }
-  } catch {
-    Message.error('加载文章失败')
+    post.value = await blog.getPost(route.params.slug)
+    // 获取收藏状态
+    await fetchFavoriteStatus()
+  } catch (err) {
+    Message.error(err.message || '加载文章失败')
   } finally {
     loading.value = false
   }
 }
 
+async function fetchFavoriteStatus() {
+  if (!post.value) return
+  try {
+    const data = await blog.favoriteStatus(post.value.id)
+    favorited.value = data.favorited
+  } catch {
+    // 忽略收藏状态错误
+  }
+}
+
+async function toggleFavorite() {
+  if (!isAuthenticated.value) {
+    Message.warning('请先登录')
+    router.push('/login')
+    return
+  }
+  try {
+    if (favorited.value) {
+      // Unfavorite - keep original fetch pattern
+      const res = await fetch(`/api/blog/favorites/${post.value.id}`, {
+        method: 'DELETE',
+      })
+      const result = await res.json()
+      if (result.code === 'ok') {
+        favorited.value = false
+        Message.success('已取消收藏')
+      }
+    } else {
+      await blog.addFavorite(post.value.id)
+      favorited.value = true
+      Message.success('收藏成功')
+    }
+  } catch (err) {
+    Message.error(err.message || '操作失败')
+  }
+}
+
 async function fetchComments() {
   try {
-    const res = await fetch(`/api/blog/posts/${post.value.id}/comments`)
-    const result = await res.json()
-    if (result.code === 'ok') {
-      comments.value = result.data.items || []
-    }
+    const data = await blog.comments(post.value.id)
+    comments.value = data.items || []
   } catch {
     // 评论加载失败不影响主内容
   }
@@ -295,20 +336,15 @@ async function fetchComments() {
 async function toggleLike() {
   if (!isAuthenticated.value) {
     Message.warning('请先登录')
+    router.push('/login')
     return
   }
   try {
-    const res = await fetch(`/api/blog/posts/${post.value.id}/like`, {
-      method: 'POST',
-      headers: authHeaders(),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      liked.value = result.data.action === 'liked'
-      Message.success(liked.value ? '点赞成功' : '已取消点赞')
-    }
-  } catch {
-    Message.error('操作失败')
+    const data = await blog.likePost(post.value.id)
+    liked.value = data.action === 'liked'
+    Message.success(liked.value ? '点赞成功' : '已取消点赞')
+  } catch (err) {
+    Message.error(err.message || '操作失败')
   }
 }
 
@@ -318,21 +354,12 @@ async function submitComment() {
     return
   }
   try {
-    const res = await fetch(`/api/blog/posts/${post.value.id}/comments`, {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ content: commentContent.value, parent_id: null }),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('评论成功')
-      commentContent.value = ''
-      await fetchComments()
-    } else {
-      Message.error(result.message || '评论失败')
-    }
-  } catch {
-    Message.error('评论失败')
+    await blog.addComment(post.value.id, { content: commentContent.value, parent_id: null })
+    Message.success('评论成功')
+    commentContent.value = ''
+    await fetchComments()
+  } catch (err) {
+    Message.error(err.message || '评论失败')
   }
 }
 
@@ -347,6 +374,15 @@ function toggleReply(comment) {
   }
 }
 
+function onReply(comment) {
+  if (!isAuthenticated.value) {
+    Message.warning('请先登录')
+    router.push('/login')
+    return
+  }
+  toggleReply(comment)
+}
+
 async function submitReply(parentId) {
   const content = replyContents.value[parentId]
   if (!content?.trim()) {
@@ -354,22 +390,13 @@ async function submitReply(parentId) {
     return
   }
   try {
-    const res = await fetch(`/api/blog/posts/${post.value.id}/comments`, {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ content, parent_id: parentId }),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('回复成功')
-      replyContents.value[parentId] = ''
-      replyingTo.value = null
-      await fetchComments()
-    } else {
-      Message.error(result.message || '回复失败')
-    }
-  } catch {
-    Message.error('回复失败')
+    await blog.addComment(post.value.id, { content, parent_id: parentId })
+    Message.success('回复成功')
+    replyContents.value[parentId] = ''
+    replyingTo.value = null
+    await fetchComments()
+  } catch (err) {
+    Message.error(err.message || '回复失败')
   }
 }
 
@@ -381,19 +408,11 @@ async function deletePost() {
     buttonProps: { status: 'danger' },
     onOk: async () => {
       try {
-        const res = await fetch(`/api/blog/posts/${post.value.id}`, {
-          method: 'DELETE',
-          headers: authHeaders(),
-        })
-        const result = await res.json()
-        if (result.code === 'ok') {
-          Message.success('删除成功')
-          router.push('/')
-        } else {
-          Message.error(result.message || '删除失败')
-        }
-      } catch {
-        Message.error('网络错误')
+        await blog.deletePost(post.value.id)
+        Message.success('删除成功')
+        router.push('/')
+      } catch (err) {
+        Message.error(err.message || '删除失败')
       }
     },
   })
@@ -406,20 +425,11 @@ function showReport() {
 
 async function submitReport() {
   try {
-    const res = await fetch('/api/blog/reports', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ post_id: post.value.id, reason: reportReason.value }),
-    })
-    const result = await res.json()
-    if (result.code === 'ok') {
-      Message.success('举报成功，我们会尽快处理')
-      showReportModal.value = false
-    } else {
-      Message.error(result.message || '举报失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    await blog.reportPost({ post_id: post.value.id, reason: reportReason.value })
+    Message.success('举报成功，我们会尽快处理')
+    showReportModal.value = false
+  } catch (err) {
+    Message.error(err.message || '举报失败')
   }
 }
 

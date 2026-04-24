@@ -1,4 +1,4 @@
-"""SSH executor for remote command execution and file transfer."""
+"""SSH 执行器，用于远程命令执行和文件传输。"""
 
 from __future__ import annotations
 

@@ -94,13 +94,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { system } from '../../api'
 import {
   IconLock, IconArrowLeft, IconDashboard, IconDesktop,
   IconApps, IconUser, IconStorage, IconRefresh, IconSettings,
 } from '@arco-design/web-vue/es/icon'
 
-const { authHeaders } = useAuth()
 const loading = ref(false)
 const summary = ref(null)
 const processes = ref([])
@@ -126,22 +125,18 @@ function formatBytes(bytes) {
 async function fetchSummary() {
   loading.value = true
   try {
-    const [summaryRes, processRes] = await Promise.all([
-      fetch('/api/system/summary', { headers: authHeaders() }),
-      fetch('/api/system/processes?limit=20&sort_by=cpu_percent', { headers: authHeaders() }),
+    const [summaryData, processData] = await Promise.all([
+      system.summary(),
+      system.processes({ limit: 20, sort_by: 'cpu_percent' }),
     ])
-    const summaryData = await summaryRes.json()
-    const processData = await processRes.json()
-    if (summaryData.code === 'ok') {
-      summary.value = summaryData.data
-    } else {
-      Message.error(summaryData.message || '加载系统监控失败')
+    if (summaryData) {
+      summary.value = summaryData
     }
-    if (processData.code === 'ok') {
-      processes.value = processData.data?.items || []
+    if (processData) {
+      processes.value = processData.items || []
     }
-  } catch {
-    Message.error('加载系统监控失败')
+  } catch (err) {
+    Message.error(err.message || '加载系统监控失败')
   } finally {
     loading.value = false
   }

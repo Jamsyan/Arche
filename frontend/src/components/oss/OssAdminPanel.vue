@@ -40,28 +40,20 @@
 <script setup>
 import { IconStorage, IconArrowLeft, IconSwap } from '@arco-design/web-vue/es/icon'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { oss } from '../../api'
 import OssDashboard from './OssDashboard.vue'
 import QuotaManagement from './QuotaManagement.vue'
 import SpeedLimitConfig from './SpeedLimitConfig.vue'
 import FileManagement from './FileManagement.vue'
 
-const { authHeaders } = useAuth()
-
 async function triggerEvict() {
   try {
-    const res = await fetch('/api/oss/admin/evict?days=7', {
-      method: 'POST',
-      headers: authHeaders(),
-    })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      Message.success(`迁移完成，${data.data.migrated} 个文件已推送`)
-    } else {
-      Message.error(data.message || '迁移失败')
+    const data = await oss.evictColdData({ days: 7 })
+    if (data) {
+      Message.success(`迁移完成，${data.migrated} 个文件已推送`)
     }
-  } catch {
-    Message.error('迁移失败')
+  } catch (err) {
+    Message.error(err.message || '迁移失败')
   }
 }
 </script>

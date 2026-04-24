@@ -1,4 +1,4 @@
-"""Crawler plugin — 种子管理器：种子池、黑白名单、探嗅收录。"""
+"""爬虫插件 —— 种子管理器：种子池、黑白名单、探嗅收录。"""
 
 from __future__ import annotations
 

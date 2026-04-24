@@ -1,4 +1,4 @@
-"""Auth plugin — 用户数据模型。"""
+"""认证插件 —— 用户数据模型。"""
 
 from __future__ import annotations
 

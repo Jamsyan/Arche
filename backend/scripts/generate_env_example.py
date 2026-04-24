@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate .env.example from all registered settings schemas."""
+"""从所有已注册的配置 schema 生成 .env.example 文件。"""
 
 import sys
 from pathlib import Path
 
-# Ensure project root is on sys.path
+# 确保项目根目录在 sys.path 中
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 

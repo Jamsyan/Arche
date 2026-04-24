@@ -1,4 +1,4 @@
-"""Asset Management plugin — FastAPI 路由：统一目录、搜索、统计。
+"""资产管理插件 —— FastAPI 路由：统一目录、搜索、统计。
 
 所有端点需要 P0 权限。
 """

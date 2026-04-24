@@ -1,4 +1,4 @@
-"""Cloud Provider abstract base class."""
+"""云训练 Provider 抽象基类。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Deploy webhook plugin — 接收 CI/CD 触发器 POST 请求，执行部署脚本。"""
+"""部署 Webhook 插件 —— 接收 CI/CD 触发器 POST 请求，执行部署脚本。"""
 
 from __future__ import annotations
 

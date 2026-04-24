@@ -10,9 +10,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useAuth } from '../../../router/auth.js'
+import { crawler } from '../../../api'
 
-const { authHeaders } = useAuth()
 const data = ref({})
 const size = defineProps({ size: { type: String, default: 'medium' } })
 let timer = null
@@ -23,15 +22,14 @@ const statusText = computed(() => {
 })
 const statusClass = computed(() => data.value.running ? 'status-running' : 'status-stopped')
 
-async function fetch() {
+async function load() {
   try {
-    const res = await fetch('/api/crawler/status', { headers: authHeaders() })
-    const d = await res.json()
-    if (d.code === 'ok') data.value = d.data || {}
+    const d = await crawler.status()
+    if (d) data.value = d || {}
   } catch {}
 }
 
-onMounted(() => { fetch(); timer = setInterval(fetch, 15000) })
+onMounted(() => { load(); timer = setInterval(load, 15000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 

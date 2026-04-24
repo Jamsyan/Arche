@@ -1,4 +1,4 @@
-"""Auth plugin — 路由：注册、登录、登出、获取当前用户、刷新 token。"""
+"""认证插件 —— 路由：注册、登录、登出、获取当前用户、刷新 token。"""
 
 from __future__ import annotations
 

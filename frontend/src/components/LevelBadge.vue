@@ -6,10 +6,10 @@
 
 <script setup>
 const LEVELS = {
-  0: { label: 'P0', gradient: 'linear-gradient(135deg, #1a7f37, #2ea043)', shadow: '#1a7f37' },
+  0: { label: 'P0', gradient: 'linear-gradient(135deg, #1a7f37, #2ea043)', shadow: '#e8b311' },
   1: { label: 'P1', gradient: 'linear-gradient(135deg, #8250df, #a371f7)', shadow: '#8250df' },
-  2: { label: 'P2', gradient: 'linear-gradient(135deg, #0969da, #54aeff)', shadow: '#0969da' },
-  3: { label: 'P3', gradient: 'linear-gradient(135deg, #9a6700, #d4a72c)', shadow: '#9a6700' },
+  2: { label: 'P2', gradient: 'linear-gradient(135deg, #0969da, #54aeff)', shadow: '#2e10f1' },
+  3: { label: 'P3', gradient: 'linear-gradient(135deg, #9a6700, #d4a72c)', shadow: '#297caa' },
   4: { label: 'P4', gradient: 'linear-gradient(135deg, #6e7781, #8b949e)', shadow: '#6e7781' },
   5: { label: 'P5', gradient: 'linear-gradient(135deg, #e1e4e8, #f6f8fa)', shadow: '#c9d1d9' },
 }

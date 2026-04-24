@@ -1,4 +1,4 @@
-"""Core application settings."""
+"""核心应用配置。"""
 
 from __future__ import annotations
 

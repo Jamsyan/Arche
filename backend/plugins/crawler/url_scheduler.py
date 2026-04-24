@@ -1,4 +1,4 @@
-"""Crawler plugin — URL 调度器：待爬队列 + 按域名限流。"""
+"""爬虫插件 —— URL 调度器：待爬队列 + 按域名限流。"""
 
 from __future__ import annotations
 

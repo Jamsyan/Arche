@@ -1,4 +1,4 @@
-"""Plugin settings base class."""
+"""插件配置基类。"""
 
 from __future__ import annotations
 

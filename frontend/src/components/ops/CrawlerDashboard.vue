@@ -26,23 +26,23 @@
     <!-- 统计概览 -->
     <div class="status-row">
       <div class="status-card">
-        <div class="status-num">{{ stats.totalCrawled }}</div>
+        <div class="status-num sk-num">{{ stats.totalCrawled === 0 && loading ? '—' : stats.totalCrawled }}</div>
         <div class="status-label">总抓取</div>
       </div>
       <div class="status-card s-running">
-        <div class="status-num">{{ status.activeTasks }}</div>
+        <div class="status-num sk-num">{{ status.activeTasks === 0 && loading ? '—' : status.activeTasks }}</div>
         <div class="status-label">运行中</div>
       </div>
       <div class="status-card s-info">
-        <div class="status-num">{{ status.queueSize }}</div>
+        <div class="status-num sk-num">{{ status.queueSize === 0 && loading ? '—' : status.queueSize }}</div>
         <div class="status-label">队列长度</div>
       </div>
       <div class="status-card s-info">
-        <div class="status-num">{{ status.seedsCount }}</div>
+        <div class="status-num sk-num">{{ status.seedsCount === 0 && loading ? '—' : status.seedsCount }}</div>
         <div class="status-label">种子数</div>
       </div>
       <div class="status-card s-fail">
-        <div class="status-num">{{ status.pagesRejected }}</div>
+        <div class="status-num sk-num">{{ status.pagesRejected === 0 && loading ? '—' : status.pagesRejected }}</div>
         <div class="status-label">拒绝数</div>
       </div>
     </div>
@@ -69,6 +69,7 @@
       row-key="id"
       :bordered="false"
       :pagination="pagination"
+      :loading="loading"
       class="task-table"
       @page-change="onPageChange"
     >
@@ -113,13 +114,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { useAuth } from '../../router/auth.js'
+import { crawler } from '../../api'
 import {
   IconBug, IconRefresh, IconArrowLeft, IconSync, IconList, IconPlus,
 } from '@arco-design/web-vue/es/icon'
-
-const { authHeaders } = useAuth()
 const refreshing = ref(false)
+const loading = ref(true)
 const records = ref([])
 const page = ref(1)
 const pageSize = ref(20)
@@ -176,27 +176,21 @@ const recordColumns = [
 async function refresh() {
   refreshing.value = true
   try {
-    const [statusRes, statsRes, recordsRes] = await Promise.all([
-      fetch('/api/crawler/status', { headers: authHeaders() }),
-      fetch('/api/crawler/stats', { headers: authHeaders() }),
-      fetch(`/api/crawler/records?page=${page.value}&page_size=${pageSize.value}`, { headers: authHeaders() }),
+    const [sData, stData, rData] = await Promise.all([
+      crawler.status(),
+      crawler.stats(),
+      crawler.records({ page: page.value, page_size: pageSize.value }),
     ])
-    const sData = await statusRes.json()
-    if (sData.code === 'ok') status.value = { ...status.value, ...sData.data }
-
-    const stData = await statsRes.json()
-    if (stData.code === 'ok') stats.value = stData.data
-
-    const rData = await recordsRes.json()
-    if (rData.code === 'ok') {
-      records.value = rData.data.items || []
-      total.value = rData.data.total || 0
-      pagination.total = total.value
-    }
-  } catch {
-    Message.error('加载数据失败')
+    status.value = { ...status.value, ...sData }
+    stats.value = stData
+    records.value = rData?.items || []
+    total.value = rData?.total || 0
+    pagination.total = total.value
+  } catch (err) {
+    Message.error(err.message || '加载数据失败')
   } finally {
     refreshing.value = false
+    loading.value = false
   }
 }
 
@@ -206,39 +200,27 @@ function onPageChange(p) {
 }
 
 async function toggleCrawler() {
-  const endpoint = status.value.running ? '/api/crawler/stop' : '/api/crawler/start'
   try {
-    const res = await fetch(endpoint, { method: 'POST', headers: authHeaders() })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      Message.success(data.message)
-      await refresh()
+    if (status.value.running) {
+      await crawler.stop()
     } else {
-      Message.error(data.message || '操作失败')
+      await crawler.start()
     }
-  } catch {
-    Message.error('网络错误')
+    await refresh()
+  } catch (err) {
+    Message.error(err.message || '操作失败')
   }
 }
 
 async function addSeed() {
   if (!newSeedUrl.value?.trim()) return
   try {
-    const res = await fetch('/api/crawler/seeds', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ url: newSeedUrl.value.trim() }),
-    })
-    const data = await res.json()
-    if (data.code === 'ok') {
-      Message.success('种子已添加')
-      newSeedUrl.value = ''
-      await refresh()
-    } else {
-      Message.warning(data.message || '添加失败')
-    }
-  } catch {
-    Message.error('网络错误')
+    await crawler.addSeed({ url: newSeedUrl.value.trim() })
+    Message.success('种子已添加')
+    newSeedUrl.value = ''
+    await refresh()
+  } catch (err) {
+    Message.error(err.message || '添加失败')
   }
 }
 
@@ -262,6 +244,14 @@ onMounted(() => { refresh() })
 }
 .status-card .status-num { font-size: 28px; font-weight: 700; color: var(--color-text-1); line-height: 1; }
 .status-card.s-running .status-num { color: #0969da; }
+.sk-num {
+  background: var(--color-fill-3);
+  border-radius: 6px;
+  animation: sk-pulse 1.5s ease-in-out infinite;
+  display: inline-block;
+  min-width: 36px;
+}
+@keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .status-card.s-fail .status-num { color: #cf222e; }
 .status-card.s-info .status-num { color: #6e7781; }
 .status-label { font-size: 12px; color: var(--color-text-4); margin-top: 4px; }

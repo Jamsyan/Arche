@@ -1,4 +1,4 @@
-"""Crawler plugin settings."""
+"""爬虫插件设置。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Settings module for Arche backend."""
+"""Arche 后端配置模块。"""
 
 from __future__ import annotations
 
