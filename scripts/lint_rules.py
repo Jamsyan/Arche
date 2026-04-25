@@ -6,6 +6,7 @@
 1. lambda 禁止（DI 容器工厂模式除外）
 2. 嵌套列表推导式禁止（超过 1 层）
 """
+
 import ast
 import sys
 from pathlib import Path
@@ -34,16 +35,20 @@ class LambdaAndComprehensionVisitor(ast.NodeVisitor):
         self._check_comp_depth(node, "generator")
         super().generic_visit(node)
 
-    def _check_comp_depth(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp, kind: str) -> None:
+    def _check_comp_depth(
+        self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp, kind: str
+    ) -> None:
         depth = self._calc_depth(node)
         if depth > 1:
             line = node.elt.lineno if hasattr(node, "elt") and node.elt else node.lineno
-            self.errors.append({
-                "file": self.filepath,
-                "line": line,
-                "kind": "nested-comprehension",
-                "msg": f"[{kind} comprehension] 嵌套超过 1 层（depth={depth}），请拆解为普通循环",
-            })
+            self.errors.append(
+                {
+                    "file": self.filepath,
+                    "line": line,
+                    "kind": "nested-comprehension",
+                    "msg": f"[{kind} comprehension] 嵌套超过 1 层（depth={depth}），请拆解为普通循环",
+                }
+            )
 
     def _calc_depth(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp) -> int:
         """计算推导式嵌套深度"""
@@ -68,9 +73,8 @@ class LambdaAndComprehensionVisitor(ast.NodeVisitor):
     def visit_Lambda(self, node: ast.Lambda) -> None:
         # 白名单：SQLAlchemy Column default（形如 default=lambda: expr）
         # 特征：lambda 无参数，body 是单个表达式
-        is_sqlalchemy_default = (
-            len(node.args.args) == 0
-            and isinstance(node.body, ast.expr)
+        is_sqlalchemy_default = len(node.args.args) == 0 and isinstance(
+            node.body, ast.expr
         )
 
         # 白名单：iter() 的 sentinel 模式，iter(lambda: f.read(N), sentinel)
@@ -93,12 +97,14 @@ class LambdaAndComprehensionVisitor(ast.NodeVisitor):
                         break
 
         if not (is_sqlalchemy_default or is_iter_sentinel or is_di_factory):
-            self.errors.append({
-                "file": self.filepath,
-                "line": node.lineno,
-                "kind": "lambda",
-                "msg": f"[lambda] line {node.lineno}: lambda detected, use a named function instead",
-            })
+            self.errors.append(
+                {
+                    "file": self.filepath,
+                    "line": node.lineno,
+                    "kind": "lambda",
+                    "msg": f"[lambda] line {node.lineno}: lambda detected, use a named function instead",
+                }
+            )
         self.generic_visit(node)
 
     def _is_iter_sentinel(self, node: ast.Lambda) -> bool:
@@ -113,7 +119,7 @@ class LambdaAndComprehensionVisitor(ast.NodeVisitor):
         source = self._file_source
         line_start = node.lineno - 1
         line_end = node.lineno
-        lines_around = "\n".join(source.splitlines()[max(0, line_start - 2):line_end])
+        lines_around = "\n".join(source.splitlines()[max(0, line_start - 2) : line_end])
         return "iter(" in lines_around and "lambda" in lines_around
 
 
@@ -122,12 +128,14 @@ def check_file(filepath: Path) -> list[dict]:
         source = filepath.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(filepath))
     except SyntaxError as e:
-        return [{
-            "file": str(filepath),
-            "line": e.lineno or 0,
-            "kind": "syntax-error",
-            "msg": f"syntax error: {e.msg}",
-        }]
+        return [
+            {
+                "file": str(filepath),
+                "line": e.lineno or 0,
+                "kind": "syntax-error",
+                "msg": f"syntax error: {e.msg}",
+            }
+        ]
     visitor = LambdaAndComprehensionVisitor(str(filepath), source)
     visitor.visit(tree)
     return visitor.errors
@@ -153,6 +161,7 @@ def print_report(errors: list[dict]) -> None:
 
 def main() -> None:
     import argparse
+
     parser = argparse.ArgumentParser(description="自定义代码规范检查")
     parser.add_argument(
         "paths",
