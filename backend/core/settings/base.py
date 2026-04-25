@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -31,16 +31,25 @@ class PluginSettingsBase(BaseModel):
 def create_plugin_settings(
     name: str,
     fields: dict[str, type],
-    defaults: dict[str, ...] | None = None,
+    defaults: dict[str, Any] | None = None,
 ) -> type["BaseSettings"]:
     """动态创建插件 Settings 类。"""
+    from pydantic import create_model
+    from pydantic_settings import BaseSettings
 
-    class DynamicPluginSettings(PluginSettingsBase):
-        pass
+    defaults = defaults or {}
 
-    # 设置字段
+    # 构造字段定义：(type, default_value)
+    field_definitions = {}
     for field_name, field_type in fields.items():
-        DynamicPluginSettings.model_fields[field_name] = field_type
+        default = defaults.get(field_name, ...)
+        field_definitions[field_name] = (field_type, default)
 
-    DynamicPluginSettings.__name__ = f"{name.title().replace('_', '')}Settings"
-    return DynamicPluginSettings
+    # 动态创建模型，继承自PluginSettingsBase
+    settings_class = create_model(
+        f"{name.title().replace('_', '')}Settings",
+        __base__=PluginSettingsBase,
+        **field_definitions
+    )
+
+    return settings_class

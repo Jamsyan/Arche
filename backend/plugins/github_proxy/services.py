@@ -219,6 +219,9 @@ class GhCliService:
                 code="gh_not_installed",
                 status_code=500,
             )
+        except GitHubProxyError:
+            # 已经是 GitHubProxyError，直接抛出，不重新包装
+            raise
         except Exception as e:
             raise GitHubProxyError(
                 f"gh 命令执行失败: {str(e)}", code="gh_error", status_code=500
@@ -536,16 +539,19 @@ class HttpProxyService:
     def _parse_cache_ttl(self, cache_control: str) -> int | None:
         if not cache_control:
             return None
+        max_age = None
         for part in cache_control.split(","):
             part = part.strip()
+            if part == "no-cache" or part == "no-store" or part == "max-age=0":
+                return 0
             if part.startswith("max-age="):
                 try:
-                    return int(part.split("=", 1)[1])
+                    age = int(part.split("=", 1)[1])
+                    if age >= 0:
+                        max_age = age
                 except ValueError:
                     pass
-            if part == "no-cache" or part == "no-store":
-                return 0
-        return None
+        return max_age
 
     def clear_cache(self) -> int:
         count = len(self._cache)
@@ -650,10 +656,14 @@ class GitHubService:
     ) -> dict:
         """代理 GitHub 静态资源，支持模式选择和自动降级。"""
         if mode == "cli":
-            return await self.cli_service.proxy_raw_content(path)
+            result = await self.cli_service.proxy_raw_content(path)
+            result["mode"] = "cli"
+            return result
 
         if mode == "http":
-            return await self.http_service.proxy_raw_content(path)
+            result = await self.http_service.proxy_raw_content(path)
+            result["mode"] = "http"
+            return result
 
         # auto 模式
         try:

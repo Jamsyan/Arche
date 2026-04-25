@@ -9,6 +9,11 @@ from pydantic_settings import BaseSettings
 class AppSettings(BaseSettings):
     """核心应用配置。"""
 
+    model_config = {
+        "env_prefix": "",
+        "extra": "allow"
+    }
+
     DATABASE_URL: str = Field(
         default="sqlite+aiosqlite:///./data/arche.db",
         description="数据库连接字符串",
@@ -26,7 +31,3 @@ class AppSettings(BaseSettings):
 
     LOG_LEVEL: str = Field(default="INFO", description="日志级别")
     LOG_FILE: str | None = Field(default=None, description="日志文件路径")
-
-    class Config:
-        env_prefix = ""
-        extra = "allow"

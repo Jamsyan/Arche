@@ -99,8 +99,22 @@ uv run pytest backend/tests/integration/ -v
 # 只运行特定标记的测试（如慢速测试）
 uv run pytest -m "slow" -v
 
-# 查看覆盖率报告
+# 查看终端覆盖率（默认，不落地文件）
+uv run pytest --cov=backend --cov-report=term-missing
+
+# 需要 HTML 报告时显式开启（输出到 .artifacts/tests/coverage/html）
 uv run pytest --cov=backend --cov-report=html
-start htmlcov/index.html  # Windows
-open htmlcov/index.html   # MacOS
+
+# 查看组件测试覆盖盘点（源码数 / 测试文件数 / 用例数）
+uv run python backend/scripts/coverage_inventory.py
 ```
+
+---
+
+## 产物管理约定
+
+- 默认测试仅输出命令行结果，不生成 HTML 报告文件。
+- 可选覆盖率产物统一放在 `.artifacts/tests/coverage/`：
+  - HTML：`.artifacts/tests/coverage/html/`
+  - XML：`.artifacts/tests/coverage/coverage.xml`
+- `.artifacts/` 不入库，避免测试产物在仓库内散落。

@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env.*
+!.env.example
+
+# Auto generated files
+auto-imports.d.ts
+components.d.ts
+
+# Build stats
+stats.html
+stats.json
+
+# Cache files
+*.tsbuildinfo
+.vite
+.cache
