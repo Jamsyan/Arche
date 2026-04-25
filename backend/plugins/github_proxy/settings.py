@@ -18,6 +18,9 @@ class GitHubProxySettings(BaseSettings):
     )
     GITHUB_CACHE_TTL: int = Field(default=300, description="缓存 TTL (秒)")
     GITHUB_TIMEOUT: int = Field(default=30, description="请求超时 (秒)")
+    GITHUB_DEFAULT_MODE: str = Field(
+        default="auto", description="默认模式: auto/http/cli"
+    )
 
     class Config:
         extra = "allow"
