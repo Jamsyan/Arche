@@ -489,7 +489,8 @@ class HttpProxyService:
             "data": data,
             "status_code": status_code,
             "headers": resp_headers,
-            "cached": method.upper() == "GET" and self._get_cached(cache_key) is not None,
+            "cached": method.upper() == "GET"
+            and self._get_cached(cache_key) is not None,
         }
 
     async def proxy_raw_content(self, path: str) -> dict:
@@ -588,7 +589,7 @@ class GitHubService:
         代理 GitHub API 请求，支持模式选择和自动降级。
         """
         if mode == "cli":
-            return await self.cli_service.proxy_request(
+            result = await self.cli_service.proxy_request(
                 method=method,
                 path=path,
                 query_params=query_params,
@@ -596,9 +597,11 @@ class GitHubService:
                 body=body,
                 user_id=user_id,
             )
+            result["mode"] = "cli"
+            return result
 
         if mode == "http":
-            return await self.http_service.proxy_request(
+            result = await self.http_service.proxy_request(
                 method=method,
                 path=path,
                 query_params=query_params,
@@ -606,6 +609,8 @@ class GitHubService:
                 body=body,
                 user_id=user_id,
             )
+            result["mode"] = "http"
+            return result
 
         # auto 模式：先试 HTTP，失败降级 CLI
         try:

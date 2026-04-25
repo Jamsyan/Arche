@@ -51,7 +51,8 @@ class GithubProxyPlugin(BasePlugin):
         async def _check_gh_cli():
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "gh", "--version",
+                    "gh",
+                    "--version",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
