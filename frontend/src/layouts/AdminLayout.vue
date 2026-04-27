@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-layout">
+  <div class="admin-layout" :class="{ 'is-mobile': appStore.isMobile }">
     <!-- 顶部导航栏 -->
     <header class="layout-header">
       <div class="header-left">
@@ -28,7 +28,13 @@
 
     <div class="layout-body">
       <!-- 侧边栏 -->
-      <aside class="layout-sidebar" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <aside
+        class="layout-sidebar"
+        :class="{
+          'sidebar-collapsed': sidebarCollapsed,
+          'sidebar-open': appStore.isMobile && !sidebarCollapsed
+        }"
+      >
         <nav class="sidebar-nav">
           <div class="nav-group">
             <span v-if="!sidebarCollapsed" class="nav-group-title">系统管理</span>
@@ -73,44 +79,28 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  MenuOutline,
-  PersonCircleOutline,
-  HomeOutline,
-  LogOutOutline,
-  PeopleOutline,
-  AppsOutline
-} from '@/icons'
+import { MenuOutline, PersonCircleOutline, HomeOutline, LogOutOutline } from '@/icons'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
+import { usePermissionStore } from '@/store/modules/permission'
 import { $message } from '@/utils/message'
+import { buildLayoutMenus } from '@/router/menu'
 
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const permissionStore = usePermissionStore()
 
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const showUserMenu = ref(false)
 
-// 管理员侧边栏菜单
-const adminMenu = [
-  {
-    title: '用户管理',
-    path: '/admin/users',
-    icon: PeopleOutline
-  },
-  {
-    title: '插件管理',
-    path: '/admin/plugins',
-    icon: AppsOutline
-  }
-]
+const adminMenu = computed(() => buildLayoutMenus(permissionStore.routes, 'admin'))
 
 // 面包屑计算
 const breadcrumb = computed(() => {
   const path = router.currentRoute.value.path
-  if (path.startsWith('/admin/users')) return ['管理后台', '用户管理']
-  if (path.startsWith('/admin/plugins')) return ['管理后台', '插件管理']
+  const currentMenu = adminMenu.value.find((item) => path.startsWith(item.path))
+  if (currentMenu) return ['管理后台', currentMenu.title]
   return ['管理后台']
 })
 
@@ -345,6 +335,21 @@ const handleLogout = async () => {
 
 .layout-sidebar.sidebar-collapsed + .layout-content {
   margin-left: 64px;
+}
+
+.admin-layout.is-mobile .layout-sidebar {
+  width: 220px;
+  transform: translateX(-100%);
+  z-index: 250;
+}
+
+.admin-layout.is-mobile .layout-sidebar.sidebar-open {
+  transform: translateX(0);
+}
+
+.admin-layout.is-mobile .layout-content,
+.admin-layout.is-mobile .layout-sidebar.sidebar-collapsed + .layout-content {
+  margin-left: 0;
 }
 
 .content-header {

@@ -14,10 +14,10 @@ const goHome = () => {
 </script>
 
 <template>
-  <div class="not-found-page">
-    <NCard class="not-found-card card-glass">
-      <h1>404</h1>
-      <p>页面不存在或已被移除</p>
+  <div class="forbidden-page">
+    <NCard class="forbidden-card card-glass">
+      <h1>403</h1>
+      <p>当前账号没有访问该页面的权限</p>
       <NSpace justify="center">
         <NButton @click="goBack"> 返回上一页 </NButton>
         <NButton type="primary" @click="goHome"> 回到首页 </NButton>
@@ -27,7 +27,7 @@ const goHome = () => {
 </template>
 
 <style scoped>
-.not-found-page {
+.forbidden-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -35,7 +35,7 @@ const goHome = () => {
   padding: var(--spacing-xl);
 }
 
-.not-found-card {
+.forbidden-card {
   width: min(480px, 100%);
   text-align: center;
 }

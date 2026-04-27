@@ -1,12 +1,26 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
-import { NCard, NTable, NPagination, NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
+import { NCard, NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
 import { AddOutline } from '@/icons'
+import ProTable from '@/components/ProTable.vue'
+import {
+  createPostApi,
+  deletePostApi,
+  getMyPostsApi,
+  type BlogPost,
+  type Paginated
+} from '@/services/api'
 
 const message = useMessage()
-const page = ref(1)
-const pageSize = ref(10)
+const tableData = ref<PostRow[]>([])
 
+interface PostRow {
+  key: string
+  id: string
+  title: string
+  createdAt: string
+  status: string
+}
 const columns = [
   {
     title: '标题',
@@ -36,7 +50,7 @@ const columns = [
     title: '操作',
     key: 'actions',
     width: 180,
-    render: (row: { key: string; title: string }) => {
+    render: (row: PostRow) => {
       return h('div', { style: { display: 'flex', gap: '8px' } }, [
         h(
           NButton,
@@ -75,40 +89,60 @@ const columns = [
   }
 ]
 
-const data = ref([
-  {
-    key: '1',
-    title: 'Arche 架构设计思考',
-    createdAt: '2026-04-25',
-    status: '已发布'
-  },
-  {
-    key: '2',
-    title: 'Vue 3 权限驱动架构实践',
-    createdAt: '2026-04-24',
-    status: '已发布'
-  },
-  {
-    key: '3',
-    title: '微内核 + 插件系统原理',
-    createdAt: '2026-04-23',
-    status: '草稿'
-  }
-])
+const toPostRow = (item: BlogPost): PostRow => ({
+  key: item.id,
+  id: item.id,
+  title: item.title,
+  createdAt: item.created_at ? item.created_at.slice(0, 10) : '-',
+  status: item.status || '草稿'
+})
 
-const handleCreate = () => {
-  message.info('新建文章功能开发中')
+const fetchPosts = async (params: {
+  page: number
+  pageSize: number
+}): Promise<Paginated<PostRow>> => {
+  const res = await getMyPostsApi({
+    page: params.page,
+    page_size: params.pageSize
+  })
+  const list = (res.list || []).map(toPostRow)
+  tableData.value = list
+  return {
+    total: res.total,
+    page: res.page,
+    page_size: res.page_size,
+    list
+  }
 }
 
-const handleEdit = (row: any) => {
+const handleCreate = () => {
+  createPostApi({
+    title: `新文章 ${new Date().toLocaleString()}`,
+    content: '自动创建的演示内容',
+    tags: ['demo']
+  })
+    .then(() => {
+      message.success('已创建演示文章')
+    })
+    .catch(() => {
+      message.error('创建文章失败')
+    })
+}
+
+const handleEdit = (row: PostRow) => {
   message.info(`编辑文章: ${row.title}`)
 }
 
-const handleDelete = (row: any) => {
-  const index = data.value.findIndex((item) => item.key === row.key)
-  if (index > -1) {
-    data.value.splice(index, 1)
+const handleDelete = async (row: PostRow) => {
+  try {
+    await deletePostApi(row.id)
+    const index = tableData.value.findIndex((item) => item.key === row.key)
+    if (index > -1) {
+      tableData.value.splice(index, 1)
+    }
     message.success('删除成功')
+  } catch {
+    message.error('删除文章失败')
   }
 }
 </script>
@@ -128,18 +162,7 @@ const handleDelete = (row: any) => {
         </div>
       </template>
 
-      <NTable :columns="columns" :data="data" row-key="key" :pagination="false" single-line />
-
-      <div class="pagination-section">
-        <NPagination
-          v-model:page="page"
-          v-model:page-size="pageSize"
-          :page-count="10"
-          show-size-changer
-          :page-sizes="[10, 20, 50]"
-          show-quick-jumper
-        />
-      </div>
+      <ProTable :columns="columns" :data="tableData" :request="fetchPosts" row-key="key" />
     </NCard>
   </div>
 </template>
@@ -155,11 +178,5 @@ const handleDelete = (row: any) => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-}
-
-.pagination-section {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--spacing-xl);
 }
 </style>

@@ -2,7 +2,9 @@ import axios, {
   type AxiosInstance,
   type AxiosRequestConfig,
   type AxiosResponse,
-  type InternalAxiosRequestConfig
+  type InternalAxiosRequestConfig,
+  AxiosError,
+  CanceledError
 } from 'axios'
 import { $message } from '@/utils/message'
 import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
@@ -13,6 +15,19 @@ export interface ResponseData<T = any> {
   message: string
   data: T
   success: boolean
+}
+
+export interface RequestOptions {
+  silent?: boolean
+  dedupe?: boolean
+  dedupeKey?: string
+}
+
+export type RequestConfig = AxiosRequestConfig & RequestOptions
+
+interface RequestInternalConfig extends InternalAxiosRequestConfig {
+  requestOptions?: RequestOptions
+  dedupeKey?: string
 }
 
 // 创建axios实例
@@ -33,18 +48,71 @@ const notifyUnauthorized = () => {
   window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT))
 }
 
+const pendingControllers = new Map<string, AbortController>()
+
+const getRequestKey = (config: RequestInternalConfig) => {
+  if (config.requestOptions?.dedupeKey) {
+    return config.requestOptions.dedupeKey
+  }
+  const method = (config.method || 'get').toUpperCase()
+  const url = config.url || ''
+  const params = config.params ? JSON.stringify(config.params) : ''
+  const data =
+    typeof config.data === 'string' ? config.data : config.data ? JSON.stringify(config.data) : ''
+  return `${method}:${url}:${params}:${data}`
+}
+
+const shouldEnableDedupe = (config: RequestInternalConfig) => {
+  if (typeof config.requestOptions?.dedupe === 'boolean') {
+    return config.requestOptions.dedupe
+  }
+  const method = (config.method || 'get').toLowerCase()
+  return ['post', 'put', 'patch', 'delete'].includes(method)
+}
+
+const removePendingController = (config?: RequestInternalConfig) => {
+  const dedupeKey = config?.dedupeKey
+  if (dedupeKey && pendingControllers.has(dedupeKey)) {
+    pendingControllers.delete(dedupeKey)
+  }
+}
+
+export const cancelAllPendingRequests = (reason = '路由切换，取消未完成请求') => {
+  pendingControllers.forEach((controller) => {
+    controller.abort(reason)
+  })
+  pendingControllers.clear()
+}
+
 // 请求拦截器
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const requestConfig = config as RequestInternalConfig
+
     // 在发送请求之前做些什么
     // 从localStorage获取token
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    return config
+
+    if (shouldEnableDedupe(requestConfig)) {
+      const dedupeKey = getRequestKey(requestConfig)
+      requestConfig.dedupeKey = dedupeKey
+
+      const previousController = pendingControllers.get(dedupeKey)
+      if (previousController) {
+        previousController.abort('重复请求已取消')
+      }
+
+      const controller = new AbortController()
+      requestConfig.signal = controller.signal
+      pendingControllers.set(dedupeKey, controller)
+    }
+
+    return requestConfig
   },
-  (error: any) => {
+  (error: unknown) => {
     // 对请求错误做些什么
     console.error('Request error:', error)
     return Promise.reject(error)
@@ -54,10 +122,15 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse<ResponseData>) => {
+    const config = response.config as RequestInternalConfig
+    removePendingController(config)
+
     const res = response.data
     // 如果返回的状态码不是200，说明出错了
     if (res.code !== 200) {
-      $message.error(res.message || '请求失败')
+      if (!config.requestOptions?.silent) {
+        $message.error(res.message || '请求失败')
+      }
 
       // 401: 未登录或token过期
       if (res.code === 401) {
@@ -66,7 +139,7 @@ service.interceptors.response.use(
       }
 
       // 403: 权限不足
-      if (res.code === 403) {
+      if (res.code === 403 && !config.requestOptions?.silent) {
         $message.error('权限不足，无法访问')
       }
 
@@ -75,12 +148,20 @@ service.interceptors.response.use(
       return res.data
     }
   },
-  (error: any) => {
+  (error: unknown) => {
+    const axiosError = error as AxiosError
+    const config = axiosError.config as RequestInternalConfig | undefined
+    removePendingController(config)
+
+    if (error instanceof CanceledError || axios.isCancel(error)) {
+      return Promise.reject(error)
+    }
+
     console.error('Response error:', error)
     let errorMessage = '网络错误，请稍后重试'
 
-    if (error.response) {
-      switch (error.response.status) {
+    if (axiosError.response) {
+      switch (axiosError.response.status) {
         case 400:
           errorMessage = '请求参数错误'
           break
@@ -99,24 +180,34 @@ service.interceptors.response.use(
           errorMessage = '服务器内部错误'
           break
         default:
-          errorMessage = `请求错误 ${error.response.status}`
+          errorMessage = `请求错误 ${axiosError.response.status}`
       }
-    } else if (error.request) {
+    } else if (axiosError.request) {
       errorMessage = '网络连接异常，请检查网络设置'
     }
 
-    $message.error(errorMessage)
+    if (!config?.requestOptions?.silent) {
+      $message.error(errorMessage)
+    }
     return Promise.reject(error)
   }
 )
 
 // 封装请求方法
-const request = <T = any>(config: AxiosRequestConfig): Promise<T> => {
-  return service.request<any, T>(config)
+const request = <T = any>(config: RequestConfig): Promise<T> => {
+  const { silent, dedupe, dedupeKey, ...axiosConfig } = config
+  return service.request<any, T>({
+    ...axiosConfig,
+    requestOptions: {
+      silent,
+      dedupe,
+      dedupeKey
+    }
+  } as RequestInternalConfig)
 }
 
 // 封装常用方法
-export const get = <T = any>(url: string, params?: any, config?: AxiosRequestConfig): Promise<T> => {
+export const get = <T = any>(url: string, params?: any, config?: RequestConfig): Promise<T> => {
   return request<T>({
     method: 'get',
     url,
@@ -125,7 +216,7 @@ export const get = <T = any>(url: string, params?: any, config?: AxiosRequestCon
   })
 }
 
-export const post = <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+export const post = <T = any>(url: string, data?: any, config?: RequestConfig): Promise<T> => {
   return request<T>({
     method: 'post',
     url,
@@ -134,7 +225,7 @@ export const post = <T = any>(url: string, data?: any, config?: AxiosRequestConf
   })
 }
 
-export const put = <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+export const put = <T = any>(url: string, data?: any, config?: RequestConfig): Promise<T> => {
   return request<T>({
     method: 'put',
     url,
@@ -143,7 +234,7 @@ export const put = <T = any>(url: string, data?: any, config?: AxiosRequestConfi
   })
 }
 
-export const del = <T = any>(url: string, params?: any, config?: AxiosRequestConfig): Promise<T> => {
+export const del = <T = any>(url: string, params?: any, config?: RequestConfig): Promise<T> => {
   return request<T>({
     method: 'delete',
     url,
@@ -153,7 +244,7 @@ export const del = <T = any>(url: string, params?: any, config?: AxiosRequestCon
 }
 
 // 上传文件方法
-export const upload = <T = any>(url: string, file: File, config?: AxiosRequestConfig): Promise<T> => {
+export const upload = <T = any>(url: string, file: File, config?: RequestConfig): Promise<T> => {
   const formData = new FormData()
   formData.append('file', file)
 

@@ -18,10 +18,10 @@ const handleLogout = async () => {
       <div class="header-content">
         <h1 class="logo">Arche</h1>
         <NMenu mode="horizontal" value="/" class="nav-menu">
-          <NMenuItem key="/">首页</NMenuItem>
+          <NMenuItem key="/"> 首页 </NMenuItem>
         </NMenu>
         <div class="user-area">
-          <button @click="handleLogout" class="logout-btn">登出</button>
+          <button class="logout-btn" @click="handleLogout">登出</button>
         </div>
       </div>
     </NLayoutHeader>

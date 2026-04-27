@@ -16,6 +16,16 @@ app.use(router)
 const appStore = useAppStore()
 appStore.initTheme()
 
+const syncViewportState = () => {
+  appStore.setMobile(window.innerWidth < 992)
+  if (appStore.isMobile) {
+    appStore.setSidebarCollapsed(true)
+  }
+}
+
+syncViewportState()
+window.addEventListener('resize', syncViewportState)
+
 // 注册自定义指令
 setupDirectives(app)
 

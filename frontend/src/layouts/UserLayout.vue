@@ -1,5 +1,5 @@
 <template>
-  <div class="user-layout">
+  <div class="user-layout" :class="{ 'is-mobile': appStore.isMobile }">
     <!-- 顶部导航栏 -->
     <header class="layout-header">
       <div class="header-left">
@@ -25,7 +25,13 @@
 
     <div class="layout-body">
       <!-- 侧边栏 -->
-      <aside class="layout-sidebar" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <aside
+        class="layout-sidebar"
+        :class="{
+          'sidebar-collapsed': sidebarCollapsed,
+          'sidebar-open': appStore.isMobile && !sidebarCollapsed
+        }"
+      >
         <nav class="sidebar-nav">
           <RouterLink
             v-for="item in userMenu"
@@ -68,46 +74,41 @@ import {
   PersonCircleOutline,
   PersonOutline,
   LogOutOutline,
-  DocumentTextOutline,
   HomeOutline
 } from '@/icons'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
+import { usePermissionStore } from '@/store/modules/permission'
 import { $message } from '@/utils/message'
+import { buildLayoutMenus } from '@/router/menu'
 
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const permissionStore = usePermissionStore()
 
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const showUserMenu = ref(false)
 
-// 用户侧边栏菜单
-const userMenu = [
-  {
+const userMenu = computed(() => {
+  const menus = buildLayoutMenus(permissionStore.routes, 'user')
+  const homeMenu = {
     title: '首页',
     path: '/',
     icon: HomeOutline
-  },
-  {
-    title: '我的文章',
-    path: '/posts',
-    icon: DocumentTextOutline
-  },
-  {
-    title: '个人中心',
-    path: '/profile',
-    icon: PersonOutline
   }
-]
+  return [homeMenu, ...menus]
+})
 
 // 面包屑计算
 const breadcrumb = computed(() => {
   const path = router.currentRoute.value.path
   if (path === '/') return ['首页']
-  if (path === '/posts') return ['首页', '我的文章']
-  if (path === '/profile') return ['首页', '个人中心']
-  return ['首页']
+  const currentMenu = userMenu.value.find((item) => item.path === path)
+  if (currentMenu) {
+    return ['首页', currentMenu.title]
+  }
+  return ['首页', '页面']
 })
 
 // 切换侧边栏
@@ -321,6 +322,21 @@ const handleLogout = async () => {
 
 .layout-sidebar.sidebar-collapsed + .layout-content {
   margin-left: 64px;
+}
+
+.user-layout.is-mobile .layout-sidebar {
+  width: 220px;
+  transform: translateX(-100%);
+  z-index: 250;
+}
+
+.user-layout.is-mobile .layout-sidebar.sidebar-open {
+  transform: translateX(0);
+}
+
+.user-layout.is-mobile .layout-content,
+.user-layout.is-mobile .layout-sidebar.sidebar-collapsed + .layout-content {
+  margin-left: 0;
 }
 
 .content-header {

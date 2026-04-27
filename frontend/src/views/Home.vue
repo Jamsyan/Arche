@@ -8,12 +8,8 @@
           一名热爱技术的开发者，在这里分享我的技术思考、项目经验和生活感悟。
         </p>
         <div class="hero-buttons">
-          <NButton type="primary" size="large" @click="goToBlog">
-            浏览文章
-          </NButton>
-          <NButton size="large" @click="goToAbout">
-            了解更多
-          </NButton>
+          <NButton type="primary" size="large" @click="goToBlog"> 浏览文章 </NButton>
+          <NButton size="large" @click="goToAbout"> 了解更多 </NButton>
         </div>
       </div>
     </div>
@@ -22,19 +18,29 @@
     <div class="latest-section">
       <div class="section-header">
         <h2 class="section-title">最新文章</h2>
-        <NButton quaternary @click="goToBlog">查看全部 →</NButton>
+        <NButton quaternary @click="goToBlog"> 查看全部 → </NButton>
       </div>
       <div class="articles-grid">
-        <article v-for="post in latestPosts" :key="post.id" class="article-card card-glass glass-hover">
+        <article
+          v-for="post in latestPosts"
+          :key="post.id"
+          class="article-card card-glass glass-hover"
+        >
           <div class="article-meta">
             <span class="article-date">{{ post.date }}</span>
-            <NTag size="small" :type="post.tagType">{{ post.tag }}</NTag>
+            <NTag size="small" :type="post.tagType">
+              {{ post.tag }}
+            </NTag>
           </div>
-          <h3 class="article-title">{{ post.title }}</h3>
-          <p class="article-excerpt">{{ post.excerpt }}</p>
+          <h3 class="article-title">
+            {{ post.title }}
+          </h3>
+          <p class="article-excerpt">
+            {{ post.excerpt }}
+          </p>
           <div class="article-footer">
             <span class="read-time">{{ post.readTime }} 分钟阅读</span>
-            <NButton text size="small" @click="viewArticle(post)">阅读全文 →</NButton>
+            <NButton text size="small" @click="viewArticle(post)"> 阅读全文 → </NButton>
           </div>
         </article>
       </div>
@@ -67,43 +73,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
 import { NButton, NTag, useMessage } from 'naive-ui'
+import { getBlogPostsApi } from '@/services/api'
 
-const router = useRouter()
 const message = useMessage()
 
+type PostTagType = 'primary' | 'success' | 'warning' | 'error' | 'default' | 'info'
+
+interface LatestPost {
+  id: number
+  title: string
+  excerpt: string
+  date: string
+  tag: string
+  tagType: PostTagType
+  readTime: number
+}
+
 // 模拟最新文章数据
-const latestPosts = ref([
-  {
-    id: 1,
-    title: '微内核架构在个人项目中的实践',
-    excerpt: '分享我如何在个人项目中使用微内核架构，实现功能的插件化扩展，提升项目的可维护性。',
-    date: '2024-05-20',
-    tag: '架构',
-    tagType: 'primary',
-    readTime: 8
-  },
-  {
-    id: 2,
-    title: 'Vue 3 + TypeScript 最佳实践总结',
-    excerpt: '基于我多年的Vue开发经验，总结出的一套TypeScript开发最佳实践，包含类型定义、组件设计等。',
-    date: '2024-05-15',
-    tag: '前端',
-    tagType: 'success',
-    readTime: 6
-  },
-  {
-    id: 3,
-    title: 'FastAPI 高性能后端开发指南',
-    excerpt: '如何使用FastAPI快速构建高性能的后端服务，包含路由设计、数据库集成、权限控制等内容。',
-    date: '2024-05-10',
-    tag: '后端',
-    tagType: 'warning',
-    readTime: 10
-  }
-])
+const latestPosts = ref<LatestPost[]>([])
 
 // 模拟统计数据
 const stats = ref({
@@ -123,6 +112,37 @@ const goToAbout = () => {
 const viewArticle = (post: any) => {
   message.info(`打开文章: ${post.title}`)
 }
+
+onMounted(async () => {
+  try {
+    const res = await getBlogPostsApi({
+      page: 1,
+      page_size: 3
+    })
+    latestPosts.value = (res.list || []).map((item, index) => ({
+      id: Number(item.id || index + 1),
+      title: item.title,
+      excerpt: item.content?.slice(0, 70) || '暂无摘要',
+      date: item.created_at ? item.created_at.slice(0, 10) : '-',
+      tag: item.tags?.[0] || '通用',
+      tagType: (['primary', 'success', 'warning'][index % 3] as PostTagType) || 'info',
+      readTime: Math.max(3, Math.round((item.content?.length || 100) / 240))
+    }))
+  } catch {
+    message.warning('加载最新文章失败，已展示占位内容')
+    latestPosts.value = [
+      {
+        id: 1,
+        title: '暂时无法拉取文章',
+        excerpt: '请检查后端服务是否启动。',
+        date: '-',
+        tag: '系统',
+        tagType: 'warning',
+        readTime: 1
+      }
+    ]
+  }
+})
 </script>
 
 <style scoped>

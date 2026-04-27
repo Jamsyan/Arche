@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NDescriptions, NDescriptionsItem, NButton, NModal, NTag, useMessage } from 'naive-ui'
+import {
+  NCard,
+  NDescriptions,
+  NDescriptionsItem,
+  NButton,
+  NModal,
+  NTag,
+  useMessage
+} from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 
 const router = useRouter()
@@ -15,7 +23,7 @@ const handleLogout = async () => {
     await userStore.logout()
     message.success('退出登录成功')
     await router.push('/login')
-  } catch (error) {
+  } catch {
     message.error('退出登录失败')
   } finally {
     showLogoutModal.value = false
@@ -38,21 +46,27 @@ const handleLogout = async () => {
         </NDescriptionsItem>
         <NDescriptionsItem label="角色">
           <NTag :type="userStore.userInfo?.role === 'admin' ? 'error' : 'primary'">
-            {{ userStore.userInfo?.role === 'admin' ? '管理员' : userStore.userInfo?.role === 'user' ? '普通用户' : '访客' }}
+            {{
+              userStore.userInfo?.role === 'admin'
+                ? '管理员'
+                : userStore.userInfo?.role === 'user'
+                  ? '普通用户'
+                  : '访客'
+            }}
           </NTag>
         </NDescriptionsItem>
         <NDescriptionsItem label="权限">
-          {{ userStore.userInfo?.permissions.length ? `${userStore.userInfo.permissions.length} 项权限` : '无权限' }}
+          {{
+            userStore.userInfo?.permissions.length
+              ? `${userStore.userInfo.permissions.length} 项权限`
+              : '无权限'
+          }}
         </NDescriptionsItem>
-        <NDescriptionsItem label="注册时间">
-          2026-04-25
-        </NDescriptionsItem>
+        <NDescriptionsItem label="注册时间"> 2026-04-25 </NDescriptionsItem>
       </NDescriptions>
 
       <div class="action-section">
-        <NButton type="error" @click="showLogoutModal = true">
-          退出登录
-        </NButton>
+        <NButton type="error" @click="showLogoutModal = true"> 退出登录 </NButton>
       </div>
     </NCard>
 

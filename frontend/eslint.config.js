@@ -8,7 +8,7 @@ import prettier from 'eslint-plugin-prettier'
 export default [
   /* 忽略文件 */
   {
-    ignores: ['node_modules/**', 'dist/**', '*.config.js', '*.d.ts']
+    ignores: ['node_modules/**', 'dist/**', '*.config.js', '**/*.d.ts']
   },
 
   /* 基础配置 */
@@ -36,7 +36,7 @@ export default [
     rules: {
       'prettier/prettier': 'error',
       '@typescript-eslint/no-unused-vars': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       'vue/multi-word-component-names': 'off',
       'no-console': 'off'
     }
@@ -63,9 +63,17 @@ export default [
     rules: {
       'prettier/prettier': 'error',
       '@typescript-eslint/no-unused-vars': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       'vue/multi-word-component-names': 'off',
-      'no-console': 'off'
+      'no-console': 'off',
+      'vue/max-attributes-per-line': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
+      'vue/multiline-html-element-content-newline': 'off',
+      'vue/first-attribute-linebreak': 'off',
+      'vue/html-closing-bracket-newline': 'off',
+      'vue/html-indent': 'off',
+      'vue/attributes-order': 'off',
+      'vue/require-default-prop': 'off'
     }
   }
 ]

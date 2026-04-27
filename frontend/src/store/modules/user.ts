@@ -18,13 +18,25 @@ export const useUserStore = defineStore(
 
     const applyUserSession = (nextToken: string, nextUserInfo: UserInfo) => {
       const permissionStore = usePermissionStore()
+      const normalizedPermissions =
+        nextUserInfo.permissions?.length > 0
+          ? nextUserInfo.permissions
+          : nextUserInfo.role === 'admin'
+            ? ['*']
+            : []
 
       token.value = nextToken
       userInfo.value = nextUserInfo
-      permissionStore.setUserPermission(nextUserInfo.role, nextUserInfo.permissions)
+      permissionStore.setUserPermission(nextUserInfo.role, normalizedPermissions)
 
       localStorage.setItem('token', nextToken)
-      localStorage.setItem('userInfo', JSON.stringify(nextUserInfo))
+      localStorage.setItem(
+        'userInfo',
+        JSON.stringify({
+          ...nextUserInfo,
+          permissions: normalizedPermissions
+        })
+      )
     }
 
     const mockUsers: Record<UserRole, UserInfo> = {
@@ -33,7 +45,7 @@ export const useUserStore = defineStore(
         username: 'user',
         nickname: '普通用户',
         role: 'user',
-        permissions: ['posts:read', 'posts:edit']
+        permissions: ['auth:me', 'blog:posts:read', 'blog:posts:write']
       },
       admin: {
         id: '2',
@@ -97,6 +109,10 @@ export const useUserStore = defineStore(
       usePermissionStore().resetPermission()
     }
 
+    const resetState = () => {
+      clearUserState()
+    }
+
     // 初始化用户状态，从localStorage恢复
     const initUserState = () => {
       const savedToken = localStorage.getItem('token')
@@ -125,6 +141,7 @@ export const useUserStore = defineStore(
       logout,
       getUserInfo,
       clearUserState,
+      resetState,
       initUserState
     }
   },

@@ -98,7 +98,8 @@ export function isChinese(str: string): boolean {
  * @param str 字符串
  */
 export function hasSpecialChar(str: string): boolean {
-  const reg = /[`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘’，。、]/im
+  const reg =
+    /[`~!@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘’，。、]/im
   return reg.test(str)
 }
 
@@ -118,7 +119,12 @@ export function validatePasswordStrength(password: string): {
   if (/[a-z]/.test(password)) level++
   if (/[A-Z]/.test(password)) level++
   if (/[0-9]/.test(password)) level++
-  if (/[`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘’，。、]/.test(password)) level++
+  if (
+    /[`~!@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘’，。、]/.test(
+      password
+    )
+  )
+    level++
 
   return {
     level: Math.min(level, 3) as 0 | 1 | 2 | 3,

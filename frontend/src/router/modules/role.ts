@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { API_PERMISSION } from '@/constants/permissions'
 
 export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = {
   guest: [],
@@ -10,7 +11,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       meta: {
         title: '个人中心',
         layout: 'user',
-        requiresAuth: true
+        requiresAuth: true,
+        permission: API_PERMISSION.AUTH_ME,
+        icon: 'PersonOutline'
       }
     },
     {
@@ -20,7 +23,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       meta: {
         title: '我的文章',
         layout: 'user',
-        requiresAuth: true
+        requiresAuth: true,
+        permission: API_PERMISSION.BLOG_POSTS_READ,
+        icon: 'DocumentTextOutline'
       }
     }
   ],
@@ -33,7 +38,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
         title: '管理后台',
         layout: 'admin',
         requiresAuth: true,
-        role: 'admin'
+        role: 'admin',
+        permission: API_PERMISSION.AUTH_USERS_LIST,
+        menu: false
       },
       redirect: '/admin/users',
       children: [
@@ -45,7 +52,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
             title: '用户管理',
             layout: 'admin',
             requiresAuth: true,
-            role: 'admin'
+            role: 'admin',
+            permission: API_PERMISSION.AUTH_USERS_LIST,
+            icon: 'PeopleOutline'
           }
         },
         {
@@ -56,7 +65,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
             title: '插件管理',
             layout: 'admin',
             requiresAuth: true,
-            role: 'admin'
+            role: 'admin',
+            permission: API_PERMISSION.ASSETS_READ,
+            icon: 'AppsOutline'
           }
         }
       ]

@@ -8,16 +8,17 @@
           <span class="logo-desc">个人博客</span>
         </div>
         <nav class="nav-menu">
-          <RouterLink to="/" class="nav-item">首页</RouterLink>
-          <RouterLink to="/blog" class="nav-item">文章</RouterLink>
-          <RouterLink to="/about" class="nav-item">关于</RouterLink>
-          <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
+          <RouterLink to="/" class="nav-item"> 首页 </RouterLink>
+          <RouterLink to="/blog" class="nav-item"> 文章 </RouterLink>
+          <RouterLink to="/about" class="nav-item"> 关于 </RouterLink>
+          <RouterLink to="/login" class="nav-item login-btn"> 登录 </RouterLink>
         </nav>
       </div>
     </header>
     <main class="guest-main">
       <div class="container">
-        <slot /> <!-- 页面内容在这里 -->
+        <slot />
+        <!-- 页面内容在这里 -->
       </div>
     </main>
     <footer class="guest-footer glass">

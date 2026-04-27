@@ -51,6 +51,8 @@
   --spacing-lg: 24px;
   --spacing-xl: 32px;
   --spacing-2xl: 48px;
+
+  --layout-mobile-breakpoint: 992px;
 }
 
 /* Naive UI 主题变量覆盖 */

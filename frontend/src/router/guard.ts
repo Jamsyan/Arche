@@ -1,17 +1,14 @@
 import router from './index'
-import pinia from '@/store'
+import { resetAllStores } from '@/store'
 import { useUserStore } from '@/store/modules/user'
 import { usePermissionStore } from '@/store/modules/permission'
 import { $message } from '@/utils/message'
 import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
+import { cancelAllPendingRequests } from '@/services/request'
 let routerInitiated = false
 
 const onUnauthorized = () => {
-  const userStore = useUserStore(pinia)
-  const permissionStore = usePermissionStore(pinia)
-
-  userStore.clearUserState()
-  permissionStore.resetPermission()
+  resetAllStores()
 
   if (router.currentRoute.value.path !== '/login') {
     router.push('/login')
@@ -20,8 +17,29 @@ const onUnauthorized = () => {
 
 window.addEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized)
 
+const canAccessRoutePermission = (
+  permissionStore: ReturnType<typeof usePermissionStore>,
+  routePermission: unknown
+) => {
+  if (!routePermission) {
+    return true
+  }
+
+  if (typeof routePermission === 'string') {
+    return permissionStore.hasPermission(routePermission)
+  }
+
+  if (Array.isArray(routePermission)) {
+    return routePermission.some((permission) => permissionStore.hasPermission(String(permission)))
+  }
+
+  return true
+}
+
 router.beforeEach(async (to, from, next) => {
-  void from
+  if (from.path && from.path !== to.path) {
+    cancelAllPendingRequests()
+  }
 
   const userStore = useUserStore()
   const permissionStore = usePermissionStore()
@@ -77,6 +95,12 @@ router.beforeEach(async (to, from, next) => {
       next({ path: '/' })
       return
     }
+  }
+
+  const requiredPermission = to.meta?.permission
+  if (!canAccessRoutePermission(permissionStore, requiredPermission)) {
+    next({ path: '/403', query: { redirect: to.fullPath } })
+    return
   }
 
   // 路由存在，正常访问

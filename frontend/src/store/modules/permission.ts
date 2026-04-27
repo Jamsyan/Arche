@@ -63,6 +63,10 @@ export const usePermissionStore = defineStore(
       routesLoaded.value = false
     }
 
+    const resetState = () => {
+      resetPermission()
+    }
+
     return {
       routes,
       permissions,
@@ -73,7 +77,8 @@ export const usePermissionStore = defineStore(
       generateRoutes,
       setPermissions,
       setUserPermission,
-      resetPermission
+      resetPermission,
+      resetState
     }
   },
   {

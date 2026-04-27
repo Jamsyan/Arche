@@ -31,7 +31,7 @@ const handleMenuSelect = (key: string) => {
 </script>
 
 <template>
-  <NLayout hasSider class="admin-layout">
+  <NLayout has-sider class="admin-layout">
     <NLayoutSider bordered class="admin-sider">
       <div class="admin-logo">
         <h3>Arche 管理后台</h3>

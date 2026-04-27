@@ -31,6 +31,8 @@ export const useAppStore = defineStore(
     const language = ref('zh-CN')
     // 页面切换动画
     const transitionName = ref('fade-transform')
+    // 移动端模式
+    const isMobile = ref(false)
 
     // 切换主题
     const toggleTheme = () => {
@@ -62,6 +64,27 @@ export const useAppStore = defineStore(
       layout.value = newLayout
     }
 
+    const setTransitionName = (name: string) => {
+      transitionName.value = name
+    }
+
+    const setMobile = (value: boolean) => {
+      isMobile.value = value
+    }
+
+    const resetState = () => {
+      theme.value = getSystemTheme()
+      layout.value = 'default'
+      sidebarCollapsed.value = false
+      breadcrumbVisible.value = true
+      tabsVisible.value = true
+      footerVisible.value = true
+      language.value = 'zh-CN'
+      transitionName.value = 'fade-transform'
+      isMobile.value = false
+      applyThemeClass(theme.value)
+    }
+
     return {
       theme,
       layout,
@@ -71,15 +94,21 @@ export const useAppStore = defineStore(
       footerVisible,
       language,
       transitionName,
+      isMobile,
       toggleTheme,
       setTheme,
       initTheme,
       toggleSidebar,
       setSidebarCollapsed,
-      setLayout
+      setLayout,
+      setTransitionName,
+      setMobile,
+      resetState
     }
   },
   {
-    persist: true // 开启持久化，默认存储到localStorage，存储所有状态
+    persist: {
+      pick: ['theme', 'layout', 'sidebarCollapsed', 'language', 'transitionName']
+    }
   }
 )

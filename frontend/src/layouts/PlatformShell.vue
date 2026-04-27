@@ -19,16 +19,16 @@ const handleLogout = async () => {
         <h1 class="logo">Arche</h1>
         <div class="user-area">
           <span>当前用户</span>
-          <button @click="handleLogout" class="logout-btn">登出</button>
+          <button class="logout-btn" @click="handleLogout">登出</button>
         </div>
       </div>
     </NLayoutHeader>
     <NLayout has-sider>
       <NLayoutSider bordered>
         <NMenu mode="vertical" :default-value="'/'">
-          <NMenuItem key="/">首页</NMenuItem>
-          <NMenuItem key="/posts">我的帖子</NMenuItem>
-          <NMenuItem key="/profile">个人资料</NMenuItem>
+          <NMenuItem key="/"> 首页 </NMenuItem>
+          <NMenuItem key="/posts"> 我的帖子 </NMenuItem>
+          <NMenuItem key="/profile"> 个人资料 </NMenuItem>
         </NMenu>
       </NLayoutSider>
       <NLayoutContent>

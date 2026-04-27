@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string
   /** 是否开启调试模式 */
   readonly VITE_ENABLE_DEBUG: boolean
+  /** 是否使用演示登录 */
+  readonly VITE_USE_MOCK_LOGIN?: 'true' | 'false'
 }
 
 interface ImportMeta {

@@ -2,8 +2,6 @@
 import { ref, h } from 'vue'
 import {
   NCard,
-  NTable,
-  NPagination,
   NButton,
   NTag,
   NPopconfirm,
@@ -14,12 +12,20 @@ import {
   NModal
 } from 'naive-ui'
 import { AddOutline } from '@/icons'
+import ProTable from '@/components/ProTable.vue'
+import {
+  getAssetStatsApi,
+  getConfigGroupsApi,
+  getPluginLikeListApi,
+  getSystemSummaryApi,
+  type Paginated,
+  type PluginSummary
+} from '@/services/api'
 
 const message = useMessage()
-const page = ref(1)
-const pageSize = ref(10)
 const showInfoModal = ref(false)
-const currentPlugin = ref<any>(null)
+const currentPlugin = ref<PluginSummary | null>(null)
+const tableData = ref<PluginSummary[]>([])
 
 const columns = [
   {
@@ -58,7 +64,7 @@ const columns = [
     title: '操作',
     key: 'actions',
     width: 280,
-    render: (row: any) => {
+    render: (row: PluginSummary) => {
       return h(NSpace, { size: 'small' }, [
         h(
           NButton,
@@ -119,47 +125,54 @@ const columns = [
   }
 ]
 
-const data = ref([
-  {
-    key: '1',
-    name: 'Blog 博客',
-    description: '提供博客文章管理、发布、展示功能',
-    author: 'Arche',
-    version: '1.0.0',
-    status: '已启用'
-  },
-  {
-    key: '2',
-    name: 'GitHub Proxy',
-    description: 'GitHub 代理服务，加速 GitHub 资源访问',
-    author: 'Arche',
-    version: '0.2.0',
-    status: '已启用'
-  },
-  {
-    key: '3',
-    name: 'User System',
-    description: '用户系统，提供用户注册、登录、权限管理功能',
-    author: 'Arche',
-    version: '0.1.0',
-    status: '开发中'
+const fetchPlugins = async (params: {
+  page: number
+  pageSize: number
+}): Promise<Paginated<PluginSummary>> => {
+  const [assets, summary, groups] = await Promise.all([
+    getPluginLikeListApi({
+      page: params.page,
+      page_size: params.pageSize
+    }),
+    getSystemSummaryApi({ silent: true }),
+    getConfigGroupsApi({ silent: true })
+  ])
+  const list = (assets.list || []).map((item) => ({
+    ...item,
+    status: item.status || '已启用'
+  }))
+  tableData.value = list
+  message.info(
+    `系统摘要已同步（CPU: ${(summary.cpu_usage || 0).toFixed(1)}%，配置分组: ${groups.length}）`
+  )
+  return {
+    total: assets.total,
+    page: assets.page,
+    page_size: assets.page_size,
+    list
   }
-])
-
-const handleInstall = () => {
-  message.info('插件安装功能开发中')
 }
 
-const handleViewInfo = (row: any) => {
+const handleInstall = () => {
+  getAssetStatsApi({ silent: true })
+    .then((stats) => {
+      message.success(`资产总数：${stats.total}`)
+    })
+    .catch(() => {
+      message.error('获取资产统计失败')
+    })
+}
+
+const handleViewInfo = (row: PluginSummary) => {
   currentPlugin.value = row
   showInfoModal.value = true
 }
 
-const handleConfig = (row: any) => {
+const handleConfig = (row: PluginSummary) => {
   message.info(`配置插件: ${row.name}`)
 }
 
-const handleToggleStatus = (row: any) => {
+const handleToggleStatus = (row: PluginSummary) => {
   if (row.status === '开发中') {
     message.warning('开发中插件无法启用')
     return
@@ -168,10 +181,10 @@ const handleToggleStatus = (row: any) => {
   message.success(`插件已${row.status === '已启用' ? '启用' : '禁用'}`)
 }
 
-const handleUninstall = (row: any) => {
-  const index = data.value.findIndex((item) => item.key === row.key)
+const handleUninstall = (row: PluginSummary) => {
+  const index = tableData.value.findIndex((item) => item.id === row.id)
   if (index > -1) {
-    data.value.splice(index, 1)
+    tableData.value.splice(index, 1)
     message.success('插件卸载成功')
   }
 }
@@ -192,18 +205,7 @@ const handleUninstall = (row: any) => {
         </div>
       </template>
 
-      <NTable :columns="columns" :data="data" row-key="key" :pagination="false" single-line />
-
-      <div class="pagination-section">
-        <NPagination
-          v-model:page="page"
-          v-model:page-size="pageSize"
-          :page-count="1"
-          show-size-changer
-          :page-sizes="[10, 20, 50]"
-          show-quick-jumper
-        />
-      </div>
+      <ProTable :columns="columns" :data="tableData" :request="fetchPlugins" row-key="id" />
     </NCard>
 
     <NModal
@@ -257,11 +259,5 @@ const handleUninstall = (row: any) => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-}
-
-.pagination-section {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--spacing-xl);
 }
 </style>

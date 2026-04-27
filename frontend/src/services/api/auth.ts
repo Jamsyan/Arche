@@ -1,9 +1,9 @@
 // 认证相关接口
-import { post, get } from '../request'
+import { get, post, type RequestConfig } from '../request'
 
 // 登录参数
 export interface LoginParams {
-  username: string
+  identity: string
   password: string
 }
 
@@ -20,20 +20,17 @@ export interface UserInfo {
 // 登录响应
 export interface LoginResponse {
   token: string
+  refresh_token?: string
   userInfo: UserInfo
 }
 
 // 登录
-export const loginApi = (params: LoginParams): Promise<LoginResponse> => {
-  return post<LoginResponse>('/auth/login', params)
-}
+export const loginApi = (params: LoginParams, config?: RequestConfig) =>
+  post<LoginResponse>('/auth/login', params, config)
 
 // 登出
-export const logoutApi = (): Promise<void> => {
-  return post('/auth/logout')
-}
+export const logoutApi = (config?: RequestConfig) => post<void>('/auth/logout', undefined, config)
 
 // 获取当前用户信息
-export const getUserInfoApi = (): Promise<UserInfo> => {
-  return get<UserInfo>('/auth/info')
-}
+export const getUserInfoApi = (config?: RequestConfig) =>
+  get<UserInfo>('/auth/me', undefined, config)
