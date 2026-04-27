@@ -14,6 +14,32 @@ from unittest.mock import MagicMock, AsyncMock
 
 
 # =============================================================================
+# 自动 marker 分层
+# =============================================================================
+INTEGRATION_DIR = (Path(__file__).parent / "integration").resolve()
+
+
+def pytest_collection_modifyitems(config, items):
+    """自动给 backend/tests/integration/ 下的测试加 ``integration`` marker。
+
+    这样：
+    - 默认运行不变（仍然采集所有测试，整个套件保持稳定）；
+    - 想跑纯单元测试时可以用 ``uv run pytest -m 'not integration'``
+      获得快速反馈，CI 阶段也可以分层。
+    """
+    for item in items:
+        try:
+            test_path = Path(item.fspath).resolve()
+        except (TypeError, ValueError):
+            continue
+        try:
+            test_path.relative_to(INTEGRATION_DIR)
+        except ValueError:
+            continue
+        item.add_marker(pytest.mark.integration)
+
+
+# =============================================================================
 # 基础 Fixture
 # =============================================================================
 
@@ -64,24 +90,37 @@ async def in_memory_db():
     """内存 SQLite 数据库 fixture，自动建表，测试后清空。
 
     返回: {"engine": engine, "session_factory": session_factory}
+
+    使用 StaticPool 让所有 session 共用同一个连接，避免
+    `sqlite+aiosqlite:///:memory:` 默认每连接一份独立 DB 导致
+    `Base.metadata.create_all` 建的表在后续 session 中"看不见"。
     """
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.ext.asyncio import (
+        create_async_engine,
+        async_sessionmaker,
+    )
+    from sqlalchemy.pool import StaticPool
     from backend.core.db import Base
+    # 确保模型在 create_all 前已导入并注册到 Base.metadata
+    from backend.plugins.auth import models as _auth_models  # noqa: F401
+    from backend.plugins.crawler import models as _crawler_models  # noqa: F401
+    from backend.plugins.cloud_integration import models as _cloud_models  # noqa: F401
+    from backend.plugins.monitor import models as _monitor_models  # noqa: F401
 
-    # 创建内存数据库
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
-    # 创建所有表
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # 创建 session factory
-    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     yield {"engine": engine, "session_factory": session_factory}
 
-    # 测试后关闭连接
     await engine.dispose()
 
 
@@ -154,6 +193,31 @@ def mock_subprocess_failure(returncode: int = 1, stderr: bytes = b"error"):
     return MockProc()
 
 
+def patch_container_service(container, name: str, service):
+    """把 ``container.get(name)`` 临时替换成 ``service``，其它名字透传旧 get。
+
+    用于 ``db_container`` 这种共享 fixture 中按需注入特定 mock service，
+    替代各测试反复写：
+    ::
+
+        old_get = db_container.get
+        def _get(n): return service if n == name else old_get(n)
+        db_container.get = _get
+
+    Returns:
+        传入的 ``service``，方便链式赋值给 fixture 返回值。
+    """
+    old_get = container.get
+
+    def _get(n: str):
+        if n == name:
+            return service
+        return old_get(n)
+
+    container.get = _get
+    return service
+
+
 # =============================================================================
 # 集成测试 Fixture
 # =============================================================================
@@ -161,25 +225,29 @@ def mock_subprocess_failure(returncode: int = 1, stderr: bytes = b"error"):
 
 @pytest.fixture
 async def test_app(db_container):
-    """创建真实的 FastAPI 测试应用，带内存数据库。"""
+    """创建真实的 FastAPI 测试应用，带内存数据库。
+
+    与生产 `create_app` 的关键差异说明：
+    - 这里手动挂载 plugin 路由 + AuthMiddleware；
+    - 同时调用 `register_error_handlers`，让 `AppError`/`AuthError`/
+      `PermissionError` 能正确映射成 4xx 响应，而不是被 starlette
+      默认 500 吃掉，否则集成测试只能看到 500 而无法断言业务码。
+    """
     from fastapi import FastAPI
     from backend.core.plugin_registry import registry, discover_plugins
+    from backend.core.middleware import register_error_handlers
     from backend.plugins.auth.middleware import AuthMiddleware
 
-    # 先发现插件
     discover_plugins()
 
-    # 创建测试 app，手动挂载路由
     app = FastAPI(title="Test Arche")
     app.state.container = db_container
 
-    # 激活所有插件（注册路由）
-    registry.activate_all(app)
+    register_error_handlers(app)
 
-    # 注册服务（挂载 AuthMiddleware 等）
+    registry.activate_all(app)
     registry.register_services(db_container)
 
-    # 手动挂载 AuthMiddleware（使用测试用的 SECRET_KEY）
     secret_key = db_container.get("config").get_required("SECRET_KEY")
     app.add_middleware(AuthMiddleware, secret_key=secret_key)
 
@@ -242,3 +310,63 @@ async def admin_headers(db_container):
     )
 
     return {"Authorization": f"Bearer {result['access_token']}"}
+
+
+# =============================================================================
+# Crawler Fixture
+# =============================================================================
+
+
+@pytest.fixture
+def crawler_sample_url():
+    return "https://example.com/article/hello"
+
+
+@pytest.fixture
+def crawler_sample_html():
+    return """
+    <html>
+      <head>
+        <title>Test Article</title>
+      </head>
+      <body>
+        <main>
+          <p>This is crawler sample content with enough characters for quality checks.</p>
+          <a href="/next">Next</a>
+          <a href="https://example.com/about">About</a>
+        </main>
+      </body>
+    </html>
+    """
+
+
+@pytest.fixture
+def crawler_item_factory():
+    from backend.plugins.crawler.pipeline import CrawlItem
+
+    def _create(**kwargs):
+        defaults = {
+            "url": "https://example.com/article/hello",
+            "source": "example.com",
+            "status_code": 200,
+            "quality_passed": True,
+            "headers": {"content-type": "text/html"},
+        }
+        defaults.update(kwargs)
+        return CrawlItem(**defaults)
+
+    return _create
+
+
+# =============================================================================
+# Monitor Fixture
+# =============================================================================
+
+
+@pytest.fixture
+def monitor_template_payload():
+    return {
+        "name": "CPU Dashboard",
+        "components": [{"id": "cpu", "type": "metric"}],
+        "refresh_interval": 15,
+    }

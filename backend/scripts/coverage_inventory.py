@@ -16,6 +16,17 @@ import re
 TEST_FUNC_PATTERN = re.compile(r"^\s*(?:async\s+)?def\s+test_[A-Za-z0-9_]*\s*\(", re.MULTILINE)
 
 
+# 插件目录名与测试文件名前缀的别名映射。
+#
+# 默认匹配规则是 ``plugin_name in test_file.stem``，但部分插件的测试文件
+# 不直接以插件目录名开头（例如 ``cloud_integration`` 的测试文件统一前缀
+# 为 ``test_cloud_``）。这里通过别名表显式声明每个插件需要匹配的测试文件
+# 前缀（不含 ``test_``），保持脚本输出与实际测试布局一致。
+PLUGIN_TEST_PREFIX_ALIASES: dict[str, tuple[str, ...]] = {
+    "cloud_integration": ("cloud_integration", "cloud"),
+}
+
+
 @dataclass
 class ComponentStats:
     """单个组件的测试覆盖统计。"""
@@ -54,10 +65,30 @@ def _component_source_count(component_dir: Path) -> int:
 
 
 def _plugin_test_files(tests_root: Path, plugin_name: str, test_type: str) -> list[Path]:
-    files: list[Path] = []
-    for test_file in (tests_root / test_type).rglob("test_*.py"):
-        if plugin_name in test_file.stem:
-            files.append(test_file)
+    """基于插件名与别名表收集测试文件，避免命名前缀漂移导致漏匹配。
+
+    匹配规则：
+    1. 默认按插件目录名作为子串匹配；
+    2. 若 ``PLUGIN_TEST_PREFIX_ALIASES`` 存在该插件，则改用别名（按
+       ``test_<alias>_*.py`` 前缀匹配，命中即认为属于该插件，避免子串
+       误伤其它插件的测试文件）。
+    """
+    files: set[Path] = set()
+    aliases = PLUGIN_TEST_PREFIX_ALIASES.get(plugin_name)
+    candidates = list((tests_root / test_type).rglob("test_*.py"))
+
+    if aliases:
+        for test_file in candidates:
+            stem = test_file.stem  # e.g. test_cloud_orchestrator
+            for alias in aliases:
+                if stem == f"test_{alias}" or stem.startswith(f"test_{alias}_"):
+                    files.add(test_file)
+                    break
+    else:
+        for test_file in candidates:
+            if plugin_name in test_file.stem:
+                files.add(test_file)
+
     return sorted(files)
 
 

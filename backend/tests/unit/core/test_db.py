@@ -18,16 +18,21 @@ class TestDatabase:
     """测试数据库核心功能。"""
 
     def setup_method(self):
-        """每个测试前重置全局状态。"""
-        # 重置全局变量，通过模块访问
+        """每个测试前重置 db 模块的全局变量，避免跨测试残留。"""
         db_module.engine = None
         db_module.session_factory = None
         db_module._initialized = False
 
     def teardown_method(self):
-        """测试后清理。"""
-        # 清空元数据
-        Base.metadata.clear()
+        """测试后再次清理 db 模块的全局变量。
+
+        注意：不要 `Base.metadata.clear()` —— 这会清空所有插件 model 的
+        表元数据，使其它使用 in_memory_db / Base.metadata.create_all 的
+        测试在执行顺序之后丢失全部表，导致 `no such table` 失败。
+        """
+        db_module.engine = None
+        db_module.session_factory = None
+        db_module._initialized = False
 
     def test_init_db(self):
         """init_db 函数正确创建引擎和会话工厂。"""
