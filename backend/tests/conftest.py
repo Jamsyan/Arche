@@ -102,10 +102,14 @@ async def in_memory_db():
     from sqlalchemy.pool import StaticPool
     from backend.core.db import Base
     # 确保模型在 create_all 前已导入并注册到 Base.metadata
+    from backend.core import models as _core_models  # noqa: F401
+    from backend.plugins.asset_mgmt import models as _asset_models  # noqa: F401
     from backend.plugins.auth import models as _auth_models  # noqa: F401
+    from backend.plugins.blog import models as _blog_models  # noqa: F401
     from backend.plugins.crawler import models as _crawler_models  # noqa: F401
     from backend.plugins.cloud_integration import models as _cloud_models  # noqa: F401
     from backend.plugins.monitor import models as _monitor_models  # noqa: F401
+    from backend.plugins.oss import models as _oss_models  # noqa: F401
 
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
@@ -137,17 +141,39 @@ async def db_container(in_memory_db, fake_container):
             "SECRET_KEY": "test_secret_key_12345",
         }
 
+        def __init__(self):
+            self._session_factory = in_memory_db["session_factory"]
+
         def get_required(self, key):
             return self._values.get(key, "")
 
         def get(self, key, default=None):
             return self._values.get(key, default)
 
+        def invalidate_cache(self, key=None):
+            return None
+
     def get_service(name):
         if name == "db":
             return in_memory_db
         elif name == "config":
             return FakeConfigWithDb()
+        elif name == "auth":
+            from backend.plugins.auth.services import AuthService
+
+            return AuthService(fake_container)
+        elif name == "github":
+            from backend.plugins.github_proxy.services import GitHubService
+
+            return GitHubService(fake_container)
+        elif name == "storage":
+            from backend.plugins.oss.services import StorageService
+
+            return StorageService(fake_container)
+        elif name == "asset_mgmt":
+            from backend.plugins.asset_mgmt.services import AssetMgmtService
+
+            return AssetMgmtService(fake_container)
         elif name == "oss_rate_limiter":
             limiter = AsyncMock()
             limiter.consume = AsyncMock()

@@ -44,6 +44,51 @@ async def get_health_status(request: Request):
     }
 
 
+@router.get("/raw/{path:path}")
+@require_level(1)
+async def proxy_raw(path: str, request: Request, mode: str = "auto"):
+    """代理 GitHub 静态资源（需 P1 权限）。
+
+    转发到 https://raw.githubusercontent.com/{path}，
+    适用于 raw 文件内容（图片、文本等）。
+
+    Args:
+        mode: 模式选择 - auto（默认）, http, cli
+    """
+    container: ServiceContainer = request.app.state.container
+    service = container.get("github")
+
+    result = await service.proxy_raw_content(path=path, mode=mode)
+
+    response_headers = {
+        "X-GitHub-Cache": "HIT" if result["cached"] else "MISS",
+        "X-GitHub-Mode": result.get("mode", mode),
+    }
+
+    content_type = result["headers"].get("Content-Type", "application/octet-stream")
+    response_headers["Content-Type"] = content_type
+
+    return Response(
+        content=result["data"],
+        status_code=result["status_code"],
+        headers=response_headers,
+    )
+
+
+@router.post("/cache/clear")
+@require_level(1)
+async def clear_cache(request: Request):
+    """清空代理缓存（需 P1 权限）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("github")
+    count = service.clear_cache()
+    return {
+        "code": "ok",
+        "message": f"已清空 HTTP: {count['http']}, CLI: {count['cli']} 条缓存",
+        "data": {"cleared": count},
+    }
+
+
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 @require_level(1)
 async def proxy_github(path: str, request: Request, mode: str = "auto"):
@@ -95,48 +140,3 @@ async def proxy_github(path: str, request: Request, mode: str = "auto"):
         content=data,
         headers=response_headers,
     )
-
-
-@router.get("/raw/{path:path}")
-@require_level(1)
-async def proxy_raw(path: str, request: Request, mode: str = "auto"):
-    """代理 GitHub 静态资源（需 P1 权限）。
-
-    转发到 https://raw.githubusercontent.com/{path}，
-    适用于 raw 文件内容（图片、文本等）。
-
-    Args:
-        mode: 模式选择 - auto（默认）, http, cli
-    """
-    container: ServiceContainer = request.app.state.container
-    service = container.get("github")
-
-    result = await service.proxy_raw_content(path=path, mode=mode)
-
-    response_headers = {
-        "X-GitHub-Cache": "HIT" if result["cached"] else "MISS",
-        "X-GitHub-Mode": result.get("mode", mode),
-    }
-
-    content_type = result["headers"].get("Content-Type", "application/octet-stream")
-    response_headers["Content-Type"] = content_type
-
-    return Response(
-        content=result["data"],
-        status_code=result["status_code"],
-        headers=response_headers,
-    )
-
-
-@router.post("/cache/clear")
-@require_level(1)
-async def clear_cache(request: Request):
-    """清空代理缓存（需 P1 权限）。"""
-    container: ServiceContainer = request.app.state.container
-    service = container.get("github")
-    count = service.clear_cache()
-    return {
-        "code": "ok",
-        "message": f"已清空 HTTP: {count['http']}, CLI: {count['cli']} 条缓存",
-        "data": {"cleared": count},
-    }

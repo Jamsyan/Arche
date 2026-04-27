@@ -208,21 +208,22 @@ class AssetMgmtService:
                 )
             )
 
+        blog_total = blog_count.scalar() or 0
+        file_count = file_row[0] or 0
+        file_size = file_row[1] or 0
+        crawl_total = crawl_count.scalar() or 0
+        job_total = job_count.scalar() or 0
+
         return {
             "owner_id": str(owner_id),
             "by_type": {
-                "blog_post": blog_count.scalar() or 0,
+                "blog_post": blog_total,
                 "file": {
-                    "count": file_row[0] or 0,
-                    "total_size_bytes": file_row[1] or 0,
+                    "count": file_count,
+                    "total_size_bytes": file_size,
                 },
-                "crawl_result": crawl_count.scalar() or 0,
-                "training_job": job_count.scalar() or 0,
+                "crawl_result": crawl_total,
+                "training_job": job_total,
             },
-            "total_assets": (
-                (blog_count.scalar() or 0)
-                + (file_row[0] or 0)
-                + (crawl_count.scalar() or 0)
-                + (job_count.scalar() or 0)
-            ),
+            "total_assets": blog_total + file_count + crawl_total + job_total,
         }

@@ -26,8 +26,6 @@ dependencies = [
     "oss2>=2.18",
     # MinIO SDK (local object storage)
     "minio>=7.2",
-    # Playwright (crawler browser automation)
-    "playwright>=1.40",
     # SSH/SFTP (cloud training remote deployment)
     "asyncssh>=2.14",
     # Async file operations

@@ -14,10 +14,12 @@
 - **方式**：`TestClient` + 内存 SQLite
 - **文件**：`test_*_api.py`（如 `test_github_proxy_api.py`）
 
-### 3. 端到端测试（E2E Tests）- TODO
-- **目标**：测试真实生产环境部署
-- **范围**：前端 + 后端 + 真实数据库
-- **方式**：Playwright + 测试环境
+### 3. API 级端到端/工作流测试（E2E Tests）
+- **目标**：验证跨插件业务链路可用，重点覆盖真实后端请求路径
+- **范围**：HTTP API → 中间件/权限 → Service → 数据库，外部依赖继续 mock/fake
+- **方式**：pytest + httpx（复用 `backend/tests/integration` 基础设施）
+- **当前状态**：浏览器 E2E 暂缓；爬虫不使用 Playwright，按“轻量请求，能拿就拿”策略测试
+- **后续路线**：真实前端 auth 接入后，再评估是否恢复极少量浏览器冒烟测试
 
 ---
 

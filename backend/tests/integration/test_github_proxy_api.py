@@ -1,58 +1,56 @@
-"""GitHub Proxy 模块 API 集成测试。
-
-测试真实 HTTP 路由行为。
-
-xfail 策略：除真正能跑通的探测/认证用例外，其余使用 ``strict=True``
-xfail 并写明具体阻塞原因（多为 mock 链路不到位、依赖真实 gh CLI 等）。
-"""
+"""GitHub Proxy 模块 API 集成测试。"""
 from __future__ import annotations
 
 import json
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-GH_PROXY_MOCK_REASON = (
-    "github_proxy 的 GhCliService / GitHubService mock 链路与实际服务不对齐，"
-    "需要在 db_container 注入真实/可用的 service，而不是 AsyncMock。"
-)
-
 
 @pytest.mark.asyncio
 class TestGitHubProxyAPI:
     """GitHub 代理 API 测试。"""
 
-    async def test_search_repositories_endpoint_exists(self, client, auth_headers):
+    async def test_search_repositories_endpoint_exists(self, client, admin_headers):
         """搜索仓库接口应存在并返回正确结构。"""
-        # Mock 掉 HTTP 请求，避免真实网络调用
-        with patch("backend.plugins.github_proxy.services.httpx.AsyncClient") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
+        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+            mock_proxy.return_value = {
+                "status_code": 200,
+                "cached": False,
+                "mode": "http",
+                "data": {
                 "total_count": 1,
-                "items": [{"name": "test-repo", "full_name": "owner/test-repo"}]
+                    "items": [{"name": "test-repo", "full_name": "owner/test-repo"}],
+                },
             }
-            mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value.get.side_effect = None
 
             response = await client.get(
                 "/api/github/search/repositories",
                 params={"q": "python"},
-                headers=auth_headers,
+                headers=admin_headers,
             )
-            # 即使 mock 有问题，至少 404 说明路由不存在
-            assert response.status_code != 404
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_search_endpoint_requires_query_param(self, client, auth_headers):
-        """搜索接口缺少 q 参数应返回 422。"""
-        response = await client.get(
-            "/api/github/search/repositories",
-            headers=auth_headers,
-        )
-        assert response.status_code == 422  # FastAPI 自动校验
+            assert response.status_code == 200
+            assert response.json()["total_count"] == 1
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_health_check_endpoint(self, client, auth_headers):
+    async def test_search_endpoint_forwards_missing_query_param(self, client, admin_headers):
+        """通用代理不在 FastAPI 层强制校验 GitHub 查询参数。"""
+        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+            mock_proxy.return_value = {
+                "status_code": 422,
+                "data": {"message": "Validation Failed"},
+                "cached": False,
+                "mode": "http",
+            }
+
+            response = await client.get(
+                "/api/github/search/repositories",
+                headers=admin_headers,
+            )
+
+            assert response.status_code == 422
+            assert mock_proxy.call_args.kwargs["query_params"] == {}
+
+    async def test_health_check_endpoint(self, client, admin_headers):
         """健康检查接口应正常返回。"""
         # Mock gh 命令调用
         with patch("backend.plugins.github_proxy.services.GhCliService._run_gh_command") as mock_run:
@@ -64,7 +62,7 @@ class TestGitHubProxyAPI:
 
             response = await client.get(
                 "/api/github/health/status",
-                headers=auth_headers,
+                headers=admin_headers,
             )
 
             assert response.status_code == 200
@@ -74,8 +72,7 @@ class TestGitHubProxyAPI:
             assert "cli" in data["data"]
             assert "http" in data["data"]
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_proxy_endpoint_get(self, client, auth_headers):
+    async def test_proxy_endpoint_get(self, client, admin_headers):
         """GET 请求主代理接口应正常工作。"""
         # Mock 服务层返回结果
         with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
@@ -88,7 +85,7 @@ class TestGitHubProxyAPI:
 
             response = await client.get(
                 "/api/github/user",
-                headers=auth_headers,
+                headers=admin_headers,
             )
 
             assert response.status_code == 200
@@ -97,8 +94,7 @@ class TestGitHubProxyAPI:
             assert response.headers["X-GitHub-Cache"] == "MISS"
             assert response.headers["X-GitHub-Mode"] == "http"
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_proxy_endpoint_post(self, client, auth_headers):
+    async def test_proxy_endpoint_post(self, client, admin_headers):
         """POST 请求主代理接口应正常工作。"""
         with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
             mock_proxy.return_value = {
@@ -110,7 +106,7 @@ class TestGitHubProxyAPI:
 
             response = await client.post(
                 "/api/github/user/repos",
-                headers=auth_headers,
+                headers=admin_headers,
                 json={"name": "new-repo", "private": True},
             )
 
@@ -123,8 +119,7 @@ class TestGitHubProxyAPI:
             assert "body" in call_args.kwargs
             assert json.loads(call_args.kwargs["body"]) == {"name": "new-repo", "private": True}
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_proxy_raw_endpoint(self, client, auth_headers):
+    async def test_proxy_raw_endpoint(self, client, admin_headers):
         """静态资源代理接口应返回二进制内容。"""
         test_content = b"# Test README\nThis is a test file."
         with patch("backend.plugins.github_proxy.services.GitHubService.proxy_raw_content") as mock_raw:
@@ -138,7 +133,7 @@ class TestGitHubProxyAPI:
 
             response = await client.get(
                 "/api/github/raw/owner/repo/main/README.md",
-                headers=auth_headers,
+                headers=admin_headers,
             )
 
             assert response.status_code == 200
@@ -147,15 +142,14 @@ class TestGitHubProxyAPI:
             assert response.headers["X-GitHub-Cache"] == "HIT"
             assert response.headers["X-GitHub-Mode"] == "cli"
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_clear_cache_endpoint(self, client, auth_headers):
+    async def test_clear_cache_endpoint(self, client, admin_headers):
         """缓存清空接口应正常工作。"""
         with patch("backend.plugins.github_proxy.services.GitHubService.clear_cache") as mock_clear:
             mock_clear.return_value = {"http": 10, "cli": 5}
 
             response = await client.post(
                 "/api/github/cache/clear",
-                headers=auth_headers,
+                headers=admin_headers,
             )
 
             assert response.status_code == 200
@@ -179,8 +173,7 @@ class TestGitHubProxyAPI:
         response = await client.post("/api/github/cache/clear")
         assert response.status_code == 401
 
-    @pytest.mark.xfail(strict=True, reason=GH_PROXY_MOCK_REASON)
-    async def test_proxy_mode_parameter(self, client, auth_headers):
+    async def test_proxy_mode_parameter(self, client, admin_headers):
         """mode 参数应被正确传递给服务层。"""
         with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
             mock_proxy.return_value = {
@@ -194,7 +187,7 @@ class TestGitHubProxyAPI:
             response = await client.get(
                 "/api/github/user",
                 params={"mode": "cli"},
-                headers=auth_headers,
+                headers=admin_headers,
             )
 
             assert response.status_code == 200
@@ -205,7 +198,7 @@ class TestGitHubProxyAPI:
             response = await client.get(
                 "/api/github/user",
                 params={"mode": "http"},
-                headers=auth_headers,
+                headers=admin_headers,
             )
 
             call_args = mock_proxy.call_args
