@@ -23,6 +23,7 @@ class _FakeResponse:
         self.text = text
         self.status_code = status_code
         self.headers = headers or {"content-type": "text/html"}
+        self.encoding = "utf-8"
 
 
 @pytest.mark.asyncio
@@ -162,6 +163,44 @@ class TestFetchStage:
         result = await stage.process(item)
         assert result is item
         assert item.error.startswith("Fetch failed:")
+
+    async def test_fetch_stage_skips_non_html_response(
+        self, monkeypatch, crawler_item_factory
+    ):
+        stage = FetchStage()
+        fake_client = AsyncMock()
+        fake_client.get = AsyncMock(
+            return_value=_FakeResponse(
+                "PNG",
+                200,
+                {"content-type": "image/png"},
+            )
+        )
+        monkeypatch.setattr(stage, "_get_client", AsyncMock(return_value=fake_client))
+
+        item = crawler_item_factory(url="https://example.com/image.png")
+        result = await stage.process(item)
+        assert result is item
+        assert item.error.startswith("non_html_content:")
+
+    async def test_fetch_stage_skips_large_response_by_header(
+        self, monkeypatch, crawler_item_factory
+    ):
+        stage = FetchStage()
+        fake_client = AsyncMock()
+        fake_client.get = AsyncMock(
+            return_value=_FakeResponse(
+                "",
+                200,
+                {"content-type": "text/html", "content-length": str(1024 * 1024)},
+            )
+        )
+        monkeypatch.setattr(stage, "_get_client", AsyncMock(return_value=fake_client))
+
+        item = crawler_item_factory(url="https://example.com/large")
+        result = await stage.process(item)
+        assert result is item
+        assert item.error.startswith("content_too_large:")
 
 
 @pytest.mark.asyncio

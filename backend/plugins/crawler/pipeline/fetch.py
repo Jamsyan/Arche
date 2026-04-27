@@ -1,4 +1,4 @@
-"""爬虫插件 —— 抓取车间：纯 HTTP 请求，带上正常浏览器请求头。"""
+"""爬虫插件 —— 抓取车间：轻量 HTTP 请求，能拿则拿，拿不到则跳过。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ import httpx
 from backend.plugins.crawler.pipeline.base import BaseStage, CrawlItem
 
 
-# 正常浏览器请求头
+MAX_HTML_BYTES = 512 * 1024
+
+# 保守请求头：保持普通 HTTP 访问形态，不模拟浏览器执行环境。
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -16,7 +18,7 @@ _HEADERS = {
     ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
     "Sec-Fetch-Dest": "document",
@@ -27,7 +29,7 @@ _HEADERS = {
 
 
 class FetchStage(BaseStage):
-    """抓取车间：httpx 请求，拿多少是多少，不渲染 JS。"""
+    """抓取车间：httpx 请求，限制处理体量，不渲染 JS。"""
 
     name = "fetch"
 
@@ -47,7 +49,22 @@ class FetchStage(BaseStage):
         try:
             client = await self._get_client()
             response = await client.get(item.url)
+            item.status_code = response.status_code
+            item.headers = dict(response.headers)
+
+            content_type = response.headers.get("content-type", "").lower()
+            if content_type and "html" not in content_type and "text/plain" not in content_type:
+                item.error = f"non_html_content: {content_type}"
+                return item
+
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > MAX_HTML_BYTES:
+                item.error = f"content_too_large: {content_length}"
+                return item
+
             html = response.text
+            if len(html.encode(response.encoding or "utf-8", errors="ignore")) > MAX_HTML_BYTES:
+                html = html[:MAX_HTML_BYTES]
 
             import re
 
@@ -88,8 +105,6 @@ class FetchStage(BaseStage):
             item.title = title
             item.content = text[:10000]
             item.links = links
-            item.status_code = response.status_code
-            item.headers = dict(response.headers)
             return item
         except Exception as e:
             item.error = f"Fetch failed: {e}"

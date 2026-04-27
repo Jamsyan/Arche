@@ -96,6 +96,35 @@ class TestProbeService:
         assert result["status_code"] == 0
         assert result["has_content"] is False
 
+    async def test_probe_skips_non_html_response(self, monkeypatch):
+        service = ProbeService()
+        fake_client = AsyncMock()
+        fake_client.get = AsyncMock(
+            return_value=_ProbeResponse(
+                "https://example.com/file.pdf",
+                "%PDF",
+                content_type="application/pdf",
+            )
+        )
+        monkeypatch.setattr(service, "_get_client", AsyncMock(return_value=fake_client))
+        result = await service.probe("https://example.com/file.pdf")
+        assert result["content_type"] == "application/pdf"
+        assert result["has_content"] is False
+
+    async def test_probe_skips_large_response_by_header(self, monkeypatch):
+        service = ProbeService()
+        fake_client = AsyncMock()
+        response = _ProbeResponse(
+            "https://example.com/large",
+            "<html></html>",
+            content_type="text/html",
+        )
+        response.headers["content-length"] = str(1024 * 1024)
+        fake_client.get = AsyncMock(return_value=response)
+        monkeypatch.setattr(service, "_get_client", AsyncMock(return_value=fake_client))
+        result = await service.probe("https://example.com/large")
+        assert result["has_content"] is False
+
     async def test_close_resets_client(self):
         service = ProbeService()
         service._client = AsyncMock()
