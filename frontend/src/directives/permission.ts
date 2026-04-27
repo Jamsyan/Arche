@@ -22,7 +22,7 @@ export const permissionDirective = {
       hasPermission = permissionStore.hasPermission(value)
     } else if (Array.isArray(value)) {
       // 只要有一个权限满足就显示
-      hasPermission = value.some(perm => permissionStore.hasPermission(perm))
+      hasPermission = value.some((perm) => permissionStore.hasPermission(perm))
     }
 
     // 如果没有权限，移除元素

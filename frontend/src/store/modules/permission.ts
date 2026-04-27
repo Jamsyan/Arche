@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { roleRoutes } from '@/router'
 
@@ -28,7 +28,11 @@ export const usePermissionStore = defineStore(
 
     // 检查是否有权限
     const hasPermission = (permission: string): boolean => {
-      return permissions.value.includes(permission) || role.value === 'admin'
+      return (
+        permissions.value.includes('*') ||
+        permissions.value.includes(permission) ||
+        role.value === 'admin'
+      )
     }
 
     // 根据角色生成可访问的路由
@@ -43,6 +47,11 @@ export const usePermissionStore = defineStore(
 
     // 设置权限列表
     const setPermissions = (perms: string[]) => {
+      permissions.value = perms
+    }
+
+    const setUserPermission = (userRole: string, perms: string[] = []) => {
+      role.value = userRole
       permissions.value = perms
     }
 
@@ -63,6 +72,7 @@ export const usePermissionStore = defineStore(
       hasPermission,
       generateRoutes,
       setPermissions,
+      setUserPermission,
       resetPermission
     }
   },

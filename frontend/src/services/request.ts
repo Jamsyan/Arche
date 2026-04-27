@@ -5,6 +5,7 @@ import axios, {
   type InternalAxiosRequestConfig
 } from 'axios'
 import { $message } from '@/utils/message'
+import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
 
 // 响应数据格式定义，和后端约定
 export interface ResponseData<T = any> {
@@ -22,6 +23,15 @@ const service: AxiosInstance = axios.create({
     'Content-Type': 'application/json;charset=utf-8'
   }
 })
+
+const clearAuthStorage = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+}
+
+const notifyUnauthorized = () => {
+  window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT))
+}
 
 // 请求拦截器
 service.interceptors.request.use(
@@ -51,11 +61,8 @@ service.interceptors.response.use(
 
       // 401: 未登录或token过期
       if (res.code === 401) {
-        // 清除本地token
-        localStorage.removeItem('token')
-        localStorage.removeItem('userInfo')
-        // 跳转到登录页
-        window.location.href = '/login'
+        clearAuthStorage()
+        notifyUnauthorized()
       }
 
       // 403: 权限不足
@@ -79,9 +86,8 @@ service.interceptors.response.use(
           break
         case 401:
           errorMessage = '未登录或登录已过期，请重新登录'
-          localStorage.removeItem('token')
-          localStorage.removeItem('userInfo')
-          window.location.href = '/login'
+          clearAuthStorage()
+          notifyUnauthorized()
           break
         case 403:
           errorMessage = '权限不足，无法访问'

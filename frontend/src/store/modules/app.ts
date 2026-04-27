@@ -8,8 +8,15 @@ export type LayoutType = 'default' | 'simple'
 export const useAppStore = defineStore(
   'app',
   () => {
+    const getSystemTheme = (): Theme =>
+      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+
+    const applyThemeClass = (value: Theme) => {
+      document.documentElement.classList.toggle('dark', value === 'dark')
+    }
+
     // 主题
-    const theme = ref<Theme>('light')
+    const theme = ref<Theme>(getSystemTheme())
     // 布局方式
     const layout = ref<LayoutType>('default')
     // 侧边栏是否折叠
@@ -28,12 +35,16 @@ export const useAppStore = defineStore(
     // 切换主题
     const toggleTheme = () => {
       theme.value = theme.value === 'light' ? 'dark' : 'light'
-      // 切换主题时更新html的class
-      if (theme.value === 'dark') {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
+      applyThemeClass(theme.value)
+    }
+
+    const setTheme = (value: Theme) => {
+      theme.value = value
+      applyThemeClass(theme.value)
+    }
+
+    const initTheme = () => {
+      applyThemeClass(theme.value)
     }
 
     // 切换侧边栏折叠状态
@@ -61,6 +72,8 @@ export const useAppStore = defineStore(
       language,
       transitionName,
       toggleTheme,
+      setTheme,
+      initTheme,
       toggleSidebar,
       setSidebarCollapsed,
       setLayout

@@ -17,7 +17,7 @@ export default [
 
   /* 通用规则 */
   {
-    files: ['**/*.{js,ts,vue}'],
+    files: ['**/*.{js,ts}'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: {
@@ -48,8 +48,24 @@ export default [
     languageOptions: {
       parser: pluginVue.parser,
       parserOptions: {
-        parser: '@typescript-eslint/parser'
+        parser: tsparser,
+        sourceType: 'module'
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node
       }
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+      prettier
+    },
+    rules: {
+      'prettier/prettier': 'error',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'vue/multi-word-component-names': 'off',
+      'no-console': 'off'
     }
   }
 ]

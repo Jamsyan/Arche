@@ -48,21 +48,6 @@ body {
   background: rgba(255, 255, 255, 0.5);
 }
 
-/* 暗色模式滚动条 */
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
-  }
-}
-
 /* 通用文本样式 */
 .title {
   font-size: 28px;

@@ -2,7 +2,9 @@
   <div class="login-page">
     <div class="login-card card-glass">
       <div class="card-header">
-        <div class="logo-icon">🔐</div>
+        <div class="logo-icon">
+          <LockClosedOutline />
+        </div>
         <h2>欢迎回来</h2>
         <p>选择身份登录管理后台</p>
       </div>
@@ -10,11 +12,15 @@
       <div class="login-form">
         <div class="form-item">
           <label>登录身份</label>
-          <NSelect v-model:value="selectedRole" :options="roleOptions" placeholder="请选择登录身份" />
+          <NSelect
+            v-model:value="selectedRole"
+            :options="roleOptions"
+            placeholder="请选择登录身份"
+          />
         </div>
 
         <div class="form-tip">
-          <p>💡 演示环境无需输入账号密码，直接选择身份登录即可</p>
+          <p>演示环境无需输入账号密码，直接选择身份登录即可</p>
         </div>
 
         <NButton type="primary" size="large" block :loading="loading" @click="handleLogin">
@@ -31,6 +37,7 @@ import { useRouter } from 'vue-router'
 import { NSelect, NButton } from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 import { $message } from '@/utils/message'
+import { LockClosedOutline } from '@/icons'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -47,7 +54,7 @@ const roleOptions = [
 const handleLogin = async () => {
   loading.value = true
   try {
-    await userStore.login(selectedRole.value)
+    await userStore.loginAsRole(selectedRole.value)
     $message.success(`欢迎回来，${selectedRole.value === 'admin' ? '管理员' : '用户'}`)
 
     // 根据角色跳转到对应页面
@@ -58,7 +65,7 @@ const handleLogin = async () => {
     } else {
       await router.push('/')
     }
-  } catch (error) {
+  } catch {
     $message.error('登录失败，请重试')
   } finally {
     loading.value = false
@@ -93,6 +100,12 @@ const handleLogin = async () => {
   justify-content: center;
   font-size: 32px;
   margin: 0 auto var(--spacing-md);
+}
+
+.logo-icon svg {
+  width: 32px;
+  height: 32px;
+  color: var(--primary-color);
 }
 
 .card-header h2 {

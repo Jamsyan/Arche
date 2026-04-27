@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), '')
   const isProduction = env.VITE_NODE_ENV === 'production'
+  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:8000'
 
   return {
     plugins: [
@@ -59,7 +60,7 @@ export default defineConfig(({ mode }) => {
     // 路径别名
     resolve: {
       alias: {
-      '@': resolve(__dirname, 'src'),
+        '@': resolve(__dirname, 'src'),
         '@/core': resolve(__dirname, 'src/core'),
         '@/types': resolve(__dirname, 'src/types'),
         '@/services': resolve(__dirname, 'src/services'),
@@ -86,7 +87,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // API代理
         '/api': {
-          target: env.VITE_API_BASE_URL,
+          target: apiBaseUrl,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, '')
         }

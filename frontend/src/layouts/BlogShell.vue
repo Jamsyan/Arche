@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import { NLayout, NLayoutHeader, NLayoutContent, NMenu, useMessage } from 'naive-ui'
-import { logout } from '@/composables/useAuth'
+import { RouterView, useRouter } from 'vue-router'
+import { NLayout, NLayoutHeader, NLayoutContent, NMenu } from 'naive-ui'
+import { useUserStore } from '@/store/modules/user'
+
+const router = useRouter()
+const userStore = useUserStore()
+
+const handleLogout = async () => {
+  await userStore.logout()
+  await router.push('/login')
+}
 </script>
 
 <template>
@@ -13,7 +21,7 @@ import { logout } from '@/composables/useAuth'
           <NMenuItem key="/">首页</NMenuItem>
         </NMenu>
         <div class="user-area">
-          <button @click="logout" class="logout-btn">登出</button>
+          <button @click="handleLogout" class="logout-btn">登出</button>
         </div>
       </div>
     </NLayoutHeader>

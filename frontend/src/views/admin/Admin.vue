@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, h } from 'vue'
+import { computed, h } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
 import { NLayout, NLayoutSider, NLayoutContent, NMenu, type MenuOption } from 'naive-ui'
-import { PeopleOutline, ExtensionPuzzleOutline } from '@vicons/ionicons5'
+import { PeopleOutline, ExtensionPuzzleOutline } from '@/icons'
 
 const router = useRouter()
 const route = useRoute()

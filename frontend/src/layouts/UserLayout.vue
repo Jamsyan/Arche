@@ -16,13 +16,9 @@
           <PersonCircleOutline class="avatar" />
         </div>
         <!-- 用户下拉菜单 -->
-        <div v-if="showUserMenu" class="user-menu" @click.outside="showUserMenu = false">
-          <div class="menu-item" @click="goToProfile">
-            <PersonOutline /> 个人中心
-          </div>
-          <div class="menu-item" @click="handleLogout">
-            <LogOutOutline /> 退出登录
-          </div>
+        <div v-if="showUserMenu" class="user-menu">
+          <div class="menu-item" @click="goToProfile"><PersonOutline /> 个人中心</div>
+          <div class="menu-item" @click="handleLogout"><LogOutOutline /> 退出登录</div>
         </div>
       </div>
     </header>
@@ -56,7 +52,8 @@
           </div>
         </div>
         <div class="content-body">
-          <slot /> <!-- 页面内容在这里 -->
+          <slot />
+          <!-- 页面内容在这里 -->
         </div>
       </main>
     </div>
@@ -66,7 +63,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { MenuOutline, PersonCircleOutline, PersonOutline, LogOutOutline, DocumentTextOutline, HomeOutline } from '@vicons/ionicons5'
+import {
+  MenuOutline,
+  PersonCircleOutline,
+  PersonOutline,
+  LogOutOutline,
+  DocumentTextOutline,
+  HomeOutline
+} from '@/icons'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
 import { $message } from '@/utils/message'

@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
-import { NCard, NTable, NPagination, NButton, NTag, NPopconfirm, NSpace, useMessage } from 'naive-ui'
-import { AddOutline, CreateOutline, TrashOutline, BanOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
+import {
+  NCard,
+  NTable,
+  NPagination,
+  NButton,
+  NTag,
+  NPopconfirm,
+  NSpace,
+  useMessage
+} from 'naive-ui'
+import { AddOutline } from '@/icons'
 
 const message = useMessage()
 const page = ref(1)
@@ -28,11 +37,16 @@ const columns = [
     key: 'role',
     width: 120,
     render: (row: { role: string }) => {
-      return h(NTag, {
-        type: row.role === 'admin' ? 'error' : row.role === 'user' ? 'primary' : 'default'
-      }, {
-        default: () => row.role === 'admin' ? '管理员' : row.role === 'user' ? '普通用户' : '访客'
-      })
+      return h(
+        NTag,
+        {
+          type: row.role === 'admin' ? 'error' : row.role === 'user' ? 'primary' : 'default'
+        },
+        {
+          default: () =>
+            row.role === 'admin' ? '管理员' : row.role === 'user' ? '普通用户' : '访客'
+        }
+      )
     }
   },
   {
@@ -45,9 +59,13 @@ const columns = [
     key: 'status',
     width: 120,
     render: (row: { status: string }) => {
-      return h(NTag, {
-        type: row.status === '活跃' ? 'success' : 'error'
-      }, { default: () => row.status })
+      return h(
+        NTag,
+        {
+          type: row.status === '活跃' ? 'success' : 'error'
+        },
+        { default: () => row.status }
+      )
     }
   },
   {
@@ -56,33 +74,50 @@ const columns = [
     width: 240,
     render: (row: { key: string; username: string; status: string }) => {
       return h(NSpace, { size: 'small' }, [
-        h(NButton, {
-          size: 'small',
-          type: 'primary',
-          quaternary: true,
-          onClick: () => handleEdit(row)
-        }, { default: () => '编辑' }),
-        h(NButton, {
-          size: 'small',
-          type: row.status === '活跃' ? 'warning' : 'success',
-          quaternary: true,
-          onClick: () => handleToggleStatus(row)
-        }, {
-          default: () => row.status === '活跃' ? '禁用' : '启用'
-        }),
-        h(NPopconfirm, {
-          title: '确认删除',
-          content: `确定要删除用户"${row.username}"吗？`,
-          positiveText: '确认',
-          negativeText: '取消',
-          onPositiveClick: () => handleDelete(row)
-        }, {
-          trigger: () => h(NButton, {
+        h(
+          NButton,
+          {
             size: 'small',
-            type: 'error',
-            quaternary: true
-          }, { default: () => '删除' })
-        })
+            type: 'primary',
+            quaternary: true,
+            onClick: () => handleEdit(row)
+          },
+          { default: () => '编辑' }
+        ),
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: row.status === '活跃' ? 'warning' : 'success',
+            quaternary: true,
+            onClick: () => handleToggleStatus(row)
+          },
+          {
+            default: () => (row.status === '活跃' ? '禁用' : '启用')
+          }
+        ),
+        h(
+          NPopconfirm,
+          {
+            title: '确认删除',
+            content: `确定要删除用户"${row.username}"吗？`,
+            positiveText: '确认',
+            negativeText: '取消',
+            onPositiveClick: () => handleDelete(row)
+          },
+          {
+            trigger: () =>
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  type: 'error',
+                  quaternary: true
+                },
+                { default: () => '删除' }
+              )
+          }
+        )
       ])
     }
   }
@@ -132,7 +167,7 @@ const handleToggleStatus = (row: any) => {
 }
 
 const handleDelete = (row: any) => {
-  const index = data.value.findIndex(item => item.key === row.key)
+  const index = data.value.findIndex((item) => item.key === row.key)
   if (index > -1) {
     data.value.splice(index, 1)
     message.success('删除成功')
@@ -155,13 +190,7 @@ const handleDelete = (row: any) => {
         </div>
       </template>
 
-      <NTable
-        :columns="columns"
-        :data="data"
-        row-key="key"
-        :pagination="false"
-        single-line
-      />
+      <NTable :columns="columns" :data="data" row-key="key" :pagination="false" single-line />
 
       <div class="pagination-section">
         <NPagination

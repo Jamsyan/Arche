@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
 import { NCard, NTable, NPagination, NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
-import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline } from '@/icons'
 
 const message = useMessage()
 const page = ref(1)
@@ -23,9 +23,13 @@ const columns = [
     key: 'status',
     width: 120,
     render: (row: { status: string }) => {
-      return h(NTag, {
-        type: row.status === '已发布' ? 'success' : 'warning'
-      }, { default: () => row.status })
+      return h(
+        NTag,
+        {
+          type: row.status === '已发布' ? 'success' : 'warning'
+        },
+        { default: () => row.status }
+      )
     }
   },
   {
@@ -34,25 +38,38 @@ const columns = [
     width: 180,
     render: (row: { key: string; title: string }) => {
       return h('div', { style: { display: 'flex', gap: '8px' } }, [
-        h(NButton, {
-          size: 'small',
-          type: 'primary',
-          quaternary: true,
-          onClick: () => handleEdit(row)
-        }, { default: () => '编辑' }),
-        h(NPopconfirm, {
-          title: '确认删除',
-          content: `确定要删除文章"${row.title}"吗？`,
-          positiveText: '确认',
-          negativeText: '取消',
-          onPositiveClick: () => handleDelete(row)
-        }, {
-          trigger: () => h(NButton, {
+        h(
+          NButton,
+          {
             size: 'small',
-            type: 'error',
-            quaternary: true
-          }, { default: () => '删除' })
-        })
+            type: 'primary',
+            quaternary: true,
+            onClick: () => handleEdit(row)
+          },
+          { default: () => '编辑' }
+        ),
+        h(
+          NPopconfirm,
+          {
+            title: '确认删除',
+            content: `确定要删除文章"${row.title}"吗？`,
+            positiveText: '确认',
+            negativeText: '取消',
+            onPositiveClick: () => handleDelete(row)
+          },
+          {
+            trigger: () =>
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  type: 'error',
+                  quaternary: true
+                },
+                { default: () => '删除' }
+              )
+          }
+        )
       ])
     }
   }
@@ -88,7 +105,7 @@ const handleEdit = (row: any) => {
 }
 
 const handleDelete = (row: any) => {
-  const index = data.value.findIndex(item => item.key === row.key)
+  const index = data.value.findIndex((item) => item.key === row.key)
   if (index > -1) {
     data.value.splice(index, 1)
     message.success('删除成功')
@@ -111,13 +128,7 @@ const handleDelete = (row: any) => {
         </div>
       </template>
 
-      <NTable
-        :columns="columns"
-        :data="data"
-        row-key="key"
-        :pagination="false"
-        single-line
-      />
+      <NTable :columns="columns" :data="data" row-key="key" :pagination="false" single-line />
 
       <div class="pagination-section">
         <NPagination

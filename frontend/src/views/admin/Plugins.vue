@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
-import { NCard, NTable, NPagination, NButton, NTag, NPopconfirm, NSpace, useMessage, NDescriptions, NDescriptionsItem, NModal } from 'naive-ui'
-import { AddOutline, SettingsOutline, PowerOutline, TrashOutline, InformationCircleOutline } from '@vicons/ionicons5'
+import {
+  NCard,
+  NTable,
+  NPagination,
+  NButton,
+  NTag,
+  NPopconfirm,
+  NSpace,
+  useMessage,
+  NDescriptions,
+  NDescriptionsItem,
+  NModal
+} from 'naive-ui'
+import { AddOutline } from '@/icons'
 
 const message = useMessage()
 const page = ref(1)
@@ -48,39 +60,60 @@ const columns = [
     width: 280,
     render: (row: any) => {
       return h(NSpace, { size: 'small' }, [
-        h(NButton, {
-          size: 'small',
-          type: 'default',
-          quaternary: true,
-          onClick: () => handleViewInfo(row)
-        }, { default: () => '详情' }),
-        h(NButton, {
-          size: 'small',
-          type: 'primary',
-          quaternary: true,
-          onClick: () => handleConfig(row)
-        }, { default: () => '配置' }),
-        h(NButton, {
-          size: 'small',
-          type: row.status === '已启用' ? 'warning' : 'success',
-          quaternary: true,
-          onClick: () => handleToggleStatus(row)
-        }, {
-          default: () => row.status === '已启用' ? '禁用' : '启用'
-        }),
-        h(NPopconfirm, {
-          title: '确认卸载',
-          content: `确定要卸载插件"${row.name}"吗？卸载后相关数据将被删除。`,
-          positiveText: '确认',
-          negativeText: '取消',
-          onPositiveClick: () => handleUninstall(row)
-        }, {
-          trigger: () => h(NButton, {
+        h(
+          NButton,
+          {
             size: 'small',
-            type: 'error',
-            quaternary: true
-          }, { default: () => '卸载' })
-        })
+            type: 'default',
+            quaternary: true,
+            onClick: () => handleViewInfo(row)
+          },
+          { default: () => '详情' }
+        ),
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: 'primary',
+            quaternary: true,
+            onClick: () => handleConfig(row)
+          },
+          { default: () => '配置' }
+        ),
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: row.status === '已启用' ? 'warning' : 'success',
+            quaternary: true,
+            onClick: () => handleToggleStatus(row)
+          },
+          {
+            default: () => (row.status === '已启用' ? '禁用' : '启用')
+          }
+        ),
+        h(
+          NPopconfirm,
+          {
+            title: '确认卸载',
+            content: `确定要卸载插件"${row.name}"吗？卸载后相关数据将被删除。`,
+            positiveText: '确认',
+            negativeText: '取消',
+            onPositiveClick: () => handleUninstall(row)
+          },
+          {
+            trigger: () =>
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  type: 'error',
+                  quaternary: true
+                },
+                { default: () => '卸载' }
+              )
+          }
+        )
       ])
     }
   }
@@ -136,7 +169,7 @@ const handleToggleStatus = (row: any) => {
 }
 
 const handleUninstall = (row: any) => {
-  const index = data.value.findIndex(item => item.key === row.key)
+  const index = data.value.findIndex((item) => item.key === row.key)
   if (index > -1) {
     data.value.splice(index, 1)
     message.success('插件卸载成功')
@@ -159,13 +192,7 @@ const handleUninstall = (row: any) => {
         </div>
       </template>
 
-      <NTable
-        :columns="columns"
-        :data="data"
-        row-key="key"
-        :pagination="false"
-        single-line
-      />
+      <NTable :columns="columns" :data="data" row-key="key" :pagination="false" single-line />
 
       <div class="pagination-section">
         <NPagination
@@ -202,7 +229,15 @@ const handleUninstall = (row: any) => {
           {{ currentPlugin.version }}
         </NDescriptionsItem>
         <NDescriptionsItem label="状态">
-          <NTag :type="currentPlugin.status === '已启用' ? 'success' : currentPlugin.status === '已禁用' ? 'error' : 'warning'">
+          <NTag
+            :type="
+              currentPlugin.status === '已启用'
+                ? 'success'
+                : currentPlugin.status === '已禁用'
+                  ? 'error'
+                  : 'warning'
+            "
+          >
             {{ currentPlugin.status }}
           </NTag>
         </NDescriptionsItem>

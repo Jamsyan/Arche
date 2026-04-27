@@ -119,37 +119,31 @@
   box-shadow: var(--shadow-xl);
 }
 
-/* 暗黑模式适配 */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --glass-bg: rgba(30, 30, 30, 0.6);
-    --glass-bg-hover: rgba(30, 30, 30, 0.75);
-    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+.dark {
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-bg-hover: rgba(30, 30, 30, 0.75);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
 
-    --text-primary: rgba(255, 255, 255, 0.9);
-    --text-secondary: rgba(255, 255, 255, 0.7);
-    --text-tertiary: rgba(255, 255, 255, 0.5);
-    --text-disabled: rgba(255, 255, 255, 0.3);
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-disabled: rgba(255, 255, 255, 0.3);
 
-    --border-color: rgba(255, 255, 255, 0.08);
-    --bg-gradient: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    --bg-gradient-light: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --bg-gradient: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  --bg-gradient-light: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
 
-    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  }
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 
-  /* Naive UI 暗黑模式覆盖 */
-  :root {
-    --n-popover-color: var(--glass-bg);
-    --n-card-color: transparent;
-    --n-modal-color: var(--glass-bg);
-    --n-body-color: transparent;
+  --n-popover-color: var(--glass-bg);
+  --n-card-color: transparent;
+  --n-modal-color: var(--glass-bg);
+  --n-body-color: transparent;
 
-    --n-text-color: var(--text-primary);
-    --n-text-2-color: var(--text-secondary);
-    --n-text-3-color: var(--text-tertiary);
-    --n-text-4-color: var(--text-disabled);
+  --n-text-color: var(--text-primary);
+  --n-text-2-color: var(--text-secondary);
+  --n-text-3-color: var(--text-tertiary);
+  --n-text-4-color: var(--text-disabled);
 
-    --n-border-color: var(--border-color);
-  }
+  --n-border-color: var(--border-color);
 }

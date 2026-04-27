@@ -19,13 +19,9 @@
           <PersonCircleOutline class="avatar" />
         </div>
         <!-- 用户下拉菜单 -->
-        <div v-if="showUserMenu" class="user-menu" @click.outside="showUserMenu = false">
-          <div class="menu-item" @click="goToHome">
-            <HomeOutline /> 回到首页
-          </div>
-          <div class="menu-item" @click="handleLogout">
-            <LogOutOutline /> 退出登录
-          </div>
+        <div v-if="showUserMenu" class="user-menu">
+          <div class="menu-item" @click="goToHome"><HomeOutline /> 回到首页</div>
+          <div class="menu-item" @click="handleLogout"><LogOutOutline /> 退出登录</div>
         </div>
       </div>
     </header>
@@ -66,7 +62,8 @@
           </div>
         </div>
         <div class="content-body">
-          <slot /> <!-- 页面内容在这里 -->
+          <slot />
+          <!-- 页面内容在这里 -->
         </div>
       </main>
     </div>
@@ -83,7 +80,7 @@ import {
   LogOutOutline,
   PeopleOutline,
   AppsOutline
-} from '@vicons/ionicons5'
+} from '@/icons'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
 import { $message } from '@/utils/message'
@@ -140,8 +137,8 @@ const handleLogout = async () => {
 <style scoped>
 .admin-layout {
   min-height: 100vh;
-  background: #f5f7fa;
-  color: #333;
+  background: var(--bg-gradient-light);
+  color: var(--text-primary);
 }
 
 .layout-header {
@@ -150,8 +147,9 @@ const handleLogout = async () => {
   left: 0;
   right: 0;
   height: 64px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -169,8 +167,8 @@ const handleLogout = async () => {
   width: 36px;
   height: 36px;
   border: none;
-  background: #f5f7fa;
-  border-radius: 6px;
+  background: var(--glass-bg);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -179,14 +177,14 @@ const handleLogout = async () => {
 }
 
 .menu-toggle:hover {
-  background: #e8eaed;
+  background: var(--glass-bg-hover);
 }
 
 .logo h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #52c41a;
+  color: var(--primary-color);
 }
 
 .header-right {
@@ -202,9 +200,9 @@ const handleLogout = async () => {
 }
 
 .admin-badge {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
-  color: #52c41a;
+  background: color-mix(in srgb, var(--success-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success-color) 45%, transparent);
+  color: var(--success-color);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
@@ -216,13 +214,13 @@ const handleLogout = async () => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
 .user-info:hover {
-  background: #f5f7fa;
+  background: var(--glass-bg-hover);
 }
 
 .username {
@@ -232,16 +230,16 @@ const handleLogout = async () => {
 
 .avatar {
   font-size: 24px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .user-menu {
   position: absolute;
   top: 52px;
   right: 0;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  background: var(--glass-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
   min-width: 160px;
   padding: 8px 0;
   z-index: 200;
@@ -258,7 +256,7 @@ const handleLogout = async () => {
 }
 
 .menu-item:hover {
-  background: #f5f7fa;
+  background: var(--glass-bg-hover);
 }
 
 .layout-body {
@@ -269,8 +267,9 @@ const handleLogout = async () => {
 
 .layout-sidebar {
   width: 240px;
-  background: white;
-  border-right: 1px solid #e8eaed;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--border-color);
   transition: width 0.3s ease;
   position: fixed;
   top: 64px;
@@ -298,7 +297,7 @@ const handleLogout = async () => {
   display: block;
   padding: 8px 24px;
   font-size: 12px;
-  color: #999;
+  color: var(--text-tertiary);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -310,8 +309,8 @@ const handleLogout = async () => {
   gap: 12px;
   padding: 10px 16px;
   margin: 0 8px;
-  border-radius: 6px;
-  color: #666;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   text-decoration: none;
   transition: all 0.3s ease;
   font-size: 14px;
@@ -319,13 +318,13 @@ const handleLogout = async () => {
 }
 
 .nav-item:hover {
-  background: #f0fff4;
-  color: #52c41a;
+  background: var(--glass-bg-hover);
+  color: var(--primary-color);
 }
 
 .nav-item.nav-item-active {
-  background: #52c41a;
-  color: white;
+  background: var(--primary-color);
+  color: #fff;
 }
 
 .nav-icon {
@@ -349,10 +348,11 @@ const handleLogout = async () => {
 }
 
 .content-header {
-  background: white;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
   padding: 16px 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
   margin-bottom: 24px;
   display: flex;
   align-items: center;
@@ -361,12 +361,12 @@ const handleLogout = async () => {
 
 .breadcrumb {
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .breadcrumb .separator {
   margin: 0 8px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .content-actions {
@@ -375,10 +375,11 @@ const handleLogout = async () => {
 }
 
 .content-body {
-  background: white;
-  border-radius: 8px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-sm);
   min-height: calc(100vh - 210px);
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
 }
 </style>
