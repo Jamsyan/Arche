@@ -27,6 +27,44 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
         permission: API_PERMISSION.BLOG_POSTS_READ,
         icon: 'DocumentTextOutline'
       }
+    },
+    {
+      path: '/posts/new',
+      name: 'PostCreate',
+      component: () => import('@/views/user/PostEditor.vue'),
+      meta: {
+        title: '新建文章',
+        layout: 'user',
+        requiresAuth: true,
+        permission: API_PERMISSION.BLOG_POSTS_WRITE,
+        icon: 'CreateOutline',
+        menu: false
+      }
+    },
+    {
+      path: '/posts/:id/edit',
+      name: 'PostEdit',
+      component: () => import('@/views/user/PostEditor.vue'),
+      meta: {
+        title: '编辑文章',
+        layout: 'user',
+        requiresAuth: true,
+        permission: API_PERMISSION.BLOG_POSTS_WRITE,
+        icon: 'CreateOutline',
+        menu: false
+      }
+    },
+    {
+      path: '/creator',
+      name: 'CreatorDashboard',
+      component: () => import('@/views/user/CreatorDashboard.vue'),
+      meta: {
+        title: '创作者看板',
+        layout: 'user',
+        requiresAuth: true,
+        permission: API_PERMISSION.BLOG_POSTS_READ,
+        icon: 'InformationCircleOutline'
+      }
     }
   ],
   admin: [
@@ -68,6 +106,32 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
             role: 'admin',
             permission: API_PERMISSION.ASSETS_READ,
             icon: 'AppsOutline'
+          }
+        },
+        {
+          path: 'moderation/pending',
+          name: 'AdminModerationPending',
+          component: () => import('@/views/admin/ModerationPending.vue'),
+          meta: {
+            title: '待审核帖子',
+            layout: 'admin',
+            requiresAuth: true,
+            role: 'admin',
+            permission: API_PERMISSION.BLOG_POSTS_MODERATE,
+            icon: 'CheckmarkCircleOutline'
+          }
+        },
+        {
+          path: 'moderation/posts',
+          name: 'AdminModerationPosts',
+          component: () => import('@/views/admin/ModerationPosts.vue'),
+          meta: {
+            title: '帖子管理',
+            layout: 'admin',
+            requiresAuth: true,
+            role: 'admin',
+            permission: API_PERMISSION.BLOG_POSTS_MODERATE,
+            icon: 'DocumentTextOutline'
           }
         }
       ]

@@ -11,7 +11,7 @@ import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
 
 // 响应数据格式定义，和后端约定
 export interface ResponseData<T = any> {
-  code: number
+  code: number | string
   message: string
   data: T
   success: boolean
@@ -126,8 +126,9 @@ service.interceptors.response.use(
     removePendingController(config)
 
     const res = response.data
-    // 如果返回的状态码不是200，说明出错了
-    if (res.code !== 200) {
+    // 后端可能返回 code: 200 或 code: "ok"（插件路由常用字符串）
+    const isOk = res.code === 200 || res.code === 'ok' || res.success === true
+    if (!isOk) {
       if (!config.requestOptions?.silent) {
         $message.error(res.message || '请求失败')
       }

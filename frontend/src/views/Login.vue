@@ -45,13 +45,14 @@
           </NButton>
         </template>
       </ProForm>
+      <div class="register-entry">还没账号？<RouterLink to="/register">立即注册</RouterLink></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { NSelect, NButton, NFormItemGi, NInput } from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 import { $message } from '@/utils/message'
@@ -59,6 +60,7 @@ import { LockClosedOutline } from '@/icons'
 import ProForm from '@/components/ProForm.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const useMockLogin = import.meta.env.VITE_USE_MOCK_LOGIN === 'true'
 
@@ -78,6 +80,10 @@ const roleOptions = [
   { label: '管理员', value: 'admin' },
   { label: '访客', value: 'guest' }
 ]
+
+if (typeof route.query.identity === 'string') {
+  formModel.value.identity = route.query.identity
+}
 
 const handleLogin = async () => {
   loading.value = true
@@ -172,5 +178,11 @@ const handleLogin = async () => {
   color: var(--primary-color);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.register-entry {
+  margin-top: 14px;
+  text-align: center;
+  color: var(--text-secondary);
 }
 </style>

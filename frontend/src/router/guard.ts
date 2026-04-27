@@ -51,8 +51,8 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const token = userStore.token
-  // 白名单路径，不需要登录就可以访问
-  if (permissionStore.whiteList.includes(to.path)) {
+  // 公开页面（requiresAuth=false）允许匿名访问
+  if (to.meta?.requiresAuth === false || permissionStore.whiteList.includes(to.path)) {
     next()
     return
   }

@@ -1,5 +1,5 @@
 import { del, get, post, put, type RequestConfig } from '../request'
-import type { ApiListParams, BatchActionPayload, Paginated } from './types/common'
+import type { ApiListParams, BatchActionPayload, BackendPaginated, Paginated } from './types/common'
 
 export interface BlogPost {
   id: string
@@ -10,6 +10,9 @@ export interface BlogPost {
   status?: string
   created_at?: string
   updated_at?: string
+  author_username?: string
+  likes?: number
+  views?: number
 }
 
 export interface BlogComment {
@@ -55,11 +58,18 @@ export interface BlogListParams extends ApiListParams {
   status?: string
 }
 
+const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
+  total: raw.total || 0,
+  page: raw.page || 1,
+  page_size: raw.page_size || 20,
+  list: raw.list || raw.items || []
+})
+
 export const getBlogPostsApi = (params?: BlogListParams, config?: RequestConfig) =>
-  get<Paginated<BlogPost>>('/blog/posts', params, config)
+  get<BackendPaginated<BlogPost>>('/blog/posts', params, config).then(normalizePaginated)
 
 export const getMyPostsApi = (params?: BlogListParams, config?: RequestConfig) =>
-  get<Paginated<BlogPost>>('/blog/my-posts', params, config)
+  get<BackendPaginated<BlogPost>>('/blog/my-posts', params, config).then(normalizePaginated)
 
 export const getPostByIdApi = (postId: string, config?: RequestConfig) =>
   get<BlogPost>(`/blog/posts/by-id/${postId}`, undefined, config)
@@ -80,7 +90,10 @@ export const getPostCommentsApi = (
   postId: string,
   params?: ApiListParams,
   config?: RequestConfig
-) => get<Paginated<BlogComment>>(`/blog/posts/${postId}/comments`, params, config)
+) =>
+  get<BackendPaginated<BlogComment>>(`/blog/posts/${postId}/comments`, params, config).then(
+    normalizePaginated
+  )
 
 export const createPostCommentApi = (
   postId: string,
@@ -98,7 +111,7 @@ export const removeFavoriteApi = (postId: string, config?: RequestConfig) =>
   del<void>(`/blog/favorites/${postId}`, undefined, config)
 
 export const getFavoritePostsApi = (params?: ApiListParams, config?: RequestConfig) =>
-  get<Paginated<BlogPost>>('/blog/favorites', params, config)
+  get<BackendPaginated<BlogPost>>('/blog/favorites', params, config).then(normalizePaginated)
 
 export const getFavoriteStatusApi = (postId: string, config?: RequestConfig) =>
   get<{ favorited: boolean }>(`/blog/posts/${postId}/favorite-status`, undefined, config)
@@ -107,7 +120,7 @@ export const createReportApi = (payload: CreateReportPayload, config?: RequestCo
   post<void>('/blog/reports', payload, config)
 
 export const getBlogTagsApi = (params?: ApiListParams, config?: RequestConfig) =>
-  get<Paginated<BlogTag>>('/blog/tags', params, config)
+  get<BackendPaginated<BlogTag>>('/blog/tags', params, config).then(normalizePaginated)
 
 export const createBlogTagApi = (name: string, config?: RequestConfig) =>
   post<BlogTag>('/blog/tags', undefined, { ...(config || {}), params: { name } })
@@ -119,10 +132,14 @@ export const removePostTagApi = (postId: string, tagName: string, config?: Reque
   del<void>(`/blog/posts/${postId}/tags/${tagName}`, undefined, config)
 
 export const getPostsByTagApi = (tagName: string, params?: ApiListParams, config?: RequestConfig) =>
-  get<Paginated<BlogPost>>(`/blog/posts/by-tag/${tagName}`, params, config)
+  get<BackendPaginated<BlogPost>>(`/blog/posts/by-tag/${tagName}`, params, config).then(
+    normalizePaginated
+  )
 
 export const getModerationPendingApi = (params?: ApiListParams, config?: RequestConfig) =>
-  get<Paginated<BlogPost>>('/blog/moderation/pending', params, config)
+  get<BackendPaginated<BlogPost>>('/blog/moderation/pending', params, config).then(
+    normalizePaginated
+  )
 
 export const approvePostApi = (postId: string, config?: RequestConfig) =>
   post<void>(`/blog/moderation/${postId}/approve`, undefined, config)

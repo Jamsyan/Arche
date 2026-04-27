@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
+import { useRouter } from 'vue-router'
 import { NCard, NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
 import { AddOutline } from '@/icons'
 import ProTable from '@/components/ProTable.vue'
-import {
-  createPostApi,
-  deletePostApi,
-  getMyPostsApi,
-  type BlogPost,
-  type Paginated
-} from '@/services/api'
+import { deletePostApi, getMyPostsApi, type BlogPost, type Paginated } from '@/services/api'
 
 const message = useMessage()
+const router = useRouter()
 const tableData = ref<PostRow[]>([])
 
 interface PostRow {
@@ -116,21 +112,11 @@ const fetchPosts = async (params: {
 }
 
 const handleCreate = () => {
-  createPostApi({
-    title: `新文章 ${new Date().toLocaleString()}`,
-    content: '自动创建的演示内容',
-    tags: ['demo']
-  })
-    .then(() => {
-      message.success('已创建演示文章')
-    })
-    .catch(() => {
-      message.error('创建文章失败')
-    })
+  router.push('/posts/new')
 }
 
 const handleEdit = (row: PostRow) => {
-  message.info(`编辑文章: ${row.title}`)
+  router.push(`/posts/${row.id}/edit`)
 }
 
 const handleDelete = async (row: PostRow) => {

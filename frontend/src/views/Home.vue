@@ -1,344 +1,250 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { NInput, NSelect, NTag, NRadioGroup, NRadioButton, NPagination, useMessage } from 'naive-ui'
+import { getBlogPostsApi, getBlogTagsApi, type BlogPost } from '@/services/api'
+import { useViewMode } from '@/composables/useViewMode'
+
+const route = useRoute()
+const router = useRouter()
+const message = useMessage()
+
+const loading = ref(false)
+const posts = ref<BlogPost[]>([])
+const total = ref(0)
+const page = ref(Number(route.query.page || 1))
+const q = ref(String(route.query.q || ''))
+const tag = ref(String(route.query.tag || ''))
+const sortBy = ref(String(route.query.sort_by || 'created_at'))
+const tags = ref<string[]>([])
+const { viewMode } = useViewMode('blog-feed-view-mode', 'detail')
+
+const sortOptions = [
+  { label: '最新发布', value: 'created_at' },
+  { label: '最多浏览', value: 'views' },
+  { label: '最多点赞', value: 'likes' }
+]
+
+const tagOptions = computed(() => ['全部', ...tags.value])
+
+const fetchTags = async () => {
+  const res = await getBlogTagsApi({ page: 1, page_size: 100 }, { silent: true })
+  tags.value = (res.list || []).map((item) => item.name)
+}
+
+const fetchPosts = async () => {
+  loading.value = true
+  try {
+    const params: Record<string, string | number> = {
+      page: page.value,
+      page_size: 10,
+      sort_by: sortBy.value
+    }
+    if (q.value) params.q = q.value
+    if (tag.value) params.tag = tag.value
+    const res = await getBlogPostsApi(params)
+    posts.value = res.list || []
+    total.value = res.total || 0
+  } catch {
+    message.error('加载博客列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const syncQuery = () => {
+  router.replace({
+    query: {
+      ...route.query,
+      page: String(page.value),
+      q: q.value || undefined,
+      tag: tag.value || undefined,
+      sort_by: sortBy.value,
+      view: viewMode.value
+    }
+  })
+}
+
+const openPost = (post: BlogPost) => {
+  router.push(`/blog/${post.slug}`)
+}
+
+watch([q, tag, sortBy, page], () => {
+  syncQuery()
+  fetchPosts()
+})
+
+onMounted(async () => {
+  await fetchTags()
+  await fetchPosts()
+})
+</script>
+
 <template>
   <div class="home-page">
-    <!-- 博客欢迎区域 -->
-    <div class="hero-section card-glass">
-      <div class="hero-content">
-        <h1 class="hero-title">你好，我是 Arche</h1>
-        <p class="hero-subtitle">
-          一名热爱技术的开发者，在这里分享我的技术思考、项目经验和生活感悟。
-        </p>
-        <div class="hero-buttons">
-          <NButton type="primary" size="large" @click="goToBlog"> 浏览文章 </NButton>
-          <NButton size="large" @click="goToAbout"> 了解更多 </NButton>
-        </div>
-      </div>
+    <h2 class="page-title">博客首页</h2>
+    <div class="toolbar card-glass">
+      <NInput v-model:value="q" placeholder="搜索文章标题或正文" clearable />
+      <NSelect v-model:value="sortBy" :options="sortOptions" />
+      <NRadioGroup v-model:value="viewMode">
+        <NRadioButton value="compact">精简行</NRadioButton>
+        <NRadioButton value="detail">详情行</NRadioButton>
+        <NRadioButton value="card">卡片</NRadioButton>
+      </NRadioGroup>
     </div>
 
-    <!-- 最新文章 -->
-    <div class="latest-section">
-      <div class="section-header">
-        <h2 class="section-title">最新文章</h2>
-        <NButton quaternary @click="goToBlog"> 查看全部 → </NButton>
-      </div>
-      <div class="articles-grid">
-        <article
-          v-for="post in latestPosts"
-          :key="post.id"
-          class="article-card card-glass glass-hover"
-        >
-          <div class="article-meta">
-            <span class="article-date">{{ post.date }}</span>
-            <NTag size="small" :type="post.tagType">
-              {{ post.tag }}
+    <div class="tag-row">
+      <NTag
+        v-for="tagName in tagOptions"
+        :key="tagName"
+        checkable
+        :checked="(tagName === '全部' && !tag) || tag === tagName"
+        @update:checked="() => (tag = tagName === '全部' ? '' : tagName)"
+      >
+        {{ tagName }}
+      </NTag>
+    </div>
+
+    <div v-if="posts.length === 0" class="empty card-glass">暂无文章，先去注册并发布第一篇吧。</div>
+
+    <div v-else-if="viewMode === 'compact'" class="compact-list">
+      <div v-for="post in posts" :key="post.id" class="compact-item card-glass" @click="openPost(post)">
+        <div class="left">
+          <h3>{{ post.title }}</h3>
+          <div class="meta">
+            <NTag v-for="tagName in (post.tags || []).slice(0, 2)" :key="tagName" size="small">
+              {{ tagName }}
             </NTag>
           </div>
-          <h3 class="article-title">
-            {{ post.title }}
-          </h3>
-          <p class="article-excerpt">
-            {{ post.excerpt }}
-          </p>
-          <div class="article-footer">
-            <span class="read-time">{{ post.readTime }} 分钟阅读</span>
-            <NButton text size="small" @click="viewArticle(post)"> 阅读全文 → </NButton>
-          </div>
-        </article>
+        </div>
+        <div class="right">{{ post.created_at?.slice(0, 10) || '-' }}</div>
       </div>
     </div>
 
-    <!-- 侧边信息 - 关于我 -->
-    <div class="about-section card-glass">
-      <div class="about-avatar">
-        <!-- 这里可以放头像 -->
-        <div class="avatar-placeholder">👨‍💻</div>
-      </div>
-      <h3 class="about-name">Arche</h3>
-      <p class="about-bio">全栈开发者，热爱开源，喜欢探索新技术。</p>
-      <div class="about-stats">
-        <div class="stat-item">
-          <span class="stat-number">{{ stats.articles }}</span>
-          <span class="stat-label">文章</span>
+    <div v-else-if="viewMode === 'detail'" class="detail-list">
+      <article v-for="post in posts" :key="post.id" class="detail-item card-glass" @click="openPost(post)">
+        <h3>{{ post.title }}</h3>
+        <p class="excerpt">{{ post.content?.slice(0, 180) || '暂无摘要' }}</p>
+        <div class="footer">
+          <div class="meta">
+            <span>{{ post.author_username || '匿名' }}</span>
+            <span>👍 {{ post.likes || 0 }}</span>
+            <span>{{ post.created_at?.slice(0, 10) || '-' }}</span>
+          </div>
         </div>
-        <div class="stat-item">
-          <span class="stat-number">{{ stats.projects }}</span>
-          <span class="stat-label">项目</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number">{{ stats.tags }}</span>
-          <span class="stat-label">标签</span>
-        </div>
-      </div>
+      </article>
+    </div>
+
+    <div v-else class="card-grid">
+      <article v-for="post in posts" :key="post.id" class="card-item card-glass" @click="openPost(post)">
+        <h3>{{ post.title }}</h3>
+        <p>{{ post.content?.slice(0, 120) || '暂无摘要' }}</p>
+        <div class="meta">{{ post.created_at?.slice(0, 10) || '-' }}</div>
+      </article>
+    </div>
+
+    <div class="pager">
+      <NPagination
+        :page="page"
+        :item-count="total"
+        :page-size="10"
+        show-quick-jumper
+        @update:page="(val: number) => (page = val)"
+      />
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { NButton, NTag, useMessage } from 'naive-ui'
-import { getBlogPostsApi } from '@/services/api'
-
-const message = useMessage()
-
-type PostTagType = 'primary' | 'success' | 'warning' | 'error' | 'default' | 'info'
-
-interface LatestPost {
-  id: number
-  title: string
-  excerpt: string
-  date: string
-  tag: string
-  tagType: PostTagType
-  readTime: number
-}
-
-// 模拟最新文章数据
-const latestPosts = ref<LatestPost[]>([])
-
-// 模拟统计数据
-const stats = ref({
-  articles: 42,
-  projects: 15,
-  tags: 28
-})
-
-const goToBlog = () => {
-  message.info('博客页面开发中')
-}
-
-const goToAbout = () => {
-  message.info('关于页面开发中')
-}
-
-const viewArticle = (post: any) => {
-  message.info(`打开文章: ${post.title}`)
-}
-
-onMounted(async () => {
-  try {
-    const res = await getBlogPostsApi({
-      page: 1,
-      page_size: 3
-    })
-    latestPosts.value = (res.list || []).map((item, index) => ({
-      id: Number(item.id || index + 1),
-      title: item.title,
-      excerpt: item.content?.slice(0, 70) || '暂无摘要',
-      date: item.created_at ? item.created_at.slice(0, 10) : '-',
-      tag: item.tags?.[0] || '通用',
-      tagType: (['primary', 'success', 'warning'][index % 3] as PostTagType) || 'info',
-      readTime: Math.max(3, Math.round((item.content?.length || 100) / 240))
-    }))
-  } catch {
-    message.warning('加载最新文章失败，已展示占位内容')
-    latestPosts.value = [
-      {
-        id: 1,
-        title: '暂时无法拉取文章',
-        excerpt: '请检查后端服务是否启动。',
-        date: '-',
-        tag: '系统',
-        tagType: 'warning',
-        readTime: 1
-      }
-    ]
-  }
-})
-</script>
-
 <style scoped>
 .home-page {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: var(--spacing-xl);
-}
-
-.hero-section {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: var(--spacing-2xl);
-}
-
-.hero-title {
-  font-size: 42px;
-  font-weight: 700;
-  margin-bottom: var(--spacing-md);
-  background: var(--bg-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-subtitle {
-  font-size: 18px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  max-width: 600px;
-  margin: 0 auto var(--spacing-xl);
-}
-
-.hero-buttons {
   display: flex;
-  gap: var(--spacing-md);
-  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  color: var(--text-primary);
+}
+.toolbar {
+  display: grid;
+  grid-template-columns: 1fr 180px auto;
+  gap: 12px;
+  padding: 12px;
+}
+.tag-row {
+  display: flex;
+  gap: 8px;
   flex-wrap: wrap;
 }
-
-.latest-section {
+.pager {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+.empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.compact-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 12px;
 }
-
-.section-header {
+.compact-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.section-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.articles-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-}
-
-.article-card {
-  padding: var(--spacing-lg);
+  padding: 14px 16px;
   cursor: pointer;
 }
-
-.article-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
+.left h3 {
+  margin: 0 0 8px;
 }
-
-.article-date {
-  font-size: 13px;
+.meta {
+  display: flex;
+  gap: 8px;
+}
+.right {
   color: var(--text-tertiary);
 }
-
-.article-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
-  line-height: 1.4;
-}
-
-.article-excerpt {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: var(--spacing-md);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.article-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--divider-color);
-}
-
-.read-time {
-  font-size: 13px;
-  color: var(--text-tertiary);
-}
-
-.about-section {
-  height: fit-content;
-  text-align: center;
-  padding: var(--spacing-xl);
-}
-
-.about-avatar {
-  margin-bottom: var(--spacing-md);
-}
-
-.avatar-placeholder {
-  width: 80px;
-  height: 80px;
-  border-radius: var(--radius-full);
-  background: var(--primary-light-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  margin: 0 auto;
-}
-
-.about-name {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.about-bio {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: var(--spacing-lg);
-}
-
-.about-stats {
-  display: flex;
-  justify-content: space-around;
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--divider-color);
-}
-
-.stat-item {
+.detail-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 16px;
 }
-
-.stat-number {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--primary-color);
+.detail-item {
+  padding: 16px;
+  cursor: pointer;
 }
-
-.stat-label {
-  font-size: 13px;
-  color: var(--text-tertiary);
+.excerpt {
+  margin: 10px 0;
+  color: var(--text-secondary);
 }
-
-/* 响应式适配 */
-@media (max-width: 1024px) {
-  .home-page {
+.footer {
+  display: flex;
+  justify-content: space-between;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.card-item {
+  padding: 16px;
+  cursor: pointer;
+}
+.card-item h3 {
+  margin: 0 0 8px;
+}
+.card-item p {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+}
+@media (max-width: 900px) {
+  .toolbar {
     grid-template-columns: 1fr;
-  }
-
-  .about-section {
-    order: -1;
-  }
-}
-
-@media (max-width: 768px) {
-  .hero-title {
-    font-size: 32px;
-  }
-
-  .hero-subtitle {
-    font-size: 16px;
-  }
-
-  .hero-section {
-    padding: var(--spacing-xl);
   }
 }
 </style>

@@ -1,6 +1,8 @@
 import type { RouteRecordRaw } from 'vue-router'
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
+import Register from '@/views/Register.vue'
+import PostDetail from '@/views/PostDetail.vue'
 import NotFound from '@/views/NotFound.vue'
 import Forbidden from '@/views/Forbidden.vue'
 
@@ -18,6 +20,24 @@ export const staticRoutes: RouteRecordRaw[] = [
     path: '/login',
     name: 'Login',
     component: Login,
+    meta: {
+      layout: 'guest',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Register,
+    meta: {
+      layout: 'guest',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/blog/:slug',
+    name: 'PostDetail',
+    component: PostDetail,
     meta: {
       layout: 'guest',
       requiresAuth: false

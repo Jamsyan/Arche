@@ -10,6 +10,14 @@ export interface Paginated<T> {
   list: T[]
 }
 
+export interface BackendPaginated<T> {
+  total: number
+  page: number
+  page_size: number
+  items?: T[]
+  list?: T[]
+}
+
 export interface BatchActionPayload {
   post_ids: string[]
 }

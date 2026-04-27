@@ -66,6 +66,9 @@ export const useUserStore = defineStore(
     // 真实登录入口，后续页面接账号密码时仍走同一条身份链路
     const login = async (params: LoginParams) => {
       const res = await loginApi(params)
+      if (!res.token) {
+        throw new Error('登录返回缺少 token')
+      }
       applyUserSession(res.token, res.userInfo)
       return res
     }
