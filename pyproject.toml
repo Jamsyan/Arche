@@ -21,7 +21,7 @@ dependencies = [
     "psutil>=5.9",
     # Aliyun ECS SDK (cloud training provider)
     "aliyun-python-sdk-core>=2.13",
-    "aliyun-python-sdk-ecs>=4.24",
+    "aliyun-python-sdk-ecs>=4.24.82",
     # Aliyun OSS SDK
     "oss2>=2.18",
     # MinIO SDK (local object storage)
