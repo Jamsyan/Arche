@@ -1,9 +1,7 @@
 """中间件和错误处理测试。"""
-import asyncio
 import pytest
-from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from fastapi import FastAPI
+from unittest.mock import MagicMock
 from backend.core.middleware import (
     AppError,
     AuthError,

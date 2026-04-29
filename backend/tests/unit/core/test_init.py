@@ -2,7 +2,6 @@
 import logging
 import os
 from pathlib import Path
-from typing import cast
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import FastAPI
@@ -276,7 +275,7 @@ class TestCreateApp:
 
         def mock_resolve(self):
             # 如果是__file__对应的路径，返回我们的临时目录
-            if self == Path("backend/core/__init__.py"):
+            if self.as_posix().endswith("backend/core/__init__.py"):
                 return backend_core_dir / "__init__.py"
             return original_resolve(self)
 
@@ -286,13 +285,10 @@ class TestCreateApp:
             # 验证静态文件被挂载
             assert len(app.routes) > 0
             route_paths = [route.path for route in app.routes]  # type: ignore
-            # 静态文件挂载到"/"的时候，path是空字符串
             assert "" in route_paths or "/" in route_paths
 
     def test_create_app_no_frontend_dist(self, tmp_path):
         """前端dist目录不存在时，不挂载静态文件。"""
-        # 使用tmp_path来模拟不存在的目录
-        non_existent_dir = tmp_path / "non_existent_dist"
         with patch("backend.core.Path.exists", return_value=False):
             app = create_app()
 

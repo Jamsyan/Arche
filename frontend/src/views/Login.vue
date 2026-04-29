@@ -141,7 +141,8 @@ const rollVisualMetrics = () => {
 }
 
 const runTypewriter = () => {
-  const currentCopy = visualCopies[copyIndex.value]
+  const currentCopy = visualCopies[copyIndex.value] ?? visualCopies[0]
+  if (!currentCopy) return
   if (typingPhase.value === 'title') {
     const nextLength = typedTitle.value.length + 1
     typedTitle.value = currentCopy.title.slice(0, nextLength)

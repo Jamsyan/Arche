@@ -9,8 +9,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock
+import pytest  # noqa: E402
+from unittest.mock import MagicMock, AsyncMock  # noqa: E402
 
 
 # =============================================================================
@@ -302,7 +302,7 @@ async def auth_headers(db_container):
     service = AuthService(db_container)
 
     # 先注册一个管理员（第一个用户）
-    admin_result = await service.register(
+    await service.register(
         email="admin@example.com",
         username="admin",
         password="admin123"

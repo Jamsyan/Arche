@@ -1,7 +1,6 @@
 """PluginRegistry 插件注册表测试。"""
-from pathlib import Path
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 from fastapi import FastAPI
 from backend.core.plugin_registry import (
     PluginRegistry,

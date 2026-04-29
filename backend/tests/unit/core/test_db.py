@@ -1,16 +1,9 @@
 """数据库模块测试。"""
 import pytest
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.ext.asyncio import AsyncSession
-from unittest.mock import patch, MagicMock, call
 # 不要直接导入变量，导入模块
 import backend.core.db as db_module
 from backend.core.db import (
-    Base,
     init_db,
-    ensure_tables,
-    validate_schema,
-    _validate_schema_sync,
 )
 
 

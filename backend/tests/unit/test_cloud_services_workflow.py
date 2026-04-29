@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.core.middleware import AppError
-from backend.plugins.cloud_integration.models import TrainingInstance, TrainingJob
+from backend.plugins.cloud_integration.models import TrainingInstance
 from backend.plugins.cloud_integration.services import CloudTrainingService
 
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NInput, NFormItemGi, type FormRules } from 'naive-ui'
 import ProForm from '@/components/ProForm.vue'
@@ -41,6 +41,7 @@ const registerStages = [
   { title: '开始发布', desc: '写下第一篇内容，建立你的长期作品库。' }
 ]
 const stageIndex = ref(0)
+const currentStage = computed(() => registerStages[stageIndex.value] ?? registerStages[0])
 let stageTimer: number | null = null
 
 onMounted(() => {
@@ -83,8 +84,8 @@ const handleRegister = async () => {
         <div class="visual-grid" />
         <div class="register-visual-content">
           <p class="visual-tag">ONBOARDING FLOW</p>
-          <h2>{{ registerStages[stageIndex].title }}</h2>
-          <p>{{ registerStages[stageIndex].desc }}</p>
+          <h2>{{ currentStage.title }}</h2>
+          <p>{{ currentStage.desc }}</p>
           <div class="stage-track">
             <div
               v-for="(stage, index) in registerStages"

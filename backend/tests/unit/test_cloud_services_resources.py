@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from backend.core.middleware import AppError
-from backend.plugins.cloud_integration.models import Artifact, CodeRepo, Dataset, TrainingJob
+from backend.plugins.cloud_integration.models import Artifact, TrainingJob
 from backend.plugins.cloud_integration.services import CloudTrainingService
 from backend.tests.conftest import patch_container_service
 

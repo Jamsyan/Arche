@@ -154,9 +154,9 @@ class TestServiceContainer:
         self.container.register("service-c", lambda c: ServiceC())
 
         # 实例化顺序：A → B → C
-        a = self.container.get("service-a")
-        b = self.container.get("service-b")
-        c = self.container.get("service-c")
+        self.container.get("service-a")
+        self.container.get("service-b")
+        self.container.get("service-c")
 
         self.container.shutdown()
 
@@ -178,7 +178,7 @@ class TestServiceContainer:
 
         # 实例化
         with_close = self.container.get("with-close")
-        without_close = self.container.get("without-close")
+        self.container.get("without-close")
 
         # shutdown不会报错
         self.container.shutdown()

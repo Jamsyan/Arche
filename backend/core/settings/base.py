@@ -35,7 +35,6 @@ def create_plugin_settings(
 ) -> type["BaseSettings"]:
     """动态创建插件 Settings 类。"""
     from pydantic import create_model
-    from pydantic_settings import BaseSettings
 
     defaults = defaults or {}
 

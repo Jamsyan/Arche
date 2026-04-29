@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import uuid
 import io
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
 
 import pytest
 from fastapi import UploadFile
 
-from backend.plugins.oss.services import StorageService, StorageError
+from backend.plugins.oss.services import StorageService
 from backend.core.middleware import AppError, PermissionError
 
 

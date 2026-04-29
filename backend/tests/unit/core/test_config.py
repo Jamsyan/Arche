@@ -3,7 +3,7 @@ import os
 import time
 from pathlib import Path
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from pydantic_settings import BaseSettings
 from backend.core.config import (
     ConfigManager,

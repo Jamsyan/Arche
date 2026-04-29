@@ -1,6 +1,5 @@
 """核心应用配置测试。"""
 import os
-import pytest
 from backend.core.settings.app import AppSettings
 
 

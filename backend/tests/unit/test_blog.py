@@ -359,7 +359,7 @@ class TestBlogServicePostCRUD:
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
         with patch.object(service, "generate_slug", return_value="new-title"):
-            result = await service.update_post(
+            await service.update_post(
                 post_id=post_id,
                 author_id=author_id,
                 title="New Title",
@@ -571,7 +571,7 @@ class TestBlogServiceModeration:
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
-        result = await service.approve_post(post_id=uuid.uuid4())
+        await service.approve_post(post_id=uuid.uuid4())
         assert mock_post.status == "published"
         assert mock_post.quality_score == 1
 
@@ -585,7 +585,7 @@ class TestBlogServiceModeration:
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
-        result = await service.reject_post(post_id=uuid.uuid4())
+        await service.reject_post(post_id=uuid.uuid4())
         assert mock_post.status == "rejected"
         assert mock_post.quality_score == 0
 
