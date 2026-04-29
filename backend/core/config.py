@@ -180,10 +180,10 @@ class ConfigManager:
         """生成完整的 .env.example 文件内容。"""
         lines = [
             "# === Core Settings ===",
-            f"DATABASE_URL={self._values.get('DATABASE_URL', 'sqlite+aiosqlite:///./data/arche.db')}",
-            f"SECRET_KEY={self._values.get('SECRET_KEY', 'change-me-to-random-string')}",
-            f"CORS_ORIGINS={self._values.get('CORS_ORIGINS', 'http://localhost:5173')}",
-            f"LOG_LEVEL={self._values.get('LOG_LEVEL', 'INFO')}",
+            "DATABASE_URL=sqlite+aiosqlite:///./data/arche.db",
+            "SECRET_KEY=change-me-to-random-string",
+            "CORS_ORIGINS=http://localhost:5173",
+            "LOG_LEVEL=INFO",
             "# LOG_FILE=/path/to/logfile.log",
             "",
         ]
