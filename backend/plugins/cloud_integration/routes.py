@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+import logging
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,7 @@ from backend.core.middleware import require_level, require_user
 
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"])
+logger = logging.getLogger(__name__)
 
 
 # --- 工作台统计 ---
@@ -306,8 +308,9 @@ async def get_gpu_metrics(instance_id: str, request: Request):
     try:
         metrics = await cloud_provider.get_gpu_metrics(instance_id)
         return {"code": "ok", "message": "获取成功", "data": metrics}
-    except Exception as e:
-        return {"code": "error", "message": str(e), "data": {}}
+    except Exception:
+        logger.exception("Failed to fetch GPU metrics for instance %s", instance_id)
+        return {"code": "error", "message": "获取 GPU 指标失败", "data": {}}
 
 
 # --- 编排控制（P1） ---

@@ -147,9 +147,15 @@ class ProbeService:
         import re
 
         text = re.sub(
-            r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+            r"<script\b[^>]*>[\s\S]*?</script\b[^>]*>",
+            "",
+            html,
+            flags=re.IGNORECASE,
         )
         text = re.sub(
-            r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE
+            r"<style\b[^>]*>[\s\S]*?</style\b[^>]*>",
+            "",
+            text,
+            flags=re.IGNORECASE,
         )
         return re.sub(r"<[^>]+>", " ", text)

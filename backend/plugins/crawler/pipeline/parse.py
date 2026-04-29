@@ -44,10 +44,16 @@ class ParseStage(BaseStage):
     @staticmethod
     def _extract_text(html: str) -> str:
         text = re.sub(
-            r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+            r"<script\b[^>]*>[\s\S]*?</script\b[^>]*>",
+            "",
+            html,
+            flags=re.IGNORECASE,
         )
         text = re.sub(
-            r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE
+            r"<style\b[^>]*>[\s\S]*?</style\b[^>]*>",
+            "",
+            text,
+            flags=re.IGNORECASE,
         )
         text = re.sub(r"<[^>]+>", " ", text)
         text = re.sub(r"\s+", " ", text).strip()
