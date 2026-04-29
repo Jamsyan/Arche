@@ -24,6 +24,8 @@ const props = withDefaults(
     page?: number
     pageSize?: number
     pageSizes?: number[]
+    showSizePicker?: boolean
+    showQuickJumper?: boolean
     request?: ProTableRequest
   }>(),
   {
@@ -31,7 +33,9 @@ const props = withDefaults(
     rowKey: 'key',
     page: 1,
     pageSize: 10,
-    pageSizes: () => [10, 20, 50]
+    pageSizes: () => [10, 20, 50],
+    showSizePicker: true,
+    showQuickJumper: true
   }
 )
 void props.request
@@ -107,8 +111,8 @@ watch(
       :page-size="innerPageSize"
       :item-count="pagination.itemCount"
       :page-sizes="pagination.pageSizes"
-      show-size-picker
-      show-quick-jumper
+      :show-size-picker="showSizePicker"
+      :show-quick-jumper="showQuickJumper"
       @update:page="handleUpdatePage"
       @update:page-size="handleUpdatePageSize"
     />

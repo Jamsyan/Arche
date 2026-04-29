@@ -314,7 +314,7 @@ const handleLogout = async () => {
 
 .nav-item.nav-item-active {
   background: var(--primary-color);
-  color: #fff;
+  color: rgba(255, 250, 241, 0.98);
 }
 
 .nav-icon {

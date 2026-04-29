@@ -9,6 +9,7 @@ export {
   HomeOutline,
   InformationCircleOutline,
   LockClosedOutline,
+  LockOpenOutline,
   LogOutOutline,
   MenuOutline,
   PeopleOutline,

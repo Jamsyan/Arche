@@ -7,10 +7,22 @@ import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
 import { cancelAllPendingRequests } from '@/services/request'
 let routerInitiated = false
 
+const isCurrentRoutePublic = () => {
+  const currentRoute = router.currentRoute.value
+  if (!currentRoute) {
+    return false
+  }
+  return (
+    currentRoute.meta?.requiresAuth === false ||
+    usePermissionStore().whiteList.includes(currentRoute.path)
+  )
+}
+
 const onUnauthorized = () => {
   resetAllStores()
 
-  if (router.currentRoute.value.path !== '/login') {
+  // 未登录状态下，公开页面允许继续以游客身份浏览，不强制跳转登录。
+  if (!isCurrentRoutePublic() && router.currentRoute.value.path !== '/login') {
     router.push('/login')
   }
 }

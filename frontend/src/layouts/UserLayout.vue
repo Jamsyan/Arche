@@ -164,7 +164,7 @@ const handleLogout = async () => {
   width: 36px;
   height: 36px;
   border: none;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 250, 241, 0.76);
   border-radius: var(--radius-md);
   cursor: pointer;
   display: flex;
@@ -174,7 +174,7 @@ const handleLogout = async () => {
 }
 
 .menu-toggle:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(239, 227, 207, 0.92);
   transform: scale(1.05);
 }
 
@@ -205,7 +205,7 @@ const handleLogout = async () => {
 }
 
 .user-info:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(239, 227, 207, 0.82);
 }
 
 .username {
@@ -379,11 +379,11 @@ const handleLogout = async () => {
 }
 
 .layout-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(154, 90, 47, 0.22);
   border-radius: 2px;
 }
 
 .layout-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(154, 90, 47, 0.34);
 }
 </style>

@@ -7,6 +7,7 @@ export interface BlogPost {
   title: string
   content: string
   tags: string[]
+  access_level?: string
   status?: string
   created_at?: string
   updated_at?: string

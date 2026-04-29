@@ -8,11 +8,13 @@ withDefaults(
     rules?: FormRules
     labelWidth?: number
     columns?: number
+    showFeedback?: boolean
   }>(),
   {
     rules: () => ({}),
     labelWidth: 90,
-    columns: 2
+    columns: 2,
+    showFeedback: true
   }
 )
 
@@ -42,14 +44,15 @@ const handleSubmit = async () => {
       :model="model"
       :rules="rules"
       :label-width="labelWidth"
+      :show-feedback="showFeedback"
       label-placement="left"
     >
       <NGrid :cols="columns" :x-gap="16">
         <slot />
+        <NFormItemGi :span="columns">
+          <slot name="actions" :submit="handleSubmit" />
+        </NFormItemGi>
       </NGrid>
-      <NFormItemGi :span="columns">
-        <slot name="actions" :submit="handleSubmit" />
-      </NFormItemGi>
     </NForm>
   </NCard>
 </template>

@@ -62,13 +62,14 @@ const route = useRoute()
 const appStore = useAppStore()
 const themeOverrides: GlobalThemeOverrides = {
   common: {
-    primaryColor: 'var(--primary-color)',
-    primaryColorHover: 'var(--primary-hover-color)',
-    primaryColorPressed: 'var(--primary-pressed-color)',
-    successColor: 'var(--success-color)',
-    warningColor: 'var(--warning-color)',
-    errorColor: 'var(--error-color)',
-    borderRadius: 'var(--radius-md)'
+    // naive-ui 内部会对颜色做 rgba 计算，必须使用可直接解析的颜色值
+    primaryColor: '#9a5a2f',
+    primaryColorHover: '#b8743d',
+    primaryColorPressed: '#6f3f22',
+    successColor: '#4f7a57',
+    warningColor: '#b98529',
+    errorColor: '#b34c3f',
+    borderRadius: '12px'
   }
 }
 
