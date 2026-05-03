@@ -59,7 +59,7 @@ class TestSeedManager:
             "https://foo.com/login", {"is_functional": True, "has_content": True}
         )
         assert result is False
-        assert "foo.com" in manager.get_blacklist()
+        assert manager.get_blacklist() == ["foo.com"]
 
     def test_process_sniff_result_content_adds_seed(self):
         manager = SeedManager(_make_container())

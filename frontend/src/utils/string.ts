@@ -47,40 +47,6 @@ export function truncate(str: string, length: number, suffix = '...'): string {
 }
 
 /**
- * 在无 DOMParser 环境下迭代剥离标签（直至稳定），避免单次正则遗留残缺标签。
- */
-function stripHtmlIterative(raw: string): string {
-  let s = raw
-  for (let i = 0; i < 32; i++) {
-    const next = s
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]{0,800}>/g, '')
-    if (next === s) break
-    s = next
-  }
-  return s.replace(/</g, '')
-}
-
-/**
- * 移除字符串中的 HTML，返回纯文本（优先用 DOMParser 解析，避免不完整的标签清理）。
- * @param str 包含 HTML 的字符串
- */
-export function stripHtml(str: string): string {
-  if (!str) return ''
-  if (typeof DOMParser !== 'undefined') {
-    try {
-      const doc = new DOMParser().parseFromString(str, 'text/html')
-      const text = doc.body?.textContent
-      if (text != null) return text
-    } catch {
-      /* 回退到迭代剥离 */
-    }
-  }
-  return stripHtmlIterative(str)
-}
-
-/**
  * 生成随机字符串
  * @param length 字符串长度
  */
