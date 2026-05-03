@@ -89,7 +89,9 @@ async def get_record_file(record_id: str, request: Request):
     import os
     from pathlib import Path
 
-    storage_root = Path(os.environ.get("CRAWLER_STORAGE_ROOT", "data/crawler")).resolve()
+    storage_root = Path(
+        os.environ.get("CRAWLER_STORAGE_ROOT", "data/crawler")
+    ).resolve()
     rel = Path(record["file_path"])
     if rel.is_absolute() or ".." in rel.parts:
         return {"code": "error", "message": "非法文件路径", "data": None}
