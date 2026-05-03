@@ -1,4 +1,4 @@
-"""add orchestration fields to cloud training tables
+"""为云训练表添加编排字段
 
 Revision ID: 003_orchestration
 Revises: 002_auth_and_roles

@@ -1,4 +1,4 @@
-"""add email to users
+"""为用户添加邮箱
 
 Revision ID: 002_add_email
 Revises: 001_initial
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers
+# 版本标识符
 revision: str = "002_add_email"
 down_revision: Union[str, None] = "001_initial"
 branch_labels: Union[str, Sequence[str], None] = None

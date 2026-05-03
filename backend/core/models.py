@@ -1,4 +1,4 @@
-"""Core domain models — cross-cutting concern models that don't belong to any plugin."""
+"""核心领域模型 —— 横切关注点模型，不属于任何插件。"""
 
 from __future__ import annotations
 

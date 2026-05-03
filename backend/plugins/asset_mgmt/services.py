@@ -1,4 +1,4 @@
-"""Asset Management plugin — 聚合查询服务。
+"""资产管理插件 —— 聚合查询服务。
 
 跨插件查询各类型资产，合并后返回统一格式。
 """
@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import uuid
+from operator import itemgetter
 
 from sqlalchemy import func, select
 
@@ -32,7 +33,7 @@ class AssetMgmtService:
         assets = []
 
         async with self.session_factory() as session:
-            # Blog posts
+            # 博客帖子
             if asset_type is None or asset_type == "blog_post":
                 from backend.plugins.blog.models import BlogPost
 
@@ -54,7 +55,7 @@ class AssetMgmtService:
                         }
                     )
 
-            # OSS files
+            # 对象存储文件
             if asset_type is None or asset_type == "file":
                 from backend.plugins.oss.models import OSSFile
 
@@ -78,7 +79,7 @@ class AssetMgmtService:
                         }
                     )
 
-            # Crawl results
+            # 爬虫结果
             if asset_type is None or asset_type == "crawl_result":
                 from backend.plugins.crawler.models import CrawlRecord
 
@@ -100,7 +101,7 @@ class AssetMgmtService:
                         }
                     )
 
-            # Training jobs
+            # 训练任务
             if asset_type is None or asset_type == "training_job":
                 from backend.plugins.cloud_integration.models import TrainingJob
 
@@ -123,7 +124,7 @@ class AssetMgmtService:
                     )
 
         # 按创建时间倒序排序
-        assets.sort(key=lambda x: x["created_at"] or "", reverse=True)
+        assets.sort(key=itemgetter("created_at"), reverse=True)
 
         total = len(assets)
         paginated = assets[offset : offset + page_size]
@@ -184,12 +185,12 @@ class AssetMgmtService:
         from backend.plugins.oss.models import OSSFile
 
         async with self.session_factory() as session:
-            # Blog posts
+            # 博客帖子
             blog_count = await session.execute(
                 select(func.count(BlogPost.id)).where(BlogPost.author_id == owner_id)
             )
 
-            # OSS files
+            # 对象存储文件
             file_result = await session.execute(
                 select(func.count(OSSFile.id), func.sum(OSSFile.size)).where(
                     OSSFile.owner_id == owner_id
@@ -197,31 +198,32 @@ class AssetMgmtService:
             )
             file_row = file_result.one()
 
-            # Crawl results（当前没有 owner_id，统计全部）
+            # 爬虫结果（当前没有 owner_id，统计全部）
             crawl_count = await session.execute(select(func.count(CrawlRecord.id)))
 
-            # Training jobs
+            # 训练任务
             job_count = await session.execute(
                 select(func.count(TrainingJob.id)).where(
                     TrainingJob.creator_id == owner_id
                 )
             )
 
+        blog_total = blog_count.scalar() or 0
+        file_count = file_row[0] or 0
+        file_size = file_row[1] or 0
+        crawl_total = crawl_count.scalar() or 0
+        job_total = job_count.scalar() or 0
+
         return {
             "owner_id": str(owner_id),
             "by_type": {
-                "blog_post": blog_count.scalar() or 0,
+                "blog_post": blog_total,
                 "file": {
-                    "count": file_row[0] or 0,
-                    "total_size_bytes": file_row[1] or 0,
+                    "count": file_count,
+                    "total_size_bytes": file_size,
                 },
-                "crawl_result": crawl_count.scalar() or 0,
-                "training_job": job_count.scalar() or 0,
+                "crawl_result": crawl_total,
+                "training_job": job_total,
             },
-            "total_assets": (
-                (blog_count.scalar() or 0)
-                + (file_row[0] or 0)
-                + (crawl_count.scalar() or 0)
-                + (job_count.scalar() or 0)
-            ),
+            "total_assets": blog_total + file_count + crawl_total + job_total,
         }

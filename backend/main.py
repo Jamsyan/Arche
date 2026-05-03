@@ -8,13 +8,13 @@ Usage:
 from pathlib import Path
 import sys
 
-# Ensure project root is on sys.path so imports work
+# 确保项目根目录在 sys.path 中以保证导入正常
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend.core import create_app
 from backend.core.plugin_registry import discover_plugins
 
-# Discover plugins BEFORE creating the app
+# 在创建应用前先发现插件
 discover_plugins()
 
 app = create_app()

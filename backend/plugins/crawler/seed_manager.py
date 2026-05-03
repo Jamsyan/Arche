@@ -1,8 +1,7 @@
-"""Crawler plugin — 种子管理器：种子池、黑白名单、探嗅收录。"""
+"""爬虫插件 —— 种子管理器：种子池、黑白名单、探嗅收录。"""
 
 from __future__ import annotations
 
-import os
 from urllib.parse import urlparse
 
 from backend.core.container import ServiceContainer
@@ -20,7 +19,8 @@ class SeedManager:
 
     async def initialize(self) -> None:
         """从环境变量读初始种子。"""
-        seeds_env = os.environ.get("CRAWLER_SEEDS", "")
+        config = self.container.get("config")
+        seeds_env = config.get("CRAWLER_SEEDS", "") if config else ""
         if seeds_env:
             for url in seeds_env.split(","):
                 url = url.strip()
@@ -47,18 +47,24 @@ class SeedManager:
         return None
 
     def is_blacklisted(self, url: str) -> bool:
-        """检查 URL 是否在黑名单中。"""
-        domain = self._get_domain(url)
+        """检查 URL 是否在黑名单中（按主机名/规范化 URL 前缀匹配，避免子串误匹配）。"""
+        host = self._get_hostname(url)
+        if not host:
+            return False
+        normalized = self._normalize(url) or ""
         for pattern in self._blacklist:
-            if pattern in url or pattern == domain:
+            if self._url_rule_matches(normalized, host, pattern):
                 return True
         return False
 
     def is_whitelisted(self, url: str) -> bool:
         """检查 URL 是否在白名单中。"""
-        domain = self._get_domain(url)
+        host = self._get_hostname(url)
+        if not host:
+            return False
+        normalized = self._normalize(url) or ""
         for pattern in self._whitelist:
-            if pattern in url or pattern == domain:
+            if self._url_rule_matches(normalized, host, pattern):
                 return True
         return False
 
@@ -81,7 +87,7 @@ class SeedManager:
     def process_sniff_result(self, url: str, sniff_result: dict) -> bool:
         """探嗅后处理：有意义的收录为种子，无意义的加入黑名单。"""
         if sniff_result.get("is_functional", False):
-            self.add_to_blacklist(self._get_domain(url), reason="functional_page")
+            self.add_to_blacklist(self._get_hostname(url), reason="functional_page")
             return False
         if not sniff_result.get("has_content", False):
             return False
@@ -111,7 +117,8 @@ class SeedManager:
     def total_seen(self) -> int:
         return len(self._seen)
 
-    def _normalize(self, url: str) -> str | None:
+    @staticmethod
+    def _normalize(url: str) -> str | None:
         """规范化 URL。"""
         try:
             parsed = urlparse(url)
@@ -122,8 +129,33 @@ class SeedManager:
             return None
 
     @staticmethod
-    def _get_domain(url: str) -> str:
+    def _get_hostname(url: str) -> str:
         try:
-            return urlparse(url).netloc.lower()
+            return (urlparse(url).hostname or "").lower()
         except Exception:
-            return url
+            return ""
+
+    @staticmethod
+    def _url_rule_matches(normalized: str, host: str, pattern: str) -> bool:
+        """规则：完整 http(s) URL 则做规范化前缀匹配；否则按主机或 host/path 匹配。"""
+        p = pattern.strip()
+        if not p:
+            return False
+        pl = p.lower()
+        if pl.startswith("http://") or pl.startswith("https://"):
+            prefix = SeedManager._normalize(pl)
+            return bool(prefix and normalized.startswith(prefix))
+        if "/" in pl:
+            dom, _, rest = pl.partition("/")
+            dom = dom.strip().lower()
+            if not dom or not (host == dom or host.endswith("." + dom)):
+                return False
+            if not rest:
+                return True
+            try:
+                path = urlparse(normalized).path or "/"
+            except Exception:
+                return False
+            return path.startswith("/" + rest)
+        dom = pl
+        return host == dom or host.endswith("." + dom)

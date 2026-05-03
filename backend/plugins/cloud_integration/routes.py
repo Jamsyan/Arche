@@ -1,8 +1,9 @@
-"""Cloud Integration plugin — API 路由。"""
+"""云集成插件 —— API 路由。"""
 
 from __future__ import annotations
 
 import uuid
+import logging
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,33 @@ from backend.core.middleware import require_level, require_user
 
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"])
+logger = logging.getLogger(__name__)
+
+
+# --- 工作台统计 ---
+@router.get("/stats")
+@require_level(0)
+async def get_stats(request: Request):
+    """云工作台统计数据（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    service = container.get("cloud_training")
+
+    jobs = await service.list_jobs(page=1, page_size=100, status_filter="running")
+    running_jobs = jobs.get("total", 0)
+
+    # 运行中实例数（简化，实际应该统计 provider 实例）
+    running_instances = sum(
+        1 for j in jobs.get("items", []) if j.get("orchestrator_status") == "running"
+    )
+
+    return {
+        "code": "ok",
+        "message": "获取成功",
+        "data": {
+            "running_jobs": running_jobs,
+            "running_instances": running_instances,
+        },
+    }
 
 
 # --- 请求体模型 ---
@@ -280,8 +308,9 @@ async def get_gpu_metrics(instance_id: str, request: Request):
     try:
         metrics = await cloud_provider.get_gpu_metrics(instance_id)
         return {"code": "ok", "message": "获取成功", "data": metrics}
-    except Exception as e:
-        return {"code": "error", "message": str(e), "data": {}}
+    except Exception:
+        logger.exception("Failed to fetch GPU metrics for instance %s", instance_id)
+        return {"code": "error", "message": "获取 GPU 指标失败", "data": {}}
 
 
 # --- 编排控制（P1） ---

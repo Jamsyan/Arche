@@ -1,4 +1,4 @@
-"""OSS plugin — 文件存储数据模型。"""
+"""对象存储插件 —— 文件存储数据模型。"""
 
 from __future__ import annotations
 

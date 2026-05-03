@@ -1,4 +1,4 @@
-"""OSS plugin — 对象存储服务：MinIO（本地）/ 阿里云 OSS（远程）统一接口。"""
+"""对象存储插件 —— 对象存储服务：MinIO（本地）/ 阿里云 OSS（远程）统一接口。"""
 
 from __future__ import annotations
 

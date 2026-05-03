@@ -1,4 +1,4 @@
-"""Cloud Integration plugin — 业务逻辑：Provider 管理、SSH 部署、费用计算、产物回传。"""
+"""云集成插件 —— 业务逻辑：Provider 管理、SSH 部署、费用计算、产物回传。"""
 
 from __future__ import annotations
 
@@ -1057,7 +1057,7 @@ class CloudTrainingService:
             "name": repo.name,
             "git_url": repo.git_url,
             "git_branch": repo.git_branch,
-            # 不返回token
+            # 不返回 token
             "created_by": str(repo.created_by),
             "created_at": repo.created_at.isoformat() if repo.created_at else None,
         }

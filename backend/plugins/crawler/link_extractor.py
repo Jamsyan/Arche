@@ -1,4 +1,4 @@
-"""Crawler plugin — 链接提取：从 HTML 中提取 <a href> 值。"""
+"""爬虫插件 —— 链接提取：从 HTML 中提取 <a href> 值。"""
 
 from __future__ import annotations
 

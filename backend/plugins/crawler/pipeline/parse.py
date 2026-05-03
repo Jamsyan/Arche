@@ -1,4 +1,4 @@
-"""Crawler plugin — 解析车间：从 HTML 提取正文、标题、链接。"""
+"""爬虫插件 —— 解析车间：从 HTML 提取正文、标题、链接。"""
 
 from __future__ import annotations
 
@@ -44,10 +44,16 @@ class ParseStage(BaseStage):
     @staticmethod
     def _extract_text(html: str) -> str:
         text = re.sub(
-            r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+            r"<script\b[^>]*>[\s\S]*?</script\b[^>]*>",
+            "",
+            html,
+            flags=re.IGNORECASE,
         )
         text = re.sub(
-            r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE
+            r"<style\b[^>]*>[\s\S]*?</style\b[^>]*>",
+            "",
+            text,
+            flags=re.IGNORECASE,
         )
         text = re.sub(r"<[^>]+>", " ", text)
         text = re.sub(r"\s+", " ", text).strip()

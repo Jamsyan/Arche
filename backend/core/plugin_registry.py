@@ -1,4 +1,4 @@
-"""Plugin Registry — directory scanning, DAG topological sort, and lifecycle management."""
+"""插件注册表 —— 目录扫描、DAG 拓扑排序和生命周期管理。"""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class DependencyError(Exception):
 
 
 class PluginRegistry:
-    """Singleton registry that manages plugin discovery, ordering, and activation."""
+    """单例注册表，管理插件发现、排序和激活。"""
 
     def __init__(self):
         self._plugins: dict[str, Any] = {}
@@ -63,7 +63,7 @@ class PluginRegistry:
                 plugin.on_shutdown()
 
     def _topological_sort(self) -> list[str]:
-        """Kahn's algorithm with hard/optional dependency validation."""
+        """Kahn 算法，包含硬依赖/可选依赖校验。"""
         names = list(self._plugins)
         in_degree: dict[str, int] = {n: 0 for n in names}
         graph: dict[str, list[str]] = {n: [] for n in names}
@@ -110,7 +110,7 @@ registry = PluginRegistry()
 
 
 def discover_plugins(plugin_dir: Path | None = None) -> None:
-    """Auto-discover and import all plugin directories under the plugin dir."""
+    """自动发现并导入插件目录下的所有插件目录。"""
     if plugin_dir is None:
         plugin_dir = Path(__file__).resolve().parent.parent / "plugins"
     for entry in sorted(plugin_dir.iterdir()):

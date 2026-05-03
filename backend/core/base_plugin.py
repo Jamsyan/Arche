@@ -1,6 +1,7 @@
-"""BasePlugin — Abstract interface that all plugins must implement."""
+"""BasePlugin —— 所有插件必须实现的抽象接口。"""
 
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,9 +24,9 @@ class BasePlugin(ABC):
         """可选：注册服务到容器。"""
         pass
 
-    def on_startup(self) -> None:
-        """可选：启动后钩子。"""
-        pass
+    def on_startup(self) -> Awaitable[None] | None:
+        """可选：启动后钩子；可改为 async def，由注册表 await。"""
+        return None
 
     def on_shutdown(self) -> None:
         """可选：关闭前钩子。"""

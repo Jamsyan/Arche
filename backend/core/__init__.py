@@ -1,14 +1,13 @@
-"""Veil Core — Microkernel App Factory
+"""Arche Core — 微内核应用工厂
 
-Assembly order:
-1. Load Config
-2. Configure Logging
-3. Initialize Database
-4. Create ServiceContainer, register built-in services
-5. Activate plugins (DAG-ordered setup)
-6. Register plugin services into container
-7. Setup middleware (CORS, error handlers)
-8. Register startup/shutdown hooks
+组装顺序：
+1. 配置日志
+2. 初始化数据库
+3. 创建ServiceContainer，注册配置文件
+4. 激活插件（DAG 排序设置）
+5. 将插件服务注册到容器中
+6. 设置中间件（CORS，错误处理程序）
+7. 寄存启动/关机钩子
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .config import Config
+from .config import config_manager as config_manager
 from .container import ServiceContainer
 from .db import init_db
 from .middleware import register_error_handlers, setup_cors
@@ -63,7 +62,7 @@ _DEFAULT_CONFIG_SEED = [
 ]
 
 
-async def _seed_default_config(config: Config, session_factory) -> None:
+async def _seed_default_config(session_factory) -> None:
     """将 .env 中的默认值初始化到数据库（仅首次启动时）。"""
     try:
         from sqlalchemy import select
@@ -71,15 +70,14 @@ async def _seed_default_config(config: Config, session_factory) -> None:
         from backend.core.models import ConfigEntry
 
         async with session_factory() as session:
-            # 检查表是否已有数据
             result = await session.execute(select(ConfigEntry).limit(1))
             if result.first():
-                return  # 已有数据，跳过 seed
+                return
 
             for key, group, desc, sensitive in _DEFAULT_CONFIG_SEED:
-                value = config.get(key, "")
+                value = config_manager.get(key, "")
                 if not value and key == "LOG_LEVEL":
-                    value = "INFO"  # 兜底默认值
+                    value = "INFO"
 
                 entry = ConfigEntry(
                     key=key,
@@ -95,10 +93,10 @@ async def _seed_default_config(config: Config, session_factory) -> None:
         logging.warning(f"Config seed skipped: {e}")
 
 
-def _setup_logging(config: Config) -> None:
-    """Configure unified logging: console + optional file handler."""
-    log_level = (config.get("LOG_LEVEL", "INFO") or "INFO").upper()
-    log_file = config.get("LOG_FILE")
+def _setup_logging() -> None:
+    """配置统一日志：控制台 + 可选文件处理器。"""
+    log_level = (config_manager.get("LOG_LEVEL", "INFO") or "INFO").upper()
+    log_file = config_manager.get("LOG_FILE")
 
     handlers = ["console"]
     logging_config = {
@@ -139,34 +137,33 @@ def _setup_logging(config: Config) -> None:
 
 
 def create_app() -> FastAPI:
-    # 1. Load config
-    config = Config()
+    # 1. Configure logging (before anything else runs)
+    _setup_logging()
 
-    # 2. Configure logging (before anything else runs)
-    _setup_logging(config)
-
-    # 3. Create container, register config
+    # 2. Create container, register config
     container = ServiceContainer()
 
-    # Sync to module-level singleton for plugins that import it directly
+    # 同步到模块级单例，供直接导入它的插件使用
     from backend.core import container as _container_mod
 
     _container_mod.container = container
 
-    container.register("config", lambda c: config)
+    def _config_factory(c):
+        return config_manager
 
-    # 4. Init database (must be synchronous here — app factory cannot be async)
-    database_url = config.get_required("DATABASE_URL")
+    container.register("config", _config_factory)
+
+    # 3. Init database
+    database_url = config_manager.get_required("DATABASE_URL")
     engine, session_factory = init_db(database_url)
 
-    container.register(
-        "db", lambda c: {"engine": engine, "session_factory": session_factory}
-    )
+    def _db_factory(c):
+        return {"engine": engine, "session_factory": session_factory}
 
-    # 5. Create app
+    container.register("db", _db_factory)
+
+    # 4. Create app
     app = FastAPI(title="Arche", version="0.1.0")
-
-    # Store container on app for dependency injection
     app.state.container = container
 
     # 5. Activate plugins (DAG-ordered setup)
@@ -177,7 +174,8 @@ def create_app() -> FastAPI:
 
     # 7. Middleware
     cors_origins = (
-        config.get("CORS_ORIGINS", "http://localhost:5173") or "http://localhost:5173"
+        config_manager.get("CORS_ORIGINS", "http://localhost:5173")
+        or "http://localhost:5173"
     )
     setup_cors(app, [o.strip() for o in cors_origins.split(",")])
     register_error_handlers(app)
@@ -185,30 +183,33 @@ def create_app() -> FastAPI:
     # 8. Startup / Shutdown hooks
     @app.on_event("startup")
     async def startup():
-        # 1. 先运行数据库迁移（alembic）
         import asyncio
         from alembic.config import Config as AlembicConfig
         from alembic import command
-        from pathlib import Path
 
+        # 运行数据库迁移
         migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
         alembic_cfg = AlembicConfig()
         alembic_cfg.set_main_option("script_location", str(migrations_dir))
         alembic_cfg.set_main_option("sqlalchemy.url", database_url)
 
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: command.upgrade(alembic_cfg, "head"))
 
-        # 2. 迁移完成后校验 schema 一致性（捕获漏掉的迁移）
+        def _run_migrations():
+            command.upgrade(alembic_cfg, "head")
+
+        await loop.run_in_executor(None, _run_migrations)
+
+        # 校验数据库 schema
         from .db import validate_schema
 
         await validate_schema()
 
-        # 3. 注入 session_factory 到 config，启用 DB 配置回退
-        config.set_session_factory(session_factory)
+        # 注入 session factory 供数据库降级使用
+        config_manager.set_session_factory(session_factory)
 
-        # 4. 初始化种子配置（仅首次启动时）
-        await _seed_default_config(config, session_factory)
+        # Seed default config (first run only)
+        await _seed_default_config(session_factory)
 
         await registry.on_startup()
 

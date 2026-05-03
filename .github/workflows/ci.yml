@@ -27,6 +27,9 @@ jobs:
       - name: Format check
         run: uv run ruff format --check backend/
 
+      - name: Custom lint rules
+        run: uv run python scripts/lint_rules.py --fail backend/
+
   # ── 后端测试 ──
   backend-test:
     runs-on: ubuntu-latest
@@ -168,8 +171,8 @@ jobs:
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
-          # 情况 2：PR 合并到 master
-          elif [[ "$EVENT" == "pull_request" && "${{ github.base_ref }}" == "master" ]]; then
+          # 情况 2：PR 合并到 master（仅 merged == true）
+          elif [[ "$EVENT" == "pull_request" && "${{ github.base_ref }}" == "master" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
             LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -n "$LATEST" ]; then
               VERSION="${LATEST#v}"

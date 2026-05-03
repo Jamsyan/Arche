@@ -39,6 +39,7 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+.artifacts/
 
 # uv lock (generated, not committed for personal project)
 uv.lock

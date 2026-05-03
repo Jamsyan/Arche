@@ -1,9 +1,8 @@
-"""Deploy webhook plugin — 接收 CI/CD 触发器 POST 请求，执行部署脚本。"""
+"""部署 Webhook 插件 —— 接收 CI/CD 触发器 POST 请求，执行部署脚本。"""
 
 from __future__ import annotations
 
 import asyncio
-import os
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -11,7 +10,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.deploy_webhook.settings import DeployWebhookSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -21,16 +22,23 @@ class DeployRequest(BaseModel):
     token: str
 
 
+# 注册插件配置
+config_manager.register_plugin_settings("deploy_webhook", DeployWebhookSettings)
+
 router = APIRouter()
 
-# 部署脚本路径，默认生产服务器位置
-DEPLOY_SCRIPT = os.environ.get("DEPLOY_SCRIPT", "/home/admin/arche/deploy.sh")
+
+def _get_deploy_script() -> str:
+    """获取部署脚本路径。"""
+    path = config_manager.get("DEPLOY_SCRIPT", "/home/admin/arche/deploy.sh")
+    return path if path is not None else "/home/admin/arche/deploy.sh"
 
 
 def _run_script() -> tuple[int, str, str]:
     """执行部署脚本。返回 (returncode, stdout, stderr)。"""
+    deploy_script = _get_deploy_script()
     proc = subprocess.run(
-        ["bash", DEPLOY_SCRIPT],
+        ["bash", deploy_script],
         capture_output=True,
         text=True,
         timeout=300,
@@ -40,14 +48,17 @@ def _run_script() -> tuple[int, str, str]:
 
 @router.post("/api/deploy")
 async def trigger_deploy(request: DeployRequest):
-    deploy_token = os.environ.get("DEPLOY_TOKEN", "")
+    deploy_token = config_manager.get("DEPLOY_TOKEN", "")
     if not deploy_token or request.token != deploy_token:
         raise HTTPException(status_code=401, detail="Invalid deploy token")
 
-    if not os.path.isfile(DEPLOY_SCRIPT):
+    deploy_script = _get_deploy_script()
+    import os
+
+    if not os.path.isfile(deploy_script):
         raise HTTPException(
             status_code=500,
-            detail=f"Deploy script not found at {DEPLOY_SCRIPT}",
+            detail=f"Deploy script not found at {deploy_script}",
         )
 
     returncode, stdout, stderr = await asyncio.to_thread(_run_script)

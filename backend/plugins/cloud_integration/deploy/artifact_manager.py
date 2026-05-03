@@ -1,4 +1,4 @@
-"""Artifact manager — pulls training outputs from remote instances and verifies integrity."""
+"""制品管理器 —— 从远程实例拉取训练产物并验证完整性。"""
 
 from __future__ import annotations
 
@@ -62,12 +62,10 @@ class ArtifactManager:
         pattern: str = "*",
     ) -> list[dict]:
         """拉取远程目录下匹配的文件。"""
-        # 先列出远程文件
-        listing = await self._ssh.execute(conn_key, f"ls -1 {remote_dir}/{pattern}")
-        files = [f.strip() for f in listing.splitlines() if f.strip()]
-
-        if not files:
+        names = await self._ssh.list_remote_filenames(conn_key, remote_dir, pattern)
+        if not names:
             return []
 
-        full_paths = [f"{remote_dir}/{f}" for f in files]
+        base = remote_dir.rstrip("/")
+        full_paths = [f"{base}/{f}" for f in names]
         return await self.pull_artifacts(conn_key, full_paths, local_dir)

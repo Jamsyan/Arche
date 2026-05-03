@@ -1,4 +1,4 @@
-"""Cloud Provider registry and factory."""
+"""云训练 Provider 注册表和工厂。"""
 
 from __future__ import annotations
 

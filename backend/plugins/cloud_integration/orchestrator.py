@@ -73,7 +73,7 @@ class TrainingOrchestrator:
 
     SCAN_INTERVAL = 10  # 秒，扫描间隔
     PROGRESS_INTERVAL = 30  # 秒，训练中间隔读取日志
-    MAX_RETRY = 3  # 每步最大重试次数
+    MAX_RETRY: int = 3  # 每步最大重试次数
 
     def __init__(self, container: "ServiceContainer"):
         self.container = container
@@ -87,7 +87,7 @@ class TrainingOrchestrator:
             return
         self._running = True
         self._task = asyncio.create_task(self._daemon_loop())
-        logger.info("TrainingOrchestrator started")
+        logger.info("训练编排器已启动")
 
     async def stop(self) -> None:
         self._running = False
@@ -97,7 +97,7 @@ class TrainingOrchestrator:
                 await self._task
             except asyncio.CancelledError:
                 pass
-        logger.info("TrainingOrchestrator stopped")
+        logger.info("训练编排器已停止")
 
     # --- Daemon Loop ---
 
@@ -107,7 +107,7 @@ class TrainingOrchestrator:
                 await self._process_active_jobs()
                 await self._update_progress_for_running_jobs()
             except Exception:
-                logger.exception("Orchestrator loop error")
+                logger.exception("编排器循环异常")
             await asyncio.sleep(self.SCAN_INTERVAL)
 
     async def _process_active_jobs(self) -> None:
@@ -481,7 +481,7 @@ class TrainingOrchestrator:
             await ssh.close(conn_key)
 
         except Exception as e:
-            logger.warning(f"Progress update failed for job {job.id}: {e}")
+            logger.warning(f"任务 {job.id} 进度更新失败: {e}")
 
     async def _step_collect_artifacts(self, job: TrainingJob) -> None:
         """拉取训练产物。"""
@@ -511,7 +511,7 @@ class TrainingOrchestrator:
             )
             await self._advance_step(job.id, Step.SHUTTING_DOWN)
         except Exception as e:
-            logger.warning(f"Artifact collection failed for job {job.id}: {e}")
+            logger.warning(f"任务 {job.id} 产物收集失败: {e}")
             # 产物拉取失败不阻断流程，继续关停
             await self._advance_step(job.id, Step.SHUTTING_DOWN)
 
@@ -575,11 +575,11 @@ class TrainingOrchestrator:
             )
             await session.commit()
             if result.rowcount == 0:
-                logger.warning(f"Job {job_id} step advance skipped (row not found)")
+                logger.warning(f"任务 {job_id} 步骤推进被跳过（记录未找到）")
 
     async def _fail_job(self, job_id: uuid.UUID, error: str) -> None:
         """标记任务失败。"""
-        logger.error(f"Job {job_id} failed: {error}")
+        logger.error(f"任务 {job_id} 失败: {error}")
         async with self._session_factory() as session:
             await session.execute(
                 text(
@@ -660,7 +660,7 @@ class TrainingOrchestrator:
             )
             await session.commit()
             logger.warning(
-                f"Job {job.id} step {step_name} retry {retry_count + 1}/{self.MAX_RETRY}: {error}"
+                f"任务 {job.id} 步骤 {step_name} 重试 {retry_count + 1}/{self.MAX_RETRY}: {error}"
             )
 
     async def _get_conn_key(self, job_id: uuid.UUID) -> str:
@@ -676,7 +676,7 @@ class TrainingOrchestrator:
             )
             inst = result.scalar_one_or_none()
             if not inst or not inst.ssh_host:
-                raise RuntimeError(f"No running instance for job {job_id}")
+                raise RuntimeError(f"任务 {job_id} 没有运行中的实例")
             return f"{inst.ssh_host}:{inst.ssh_port}"
 
     # --- 延迟初始化 ---

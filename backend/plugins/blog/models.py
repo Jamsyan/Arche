@@ -1,4 +1,4 @@
-"""Blog plugin — data models."""
+"""博客插件 —— 数据模型。"""
 
 from __future__ import annotations
 
@@ -111,4 +111,23 @@ class BlogPostTag(Base):
     )
     tag_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, nullable=False
+    )
+
+
+class BlogFavorite(Base):
+    """博客收藏表。"""
+
+    __tablename__ = "blog_favorites"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("post_id", "user_id", name="uq_blog_favorites_post_user"),
     )

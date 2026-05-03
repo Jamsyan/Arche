@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import time
 from collections import deque
+from operator import itemgetter
 from typing import TYPE_CHECKING
 
 import psutil
@@ -227,6 +228,6 @@ class SystemMonitorService:
             if sort_by in ("cpu_percent", "memory_percent", "pid", "create_time")
             else "cpu_percent"
         )
-        procs.sort(key=lambda p: p[key], reverse=reverse)
+        procs.sort(key=itemgetter(key), reverse=reverse)
 
         return {"items": procs[:limit], "total": len(procs), "limit": limit}

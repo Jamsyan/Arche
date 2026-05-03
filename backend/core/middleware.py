@@ -1,4 +1,4 @@
-"""Middleware and unified error handling."""
+"""中间件和统一错误处理。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AppError(Exception):
-    """Base error for application-level errors."""
+    """应用级错误基类。"""
 
     def __init__(
         self,

@@ -1,4 +1,4 @@
-"""Blog plugin — 博客内容发布、浏览、互动插件。
+"""博客插件 —— 博客内容发布、浏览、互动插件。
 
 负责帖子 CRUD、评论、点赞、审核、举报。
 """
@@ -8,7 +8,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.blog.settings import BlogSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -68,6 +70,9 @@ class BlogPlugin(BasePlugin):
     def on_shutdown(self) -> None:
         pass
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("blog", BlogSettings)
 
 # 自注册
 plugin = BlogPlugin()

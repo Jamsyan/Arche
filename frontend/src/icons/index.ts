@@ -1,0 +1,21 @@
+export {
+  AddOutline,
+  AppsOutline,
+  BanOutline,
+  CheckmarkCircleOutline,
+  CreateOutline,
+  DocumentTextOutline,
+  ExtensionPuzzleOutline,
+  HomeOutline,
+  InformationCircleOutline,
+  LockClosedOutline,
+  LockOpenOutline,
+  LogOutOutline,
+  MenuOutline,
+  PeopleOutline,
+  PersonCircleOutline,
+  PersonOutline,
+  PowerOutline,
+  SettingsOutline,
+  TrashOutline
+} from '@vicons/ionicons5'

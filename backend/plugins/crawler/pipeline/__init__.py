@@ -1,4 +1,4 @@
-"""Crawler plugin — 流水线车间包入口。"""
+"""爬虫插件 —— 流水线车间包入口。"""
 
 from __future__ import annotations
 

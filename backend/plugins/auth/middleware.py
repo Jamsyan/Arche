@@ -1,4 +1,4 @@
-"""Auth plugin — JWT 认证中间件。
+"""认证插件 —— JWT 认证中间件。
 
 从请求头提取 Bearer token，解析后注入 request.state.user。
 对公开路由（/api/auth/register, /api/auth/login）跳过认证。
@@ -67,7 +67,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except jwt.ExpiredSignatureError:
             return JSONResponse(
                 status_code=401,
-                content={"code": "token_expired", "message": "Token 已过期", "data": {}},
+                content={
+                    "code": "token_expired",
+                    "message": "Token 已过期",
+                    "data": {},
+                },
             )
         except jwt.InvalidTokenError:
             return JSONResponse(

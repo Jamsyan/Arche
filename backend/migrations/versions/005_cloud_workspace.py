@@ -1,4 +1,4 @@
-"""add cloud workspace tables: datasets, code_repos, artifacts
+"""添加云工作空间表：数据集、代码仓库、制品
 
 Revision ID: 005_cloud_workspace
 Revises: 004_config_entries

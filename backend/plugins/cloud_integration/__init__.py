@@ -1,4 +1,4 @@
-"""Cloud Integration plugin — 云训练插件。
+"""云集成插件 —— 云训练插件。
 
 负责 ML 模型训练任务的管理：创建、启动、停止、监控。
 """
@@ -9,7 +9,9 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.cloud_integration.settings import CloudIntegrationSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -73,6 +75,9 @@ class CloudIntegrationPlugin(BasePlugin):
             except RuntimeError:
                 pass
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("cloud_integration", CloudIntegrationSettings)
 
 # 自注册
 plugin = CloudIntegrationPlugin()

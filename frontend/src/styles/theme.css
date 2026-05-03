@@ -1,0 +1,157 @@
+/* 全局设计系统 - 温润书卷米白风格 */
+:root {
+  /* 主色调 - 茶棕琥珀 */
+  --primary-color: #9a5a2f;
+  --primary-hover-color: #b8743d;
+  --primary-pressed-color: #6f3f22;
+  --primary-light-color: rgba(154, 90, 47, 0.14);
+  --accent-color: #c89b3c;
+
+  /* 成功/警告/错误色 */
+  --success-color: #4f7a57;
+  --warning-color: #b98529;
+  --error-color: #b34c3f;
+
+  /* 中性色 - 墨褐文字 */
+  --text-primary: rgba(47, 38, 29, 0.92);
+  --text-secondary: rgba(47, 38, 29, 0.72);
+  --text-tertiary: rgba(47, 38, 29, 0.54);
+  --text-disabled: rgba(47, 38, 29, 0.34);
+
+  --border-color: rgba(130, 95, 65, 0.2);
+  --divider-color: rgba(47, 38, 29, 0.09);
+  --surface-color: rgba(255, 250, 241, 0.88);
+  --surface-strong-color: rgba(239, 227, 207, 0.94);
+  --surface-inset-color: rgba(230, 216, 196, 0.72);
+  --paper-shadow-color: rgba(80, 55, 34, 0.12);
+
+  /* 圆角系统 - 统一规范 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* 阴影系统 - 多层柔和阴影 */
+  --shadow-sm: 0 1px 2px 0 rgba(67, 45, 28, 0.06);
+  --shadow-md: 0 8px 20px -10px rgba(67, 45, 28, 0.16), 0 3px 8px -4px rgba(67, 45, 28, 0.1);
+  --shadow-lg: 0 16px 28px -16px rgba(67, 45, 28, 0.22), 0 8px 14px -10px rgba(67, 45, 28, 0.14);
+  --shadow-xl: 0 24px 38px -20px rgba(67, 45, 28, 0.28), 0 12px 20px -16px rgba(67, 45, 28, 0.18);
+  --shadow-glass: 0 12px 30px -18px var(--paper-shadow-color);
+
+  /* 磨砂玻璃效果变量 */
+  --glass-bg: var(--surface-color);
+  --glass-bg-hover: rgba(255, 250, 241, 0.96);
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid rgba(130, 95, 65, 0.2);
+
+  /* 渐变背景 */
+  --bg-gradient: linear-gradient(180deg, #f9f3e8 0%, #f2e8d7 55%, #ead9be 100%);
+  --bg-gradient-light: linear-gradient(180deg, #fffaf2 0%, #f6ecdd 100%);
+
+  /* 间距系统 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  --layout-mobile-breakpoint: 992px;
+}
+
+/* Naive UI 主题变量覆盖 */
+:root {
+  --n-primary-color: var(--primary-color);
+  --n-primary-hover-color: var(--primary-hover-color);
+  --n-primary-pressed-color: var(--primary-pressed-color);
+  --n-primary-hover-tint: var(--primary-light-color);
+  --n-primary-hover-ripple: rgba(154, 90, 47, 0.18);
+  --n-primary-active-tint: rgba(154, 90, 47, 0.18);
+
+  --n-success-color: var(--success-color);
+  --n-warning-color: var(--warning-color);
+  --n-error-color: var(--error-color);
+
+  --n-popover-color: var(--glass-bg);
+  --n-card-color: transparent;
+  --n-modal-color: var(--glass-bg);
+  --n-body-color: transparent;
+
+  --n-text-color: var(--text-primary);
+  --n-text-2-color: var(--text-secondary);
+  --n-text-3-color: var(--text-tertiary);
+  --n-text-4-color: var(--text-disabled);
+
+  --n-border-color: var(--border-color);
+  --n-border-radius: var(--radius-md);
+
+  --n-popover-shadow: var(--shadow-glass);
+  --n-card-shadow: none;
+  --n-modal-shadow: var(--shadow-glass);
+}
+
+/* 磨砂玻璃通用类 */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+
+.glass-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-hover:hover {
+  background: var(--glass-bg-hover);
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+/* 全局卡片统一样式 */
+.card-glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-glass);
+  padding: var(--spacing-lg);
+  transition: all 0.3s ease;
+}
+
+.card-glass:hover {
+  box-shadow: var(--shadow-xl);
+}
+
+.dark {
+  --glass-bg: rgba(43, 34, 27, 0.72);
+  --glass-bg-hover: rgba(54, 42, 33, 0.8);
+  --glass-border: 1px solid rgba(214, 183, 145, 0.2);
+
+  --text-primary: rgba(246, 238, 224, 0.92);
+  --text-secondary: rgba(246, 238, 224, 0.75);
+  --text-tertiary: rgba(246, 238, 224, 0.56);
+  --text-disabled: rgba(246, 238, 224, 0.38);
+
+  --border-color: rgba(214, 183, 145, 0.2);
+  --surface-inset-color: rgba(84, 66, 50, 0.5);
+  --bg-gradient: linear-gradient(180deg, #2a211a 0%, #3a2d23 50%, #4b3828 100%);
+  --bg-gradient-light: linear-gradient(180deg, #32271f 0%, #433327 100%);
+
+  --shadow-glass: 0 14px 36px -20px rgba(0, 0, 0, 0.5);
+
+  --n-popover-color: var(--glass-bg);
+  --n-card-color: transparent;
+  --n-modal-color: var(--glass-bg);
+  --n-body-color: transparent;
+
+  --n-text-color: var(--text-primary);
+  --n-text-2-color: var(--text-secondary);
+  --n-text-3-color: var(--text-tertiary);
+  --n-text-4-color: var(--text-disabled);
+
+  --n-border-color: var(--border-color);
+}

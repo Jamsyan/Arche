@@ -1,4 +1,4 @@
-"""Crawler plugin — API 路由：状态、种子、黑名单、记录查询。"""
+"""爬虫插件 —— API 路由：状态、种子、黑名单、记录查询。"""
 
 from __future__ import annotations
 
@@ -86,12 +86,20 @@ async def get_record_file(record_id: str, request: Request):
     if not record or not record.get("file_path"):
         return {"code": "not_found", "message": "文件或记录不存在", "data": None}
     import json
+    import os
     from pathlib import Path
 
     storage_root = Path(
-        __import__("os").environ.get("CRAWLER_STORAGE_ROOT", "data/crawler")
-    )
-    file_path = storage_root / record["file_path"]
+        os.environ.get("CRAWLER_STORAGE_ROOT", "data/crawler")
+    ).resolve()
+    rel = Path(record["file_path"])
+    if rel.is_absolute() or ".." in rel.parts:
+        return {"code": "error", "message": "非法文件路径", "data": None}
+    file_path = (storage_root / rel).resolve()
+    try:
+        file_path.relative_to(storage_root)
+    except ValueError:
+        return {"code": "error", "message": "非法文件路径", "data": None}
     if not file_path.exists():
         return {"code": "not_found", "message": "文件不存在", "data": None}
     content = (

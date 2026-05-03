@@ -1,4 +1,4 @@
-"""Crawler plugin — 探嗅回路：httpx 轻量 HTTP 探测。"""
+"""爬虫插件 —— 探嗅回路：httpx 轻量 HTTP 探测。"""
 
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ _FUNCTIONAL_TITLES = [
     "503",
 ]
 
+MAX_PROBE_BYTES = 64 * 1024
+
 
 class ProbeService:
     """探嗅回路：用 httpx 轻量请求快速判断页面类型，决定是否收入种子池。"""
@@ -55,7 +57,8 @@ class ProbeService:
                         "AppleWebKit/537.36 (KHTML, like Gecko) "
                         "Chrome/120.0.0.0 Safari/537.36"
                     ),
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5",
+                    "Accept-Encoding": "gzip, deflate",
                 },
             )
         return self._client
@@ -75,6 +78,31 @@ class ProbeService:
         try:
             client = await self._get_client()
             response = await client.get(url)
+            content_type = response.headers.get("content-type", "")
+            content_length = response.headers.get("content-length")
+            if (
+                content_type
+                and "html" not in content_type.lower()
+                and "text/plain" not in content_type.lower()
+            ):
+                return {
+                    "url": str(response.url),
+                    "status_code": response.status_code,
+                    "content_type": content_type,
+                    "has_content": False,
+                    "is_functional": False,
+                    "title": None,
+                }
+            if content_length and int(content_length) > MAX_PROBE_BYTES:
+                return {
+                    "url": str(response.url),
+                    "status_code": response.status_code,
+                    "content_type": content_type,
+                    "has_content": False,
+                    "is_functional": False,
+                    "title": None,
+                }
+
             html = response.text[:5000]  # 只取前 5KB 用于分析
             title = self._extract_title(html)
             path = urlparse(str(response.url)).path.lower()
@@ -123,9 +151,15 @@ class ProbeService:
         import re
 
         text = re.sub(
-            r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
+            r"<script\b[^>]*>[\s\S]*?</script\b[^>]*>",
+            "",
+            html,
+            flags=re.IGNORECASE,
         )
         text = re.sub(
-            r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE
+            r"<style\b[^>]*>[\s\S]*?</style\b[^>]*>",
+            "",
+            text,
+            flags=re.IGNORECASE,
         )
         return re.sub(r"<[^>]+>", " ", text)

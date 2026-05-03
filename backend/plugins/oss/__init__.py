@@ -1,4 +1,4 @@
-"""OSS plugin — 文件存储插件：流式读写、后端解耦、动态配额、限速、冷热分层。"""
+"""对象存储插件 —— 文件存储插件：流式读写、后端解耦、动态配额、限速、冷热分层。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.core.base_plugin import BasePlugin
+from backend.core.config import config_manager
 from backend.core.plugin_registry import registry
+from backend.plugins.oss.settings import OssSettings
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -44,7 +46,11 @@ class OSSPlugin(BasePlugin):
             config.get("OSS_GLOBAL_RATE_LIMIT_BYTES", str(10 * 1024 * 1024))
         )
         rate_limiter = RateLimiterManager(global_rate=global_rate)
-        container.register("oss_rate_limiter", lambda c: rate_limiter)
+
+        def _oss_rate_limiter_factory(c):
+            return rate_limiter
+
+        container.register("oss_rate_limiter", _oss_rate_limiter_factory)
         self._rate_limiter = rate_limiter
 
         # 注册 StorageService（内部依赖 rate_limiter）
@@ -105,6 +111,9 @@ class OSSPlugin(BasePlugin):
         except Exception:
             return None
 
+
+# 注册插件配置
+config_manager.register_plugin_settings("oss", OssSettings)
 
 # 自注册
 plugin = OSSPlugin()

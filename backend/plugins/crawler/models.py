@@ -1,4 +1,4 @@
-"""Crawler plugin — 数据模型：漫游爬虫抓取记录。"""
+"""爬虫插件 —— 数据模型：漫游爬虫抓取记录。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""initial schema
+"""初始 schema
 
 Revision ID: 001_initial
 Revises:
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-# revision identifiers
+# 版本标识符
 revision: str = "001_initial"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None

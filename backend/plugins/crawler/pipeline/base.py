@@ -1,4 +1,4 @@
-"""Crawler plugin — 流水线基础：CrawlItem 数据类 + BaseStage 抽象基类。"""
+"""爬虫插件 —— 流水线基础：CrawlItem 数据类 + BaseStage 抽象基类。"""
 
 from __future__ import annotations
 

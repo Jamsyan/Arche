@@ -1,4 +1,4 @@
-"""Mock Cloud Provider — simulates instance lifecycle for local development."""
+"""模拟云训练 Provider —— 模拟本地开发环境的实例生命周期。"""
 
 from __future__ import annotations
 

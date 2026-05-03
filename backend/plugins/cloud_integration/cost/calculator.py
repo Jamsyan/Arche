@@ -1,4 +1,4 @@
-"""Cost calculator for cloud training — pricing table and aggregation."""
+"""云训练费用计算器 —— 定价表和费用聚合。"""
 
 from __future__ import annotations
 
