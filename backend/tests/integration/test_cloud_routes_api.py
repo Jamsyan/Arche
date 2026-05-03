@@ -26,21 +26,31 @@ def cloud_service_mock(db_container):
     service.create_instance = AsyncMock(return_value={"id": str(uuid.uuid4())})
     service.start_instance = AsyncMock(return_value={"status": "running"})
     service.stop_instance = AsyncMock(return_value={"status": "stopped"})
-    service.launch_job = AsyncMock(return_value={"id": str(uuid.uuid4()), "orchestrator_step": "creating_instance"})
+    service.launch_job = AsyncMock(
+        return_value={"id": str(uuid.uuid4()), "orchestrator_step": "creating_instance"}
+    )
     service.get_job_progress = AsyncMock(return_value={"progress": 50})
     service.get_job_steps = AsyncMock(return_value={"items": []})
     service.get_costs = AsyncMock(return_value={"total_cost": 0, "breakdown": []})
     service.list_datasets = AsyncMock(return_value={"items": [], "total": 0})
-    service.create_dataset = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "ds"})
-    service.get_dataset = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "ds"})
+    service.create_dataset = AsyncMock(
+        return_value={"id": str(uuid.uuid4()), "name": "ds"}
+    )
+    service.get_dataset = AsyncMock(
+        return_value={"id": str(uuid.uuid4()), "name": "ds"}
+    )
     service.delete_dataset = AsyncMock(return_value=None)
     service.sync_dataset = AsyncMock(return_value={"status": "queued"})
     service.list_repos = AsyncMock(return_value={"items": [], "total": 0})
-    service.create_repo = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "repo"})
+    service.create_repo = AsyncMock(
+        return_value={"id": str(uuid.uuid4()), "name": "repo"}
+    )
     service.delete_repo = AsyncMock(return_value=None)
     service.sync_repo = AsyncMock(return_value={"status": "queued"})
     service.list_artifacts = AsyncMock(return_value={"items": [], "total": 0})
-    service.get_artifact = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "ckpt"})
+    service.get_artifact = AsyncMock(
+        return_value={"id": str(uuid.uuid4()), "name": "ckpt"}
+    )
     service.download_artifact = AsyncMock(return_value="https://download.local/ckpt")
     service.delete_artifact = AsyncMock(return_value=None)
     return patch_container_service(db_container, "cloud_training", service)
@@ -62,7 +72,9 @@ class TestCloudRoutesAPI:
         assert costs.status_code == 200
         assert costs.json()["code"] == "ok"
 
-    async def test_create_and_launch_job(self, client, admin_headers, cloud_service_mock):
+    async def test_create_and_launch_job(
+        self, client, admin_headers, cloud_service_mock
+    ):
         payload = {
             "name": "job",
             "config": {},
@@ -71,12 +83,16 @@ class TestCloudRoutesAPI:
             "provider": "mock",
             "gpu_type": "RTX4090",
         }
-        created = await client.post("/api/cloud/jobs", headers=admin_headers, json=payload)
+        created = await client.post(
+            "/api/cloud/jobs", headers=admin_headers, json=payload
+        )
         assert created.status_code == 200
         assert created.json()["code"] == "ok"
 
         job_id = str(uuid.uuid4())
-        launched = await client.post(f"/api/cloud/jobs/{job_id}/launch", headers=admin_headers)
+        launched = await client.post(
+            f"/api/cloud/jobs/{job_id}/launch", headers=admin_headers
+        )
         assert launched.status_code == 200
         assert launched.json()["code"] == "ok"
 
@@ -151,7 +167,12 @@ class TestCloudRoutesAPI:
             ("post", "/api/cloud/repos", None, repo_payload),
             ("post", f"/api/cloud/repos/{repo_id}/sync", None, None),
             ("delete", f"/api/cloud/repos/{repo_id}", None, None),
-            ("get", "/api/cloud/artifacts", {"job_id": job_id, "artifact_type": "log"}, None),
+            (
+                "get",
+                "/api/cloud/artifacts",
+                {"job_id": job_id, "artifact_type": "log"},
+                None,
+            ),
             ("get", f"/api/cloud/artifacts/{artifact_id}", None, None),
             ("get", f"/api/cloud/artifacts/{artifact_id}/download", None, None),
             ("delete", f"/api/cloud/artifacts/{artifact_id}", None, None),

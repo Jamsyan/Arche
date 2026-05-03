@@ -1,4 +1,5 @@
 """中间件和错误处理测试。"""
+
 import pytest
 from fastapi import FastAPI
 from unittest.mock import MagicMock
@@ -11,7 +12,7 @@ from backend.core.middleware import (
     setup_cors,
     get_current_user,
     require_user,
-    require_level
+    require_level,
 )
 
 
@@ -24,7 +25,7 @@ class TestCustomExceptions:
             message="Test error",
             code="test_error",
             status_code=400,
-            data={"key": "value"}
+            data={"key": "value"},
         )
 
         assert str(exc) == "Test error"
@@ -75,12 +76,15 @@ class TestErrorResponse:
             message="Test error",
             code="test_code",
             status_code=400,
-            data={"key": "value"}
+            data={"key": "value"},
         )
 
         assert response.status_code == 400
         assert response.media_type == "application/json"
-        assert response.body == b'{"code":"test_code","message":"Test error","data":{"key":"value"}}'
+        assert (
+            response.body
+            == b'{"code":"test_code","message":"Test error","data":{"key":"value"}}'
+        )
 
     def test_error_response_default_values(self):
         """error_response 默认值正确。"""
@@ -116,7 +120,9 @@ class TestCorsSetup:
         # 检查中间件是否添加
         assert len(app.user_middleware) == 1
         middleware = app.user_middleware[0]
-        assert middleware.cls.__name__ == "CORSMiddleware"
+        from starlette.middleware.cors import CORSMiddleware
+
+        assert middleware.cls is CORSMiddleware
 
         # 检查中间件选项（Middleware的kwargs是关键字参数字典）
         assert middleware.kwargs["allow_origins"] == test_origins
@@ -163,6 +169,7 @@ class TestUserAuthUtils:
     @pytest.mark.asyncio
     async def test_require_level_decorator_permitted(self):
         """用户等级满足要求时 require_level 装饰器正常放行。"""
+
         # 创建测试函数
         @require_level(min_level=3)
         async def test_func(request):
@@ -178,6 +185,7 @@ class TestUserAuthUtils:
     @pytest.mark.asyncio
     async def test_require_level_decorator_denied(self):
         """用户等级不满足要求时抛出 PermissionError。"""
+
         @require_level(min_level=2)
         async def test_func(request):
             return {"status": "ok"}
@@ -192,6 +200,7 @@ class TestUserAuthUtils:
     @pytest.mark.asyncio
     async def test_require_level_decorator_no_request_param(self):
         """路由没有request参数时抛出 AuthError。"""
+
         @require_level(min_level=2)
         async def test_func():  # 没有request参数
             return {"status": "ok"}
@@ -202,6 +211,7 @@ class TestUserAuthUtils:
     @pytest.mark.asyncio
     async def test_require_level_decorator_default_level(self):
         """用户没有level字段时默认等级5。"""
+
         @require_level(min_level=5)
         async def test_func(request):
             return {"status": "ok"}

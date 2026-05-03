@@ -60,7 +60,9 @@ class TestRegistry:
 class TestMockProvider:
     async def test_lifecycle_and_metrics(self):
         provider = MockProvider({})
-        inst = await provider.create_instance("job1", {"gpu_type": "A100", "gpu_count": 1})
+        inst = await provider.create_instance(
+            "job1", {"gpu_type": "A100", "gpu_count": 1}
+        )
         assert inst["status"] == "pending"
         iid = inst["instance_id"]
 

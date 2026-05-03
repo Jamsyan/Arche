@@ -332,6 +332,7 @@ class TestUserManagement:
 
         result = await service.get_user(uuid.UUID(target_user["id"]))
 
+        assert result is not None
         assert result["id"] == target_user["id"]
         assert result["email"] == target_user["email"]
 

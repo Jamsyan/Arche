@@ -7,6 +7,7 @@
 - 配额检查
 - 权限校验
 """
+
 from __future__ import annotations
 
 import uuid
@@ -55,7 +56,9 @@ class TestOSSAdminAPI:
 
     async def test_admin_stats_endpoint_exists(self, client, admin_headers):
         """管理员统计接口应存在。"""
-        with patch("backend.plugins.oss.services.StorageService.get_admin_stats") as mock_stats:
+        with patch(
+            "backend.plugins.oss.services.StorageService.get_admin_stats"
+        ) as mock_stats:
             mock_stats.return_value = {
                 "total_files": 0,
                 "total_size": 0,
@@ -117,8 +120,12 @@ class TestOSSAdminAPI:
 
     async def test_admin_file_endpoints(self, client, admin_headers, db_container):
         with (
-            patch("backend.plugins.oss.services.StorageService.admin_list_files") as mock_list,
-            patch("backend.plugins.oss.services.StorageService.admin_delete_file") as mock_delete,
+            patch(
+                "backend.plugins.oss.services.StorageService.admin_list_files"
+            ) as mock_list,
+            patch(
+                "backend.plugins.oss.services.StorageService.admin_delete_file"
+            ) as mock_delete,
         ):
             mock_list.return_value = [{"id": str(uuid.uuid4())}]
             mock_delete.return_value = None

@@ -62,4 +62,6 @@ class TestSystemMonitorAPI:
             headers=admin_headers,
         )
         assert processes.status_code == 200
-        system_monitor_mock.get_processes.assert_called_once_with(sort_by="pid", limit=5)
+        system_monitor_mock.get_processes.assert_called_once_with(
+            sort_by="pid", limit=5
+        )

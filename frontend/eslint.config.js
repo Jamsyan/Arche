@@ -73,7 +73,9 @@ export default [
       'vue/html-closing-bracket-newline': 'off',
       'vue/html-indent': 'off',
       'vue/attributes-order': 'off',
-      'vue/require-default-prop': 'off'
+      'vue/require-default-prop': 'off',
+      /* Prettier 对 void 标签使用 />，与 vue/html-self-closing 默认冲突 */
+      'vue/html-self-closing': 'off'
     }
   }
 ]

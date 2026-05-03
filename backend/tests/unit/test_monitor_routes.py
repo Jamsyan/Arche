@@ -21,10 +21,16 @@ class TestMonitorRoutes:
             routes.get_session_factory()
         assert exc.value.status_code == 500
 
-    async def test_template_crud_and_component_data(self, in_memory_db, monkeypatch, monitor_template_payload):
-        monkeypatch.setattr(routes, "get_session_factory", lambda: in_memory_db["session_factory"])
+    async def test_template_crud_and_component_data(
+        self, in_memory_db, monkeypatch, monitor_template_payload
+    ):
+        monkeypatch.setattr(
+            routes, "get_session_factory", lambda: in_memory_db["session_factory"]
+        )
 
-        created = await routes.create_template(routes.TemplateCreate(**monitor_template_payload))
+        created = await routes.create_template(
+            routes.TemplateCreate(**monitor_template_payload)
+        )
         assert created["name"] == "CPU Dashboard"
         tid = created["id"]
 
@@ -49,7 +55,9 @@ class TestMonitorRoutes:
         assert deleted["message"] == "Template deleted"
 
     async def test_not_found_paths(self, in_memory_db, monkeypatch):
-        monkeypatch.setattr(routes, "get_session_factory", lambda: in_memory_db["session_factory"])
+        monkeypatch.setattr(
+            routes, "get_session_factory", lambda: in_memory_db["session_factory"]
+        )
         with pytest.raises(HTTPException) as exc_get:
             await routes.get_template("missing")
         assert exc_get.value.status_code == 404

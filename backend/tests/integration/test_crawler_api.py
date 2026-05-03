@@ -46,7 +46,9 @@ class TestCrawlerAPI:
         assert stopped.status_code == 200
         crawler_mock.stop.assert_awaited_once()
 
-    async def test_seeds_and_blacklist_endpoints(self, client, admin_headers, crawler_mock):
+    async def test_seeds_and_blacklist_endpoints(
+        self, client, admin_headers, crawler_mock
+    ):
         add_seed = await client.post(
             "/api/crawler/seeds",
             headers=admin_headers,
@@ -66,23 +68,31 @@ class TestCrawlerAPI:
             json={"pattern": "spam.com", "reason": "spam"},
         )
         assert add_black.status_code == 200
-        crawler_mock.seed_manager.add_to_blacklist.assert_called_once_with("spam.com", "spam")
+        crawler_mock.seed_manager.add_to_blacklist.assert_called_once_with(
+            "spam.com", "spam"
+        )
 
         get_black = await client.get("/api/crawler/blacklist", headers=admin_headers)
         assert get_black.status_code == 200
         assert get_black.json()["code"] == "ok"
 
-    async def test_records_stats_and_not_found(self, client, admin_headers, crawler_mock):
+    async def test_records_stats_and_not_found(
+        self, client, admin_headers, crawler_mock
+    ):
         crawler_mock.get_recent_records.return_value = [
             {"id": "1", "url": "https://a.com"},
             {"id": "2", "url": "https://b.com"},
         ]
-        records = await client.get("/api/crawler/records?page=1&page_size=1", headers=admin_headers)
+        records = await client.get(
+            "/api/crawler/records?page=1&page_size=1", headers=admin_headers
+        )
         assert records.status_code == 200
         assert records.json()["data"]["total"] == 2
         assert len(records.json()["data"]["items"]) == 1
 
-        missing = await client.get("/api/crawler/records/not-found", headers=admin_headers)
+        missing = await client.get(
+            "/api/crawler/records/not-found", headers=admin_headers
+        )
         assert missing.status_code == 200
         assert missing.json()["code"] == "not_found"
 
@@ -108,7 +118,9 @@ class TestCrawlerAPI:
         assert found.json()["data"]["ok"] is True
 
         crawler_mock.get_record.return_value = {"id": "x", "file_path": "missing.json"}
-        missing = await client.get("/api/crawler/records/abc/file", headers=admin_headers)
+        missing = await client.get(
+            "/api/crawler/records/abc/file", headers=admin_headers
+        )
         assert missing.status_code == 200
         assert missing.json()["code"] == "not_found"
 

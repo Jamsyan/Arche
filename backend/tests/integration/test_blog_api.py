@@ -71,7 +71,9 @@ class TestBlogAPI:
     async def test_admin_can_list_and_approve_moderation(
         self, client, admin_headers, blog_service_mock
     ):
-        pending = await client.get("/api/blog/moderation/pending", headers=admin_headers)
+        pending = await client.get(
+            "/api/blog/moderation/pending", headers=admin_headers
+        )
         assert pending.status_code == 200
         assert pending.json()["code"] == "ok"
         blog_service_mock.list_pending_posts.assert_awaited_once()

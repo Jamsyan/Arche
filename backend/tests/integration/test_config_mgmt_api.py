@@ -53,7 +53,9 @@ class TestConfigMgmtAPI:
         )
         assert [item["key"] for item in grouped.json()["data"]] == ["PUBLIC_NAME"]
 
-        detail = await client.get("/api/admin/config/SECRET_TOKEN", headers=admin_headers)
+        detail = await client.get(
+            "/api/admin/config/SECRET_TOKEN", headers=admin_headers
+        )
         assert detail.status_code == 200
         assert detail.json()["data"]["value"] == "token-value"
 
@@ -64,7 +66,9 @@ class TestConfigMgmtAPI:
         )
         assert updated.status_code == 200
 
-        detail = await client.get("/api/admin/config/PUBLIC_NAME", headers=admin_headers)
+        detail = await client.get(
+            "/api/admin/config/PUBLIC_NAME", headers=admin_headers
+        )
         assert detail.json()["data"]["value"] == "Arche Next"
 
         missing = await client.get("/api/admin/config/UNKNOWN", headers=admin_headers)

@@ -32,7 +32,11 @@ class TestAliyunProvider:
             "backend.plugins.cloud_integration.providers.aliyun._run_sync",
             _fake_run_sync,
         )
-        provider._do_action = lambda _req: {}
+
+        def _noop_do_action(request):
+            return {}
+
+        provider._do_action = _noop_do_action
         provider._instances["i1"] = {
             "instance_id": "i1",
             "gpu_type": "A100",
@@ -50,9 +54,13 @@ class TestAliyunProvider:
 
     async def test_get_instance_status_unknown(self, monkeypatch):
         provider = AliyunProvider({})
+
+        def _run_sync_raises(_func, *_args, **_kwargs):
+            raise RuntimeError("x")
+
         monkeypatch.setattr(
             "backend.plugins.cloud_integration.providers.aliyun._run_sync",
-            lambda func, *args, **kwargs: (_ for _ in ()).throw(RuntimeError("x")),
+            _run_sync_raises,
         )
         status = await provider.get_instance_status("i-x")
         assert status["status"] == "unknown"

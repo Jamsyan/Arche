@@ -11,7 +11,13 @@ from backend.plugins.crawler.url_scheduler import UrlScheduler
 
 
 class _ProbeResponse:
-    def __init__(self, url: str, text: str, status_code: int = 200, content_type: str = "text/html"):
+    def __init__(
+        self,
+        url: str,
+        text: str,
+        status_code: int = 200,
+        content_type: str = "text/html",
+    ):
         self.url = url
         self.text = text
         self.status_code = status_code

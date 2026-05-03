@@ -62,7 +62,9 @@ class TestParseStage:
         assert result is item
         assert item.error == "No HTML to parse"
 
-    async def test_parse_stage_skips_when_item_already_failed(self, crawler_item_factory):
+    async def test_parse_stage_skips_when_item_already_failed(
+        self, crawler_item_factory
+    ):
         stage = ParseStage()
         item = crawler_item_factory(error="Fetch failed")
         old_title = item.title
@@ -78,18 +80,23 @@ class TestClassifyStage:
         stage = ClassifyStage()
         item = crawler_item_factory(title="Sign In", url="https://example.com/random")
         result = await stage.process(item)
+        assert result is not None
         assert result.content_type == "functional"
 
     async def test_classify_by_path_pattern(self, crawler_item_factory):
         stage = ClassifyStage()
         item = crawler_item_factory(title="Any", url="https://example.com/blog/post-1")
         result = await stage.process(item)
+        assert result is not None
         assert result.content_type == "article"
 
     async def test_classify_default_other(self, crawler_item_factory):
         stage = ClassifyStage()
-        item = crawler_item_factory(title="Hello", url="https://example.com/unknown/path")
+        item = crawler_item_factory(
+            title="Hello", url="https://example.com/unknown/path"
+        )
         result = await stage.process(item)
+        assert result is not None
         assert result.content_type == "other"
 
 
@@ -140,7 +147,9 @@ class TestFetchStage:
     ):
         stage = FetchStage()
         fake_client = AsyncMock()
-        fake_client.get = AsyncMock(return_value=_FakeResponse(crawler_sample_html, 200))
+        fake_client.get = AsyncMock(
+            return_value=_FakeResponse(crawler_sample_html, 200)
+        )
         monkeypatch.setattr(stage, "_get_client", AsyncMock(return_value=fake_client))
 
         item = crawler_item_factory(url="https://example.com/article/1")

@@ -13,7 +13,9 @@ from pathlib import Path
 import re
 
 
-TEST_FUNC_PATTERN = re.compile(r"^\s*(?:async\s+)?def\s+test_[A-Za-z0-9_]*\s*\(", re.MULTILINE)
+TEST_FUNC_PATTERN = re.compile(
+    r"^\s*(?:async\s+)?def\s+test_[A-Za-z0-9_]*\s*\(", re.MULTILINE
+)
 
 
 # 插件目录名与测试文件名前缀的别名映射。
@@ -64,7 +66,9 @@ def _component_source_count(component_dir: Path) -> int:
     )
 
 
-def _plugin_test_files(tests_root: Path, plugin_name: str, test_type: str) -> list[Path]:
+def _plugin_test_files(
+    tests_root: Path, plugin_name: str, test_type: str
+) -> list[Path]:
     """基于插件名与别名表收集测试文件，避免命名前缀漂移导致漏匹配。
 
     匹配规则：
@@ -131,7 +135,9 @@ def build_inventory(repo_root: Path) -> list[ComponentStats]:
                 unit_files=len(unit_files),
                 integration_files=len(integration_files),
                 unit_cases=sum(_count_test_functions(path) for path in unit_files),
-                integration_cases=sum(_count_test_functions(path) for path in integration_files),
+                integration_cases=sum(
+                    _count_test_functions(path) for path in integration_files
+                ),
             )
         )
 

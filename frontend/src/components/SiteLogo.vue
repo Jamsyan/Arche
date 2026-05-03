@@ -1,6 +1,6 @@
 <template>
   <RouterLink to="/" class="site-logo" :class="[`site-logo--${size}`]">
-    <img class="logo-mark" src="/logo-样式 (1).png" alt="锦年志 Logo" >
+    <img class="logo-mark" src="/logo-样式 (1).png" alt="锦年志 Logo" />
     <span class="logo-text">锦年志</span>
   </RouterLink>
 </template>

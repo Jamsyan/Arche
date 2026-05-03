@@ -57,7 +57,9 @@ class TestCloudServicesResources:
                 config={},
             )
 
-    async def test_delete_dataset_and_artifact_calls_storage(self, db_container, storage_mock):
+    async def test_delete_dataset_and_artifact_calls_storage(
+        self, db_container, storage_mock
+    ):
         _storage, unified = storage_mock
         service = CloudTrainingService(db_container)
         creator = uuid.uuid4()
@@ -111,7 +113,12 @@ class TestCloudServicesResources:
             )
             session.add(job)
             await session.flush()
-            art = Artifact(job_id=job.id, name="a.bin", path="out/a.bin", artifact_type="checkpoint")
+            art = Artifact(
+                job_id=job.id,
+                name="a.bin",
+                path="out/a.bin",
+                artifact_type="checkpoint",
+            )
             session.add(art)
             await session.commit()
             aid = art.id

@@ -39,11 +39,11 @@ def mock_subprocess_success(stdout: bytes = b'{"ok": true}', stderr: bytes = b""
     return MockProc()
 
 
-def mock_subprocess_failure(returncode: int = 1, stderr: bytes = b"error"):
+def mock_subprocess_failure(exit_code: int = 1, stderr: bytes = b"error"):
     """创建失败的 subprocess mock。"""
 
     class MockProc:
-        returncode = returncode
+        returncode = exit_code
 
         async def communicate(self, input=None):
             return b"", stderr
@@ -102,18 +102,14 @@ class TestFilenameValidation:
         """包含 ../ 或 / 的文件名应被拒绝。"""
         service = StorageService(db_container)
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             # 路径穿越攻击
             bad_file = _make_upload_file(
                 "../../../etc/passwd", b"bad content", "text/plain"
             )
 
             with pytest.raises(AppError) as excinfo:
-                await service.upload_file(
-                    bad_file, owner_id=uuid.uuid4(), user_level=5
-                )
+                await service.upload_file(bad_file, owner_id=uuid.uuid4(), user_level=5)
 
             assert excinfo.value.code == "invalid_filename"
 
@@ -122,17 +118,11 @@ class TestFilenameValidation:
         """包含 \\ 的文件名应被拒绝。"""
         service = StorageService(db_container)
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
-            bad_file = _make_upload_file(
-                "path\\to\\file", b"bad content", "text/plain"
-            )
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
+            bad_file = _make_upload_file("path\\to\\file", b"bad content", "text/plain")
 
             with pytest.raises(AppError) as excinfo:
-                await service.upload_file(
-                    bad_file, owner_id=uuid.uuid4(), user_level=5
-                )
+                await service.upload_file(bad_file, owner_id=uuid.uuid4(), user_level=5)
 
             assert excinfo.value.code == "invalid_filename"
 
@@ -141,9 +131,7 @@ class TestFilenameValidation:
         """正常文件名应通过验证。"""
         service = StorageService(db_container)
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             good_file = _make_upload_file(
                 "my-document.pdf", b"pdf content", "application/pdf"
             )
@@ -178,9 +166,7 @@ class TestMimeValidation:
             ("archive.zip", "application/zip"),
         ]
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             for filename, mime in allowed_types:
                 file = _make_upload_file(filename, b"content", mime)
                 result = await service.upload_file(
@@ -193,18 +179,14 @@ class TestMimeValidation:
         """白名单外的 MIME 类型应被拒绝。"""
         service = StorageService(db_container)
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             # 可执行文件
             exe_file = _make_upload_file(
                 "malware.exe", b"bad content", "application/x-msdownload"
             )
 
             with pytest.raises(AppError) as excinfo:
-                await service.upload_file(
-                    exe_file, owner_id=uuid.uuid4(), user_level=5
-                )
+                await service.upload_file(exe_file, owner_id=uuid.uuid4(), user_level=5)
 
             assert excinfo.value.code == "file_type_not_allowed"
             assert excinfo.value.status_code == 415
@@ -224,13 +206,9 @@ class TestUpload:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("test.txt", b"hello world", "text/plain")
-            result = await service.upload_file(
-                file, owner_id=user_id, user_level=5
-            )
+            result = await service.upload_file(file, owner_id=user_id, user_level=5)
 
             assert "id" in result
             assert result["size"] == 11
@@ -244,9 +222,7 @@ class TestUpload:
         p1_user = uuid.uuid4()
         p5_user = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             # P1 用户
             file1 = _make_upload_file("p1.txt", b"p1 content", "text/plain")
             r1 = await service.upload_file(file1, owner_id=p1_user, user_level=1)
@@ -262,9 +238,7 @@ class TestUpload:
         """系统 ingest_bytes 接口应正常工作（无用户配额限制）。"""
         service = StorageService(db_container)
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             result = await service.ingest_bytes(
                 content=b"system data",
                 tenant_id="crawler",
@@ -290,13 +264,9 @@ class TestQuota:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             # 默认配额 1GB，小文件应成功
-            small_file = _make_upload_file(
-                "small.txt", b"small content", "text/plain"
-            )
+            small_file = _make_upload_file("small.txt", b"small content", "text/plain")
             result = await service.upload_file(
                 small_file, owner_id=user_id, user_level=1
             )
@@ -308,13 +278,9 @@ class TestQuota:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("test.txt", b"content", "text/plain")
-            result = await service.upload_file(
-                file, owner_id=user_id, user_level=5
-            )
+            result = await service.upload_file(file, owner_id=user_id, user_level=5)
             assert result["size"] > 0
 
     @pytest.mark.asyncio
@@ -323,9 +289,7 @@ class TestQuota:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             # 上传 3 个文件
             for i in range(3):
                 file = _make_upload_file(f"{i}.txt", b"a" * 100, "text/plain")
@@ -340,9 +304,7 @@ class TestQuota:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             for i in range(5):
                 file = _make_upload_file(f"{i}.txt", b"a", "text/plain")
                 await service.upload_file(file, owner_id=user_id, user_level=1)
@@ -364,9 +326,7 @@ class TestDownload:
         """下载不存在的文件应抛出 404。"""
         service = StorageService(db_container)
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             fake_id = uuid.uuid4()
 
             with pytest.raises(AppError) as excinfo:
@@ -383,9 +343,7 @@ class TestDownload:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("test.txt", b"hello", "text/plain")
             uploaded = await service.upload_file(
                 file, owner_id=user_id, user_level=5, is_private=False
@@ -404,9 +362,7 @@ class TestDownload:
         owner_id = uuid.uuid4()
         other_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("secret.txt", b"secret", "text/plain")
             uploaded = await service.upload_file(
                 file, owner_id=owner_id, user_level=5, is_private=True
@@ -426,9 +382,7 @@ class TestDownload:
         owner_id = uuid.uuid4()
         admin_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("secret.txt", b"secret", "text/plain")
             uploaded = await service.upload_file(
                 file, owner_id=owner_id, user_level=5, is_private=True
@@ -470,13 +424,9 @@ class TestDelete:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("test.txt", b"content", "text/plain")
-            uploaded = await service.upload_file(
-                file, owner_id=user_id, user_level=5
-            )
+            uploaded = await service.upload_file(file, owner_id=user_id, user_level=5)
 
             # 删除
             await service.delete_file(
@@ -496,13 +446,9 @@ class TestDelete:
         owner_id = uuid.uuid4()
         other_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("test.txt", b"content", "text/plain")
-            uploaded = await service.upload_file(
-                file, owner_id=owner_id, user_level=5
-            )
+            uploaded = await service.upload_file(file, owner_id=owner_id, user_level=5)
 
             with pytest.raises(PermissionError):
                 await service.delete_file(
@@ -518,13 +464,9 @@ class TestDelete:
         owner_id = uuid.uuid4()
         admin_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             file = _make_upload_file("test.txt", b"content", "text/plain")
-            uploaded = await service.upload_file(
-                file, owner_id=owner_id, user_level=5
-            )
+            uploaded = await service.upload_file(file, owner_id=owner_id, user_level=5)
 
             # P0 管理员应该能删除
             await service.delete_file(
@@ -549,9 +491,7 @@ class TestListFiles:
         user1 = uuid.uuid4()
         user2 = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             # user1 上传 3 个文件
             for i in range(3):
                 file = _make_upload_file(f"u1_{i}.txt", b"a", "text/plain")
@@ -576,9 +516,7 @@ class TestListFiles:
         service = StorageService(db_container)
         user_id = uuid.uuid4()
 
-        with patch(
-            "backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend
-        ):
+        with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
             for i in range(10):
                 file = _make_upload_file(f"{i}.txt", b"a", "text/plain")
                 await service.upload_file(file, owner_id=user_id, user_level=5)

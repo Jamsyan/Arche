@@ -68,9 +68,13 @@ def fake_container():
     # Mock oss_rate_limiter，避免测试时需要真实的 RateLimiter
     mock_limiter = MagicMock()
     mock_limiter.consume = AsyncMock()
-    container.get = lambda name: (
-        FakeConfig() if name == "config" else mock_limiter
-    )
+
+    def _fake_container_get(name):
+        if name == "config":
+            return FakeConfig()
+        return mock_limiter
+
+    container.get = _fake_container_get
     return container
 
 
@@ -101,6 +105,7 @@ async def in_memory_db():
     )
     from sqlalchemy.pool import StaticPool
     from backend.core.db import Base
+
     # 确保模型在 create_all 前已导入并注册到 Base.metadata
     from backend.core import models as _core_models  # noqa: F401
     from backend.plugins.asset_mgmt import models as _asset_models  # noqa: F401
@@ -207,11 +212,11 @@ def mock_subprocess_success(stdout: bytes = b'{"ok": true}', stderr: bytes = b""
     return MockProc()
 
 
-def mock_subprocess_failure(returncode: int = 1, stderr: bytes = b"error"):
+def mock_subprocess_failure(exit_code: int = 1, stderr: bytes = b"error"):
     """创建失败的 subprocess mock。"""
 
     class MockProc:
-        returncode = returncode
+        returncode = exit_code
 
         async def communicate(self, input=None):
             return b"", stderr
@@ -284,9 +289,9 @@ async def test_app(db_container):
 async def client(test_app):
     """HTTP 测试客户端。"""
     from httpx import AsyncClient, ASGITransport
+
     async with AsyncClient(
-        transport=ASGITransport(app=test_app),
-        base_url="http://test"
+        transport=ASGITransport(app=test_app), base_url="http://test"
     ) as ac:
         yield ac
 
@@ -303,16 +308,12 @@ async def auth_headers(db_container):
 
     # 先注册一个管理员（第一个用户）
     await service.register(
-        email="admin@example.com",
-        username="admin",
-        password="admin123"
+        email="admin@example.com", username="admin", password="admin123"
     )
 
     # 再注册一个普通用户
     result = await service.register(
-        email="test@example.com",
-        username="testuser",
-        password="testpass123"
+        email="test@example.com", username="testuser", password="testpass123"
     )
 
     return {"Authorization": f"Bearer {result['access_token']}"}
@@ -330,9 +331,7 @@ async def admin_headers(db_container):
 
     # 第一个注册的用户自动成为 p0
     result = await service.register(
-        email="admin@example.com",
-        username="admin",
-        password="admin123"
+        email="admin@example.com", username="admin", password="admin123"
     )
 
     return {"Authorization": f"Bearer {result['access_token']}"}

@@ -19,7 +19,7 @@
               type="search"
               placeholder="搜索"
               @keydown.enter="goSearch"
-            >
+            />
           </div>
         </div>
         <div class="action-area">
@@ -87,7 +87,7 @@
               src="https://www.beian.gov.cn/img/new/gongan.png"
               alt=""
               aria-hidden="true"
-            >
+            />
             苏公网安备32068202000798号
           </a>
         </p>

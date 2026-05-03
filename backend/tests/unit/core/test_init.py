@@ -1,4 +1,5 @@
 """应用工厂函数测试。"""
+
 import logging
 import os
 from pathlib import Path
@@ -99,10 +100,14 @@ class TestSeedDefaultConfig:
 
         # 模拟配置管理器
         mock_config = MagicMock()
-        mock_config.get.side_effect = lambda key, default=None: {
-            "MINIO_ENDPOINT": "http://localhost:9000",
-            "LOG_LEVEL": "DEBUG",
-        }.get(key, default)
+
+        def _mock_config_get(key, default=None):
+            return {
+                "MINIO_ENDPOINT": "http://localhost:9000",
+                "LOG_LEVEL": "DEBUG",
+            }.get(key, default)
+
+        mock_config.get.side_effect = _mock_config_get
 
         with patch("backend.core.config_manager", mock_config):
             await _seed_default_config(mock_session_factory)
@@ -141,6 +146,7 @@ class TestCreateApp:
         os.environ["CORS_ORIGINS"] = "http://localhost:5173,https://example.com"
         # 重新加载配置，确保环境变量生效
         from backend.core.config import config_manager
+
         config_manager.reload()
 
         # mock所有外部依赖
@@ -151,13 +157,17 @@ class TestCreateApp:
         self.patcher_registry_activate_all = patch("backend.core.registry.activate_all")
         self.mock_activate_all = self.patcher_registry_activate_all.start()
 
-        self.patcher_registry_register_services = patch("backend.core.registry.register_services")
+        self.patcher_registry_register_services = patch(
+            "backend.core.registry.register_services"
+        )
         self.mock_register_services = self.patcher_registry_register_services.start()
 
         self.patcher_setup_cors = patch("backend.core.setup_cors")
         self.mock_setup_cors = self.patcher_setup_cors.start()
 
-        self.patcher_register_error_handlers = patch("backend.core.register_error_handlers")
+        self.patcher_register_error_handlers = patch(
+            "backend.core.register_error_handlers"
+        )
         self.mock_register_error_handlers = self.patcher_register_error_handlers.start()
 
         self.patcher_alembic_upgrade = patch("alembic.command.upgrade")
@@ -175,7 +185,9 @@ class TestCreateApp:
         self.patcher_registry_on_shutdown = patch("backend.core.registry.on_shutdown")
         self.mock_registry_on_shutdown = self.patcher_registry_on_shutdown.start()
 
-        self.patcher_container_shutdown = patch("backend.core.ServiceContainer.shutdown")
+        self.patcher_container_shutdown = patch(
+            "backend.core.ServiceContainer.shutdown"
+        )
         self.mock_container_shutdown = self.patcher_container_shutdown.start()
 
     def teardown_method(self):
@@ -279,7 +291,9 @@ class TestCreateApp:
                 return backend_core_dir / "__init__.py"
             return original_resolve(self)
 
-        with patch("backend.core.Path.resolve", side_effect=mock_resolve, autospec=True):
+        with patch(
+            "backend.core.Path.resolve", side_effect=mock_resolve, autospec=True
+        ):
             app = create_app()
 
             # 验证静态文件被挂载

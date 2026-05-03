@@ -1,4 +1,5 @@
 """PluginRegistry 插件注册表测试。"""
+
 import pytest
 from unittest.mock import patch
 from fastapi import FastAPI
@@ -6,7 +7,7 @@ from backend.core.plugin_registry import (
     PluginRegistry,
     DependencyError,
     registry as global_registry,
-    discover_plugins
+    discover_plugins,
 )
 from backend.core.base_plugin import BasePlugin
 from backend.core.container import ServiceContainer
@@ -28,8 +29,10 @@ class TestPluginRegistry:
 
     def test_register_plugin(self):
         """注册插件功能正常。"""
+
         class TestPlugin(BasePlugin):
             name = "test-plugin"
+
             def setup(self, app: FastAPI) -> None:
                 pass
 
@@ -45,6 +48,7 @@ class TestPluginRegistry:
 
         class TestPlugin(BasePlugin):
             name = "test-plugin"
+
             def setup(self, app: FastAPI) -> None:
                 nonlocal setup_called
                 setup_called = True
@@ -67,12 +71,14 @@ class TestPluginRegistry:
 
         class PluginA(BasePlugin):
             name = "plugin-a"
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("plugin-a")
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             requires = ["plugin-a"]  # 依赖A
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("plugin-b")
 
@@ -94,16 +100,20 @@ class TestPluginRegistry:
 
         class PluginA(BasePlugin):
             name = "plugin-a"
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             def register_services(self, container: ServiceContainer) -> None:
                 called_order.append("plugin-a")
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             requires = ["plugin-a"]
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             def register_services(self, container: ServiceContainer) -> None:
                 called_order.append("plugin-b")
 
@@ -125,16 +135,20 @@ class TestPluginRegistry:
 
         class PluginA(BasePlugin):
             name = "plugin-a"
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             def on_startup(self) -> None:
                 called_order.append("plugin-a")
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             requires = ["plugin-a"]
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             def on_startup(self) -> None:
                 called_order.append("plugin-b")
 
@@ -157,8 +171,10 @@ class TestPluginRegistry:
 
         class TestPlugin(BasePlugin):
             name = "test-plugin"
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             async def on_startup(self) -> None:
                 nonlocal called
                 called = True
@@ -177,16 +193,20 @@ class TestPluginRegistry:
 
         class PluginA(BasePlugin):
             name = "plugin-a"
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             def on_shutdown(self) -> None:
                 called_order.append("plugin-a")
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             requires = ["plugin-a"]
+
             def setup(self, app: FastAPI) -> None:
                 pass
+
             def on_shutdown(self) -> None:
                 called_order.append("plugin-b")
 
@@ -204,16 +224,20 @@ class TestPluginRegistry:
 
     def test_topological_sort_hard_dependency_missing(self):
         """硬依赖不存在时抛出 DependencyError。"""
+
         class PluginA(BasePlugin):
             name = "plugin-a"
             requires = ["plugin-b"]  # 依赖不存在的B
+
             def setup(self, app: FastAPI) -> None:
                 pass
 
         plugin_a = PluginA()
         self.registry.register("plugin-a", plugin_a)
 
-        with pytest.raises(DependencyError, match="插件 'plugin-a' 依赖 'plugin-b'，但该插件未注册"):
+        with pytest.raises(
+            DependencyError, match="插件 'plugin-a' 依赖 'plugin-b'，但该插件未注册"
+        ):
             self.registry.activate_all(self.app)
 
     def test_topological_sort_optional_dependency_missing(self):
@@ -223,6 +247,7 @@ class TestPluginRegistry:
         class PluginA(BasePlugin):
             name = "plugin-a"
             optional = ["plugin-b"]  # 可选依赖不存在的B
+
             def setup(self, app: FastAPI) -> None:
                 nonlocal called
                 called = True
@@ -240,12 +265,14 @@ class TestPluginRegistry:
 
         class PluginA(BasePlugin):
             name = "plugin-a"
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("plugin-a")
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             optional = ["plugin-a"]  # 可选依赖A
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("plugin-b")
 
@@ -262,15 +289,18 @@ class TestPluginRegistry:
 
     def test_topological_sort_circular_dependency(self):
         """循环依赖时抛出 DependencyError。"""
+
         class PluginA(BasePlugin):
             name = "plugin-a"
             requires = ["plugin-b"]
+
             def setup(self, app: FastAPI) -> None:
                 pass
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             requires = ["plugin-a"]
+
             def setup(self, app: FastAPI) -> None:
                 pass
 
@@ -296,24 +326,28 @@ class TestPluginRegistry:
 
         class PluginA(BasePlugin):
             name = "plugin-a"
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("A")
 
         class PluginB(BasePlugin):
             name = "plugin-b"
             requires = ["plugin-a"]
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("B")
 
         class PluginC(BasePlugin):
             name = "plugin-c"
             requires = ["plugin-b"]
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("C")
 
         class PluginD(BasePlugin):
             name = "plugin-d"
             requires = ["plugin-a", "plugin-c"]
+
             def setup(self, app: FastAPI) -> None:
                 called_order.append("D")
 
@@ -331,7 +365,9 @@ class TestPluginRegistry:
 class TestDiscoverPlugins:
     """测试插件自动发现功能。"""
 
-    @pytest.mark.skip(reason="Path mocking is too complex, this function is tested in integration tests")
+    @pytest.mark.skip(
+        reason="Path mocking is too complex, this function is tested in integration tests"
+    )
     def test_discover_plugins_default_directory(self, tmp_path):
         """默认情况下扫描 backend/plugins 目录。"""
         pass
@@ -377,7 +413,10 @@ registry.register("custom-plugin", CustomPlugin())
             return original_import(name, *args, **kwargs)
 
         import sys
-        with patch("backend.core.plugin_registry.import_module", side_effect=custom_import):
+
+        with patch(
+            "backend.core.plugin_registry.import_module", side_effect=custom_import
+        ):
             discover_plugins(plugin_dir=custom_dir)
 
         assert "custom-plugin" in global_registry.available
@@ -395,16 +434,17 @@ registry.register("custom-plugin", CustomPlugin())
 from backend.core.plugin_registry import registry
 from backend.core.base_plugin import BasePlugin
 
-class {name.replace('-', '_').title()}(BasePlugin):
+class {name.replace("-", "_").title()}(BasePlugin):
     name = "{name}"
     def setup(self, app):
         pass
 
-registry.register("{name}", {name.replace('-', '_').title()}())
+registry.register("{name}", {name.replace("-", "_").title()}())
 """)
 
         # 记录导入顺序
         import_order = []
+
         def tracking_import(name, *args, **kwargs):
             if name.startswith("backend.plugins."):
                 import_order.append(name.split(".")[-1])
@@ -412,7 +452,9 @@ registry.register("{name}", {name.replace('-', '_').title()}())
             mock_module = type("MockModule", (), {})()
             return mock_module
 
-        with patch("backend.core.plugin_registry.import_module", side_effect=tracking_import):
+        with patch(
+            "backend.core.plugin_registry.import_module", side_effect=tracking_import
+        ):
             global_registry._plugins.clear()
             discover_plugins(plugin_dir=plugins_dir)
 

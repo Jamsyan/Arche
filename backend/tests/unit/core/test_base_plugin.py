@@ -1,4 +1,5 @@
 """BasePlugin 抽象基类测试。"""
+
 from abc import ABC
 import pytest
 from fastapi import FastAPI
@@ -11,17 +12,22 @@ class TestBasePlugin:
 
     def test_base_plugin_is_abstract(self):
         """BasePlugin 是抽象类，不能直接实例化。"""
-        with pytest.raises(TypeError, match="Can't instantiate abstract class BasePlugin"):
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class BasePlugin"
+        ):
             BasePlugin()  # type: ignore
 
     def test_subclass_must_implement_setup(self):
         """子类必须实现 setup 方法，否则实例化失败。"""
+
         # 没有实现 setup 方法的子类
         class BadPlugin(BasePlugin):
             pass
 
-        with pytest.raises(TypeError, match="Can't instantiate abstract class BadPlugin"):
-            BadPlugin()
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class BadPlugin"
+        ):
+            BadPlugin()  # pyright: ignore[reportAbstractUsage]
 
         # 实现了 setup 方法的子类可以正常实例化
         class GoodPlugin(BasePlugin):
@@ -34,6 +40,7 @@ class TestBasePlugin:
 
     def test_plugin_metadata_defaults(self):
         """插件元数据默认值正确。"""
+
         class TestPlugin(BasePlugin):
             def setup(self, app: FastAPI) -> None:
                 pass
@@ -46,6 +53,7 @@ class TestBasePlugin:
 
     def test_plugin_metadata_custom(self):
         """自定义插件元数据正确读取。"""
+
         class TestPlugin(BasePlugin):
             name = "test-plugin"
             version = "1.0.0"
@@ -63,6 +71,7 @@ class TestBasePlugin:
 
     def test_optional_methods_default_implementation(self):
         """可选方法有默认空实现，可以不重写。"""
+
         class TestPlugin(BasePlugin):
             def setup(self, app: FastAPI) -> None:
                 pass
@@ -79,11 +88,7 @@ class TestBasePlugin:
 
     def test_optional_methods_can_be_overridden(self):
         """可选方法可以被重写，功能正常。"""
-        called = {
-            "register_services": False,
-            "on_startup": False,
-            "on_shutdown": False
-        }
+        called = {"register_services": False, "on_startup": False, "on_shutdown": False}
 
         class TestPlugin(BasePlugin):
             def setup(self, app: FastAPI) -> None:

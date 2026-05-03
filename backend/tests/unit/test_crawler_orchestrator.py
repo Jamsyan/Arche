@@ -73,7 +73,9 @@ class TestCrawlerOrchestrator:
     async def test_run_pipeline_rejects_functional_page(self, monkeypatch):
         container = MagicMock()
         orch = CrawlerOrchestrator(container)
-        monkeypatch.setattr("backend.plugins.crawler.probe.ProbeService", _ProbeFunctional)
+        monkeypatch.setattr(
+            "backend.plugins.crawler.probe.ProbeService", _ProbeFunctional
+        )
         orch.seed_manager = MagicMock()
         orch.url_scheduler = AsyncMock()
         result = await orch._run_pipeline("https://example.com/login")

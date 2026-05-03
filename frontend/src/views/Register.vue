@@ -35,13 +35,18 @@ const rules: FormRules = {
   ]
 }
 
-const registerStages = [
+type RegisterStage = { title: string; desc: string }
+
+const registerStages: RegisterStage[] = [
   { title: '创建账号', desc: '填写基础信息，建立你的创作身份。' },
   { title: '完善资料', desc: '补充昵称与偏好，让主页更有个人风格。' },
   { title: '开始发布', desc: '写下第一篇内容，建立你的长期作品库。' }
 ]
 const stageIndex = ref(0)
-const currentStage = computed(() => registerStages[stageIndex.value] ?? registerStages[0])
+const currentStage = computed((): RegisterStage => {
+  const i = stageIndex.value % registerStages.length
+  return registerStages[i] ?? registerStages[0]!
+})
 let stageTimer: number | null = null
 
 onMounted(() => {

@@ -34,13 +34,34 @@ def _service(monkeypatch):
     freq = SimpleNamespace(current=2400.0, min=1200.0, max=3600.0)
     part = SimpleNamespace(device="disk0", mountpoint="/", fstype="ext4")
 
-    monkeypatch.setattr(system_services.psutil, "net_io_counters", lambda: net)
-    monkeypatch.setattr(system_services.psutil, "virtual_memory", lambda: mem)
-    monkeypatch.setattr(system_services.psutil, "swap_memory", lambda: swap)
-    monkeypatch.setattr(system_services.psutil, "disk_usage", lambda path: disk)
-    monkeypatch.setattr(system_services.psutil, "disk_partitions", lambda all=False: [part])
-    monkeypatch.setattr(system_services.psutil, "cpu_percent", lambda interval=0, percpu=False: [1.0, 2.0] if percpu else 12.5)
-    monkeypatch.setattr(system_services.psutil, "cpu_count", lambda logical=True: 8 if logical else 4)
+    def _net_io_counters():
+        return net
+
+    def _virtual_memory():
+        return mem
+
+    def _swap_memory():
+        return swap
+
+    def _disk_usage(path):
+        return disk
+
+    def _disk_partitions(all=False):
+        return [part]
+
+    def _cpu_percent(interval=0, percpu=False):
+        return [1.0, 2.0] if percpu else 12.5
+
+    def _cpu_count(logical=True):
+        return 8 if logical else 4
+
+    monkeypatch.setattr(system_services.psutil, "net_io_counters", _net_io_counters)
+    monkeypatch.setattr(system_services.psutil, "virtual_memory", _virtual_memory)
+    monkeypatch.setattr(system_services.psutil, "swap_memory", _swap_memory)
+    monkeypatch.setattr(system_services.psutil, "disk_usage", _disk_usage)
+    monkeypatch.setattr(system_services.psutil, "disk_partitions", _disk_partitions)
+    monkeypatch.setattr(system_services.psutil, "cpu_percent", _cpu_percent)
+    monkeypatch.setattr(system_services.psutil, "cpu_count", _cpu_count)
     monkeypatch.setattr(system_services.psutil, "cpu_freq", lambda: freq)
     monkeypatch.setattr(system_services.psutil, "getloadavg", lambda: (0.1, 0.2, 0.3))
     monkeypatch.setattr(system_services.psutil, "pids", lambda: [1, 2])
@@ -84,10 +105,8 @@ class TestSystemMonitorService:
             def __init__(self, info):
                 self.info = info
 
-        monkeypatch.setattr(
-            system_services.psutil,
-            "process_iter",
-            lambda fields: [
+        def _process_iter(fields):
+            return [
                 Proc(
                     {
                         "pid": 2,
@@ -108,8 +127,9 @@ class TestSystemMonitorService:
                         "create_time": 1.0,
                     }
                 ),
-            ],
-        )
+            ]
+
+        monkeypatch.setattr(system_services.psutil, "process_iter", _process_iter)
 
         await service._collect_snapshot()
         history = service.get_history(page=1, page_size=10)
@@ -137,11 +157,16 @@ class TestSystemMonitorService:
             "getloadavg",
             MagicMock(side_effect=OSError("unsupported")),
         )
+
+        def _bad_disk_partitions(all=False):
+            return [SimpleNamespace(device="bad", mountpoint="/bad", fstype="x")]
+
         monkeypatch.setattr(
             system_services.psutil,
             "disk_partitions",
-            lambda all=False: [SimpleNamespace(device="bad", mountpoint="/bad", fstype="x")],
+            _bad_disk_partitions,
         )
+
         def disk_usage(path):
             if path == "/bad":
                 raise OSError("denied")

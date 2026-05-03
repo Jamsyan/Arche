@@ -173,7 +173,6 @@ const hotGroups = computed(() => {
   return groups
 })
 const currentHotGroup = computed(() => hotGroups.value[hotIndex.value] || [])
-const hotGroupCount = computed(() => hotGroups.value.length)
 const latestPosts = computed(() => posts.value.slice(0, 6))
 const quickPosts = computed(() => posts.value.slice(6, 12))
 
@@ -296,7 +295,7 @@ onBeforeUnmount(() => {
                 :src="getAuthorAvatarUrl(post)"
                 :alt="`${getAuthorName(post)} 头像`"
                 loading="lazy"
-              >
+              />
               <NIcon v-else size="14" aria-hidden="true">
                 <PersonOutline />
               </NIcon>
@@ -314,7 +313,7 @@ onBeforeUnmount(() => {
                 :src="getCoverUrl(post)"
                 :alt="`${post.title} 封面`"
                 loading="lazy"
-              >
+              />
               <span class="cover-tag">{{ (post.tags || [])[0] || '日志' }}</span>
               <span class="cover-date">{{ post.created_at?.slice(0, 10) || '-' }}</span>
             </div>

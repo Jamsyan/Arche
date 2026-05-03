@@ -247,7 +247,9 @@ class TestBlogServiceSlugGeneration:
         mock_post.slug = "existing-post"
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
-        slug = await service.generate_slug("existing post", exclude_slug="existing-post")
+        slug = await service.generate_slug(
+            "existing post", exclude_slug="existing-post"
+        )
         assert slug == "existing-post"
 
 

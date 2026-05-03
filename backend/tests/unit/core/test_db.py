@@ -1,5 +1,7 @@
 """数据库模块测试。"""
+
 import pytest
+
 # 不要直接导入变量，导入模块
 import backend.core.db as db_module
 from backend.core.db import (

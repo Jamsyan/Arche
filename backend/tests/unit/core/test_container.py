@@ -1,10 +1,11 @@
 """ServiceContainer 依赖注入容器测试。"""
+
 import pytest
 from backend.core.container import (
     ServiceContainer,
     CircularDependencyError,
     ServiceNotFoundError,
-    container as global_container
+    container as global_container,
 )
 
 
@@ -21,11 +22,15 @@ class TestServiceContainer:
 
     def test_register_and_get_service(self):
         """注册并获取服务，功能正常。"""
+
         class TestService:
             pass
 
+        def _test_service_factory(c):
+            return TestService()
+
         # 注册服务工厂
-        self.container.register("test-service", lambda c: TestService())
+        self.container.register("test-service", _test_service_factory)
 
         assert self.container.is_available("test-service") is True
 
@@ -80,6 +85,7 @@ class TestServiceContainer:
 
     def test_circular_dependency_detection(self):
         """循环依赖场景抛出 CircularDependencyError。"""
+
         # A 依赖 B
         def factory_a(c):
             return {"dependency": c.get("service-b")}
@@ -91,13 +97,17 @@ class TestServiceContainer:
         self.container.register("service-a", factory_a)
         self.container.register("service-b", factory_b)
 
-        with pytest.raises(CircularDependencyError, match="循环依赖: service-a -> service-b -> service-a"):
+        with pytest.raises(
+            CircularDependencyError,
+            match="循环依赖: service-a -> service-b -> service-a",
+        ):
             self.container.get("service-a")
 
     def test_complex_circular_dependency(self):
         """复杂循环依赖也能正确检测。
         依赖链：A → B → C → A
         """
+
         def factory_a(c):
             return c.get("service-b")
 
@@ -111,11 +121,15 @@ class TestServiceContainer:
         self.container.register("service-b", factory_b)
         self.container.register("service-c", factory_c)
 
-        with pytest.raises(CircularDependencyError, match="循环依赖: service-a -> service-b -> service-c -> service-a"):
+        with pytest.raises(
+            CircularDependencyError,
+            match="循环依赖: service-a -> service-b -> service-c -> service-a",
+        ):
             self.container.get("service-a")
 
     def test_no_circular_dependency_for_existing_instance(self):
         """已经实例化的服务不会触发循环依赖检测。"""
+
         # A 依赖 B，B 不依赖任何人
         class ServiceB:
             pass
@@ -123,8 +137,11 @@ class TestServiceContainer:
         def factory_a(c):
             return {"b": c.get("service-b")}
 
+        def _factory_b_only(c):
+            return ServiceB()
+
         self.container.register("service-a", factory_a)
-        self.container.register("service-b", lambda c: ServiceB())
+        self.container.register("service-b", _factory_b_only)
 
         # 先实例化B
         b = self.container.get("service-b")
@@ -149,9 +166,18 @@ class TestServiceContainer:
                 close_order.append("C")
 
         # 注册服务
-        self.container.register("service-a", lambda c: ServiceA())
-        self.container.register("service-b", lambda c: ServiceB())
-        self.container.register("service-c", lambda c: ServiceC())
+        def _factory_shutdown_a(c):
+            return ServiceA()
+
+        def _factory_shutdown_b(c):
+            return ServiceB()
+
+        def _factory_shutdown_c(c):
+            return ServiceC()
+
+        self.container.register("service-a", _factory_shutdown_a)
+        self.container.register("service-b", _factory_shutdown_b)
+        self.container.register("service-c", _factory_shutdown_c)
 
         # 实例化顺序：A → B → C
         self.container.get("service-a")
@@ -165,16 +191,24 @@ class TestServiceContainer:
 
     def test_shutdown_ignores_services_without_close(self):
         """没有close方法的服务不影响关闭流程。"""
+
         class ServiceWithClose:
             closed = False
+
             def close(self):
                 self.closed = True
 
         class ServiceWithoutClose:
             pass
 
-        self.container.register("with-close", lambda c: ServiceWithClose())
-        self.container.register("without-close", lambda c: ServiceWithoutClose())
+        def _factory_with_close(c):
+            return ServiceWithClose()
+
+        def _factory_without_close(c):
+            return ServiceWithoutClose()
+
+        self.container.register("with-close", _factory_with_close)
+        self.container.register("without-close", _factory_without_close)
 
         # 实例化
         with_close = self.container.get("with-close")
@@ -188,6 +222,7 @@ class TestServiceContainer:
 
     def test_container_passes_self_to_factory(self):
         """工厂函数接收容器作为参数，可以获取其他服务。"""
+
         class ConfigService:
             def __init__(self):
                 self.database_url = "sqlite:///test.db"

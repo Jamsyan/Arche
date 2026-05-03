@@ -80,7 +80,11 @@ class ProbeService:
             response = await client.get(url)
             content_type = response.headers.get("content-type", "")
             content_length = response.headers.get("content-length")
-            if content_type and "html" not in content_type.lower() and "text/plain" not in content_type.lower():
+            if (
+                content_type
+                and "html" not in content_type.lower()
+                and "text/plain" not in content_type.lower()
+            ):
                 return {
                     "url": str(response.url),
                     "status_code": response.status_code,

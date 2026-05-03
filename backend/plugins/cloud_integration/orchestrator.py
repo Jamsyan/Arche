@@ -73,7 +73,7 @@ class TrainingOrchestrator:
 
     SCAN_INTERVAL = 10  # 秒，扫描间隔
     PROGRESS_INTERVAL = 30  # 秒，训练中间隔读取日志
-    MAX_RETRY = 3  # 每步最大重试次数
+    MAX_RETRY: int = 3  # 每步最大重试次数
 
     def __init__(self, container: "ServiceContainer"):
         self.container = container

@@ -1,4 +1,5 @@
 """GitHub Proxy 模块 API 集成测试。"""
+
 from __future__ import annotations
 
 import json
@@ -12,13 +13,15 @@ class TestGitHubProxyAPI:
 
     async def test_search_repositories_endpoint_exists(self, client, admin_headers):
         """搜索仓库接口应存在并返回正确结构。"""
-        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.proxy_request"
+        ) as mock_proxy:
             mock_proxy.return_value = {
                 "status_code": 200,
                 "cached": False,
                 "mode": "http",
                 "data": {
-                "total_count": 1,
+                    "total_count": 1,
                     "items": [{"name": "test-repo", "full_name": "owner/test-repo"}],
                 },
             }
@@ -32,9 +35,13 @@ class TestGitHubProxyAPI:
             assert response.status_code == 200
             assert response.json()["total_count"] == 1
 
-    async def test_search_endpoint_forwards_missing_query_param(self, client, admin_headers):
+    async def test_search_endpoint_forwards_missing_query_param(
+        self, client, admin_headers
+    ):
         """通用代理不在 FastAPI 层强制校验 GitHub 查询参数。"""
-        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.proxy_request"
+        ) as mock_proxy:
             mock_proxy.return_value = {
                 "status_code": 422,
                 "data": {"message": "Validation Failed"},
@@ -53,7 +60,9 @@ class TestGitHubProxyAPI:
     async def test_health_check_endpoint(self, client, admin_headers):
         """健康检查接口应正常返回。"""
         # Mock gh 命令调用
-        with patch("backend.plugins.github_proxy.services.GhCliService._run_gh_command") as mock_run:
+        with patch(
+            "backend.plugins.github_proxy.services.GhCliService._run_gh_command"
+        ) as mock_run:
             mock_run.return_value = {
                 "data": {"rate": {"limit": 5000, "used": 10}},
                 "status_code": 200,
@@ -75,7 +84,9 @@ class TestGitHubProxyAPI:
     async def test_proxy_endpoint_get(self, client, admin_headers):
         """GET 请求主代理接口应正常工作。"""
         # Mock 服务层返回结果
-        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.proxy_request"
+        ) as mock_proxy:
             mock_proxy.return_value = {
                 "status_code": 200,
                 "data": {"login": "testuser", "id": 123},
@@ -96,7 +107,9 @@ class TestGitHubProxyAPI:
 
     async def test_proxy_endpoint_post(self, client, admin_headers):
         """POST 请求主代理接口应正常工作。"""
-        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.proxy_request"
+        ) as mock_proxy:
             mock_proxy.return_value = {
                 "status_code": 201,
                 "data": {"id": 1, "name": "new-repo"},
@@ -117,12 +130,17 @@ class TestGitHubProxyAPI:
             # 验证 body 被正确传递
             call_args = mock_proxy.call_args
             assert "body" in call_args.kwargs
-            assert json.loads(call_args.kwargs["body"]) == {"name": "new-repo", "private": True}
+            assert json.loads(call_args.kwargs["body"]) == {
+                "name": "new-repo",
+                "private": True,
+            }
 
     async def test_proxy_raw_endpoint(self, client, admin_headers):
         """静态资源代理接口应返回二进制内容。"""
         test_content = b"# Test README\nThis is a test file."
-        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_raw_content") as mock_raw:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.proxy_raw_content"
+        ) as mock_raw:
             mock_raw.return_value = {
                 "status_code": 200,
                 "data": test_content,
@@ -144,7 +162,9 @@ class TestGitHubProxyAPI:
 
     async def test_clear_cache_endpoint(self, client, admin_headers):
         """缓存清空接口应正常工作。"""
-        with patch("backend.plugins.github_proxy.services.GitHubService.clear_cache") as mock_clear:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.clear_cache"
+        ) as mock_clear:
             mock_clear.return_value = {"http": 10, "cli": 5}
 
             response = await client.post(
@@ -175,7 +195,9 @@ class TestGitHubProxyAPI:
 
     async def test_proxy_mode_parameter(self, client, admin_headers):
         """mode 参数应被正确传递给服务层。"""
-        with patch("backend.plugins.github_proxy.services.GitHubService.proxy_request") as mock_proxy:
+        with patch(
+            "backend.plugins.github_proxy.services.GitHubService.proxy_request"
+        ) as mock_proxy:
             mock_proxy.return_value = {
                 "status_code": 200,
                 "data": {},

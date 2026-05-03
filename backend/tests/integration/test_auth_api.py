@@ -6,6 +6,7 @@
 - 用户管理（分页、权限校验）
 - 中间件（认证、权限）
 """
+
 from __future__ import annotations
 
 import pytest
@@ -22,8 +23,8 @@ class TestRegisterAPI:
             json={
                 "email": "newuser@example.com",
                 "username": "newuser",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 200
         data = response.json()["data"]
@@ -39,8 +40,8 @@ class TestRegisterAPI:
             json={
                 "email": "first@example.com",
                 "username": "firstuser",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 200
         assert response.json()["data"]["user"]["level"] == 0
@@ -53,8 +54,8 @@ class TestRegisterAPI:
             json={
                 "email": "admin2@example.com",
                 "username": "admin2",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         # 第二个用户
         response = await client.post(
@@ -62,8 +63,8 @@ class TestRegisterAPI:
             json={
                 "email": "normal@example.com",
                 "username": "normaluser",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 200
         assert response.json()["data"]["user"]["level"] == 5
@@ -75,16 +76,16 @@ class TestRegisterAPI:
             json={
                 "email": "dupe@example.com",
                 "username": "user1",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         response = await client.post(
             "/api/auth/register",
             json={
                 "email": "dupe@example.com",
                 "username": "user2",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 409
 
@@ -95,8 +96,8 @@ class TestRegisterAPI:
             json={
                 "email": "not-an-email",
                 "username": "testuser",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 400
 
@@ -113,13 +114,13 @@ class TestLoginAPI:
             json={
                 "email": "login@example.com",
                 "username": "loginuser",
-                "password": "testpass123"
-            }
+                "password": "testpass123",
+            },
         )
         # 再登录
         response = await client.post(
             "/api/auth/login",
-            json={"identity": "login@example.com", "password": "testpass123"}
+            json={"identity": "login@example.com", "password": "testpass123"},
         )
         assert response.status_code == 200
         assert "access_token" in response.json()["data"]
@@ -131,12 +132,12 @@ class TestLoginAPI:
             json={
                 "email": "login2@example.com",
                 "username": "loginuser2",
-                "password": "testpass123"
-            }
+                "password": "testpass123",
+            },
         )
         response = await client.post(
             "/api/auth/login",
-            json={"identity": "loginuser2", "password": "testpass123"}
+            json={"identity": "loginuser2", "password": "testpass123"},
         )
         assert response.status_code == 200
 
@@ -147,12 +148,12 @@ class TestLoginAPI:
             json={
                 "email": "wrongpass@example.com",
                 "username": "wrongpassuser",
-                "password": "correctpass"
-            }
+                "password": "correctpass",
+            },
         )
         response = await client.post(
             "/api/auth/login",
-            json={"identity": "wrongpassuser", "password": "wrongpass"}
+            json={"identity": "wrongpassuser", "password": "wrongpass"},
         )
         assert response.status_code == 401
 
@@ -182,7 +183,6 @@ class TestUserManagementAPI:
     async def test_access_with_invalid_token_returns_401(self, client):
         """无效 token 返回 401。"""
         response = await client.get(
-            "/api/auth/me",
-            headers={"Authorization": "Bearer invalid_token"}
+            "/api/auth/me", headers={"Authorization": "Bearer invalid_token"}
         )
         assert response.status_code == 401

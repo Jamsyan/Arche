@@ -9,10 +9,7 @@ from pydantic_settings import BaseSettings
 class AppSettings(BaseSettings):
     """核心应用配置。"""
 
-    model_config = {
-        "env_prefix": "",
-        "extra": "allow"
-    }
+    model_config = {"env_prefix": "", "extra": "allow"}
 
     DATABASE_URL: str = Field(
         default="sqlite+aiosqlite:///./data/arche.db",

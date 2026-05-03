@@ -1,4 +1,5 @@
 """核心应用配置测试。"""
+
 import os
 from backend.core.settings.app import AppSettings
 
@@ -8,7 +9,14 @@ class TestAppSettings:
 
     def setup_method(self):
         """清理环境变量。"""
-        for key in ["DATABASE_URL", "SECRET_KEY", "CORS_ORIGINS", "LOG_LEVEL", "LOG_FILE", "EXTRA_CONFIG"]:
+        for key in [
+            "DATABASE_URL",
+            "SECRET_KEY",
+            "CORS_ORIGINS",
+            "LOG_LEVEL",
+            "LOG_FILE",
+            "EXTRA_CONFIG",
+        ]:
             if key in os.environ:
                 del os.environ[key]
 
@@ -34,7 +42,9 @@ class TestAppSettings:
 
         assert settings.DATABASE_URL == "postgresql://user:pass@localhost/db"
         assert settings.SECRET_KEY == "production-secret-123"
-        assert settings.CORS_ORIGINS == "https://app.example.com,https://admin.example.com"
+        assert (
+            settings.CORS_ORIGINS == "https://app.example.com,https://admin.example.com"
+        )
         assert settings.LOG_LEVEL == "DEBUG"
         assert settings.LOG_FILE == "/var/log/arche/app.log"
 
@@ -46,18 +56,19 @@ class TestAppSettings:
 
         # pydantic-settings 仅从环境变量加载已声明字段；
         # 未声明的环境变量不会自动注入到 model_extra。
-        assert "EXTRA_CONFIG" not in settings.model_extra
+        extras = settings.model_extra or {}
+        assert "EXTRA_CONFIG" not in extras
 
         # extra="allow" 的语义体现在构造参数里传入额外字段时。
-        from_kwargs = AppSettings(EXTRA_CONFIG="extra-value")
-        assert from_kwargs.model_extra["EXTRA_CONFIG"] == "extra-value"
+        from_kwargs = AppSettings.model_validate({"EXTRA_CONFIG": "extra-value"})
+        assert (from_kwargs.model_extra or {}).get("EXTRA_CONFIG") == "extra-value"
 
     def test_settings_from_dict(self):
         """可以从字典创建设置实例。"""
         settings = AppSettings(
             DATABASE_URL="sqlite:///custom.db",
             SECRET_KEY="custom-secret",
-            LOG_LEVEL="WARNING"
+            LOG_LEVEL="WARNING",
         )
 
         assert settings.DATABASE_URL == "sqlite:///custom.db"

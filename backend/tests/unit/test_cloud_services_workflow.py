@@ -101,6 +101,7 @@ class TestCloudServicesWorkflow:
             "backend.plugins.cloud_integration.cost.calculator.calculate_rate",
             lambda *args, **kwargs: 8.8,
         )
+
         class _FakeDateTime:
             @staticmethod
             def now(_tz=None):

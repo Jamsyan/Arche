@@ -200,7 +200,9 @@ const WideExcerptCell = defineComponent({
 
     watch(
       () => props.text,
-      () => nextTick(updateThumb)
+      () => {
+        void nextTick(updateThumb)
+      }
     )
 
     return () =>

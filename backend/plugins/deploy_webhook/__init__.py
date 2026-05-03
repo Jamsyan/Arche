@@ -30,7 +30,8 @@ router = APIRouter()
 
 def _get_deploy_script() -> str:
     """获取部署脚本路径。"""
-    return config_manager.get("DEPLOY_SCRIPT", "/home/admin/arche/deploy.sh")
+    path = config_manager.get("DEPLOY_SCRIPT", "/home/admin/arche/deploy.sh")
+    return path if path is not None else "/home/admin/arche/deploy.sh"
 
 
 def _run_script() -> tuple[int, str, str]:

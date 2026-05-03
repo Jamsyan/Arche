@@ -158,6 +158,7 @@ class GhCliService:
         if self.github_token:
             env["GH_TOKEN"] = self.github_token
 
+        proc: asyncio.subprocess.Process | None = None
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -207,7 +208,7 @@ class GhCliService:
             }
 
         except asyncio.TimeoutError:
-            if "proc" in locals() and proc.returncode is None:
+            if proc is not None and proc.returncode is None:
                 proc.kill()
                 await proc.wait()
             raise GitHubProxyError(

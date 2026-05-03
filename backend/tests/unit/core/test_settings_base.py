@@ -1,4 +1,7 @@
 """插件配置基类测试。"""
+
+from typing import Any, cast
+
 from pydantic import Field
 from backend.core.settings.base import PluginSettingsBase, create_plugin_settings
 
@@ -8,6 +11,7 @@ class TestPluginSettingsBase:
 
     def test_get_field_defaults(self):
         """get_field_defaults 方法正确返回所有字段的默认值。"""
+
         class TestSettings(PluginSettingsBase):
             api_key: str = "default-key"
             enabled: bool = True
@@ -30,6 +34,7 @@ class TestPluginSettingsBase:
 
     def test_get_field_defaults_with_field(self):
         """使用Field定义的字段也能正确获取默认值。"""
+
         class TestSettings(PluginSettingsBase):
             api_key: str = Field(default="default-key", description="API密钥")
             timeout: int = Field(default=30, ge=1, le=300, description="超时时间")
@@ -56,7 +61,7 @@ class TestCreatePluginSettings:
             "limit": 100,
         }
 
-        SettingsClass = create_plugin_settings("test_plugin", fields, defaults)
+        SettingsClass: Any = create_plugin_settings("test_plugin", fields, defaults)
 
         # 类名正确
         assert SettingsClass.__name__ == "TestPluginSettings"
@@ -68,16 +73,18 @@ class TestCreatePluginSettings:
         assert "limit" in SettingsClass.model_fields
 
         # 可以实例化，使用默认值
-        settings = SettingsClass()
-        assert settings.api_key == "default-key"
-        assert settings.enabled is True
-        assert settings.limit == 100
+        inst_default: Any = SettingsClass()
+        assert inst_default.api_key == "default-key"
+        assert inst_default.enabled is True
+        assert inst_default.limit == 100
 
         # 可以传入自定义值
-        settings = SettingsClass(api_key="custom-key", enabled=False, limit=50)
-        assert settings.api_key == "custom-key"
-        assert settings.enabled is False
-        assert settings.limit == 50
+        inst_custom: Any = cast(Any, SettingsClass)(
+            api_key="custom-key", enabled=False, limit=50
+        )
+        assert inst_custom.api_key == "custom-key"
+        assert inst_custom.enabled is False
+        assert inst_custom.limit == 50
 
     def test_create_plugin_settings_without_defaults(self):
         """没有提供默认值的情况。"""
@@ -86,12 +93,12 @@ class TestCreatePluginSettings:
             "enabled": bool,
         }
 
-        SettingsClass = create_plugin_settings("test_plugin", fields)
+        SettingsClass: Any = create_plugin_settings("test_plugin", fields)
 
         # 可以实例化，但必须传入所有必填字段
-        settings = SettingsClass(api_key="test-key", enabled=True)
-        assert settings.api_key == "test-key"
-        assert settings.enabled is True
+        inst: Any = cast(Any, SettingsClass)(api_key="test-key", enabled=True)
+        assert inst.api_key == "test-key"
+        assert inst.enabled is True
 
     def test_create_plugin_settings_get_field_defaults(self):
         """动态创建的配置类也能正常使用get_field_defaults方法。"""
@@ -108,7 +115,7 @@ class TestCreatePluginSettings:
             "optional": None,
         }
 
-        SettingsClass = create_plugin_settings("test_plugin", fields, defaults)
+        SettingsClass: Any = create_plugin_settings("test_plugin", fields, defaults)
         defaults_dict = SettingsClass.get_field_defaults()
 
         assert defaults_dict["api_key"] == "default-key"

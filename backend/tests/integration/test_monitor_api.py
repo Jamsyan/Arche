@@ -19,7 +19,11 @@ def monitor_global_db(in_memory_db):
     instances_snapshot = dict(global_container._instances)
 
     global_container._instances.pop("db", None)
-    global_container.register("db", lambda _c: in_memory_db)
+
+    def _db_factory(_c):
+        return in_memory_db
+
+    global_container.register("db", _db_factory)
 
     try:
         yield in_memory_db
@@ -32,7 +36,9 @@ def monitor_global_db(in_memory_db):
 
 @pytest.mark.asyncio
 class TestMonitorAPI:
-    async def test_monitor_template_crud_http(self, client, admin_headers, monitor_template_payload, monitor_global_db):
+    async def test_monitor_template_crud_http(
+        self, client, admin_headers, monitor_template_payload, monitor_global_db
+    ):
         created = await client.post(
             "/api/monitor/templates",
             json=monitor_template_payload,
@@ -59,10 +65,16 @@ class TestMonitorAPI:
         assert updated.status_code == 200
         assert updated.json()["name"] == "Updated Monitor"
 
-        deleted = await client.delete(f"/api/monitor/templates/{tid}", headers=admin_headers)
+        deleted = await client.delete(
+            f"/api/monitor/templates/{tid}", headers=admin_headers
+        )
         assert deleted.status_code == 200
         assert deleted.json()["message"] == "Template deleted"
 
-    async def test_monitor_not_found_http(self, client, admin_headers, monitor_global_db):
-        resp = await client.get("/api/monitor/templates/not-exist", headers=admin_headers)
+    async def test_monitor_not_found_http(
+        self, client, admin_headers, monitor_global_db
+    ):
+        resp = await client.get(
+            "/api/monitor/templates/not-exist", headers=admin_headers
+        )
         assert resp.status_code == 404

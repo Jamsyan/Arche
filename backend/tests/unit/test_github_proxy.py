@@ -127,14 +127,13 @@ class TestGhCliServiceRawContent:
 
         # 模拟 GitHub API 返回 base64 编码的内容
         import base64
+
         test_content = b"# Test README\nThis is a test file."
         encoded_content = base64.b64encode(test_content).decode()
 
-        mock_response = json.dumps({
-            "encoding": "base64",
-            "content": encoded_content,
-            "type": "text/plain"
-        }).encode()
+        mock_response = json.dumps(
+            {"encoding": "base64", "content": encoded_content, "type": "text/plain"}
+        ).encode()
 
         with patch(
             "asyncio.create_subprocess_exec",
@@ -178,14 +177,13 @@ class TestGhCliServiceRawContent:
         service = GhCliService(fake_container)
 
         import base64
+
         test_content = b"cached content"
         encoded_content = base64.b64encode(test_content).decode()
 
-        mock_response = json.dumps({
-            "encoding": "base64",
-            "content": encoded_content,
-            "type": "text/plain"
-        }).encode()
+        mock_response = json.dumps(
+            {"encoding": "base64", "content": encoded_content, "type": "text/plain"}
+        ).encode()
 
         with patch(
             "asyncio.create_subprocess_exec",
@@ -212,10 +210,7 @@ class TestGhCliServiceRawContent:
         service = GhCliService(fake_container)
 
         # 模拟返回非 base64 编码的内容（比如目录）
-        mock_response = json.dumps({
-            "type": "dir",
-            "entries": []
-        }).encode()
+        mock_response = json.dumps({"type": "dir", "entries": []}).encode()
 
         with patch(
             "asyncio.create_subprocess_exec",
@@ -303,7 +298,7 @@ class TestHttpProxyServiceRawContent:
         mock_response.content = test_content
         mock_response.headers = {
             "Content-Type": "text/plain",
-            "Cache-Control": "max-age=3600"
+            "Cache-Control": "max-age=3600",
         }
 
         with patch(
@@ -335,7 +330,7 @@ class TestHttpProxyServiceRawContent:
         mock_response.content = test_content
         mock_response.headers = {
             "Content-Type": "text/plain",
-            "Cache-Control": "max-age=3600"
+            "Cache-Control": "max-age=3600",
         }
 
         with patch(
@@ -555,7 +550,7 @@ class TestGitHubServiceRawContent:
             "data": b"cli content",
             "status_code": 200,
             "headers": {"Content-Type": "text/plain"},
-            "cached": False
+            "cached": False,
         }
         with patch.object(
             service.cli_service,
@@ -586,7 +581,7 @@ class TestGitHubServiceRawContent:
             "data": b"http content",
             "status_code": 200,
             "headers": {"Content-Type": "text/plain"},
-            "cached": False
+            "cached": False,
         }
         with patch.object(
             service.http_service,
@@ -617,7 +612,7 @@ class TestGitHubServiceRawContent:
             "data": b"http content",
             "status_code": 200,
             "headers": {},
-            "cached": False
+            "cached": False,
         }
         with patch.object(
             service.http_service,
@@ -654,7 +649,7 @@ class TestGitHubServiceRawContent:
                 "data": b"cli content",
                 "status_code": 200,
                 "headers": {},
-                "cached": False
+                "cached": False,
             }
             with patch.object(
                 service.cli_service,
@@ -821,6 +816,7 @@ class TestRateLimiting:
 
             # 模拟时间过去61秒，超过限流窗口
             import time
+
             with patch("time.monotonic", return_value=time.monotonic() + 61):
                 # 现在应该可以正常请求了
                 result = await service.proxy_request(
@@ -912,8 +908,10 @@ class TestGhCliServiceErrorHandling:
         # Mock 命令返回非0状态码和404错误信息
         class MockProc:
             returncode = 1
+
             async def communicate(self, input=None):
                 return b"", b"HTTP 404: Not Found"
+
             async def wait(self):
                 return 1
 
@@ -934,8 +932,10 @@ class TestGhCliServiceErrorHandling:
 
         class MockProc:
             returncode = 1
+
             async def communicate(self, input=None):
                 return b"", b"HTTP 401: Unauthorized"
+
             async def wait(self):
                 return 1
 
@@ -955,8 +955,10 @@ class TestGhCliServiceErrorHandling:
 
         class MockProc:
             returncode = 1
+
             async def communicate(self, input=None):
                 return b"", b"HTTP 403: Forbidden"
+
             async def wait(self):
                 return 1
 
@@ -976,8 +978,10 @@ class TestGhCliServiceErrorHandling:
 
         class MockProc:
             returncode = 1
+
             async def communicate(self, input=None):
                 return b"", b"HTTP 422: Unprocessable Entity"
+
             async def wait(self):
                 return 1
 
@@ -1002,9 +1006,7 @@ class TestGhCliServiceErrorHandling:
             "asyncio.create_subprocess_exec",
             return_value=mock_subprocess_success(mock_response),
         ):
-            result = await service.proxy_request(
-                "GET", "/user", {}, {}, None, "test"
-            )
+            result = await service.proxy_request("GET", "/user", {}, {}, None, "test")
 
             assert result["status_code"] == 200
             assert result["data"]["raw"] == "this is not json"  # 被包装到 raw 字段
@@ -1017,10 +1019,13 @@ class TestGhCliServiceErrorHandling:
         class MockProc:
             returncode = None  # 进程还在运行
             killed = False
+
             async def communicate(self, input=None):
                 raise asyncio.TimeoutError("timeout")
+
             def kill(self):
                 self.killed = True
+
             async def wait(self):
                 self.returncode = -9
 
@@ -1073,12 +1078,12 @@ class TestHttpProxyServiceErrorHandling:
             "request",
             return_value=mock_response,
         ):
-            result = await service.proxy_request(
-                "GET", "/user", {}, {}, None, "test"
-            )
+            result = await service.proxy_request("GET", "/user", {}, {}, None, "test")
 
             assert result["status_code"] == 200
-            assert result["data"] == {"raw": "this is not json"}  # 无效JSON被包装到raw字段中
+            assert result["data"] == {
+                "raw": "this is not json"
+            }  # 无效JSON被包装到raw字段中
 
 
 # =============================================================================

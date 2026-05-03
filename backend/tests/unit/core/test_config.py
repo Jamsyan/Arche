@@ -1,4 +1,5 @@
 """ConfigManager 配置管理器测试。"""
+
 import os
 import time
 from pathlib import Path
@@ -9,7 +10,7 @@ from backend.core.config import (
     ConfigManager,
     PluginSettingsRegistry,
     config_manager as global_config_manager,
-    get_config
+    get_config,
 )
 
 
@@ -23,6 +24,7 @@ class TestPluginSettingsRegistry:
 
     def test_register_and_get_settings(self):
         """注册和获取插件配置类功能正常。"""
+
         class TestPluginSettings(BaseSettings):
             api_key: str = "test-key"
             enabled: bool = True
@@ -36,6 +38,7 @@ class TestPluginSettingsRegistry:
 
     def test_iterate_items(self):
         """遍历插件配置功能正常。"""
+
         class Plugin1Settings(BaseSettings):
             pass
 
@@ -59,14 +62,17 @@ class TestConfigManager:
         """每个测试用例前重置单例状态，避免互相影响。"""
         ConfigManager._instance = None
         self.test_env_file = Path("test.env")
-        self.test_env_file.write_text("""
+        self.test_env_file.write_text(
+            """
 # Test config
 DATABASE_URL=sqlite:///test.db
 SECRET_KEY=test-secret
 LOG_LEVEL=INFO
 # Commented key
 # COMMENTED_KEY=value
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
     def teardown_method(self):
         """测试后清理临时文件。"""
@@ -82,7 +88,9 @@ LOG_LEVEL=INFO
     def test_singleton_pattern(self):
         """ConfigManager 是单例模式，多次实例化返回同一个对象。"""
         config1 = ConfigManager(env_file=str(self.test_env_file))
-        config2 = ConfigManager(env_file="different.env")  # 第二次的env_file参数会被忽略
+        config2 = ConfigManager(
+            env_file="different.env"
+        )  # 第二次的env_file参数会被忽略
 
         assert config1 is config2
         assert id(config1) == id(config2)
@@ -127,7 +135,9 @@ LOG_LEVEL=INFO
         assert config.get_required("DATABASE_URL") == "sqlite:///test.db"
 
         # 不存在的配置抛出 RuntimeError
-        with pytest.raises(RuntimeError, match="Required config 'NON_EXISTENT' is not set"):
+        with pytest.raises(
+            RuntimeError, match="Required config 'NON_EXISTENT' is not set"
+        ):
             config.get_required("NON_EXISTENT")
 
     def test_set_method(self):
@@ -150,10 +160,13 @@ LOG_LEVEL=INFO
         assert config.get("DATABASE_URL") == "sqlite:///test.db"
 
         # 修改.env文件
-        self.test_env_file.write_text("""
+        self.test_env_file.write_text(
+            """
 DATABASE_URL=sqlite:///updated.db
 SECRET_KEY=updated-secret
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         # 修改环境变量
         os.environ["LOG_LEVEL"] = "DEBUG"
@@ -191,6 +204,7 @@ SECRET_KEY=updated-secret
 
     def test_plugin_settings_registration(self):
         """插件配置注册功能正常。"""
+
         class TestPluginSettings(BaseSettings):
             api_key: str = "test-key"
             enabled: bool = True
@@ -205,7 +219,9 @@ SECRET_KEY=updated-secret
     def test_generate_env_example(self):
         """生成 .env.example 文件内容功能正常。"""
         # 这个方法依赖ConfigEntry模型，暂时跳过
-        pytest.skip("generate_env_example requires ConfigEntry model which is not available in test context")
+        pytest.skip(
+            "generate_env_example requires ConfigEntry model which is not available in test context"
+        )
 
         class Plugin1Settings(BaseSettings):
             api_key: str = "plugin1-key"

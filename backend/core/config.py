@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pydantic_settings import BaseSettings
@@ -60,7 +60,7 @@ class ConfigManager:
         self._app_settings: AppSettings | None = None
         self._plugin_registry = PluginSettingsRegistry()
         self._values: dict[str, str] = {}
-        self._session_factory: None = None
+        self._session_factory: Any | None = None
         self._cache: dict[str, tuple[str, float]] = {}
         self._cache_ttl: int = 60
         self._load()
@@ -104,13 +104,16 @@ class ConfigManager:
 
     def _fetch_from_db(self, key: str) -> str | None:
         """从数据库查询配置。"""
+        factory = self._session_factory
+        if factory is None:
+            return None
         try:
             import asyncio
             from backend.core.models import ConfigEntry
             from sqlalchemy import select
 
             async def _query():
-                async with self._session_factory() as session:
+                async with factory() as session:
                     result = await session.execute(
                         select(ConfigEntry).where(ConfigEntry.key == key)
                     )

@@ -53,7 +53,11 @@ class FetchStage(BaseStage):
             item.headers = dict(response.headers)
 
             content_type = response.headers.get("content-type", "").lower()
-            if content_type and "html" not in content_type and "text/plain" not in content_type:
+            if (
+                content_type
+                and "html" not in content_type
+                and "text/plain" not in content_type
+            ):
                 item.error = f"non_html_content: {content_type}"
                 return item
 
@@ -63,7 +67,10 @@ class FetchStage(BaseStage):
                 return item
 
             html = response.text
-            if len(html.encode(response.encoding or "utf-8", errors="ignore")) > MAX_HTML_BYTES:
+            if (
+                len(html.encode(response.encoding or "utf-8", errors="ignore"))
+                > MAX_HTML_BYTES
+            ):
                 html = html[:MAX_HTML_BYTES]
 
             import re
