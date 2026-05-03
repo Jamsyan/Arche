@@ -16,7 +16,7 @@ dependencies = [
     "alembic>=1.18.4",
     "httpx>=0.27",
     "apscheduler>=3.10",
-    "python-multipart>=0.0.26",
+    "python-multipart>=0.0.27",
     # System monitoring
     "psutil>=5.9",
     # Aliyun ECS SDK (cloud training provider)
