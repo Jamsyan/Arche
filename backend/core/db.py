@@ -54,11 +54,13 @@ async def validate_schema() -> None:
 
 def _validate_schema_sync(conn):
     """同步检查所有表的列是否匹配模型定义。"""
+    from sqlalchemy import inspect as sa_inspect
     from sqlalchemy import text as sa_text
 
     issues = []
     # 检测数据库类型
     is_postgresql = conn.dialect.name == "postgresql"
+    inspector = sa_inspect(conn)
 
     for table_name, table in Base.metadata.tables.items():
         try:
@@ -72,8 +74,8 @@ def _validate_schema_sync(conn):
                 )
                 db_cols = {row[0] for row in result.fetchall()}
             else:
-                result = conn.execute(sa_text(f"PRAGMA table_info({table_name})"))
-                db_cols = {row[1] for row in result.fetchall()}
+                columns = inspector.get_columns(table_name)
+                db_cols = {c["name"] for c in columns}
         except Exception:
             continue  # 表不存在，会在后续 create_all/migration 中创建
 

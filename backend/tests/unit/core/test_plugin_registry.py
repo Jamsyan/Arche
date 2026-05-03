@@ -397,22 +397,21 @@ registry.register("custom-plugin", CustomPlugin())
         global_registry._plugins.clear()
         global_registry._active.clear()
 
-        # 保存原始的import_module
-        import types
+        # 保存原始的 import_module，用 importlib 从文件加载（避免 exec 整段源码）
+        import importlib.util
+        import sys
         from importlib import import_module as original_import
 
         def custom_import(name, *args, **kwargs):
             if name == "backend.plugins.custom-plugin":
-                # 手动执行插件的__init__.py文件
-                module = types.ModuleType(name)
-                module.__file__ = str(plugin_init)
-                with open(plugin_init, "r", encoding="utf-8") as f:
-                    exec(f.read(), module.__dict__)
+                spec = importlib.util.spec_from_file_location(name, plugin_init)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"invalid spec: {name}")
+                module = importlib.util.module_from_spec(spec)
                 sys.modules[name] = module
+                spec.loader.exec_module(module)
                 return module
             return original_import(name, *args, **kwargs)
-
-        import sys
 
         with patch(
             "backend.core.plugin_registry.import_module", side_effect=custom_import

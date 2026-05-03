@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
+import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,6 +25,14 @@ class SSHError(AppError):
         status_code: int = 500,
     ):
         super().__init__(message, code, status_code)
+
+
+def _assert_safe_remote_path(path: str) -> None:
+    """拒绝路径穿越与空字节（远程路径来自任务配置时需校验）。"""
+    if not path or "\x00" in path or not path.startswith("/"):
+        raise SSHError("非法远程路径")
+    if ".." in Path(path).parts:
+        raise SSHError("非法远程路径")
 
 
 class SSHExecutor:
@@ -47,8 +58,18 @@ class SSHExecutor:
             "host": host,
             "port": port,
             "username": user,
-            "known_hosts": None,  # TODO: 生产环境应验证 host key
         }
+        kh_env = os.environ.get("SSH_KNOWN_HOSTS")
+        kh_path = (
+            Path(kh_env).expanduser()
+            if kh_env
+            else (Path.home() / ".ssh" / "known_hosts")
+        )
+        if kh_path.is_file():
+            connect_kwargs["known_hosts"] = str(kh_path)
+        else:
+            # 无 known_hosts 文件时与历史行为一致；生产请配置 SSH_KNOWN_HOSTS 或写入 ~/.ssh/known_hosts
+            connect_kwargs["known_hosts"] = None
 
         if key_path:
             connect_kwargs["client_keys"] = [key_path]
@@ -64,23 +85,26 @@ class SSHExecutor:
         except Exception as e:
             raise SSHError(f"SSH 连接失败 ({host}:{port}): {e}")
 
-    async def execute(self, conn_key: str, cmd: str, timeout: int = 300) -> str:
-        """执行远程命令。"""
+    async def execute(
+        self, conn_key: str, command: str | Sequence[str], timeout: int = 300
+    ) -> str:
+        """执行远程命令。传入 argv 序列（list/tuple）时由 asyncssh 直接 exec，不经 shell。"""
         conn = self._connections.get(conn_key)
         if not conn:
             raise SSHError(f"SSH 连接不存在: {conn_key}")
 
         try:
-            result = await conn.run(cmd, timeout=timeout, check=True)
+            result = await conn.run(command, timeout=timeout, check=True)
             stdout = result.stdout
             return stdout.decode() if isinstance(stdout, bytes) else (stdout or "")
         except asyncssh.Error as e:
-            raise SSHError(f"远程命令执行失败: {cmd}\n{str(e)}")
+            raise SSHError(f"远程命令执行失败: {command!r}\n{str(e)}")
         except Exception as e:
             raise SSHError(f"SSH 执行失败: {e}")
 
     async def download(self, conn_key: str, remote_path: str, local_path: Path) -> None:
         """SFTP 下载远程文件。"""
+        _assert_safe_remote_path(remote_path)
         conn = self._connections.get(conn_key)
         if not conn:
             raise SSHError(f"SSH 连接不存在: {conn_key}")
@@ -95,6 +119,7 @@ class SSHExecutor:
 
     async def upload(self, conn_key: str, local_path: Path, remote_path: str) -> None:
         """SFTP 上传本地文件。"""
+        _assert_safe_remote_path(remote_path)
         conn = self._connections.get(conn_key)
         if not conn:
             raise SSHError(f"SSH 连接不存在: {conn_key}")
@@ -105,16 +130,39 @@ class SSHExecutor:
         except Exception as e:
             raise SSHError(f"SFTP 上传失败: {local_path} -> {remote_path}: {e}")
 
+    async def list_remote_filenames(
+        self, conn_key: str, remote_dir: str, pattern: str = "*"
+    ) -> list[str]:
+        """列出远程目录下的文件名（不含路径），按 pattern 做 fnmatch 过滤。"""
+        _assert_safe_remote_path(remote_dir)
+        conn = self._connections.get(conn_key)
+        if not conn:
+            raise SSHError(f"SSH 连接不存在: {conn_key}")
+
+        try:
+            async with conn.start_sftp_client() as sftp:
+                raw = await sftp.listdir(remote_dir)
+        except Exception as e:
+            raise SSHError(f"SFTP 列目录失败: {remote_dir}: {e}")
+
+        names = [n.decode() if isinstance(n, bytes) else str(n) for n in raw]
+        names = [n for n in names if n not in (".", "..")]
+        return sorted(n for n in names if fnmatch.fnmatch(n, pattern))
+
     async def compute_sha256(self, conn_key: str, remote_path: str) -> str:
         """计算远程文件的 SHA256。"""
-        output = await self.execute(conn_key, f"sha256sum {remote_path}")
+        _assert_safe_remote_path(remote_path)
+        output = await self.execute(conn_key, ["sha256sum", remote_path])
         return output.split()[0] if output else ""
 
     async def compute_local_sha256(self, local_path: Path) -> str:
         """计算本地文件的 SHA256。"""
         h = hashlib.sha256()
         with open(local_path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
+            while True:
+                chunk = f.read(8192)
+                if not chunk:
+                    break
                 h.update(chunk)
         return h.hexdigest()
 
