@@ -27,7 +27,7 @@ dependencies = [
     # MinIO SDK (local object storage)
     "minio>=7.2",
     # SSH/SFTP (cloud training remote deployment)
-    "asyncssh>=2.14",
+    "asyncssh>=2.23.0",
     # Async file operations
     "aiofiles>=23.0",
     # HTML parsing (crawler link extraction)
