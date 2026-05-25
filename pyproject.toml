@@ -23,7 +23,7 @@ dependencies = [
     "aliyun-python-sdk-core>=2.13",
     "aliyun-python-sdk-ecs>=4.24",
     # Aliyun OSS SDK
-    "oss2>=2.18",
+    "oss2>=2.19.1",
     # MinIO SDK (local object storage)
     "minio>=7.2",
     # SSH/SFTP (cloud training remote deployment)
