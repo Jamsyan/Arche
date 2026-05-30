@@ -1,0 +1,25 @@
+name: Close stale PRs
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # 每周一早上 6 点 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-pr-message: "此 PR 已 30 天无活动，标记为 stale。7 天后将自动关闭。"
+          close-pr-message: "因长期未处理，自动关闭。如需更新依赖请手动重新触发。"
+          days-before-stale: 30
+          days-before-close: 7
+          any-of-labels: "dependencies"
+          exempt-pr-labels: "pinned,security,release"

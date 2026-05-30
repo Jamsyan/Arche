@@ -5,6 +5,7 @@ on:
     branches: [master]
     tags: ["v*"]
   pull_request:
+    types: [opened, synchronize, reopened]
     branches: [master]
 
 jobs:
@@ -164,15 +165,15 @@ jobs:
           echo "Trigger: $EVENT"
           echo "Ref: $REF"
 
-          # 情况 1：push 且带了 tag
-          if [[ "$EVENT" == "push" && "$REF" == refs/tags/v* ]]; then
+          # 情况 1：tag push → 用 tag 构建
+          if [[ "$REF" == refs/tags/v* ]]; then
             TAG="${REF#refs/tags/v}"
-            echo "Push with tag → build using tag: $TAG"
+            echo "Tag push → build: $TAG"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
-          # 情况 2：PR 合并到 master（仅 merged == true）
-          elif [[ "$EVENT" == "pull_request" && "${{ github.base_ref }}" == "master" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+          # 情况 2：push 到 master → 视为合并 → 自增版本构建
+          elif [[ "$EVENT" == "push" && "$REF" == refs/heads/master ]]; then
             LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -n "$LATEST" ]; then
               VERSION="${LATEST#v}"
@@ -183,13 +184,13 @@ jobs:
             else
               TAG="0.0.1"
             fi
-            echo "PR merge to master → build with bumped: $TAG"
+            echo "Push to master → build: $TAG"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
-          # 情况 3：push 到 master（不带 tag）→ 不构建
+          # 情况 3：pull_request 或其他 → 不构建
           else
-            echo "Push to master without tag → no build"
+            echo "No build condition met → skip"
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "image_tag=" >> $GITHUB_OUTPUT
           fi
