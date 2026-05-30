@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { UserInfo } from '@/services/api/auth'
 import { loginApi, logoutApi, getUserInfoApi, type LoginParams } from '@/services/api/auth'
 import { usePermissionStore } from '@/store/modules/permission'
+import { authMockData } from '@/services/mock'
 
 export type UserRole = 'user' | 'admin' | 'guest'
 
@@ -39,30 +40,6 @@ export const useUserStore = defineStore(
       )
     }
 
-    const mockUsers: Record<UserRole, UserInfo> = {
-      user: {
-        id: '1',
-        username: 'user',
-        nickname: '普通用户',
-        role: 'user',
-        permissions: ['auth:me', 'blog:posts:read', 'blog:posts:write']
-      },
-      admin: {
-        id: '2',
-        username: 'admin',
-        nickname: '管理员',
-        role: 'admin',
-        permissions: ['*']
-      },
-      guest: {
-        id: '3',
-        username: 'guest',
-        nickname: '访客',
-        role: 'guest',
-        permissions: []
-      }
-    }
-
     // 真实登录入口，后续页面接账号密码时仍走同一条身份链路
     const login = async (params: LoginParams) => {
       const res = await loginApi(params)
@@ -73,11 +50,15 @@ export const useUserStore = defineStore(
       return res
     }
 
-    // 演示模式登录，只保留在 userStore 内，避免再扩散第二套认证状态
+    // 演示模式登录，数据来源统一为 services/mock/auth.ts
     const loginAsRole = async (role: UserRole) => {
+      const mockUser = authMockData.users[role] as UserInfo | undefined
+      if (!mockUser) {
+        throw new Error(`未知的演示角色: ${role}`)
+      }
       const res = {
         token: `mock-token-${role}-${Date.now()}`,
-        userInfo: mockUsers[role]
+        userInfo: mockUser
       }
 
       applyUserSession(res.token, res.userInfo)

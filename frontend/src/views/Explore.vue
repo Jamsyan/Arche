@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { NIcon, NTag } from 'naive-ui'
+import { NIcon, NTag, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import {
   AppsOutline,
@@ -11,6 +11,10 @@ import {
   SearchOutline
 } from '@vicons/ionicons5'
 import ProTable from '@/components/ProTable.vue'
+import { getBlogPostsApi, type BlogPost } from '@/services/api'
+import { blogMockData } from '@/services/mock'
+import { withFallback } from '@/services/mock'
+import type { MockExploreItem } from '@/services/mock/types'
 
 type ExploreFilterMode = 'tag' | 'author'
 type ExploreViewMode = 'card' | 'wide-row' | 'compact-row'
@@ -23,88 +27,71 @@ const authorFilter = ref('')
 const contentSearch = ref('')
 const viewMode = ref<ExploreViewMode>('card')
 
-const allTags = ref([
-  '全部',
-  '时光',
-  '成长记录',
-  '学习札记',
-  '生活观察',
-  '创作灵感',
-  '技术实践',
-  '旅行笔记',
-  '摄影',
-  '电影',
-  '阅读',
-  '心情随笔'
-])
+const message = useMessage()
+const exploreItems = ref<MockExploreItem[]>([])
+const allTags = ref<string[]>([])
+const allAuthors = ref<string[]>([])
+const loading = ref(false)
 
-const allAuthors = ref([
-  '全部作者',
-  '锦年志编辑部',
-  '林深',
-  '阿野',
-  '苏河',
-  '南渡',
-  '岚',
-  '青禾',
-  '江月',
-  '秋迟'
-])
-
-const mockItems = ref([
-  {
-    id: 1,
-    title: '春日河畔散记',
-    author: '林深',
-    tags: ['时光', '生活观察'],
-    date: '2026-04-28',
-    likes: 36,
-    favorites: 12,
-    content:
-      '清晨的河面有一层薄雾，风从桥洞里穿过来，带着一点潮湿和青草气息。沿着石阶慢慢往下走，脚边的水纹被阳光切成碎片。后来我在长椅上坐了很久，看骑行的人一阵阵掠过，像时间被不断轻轻翻页。傍晚回程时，天空变成温柔的橙灰色，城市一下子慢下来。',
-    excerpt: '记录周末在河边散步时的光影与心绪。',
-    cover: 'linear-gradient(135deg, #f2dfc7, #dcbca0)'
-  },
-  {
-    id: 2,
-    title: '晚风与胶片',
-    author: '青禾',
-    tags: ['摄影', '时光'],
-    date: '2026-04-18',
-    likes: 92,
-    favorites: 48,
-    content:
-      '那卷过期胶片在抽屉里躺了很久，冲洗出来的时候颗粒比预期更粗，色偏也很明显。可正是这种不稳定，让街角霓虹和路人的背影都像旧电影的片段。拍摄那天风很大，手抖得厉害，很多画面轻微虚焦，却意外地贴近记忆里的真实感。',
-    excerpt: '一卷过期胶片拍出的意外颗粒感，反而更贴近记忆。',
-    cover: 'linear-gradient(135deg, #d9c8b0, #9f8169)'
-  },
-  {
-    id: 3,
-    title: '学习札记：响应式布局',
-    author: '苏河',
-    tags: ['学习札记', '技术实践'],
-    date: '2026-03-29',
-    likes: 57,
-    favorites: 21,
-    content:
-      '这次把页面从固定栅格改成响应式之后，最大的感受是“先定义结构，再谈样式”。我把主体分成导航、内容、辅助区三层，并用最小断点逐步增强，而不是一开始追求大屏精致。这样做的好处是，小屏体验稳定，大屏只是在此基础上获得更舒展的排版。',
-    excerpt: '从网格到弹性布局，整理一套可复用的页面骨架。',
-    cover: 'linear-gradient(135deg, #e8d7bf, #c0a688)'
-  },
-  {
-    id: 4,
-    title: '山城夜色速写',
-    author: '阿野',
-    tags: ['旅行笔记', '生活观察'],
-    date: '2026-03-03',
-    likes: 18,
-    favorites: 9,
-    content:
-      '山城的夜色总带一点潮气，霓虹在坡道和台阶上被拉成长条，像湿润空气里的荧光笔触。站在高处往下看，车灯沿着弯路缓慢流动，远处偶尔传来模糊的音乐和人声。很多瞬间并不壮观，却有一种很私人的安静感，适合被慢慢记下来。',
-    excerpt: '潮湿空气里的霓虹像被晕开的颜料。',
-    cover: 'linear-gradient(135deg, #d0c2b1, #8f7560)'
+const convertBlogPostToExploreItem = (post: BlogPost, index: number): MockExploreItem => {
+  const gradientCovers = [
+    'linear-gradient(135deg, #f2dfc7, #dcbca0)',
+    'linear-gradient(135deg, #d9c8b0, #9f8169)',
+    'linear-gradient(135deg, #e8d7bf, #c0a688)',
+    'linear-gradient(135deg, #d0c2b1, #8f7560)'
+  ]
+  return {
+    id: index + 1,
+    title: post.title || '',
+    author: post.author_username || '匿名',
+    tags: post.tags || [],
+    date: (post.created_at || '').slice(0, 10),
+    likes: post.likes || 0,
+    favorites: Math.max(1, Math.round((post.likes || 0) * 0.65)),
+    content: post.content || '',
+    excerpt: (post.content || '').slice(0, 60) || '',
+    cover: gradientCovers[index % gradientCovers.length] ?? ''
   }
-])
+}
+
+const fetchExploreData = async () => {
+  loading.value = true
+  try {
+    const result = await withFallback(
+      () => getBlogPostsApi({ page: 1, page_size: 20, sort_by: 'created_at' }),
+      { list: blogMockData.posts, total: blogMockData.posts.length, page: 1, page_size: 20 },
+      { silent: true }
+    )
+    if (result.list && result.list.length > 0) {
+      exploreItems.value = result.list.map(convertBlogPostToExploreItem)
+      const tagSet = new Set<string>()
+      const authorSet = new Set<string>()
+      result.list.forEach((post) => {
+        ;(post.tags || []).forEach((tag) => tagSet.add(tag))
+        if (post.author_username) authorSet.add(post.author_username)
+      })
+      allTags.value = ['全部', ...Array.from(tagSet)]
+      allAuthors.value = ['全部作者', ...Array.from(authorSet)]
+    } else {
+      applyFallbackExploreData()
+    }
+  } catch {
+    applyFallbackExploreData()
+  } finally {
+    loading.value = false
+  }
+}
+
+const applyFallbackExploreData = () => {
+  exploreItems.value = blogMockData.exploreItems
+  allTags.value = blogMockData.tags
+  allAuthors.value = blogMockData.authors
+  message.warning('后端暂不可用，已展示演示数据')
+}
+
+onMounted(() => {
+  void fetchExploreData()
+})
 
 const isOptionChecked = (option: string) => {
   if (filterMode.value === 'tag') {
@@ -266,7 +253,7 @@ const visibleAuthors = computed(() => {
 })
 
 const filteredItems = computed(() => {
-  let list = [...mockItems.value]
+  let list = [...exploreItems.value]
   const keyword = contentSearch.value.trim().toLowerCase()
   if (keyword) {
     list = list.filter(

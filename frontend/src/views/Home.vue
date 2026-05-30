@@ -11,6 +11,8 @@ import {
 } from '@vicons/ionicons5'
 import { getBlogPostsApi, type BlogPost } from '@/services/api'
 import { useUserStore } from '@/store/modules/user'
+import { blogMockData } from '@/services/mock'
+import { withFallback } from '@/services/mock'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,80 +26,6 @@ const total = ref(0)
 const page = ref(Number(route.query.page || 1))
 const hotIndex = ref(0)
 const HOT_ROTATE_INTERVAL_MS = 12000
-
-const fallbackPosts: BlogPost[] = [
-  {
-    id: 'demo-1',
-    slug: 'demo-spring-notes',
-    title: '春日来信：把普通日子写成可回放的片段',
-    content:
-      '这是首页示例内容。接口暂不可用时，用它来保证首屏轮播和列表不空白。你可以把生活中那些没有“结果”的瞬间，写成会发光的过程。',
-    tags: ['时光', '生活观察'],
-    author_username: '锦年志编辑部',
-    views: 3251,
-    likes: 248,
-    created_at: '2026-04-01'
-  },
-  {
-    id: 'demo-2',
-    slug: 'demo-midnight-reading',
-    title: '午夜阅读手记：在慢节奏里重建表达力',
-    content:
-      '你不需要一次写完一个伟大故事，只要每天留下三行真实感受。时间会把这些片段自动拼成你的个人年鉴。',
-    tags: ['阅读', '成长记录'],
-    author_username: '林深',
-    views: 2987,
-    likes: 206,
-    created_at: '2026-03-28'
-  },
-  {
-    id: 'demo-3',
-    slug: 'demo-city-walk',
-    title: '城市漫游计划：一张地图，七天观察练习',
-    content:
-      '用“地点-人物-情绪”三要素去记录城市，每一次散步都能变成创作素材。这是一个可复制的轻量化习惯模型。',
-    tags: ['旅行笔记', '创作灵感'],
-    author_username: '阿野',
-    views: 2654,
-    likes: 192,
-    created_at: '2026-03-20'
-  },
-  {
-    id: 'demo-4',
-    slug: 'demo-photo-story',
-    title: '影像日志模板：一图一句，建立你的视觉年轮',
-    content: '拍照不只是“打卡”，更是构建记忆的索引系统。示例模板可直接套用到每日记录与项目复盘。',
-    tags: ['摄影', '学习札记'],
-    author_username: '苏河',
-    views: 2338,
-    likes: 176,
-    created_at: '2026-03-12'
-  },
-  {
-    id: 'demo-5',
-    slug: 'demo-dev-journal',
-    title: '工程师也写生活：把技术思维变成日常叙事',
-    content:
-      '把“问题-假设-验证”这种工程习惯迁移到生活记录，你会更容易看见成长轨迹，也更容易持续输出。',
-    tags: ['技术实践', '心情随笔'],
-    author_username: '南渡',
-    views: 2140,
-    likes: 153,
-    created_at: '2026-03-05'
-  },
-  {
-    id: 'demo-6',
-    slug: 'demo-weekly-review',
-    title: '周记复盘法：15 分钟完成一周沉淀',
-    content:
-      '每周固定一个时间窗口，把高光、低谷和改进点写下来。长期坚持后，你会得到一份极具个人价值的成长档案。',
-    tags: ['成长记录', '学习札记'],
-    author_username: '岚',
-    views: 1986,
-    likes: 139,
-    created_at: '2026-02-27'
-  }
-]
 
 let hotTimer: ReturnType<typeof setInterval> | null = null
 
@@ -116,40 +44,52 @@ const getAccessLevelNumber = (accessLevel?: string) => {
 const filterByAccess = (list: BlogPost[]) =>
   userStore.token ? list : list.filter((item) => getAccessLevelNumber(item.access_level) <= 5)
 
-const applyFallbackData = () => {
-  posts.value = fallbackPosts
-  hotPosts.value = fallbackPosts.slice(0, 6)
-  total.value = fallbackPosts.length
-  hotIndex.value = 0
-}
-
 const fetchPosts = async () => {
   loading.value = true
   try {
     const [latestRes, hotRes] = await Promise.all([
-      getBlogPostsApi({
-        page: page.value,
-        page_size: 12,
-        sort_by: 'created_at'
-      }),
-      getBlogPostsApi({
-        page: 1,
-        page_size: 6,
-        sort_by: 'views'
-      })
+      withFallback(
+        () => getBlogPostsApi({ page: page.value, page_size: 12, sort_by: 'created_at' }),
+        { list: blogMockData.posts, total: blogMockData.posts.length, page: 1, page_size: 12 },
+        { silent: true }
+      ),
+      withFallback(
+        () => getBlogPostsApi({ page: 1, page_size: 6, sort_by: 'views' }),
+        {
+          list: blogMockData.posts.slice(0, 6),
+          total: blogMockData.posts.length,
+          page: 1,
+          page_size: 6
+        },
+        { silent: true }
+      )
     ])
     const latestList = filterByAccess(latestRes.list || [])
     const hotList = filterByAccess(hotRes.list || [])
+    const usedFallback =
+      latestRes.list === blogMockData.posts || hotRes.list === blogMockData.posts.slice(0, 6)
     if (latestList.length === 0 && hotList.length === 0) {
-      applyFallbackData()
+      posts.value = blogMockData.posts
+      hotPosts.value = blogMockData.posts.slice(0, 6)
+      total.value = blogMockData.posts.length
+      hotIndex.value = 0
+      if (!usedFallback) {
+        message.warning('接口暂不可用，已展示示例内容')
+      }
       return
     }
-    posts.value = latestList.length > 0 ? latestList : fallbackPosts
+    posts.value = latestList.length > 0 ? latestList : blogMockData.posts
     hotPosts.value = hotList.length > 0 ? hotList : posts.value.slice(0, 6)
     total.value = latestRes.total || posts.value.length
     hotIndex.value = 0
+    if (usedFallback) {
+      message.warning('接口暂不可用，已展示示例内容')
+    }
   } catch {
-    applyFallbackData()
+    posts.value = blogMockData.posts
+    hotPosts.value = blogMockData.posts.slice(0, 6)
+    total.value = blogMockData.posts.length
+    hotIndex.value = 0
     message.warning('接口暂不可用，已展示示例内容')
   } finally {
     loading.value = false

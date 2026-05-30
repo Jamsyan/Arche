@@ -62,7 +62,9 @@ const handleLogout = async () => {
               : '无权限'
           }}
         </NDescriptionsItem>
-        <NDescriptionsItem label="注册时间"> 2026-04-25 </NDescriptionsItem>
+        <NDescriptionsItem label="注册时间">
+          {{ (userStore.userInfo as any)?.created_at || '-' }}
+        </NDescriptionsItem>
       </NDescriptions>
 
       <div class="action-section">
