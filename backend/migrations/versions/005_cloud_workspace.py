@@ -9,6 +9,19 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.types import TypeDecorator, String
+
+
+class _UUIDString(TypeDecorator):
+    """跨数据库 UUID：PostgreSQL 用 UUID，SQLite 用 String(36)。"""
+    impl = String(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(postgresql.UUID(as_uuid=True))
+        return dialect.type_descriptor(String(36))
 
 revision: str = "005_cloud_workspace"
 down_revision: Union[str, None] = "004_config_entries"
@@ -21,7 +34,7 @@ def upgrade() -> None:
     # SQLite 不支持 UUID 和 ARRAY，使用 String 替代
     op.create_table(
         "datasets",
-        sa.Column("id", sa.String(length=36), nullable=False),
+        sa.Column("id", _UUIDString(), nullable=False),
         sa.Column("name", sa.String(length=256), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("path", sa.String(length=1024), nullable=False),
@@ -32,7 +45,7 @@ def upgrade() -> None:
         sa.Column("file_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("tags", sa.Text(), nullable=True),  # JSON 序列化的标签数组
         sa.Column("config", sa.JSON(), nullable=True, server_default="{}"),
-        sa.Column("created_by", sa.String(length=36), nullable=False),
+        sa.Column("created_by", _UUIDString(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -55,14 +68,14 @@ def upgrade() -> None:
     # 创建 code_repos 表
     op.create_table(
         "code_repos",
-        sa.Column("id", sa.String(length=36), nullable=False),
+        sa.Column("id", _UUIDString(), nullable=False),
         sa.Column("name", sa.String(length=256), nullable=False),
         sa.Column("git_url", sa.String(length=1024), nullable=False),
         sa.Column(
             "git_branch", sa.String(length=256), nullable=False, server_default="main"
         ),
         sa.Column("git_token", sa.String(length=512), nullable=True),
-        sa.Column("created_by", sa.String(length=36), nullable=False),
+        sa.Column("created_by", _UUIDString(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -78,8 +91,8 @@ def upgrade() -> None:
     # 创建 artifacts 表
     op.create_table(
         "artifacts",
-        sa.Column("id", sa.String(length=36), nullable=False),
-        sa.Column("job_id", sa.String(length=36), nullable=False),
+        sa.Column("id", _UUIDString(), nullable=False),
+        sa.Column("job_id", _UUIDString(), nullable=False),
         sa.Column("name", sa.String(length=256), nullable=False),
         sa.Column("path", sa.String(length=1024), nullable=False),
         sa.Column(
