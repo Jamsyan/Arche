@@ -15,6 +15,7 @@ from sqlalchemy.types import TypeDecorator, String
 
 class _UUIDString(TypeDecorator):
     """跨数据库 UUID：PostgreSQL 用 UUID，SQLite 用 String(36)。"""
+
     impl = String(36)
     cache_ok = True
 
@@ -22,6 +23,7 @@ class _UUIDString(TypeDecorator):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(postgresql.UUID(as_uuid=True))
         return dialect.type_descriptor(String(36))
+
 
 revision: str = "005_cloud_workspace"
 down_revision: Union[str, None] = "004_config_entries"
