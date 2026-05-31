@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { NCard, NButton, NGrid, NGi, NTag, NIcon } from 'naive-ui'
-import { CreateOutline, DocumentTextOutline, PersonOutline } from '@vicons/ionicons5'
+import { CreateOutline, DocumentTextOutline } from '@vicons/ionicons5'
+import ConsoleShell from '@/components/ConsoleShell.vue'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
 
-const router = useRouter()
 const loading = ref(false)
 const recentPosts = ref<BlogPost[]>([])
 const totalPosts = ref(0)
@@ -18,12 +17,6 @@ const statCards = [
     color: 'var(--primary-color)'
   },
   { label: '草稿箱', value: 0, icon: CreateOutline, color: 'var(--accent-color)' }
-]
-
-const quickActions = [
-  { label: '写文章', icon: CreateOutline, to: '/posts/new', type: 'primary' as const },
-  { label: '我的文章', icon: DocumentTextOutline, to: '/posts', type: 'default' as const },
-  { label: '个人中心', icon: PersonOutline, to: '/profile', type: 'default' as const }
 ]
 
 const statusMap: Record<
@@ -63,87 +56,73 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="console-page">
-    <div class="console-header">
-      <h2>控制台</h2>
-      <p class="console-desc">管理你的内容与创作</p>
-    </div>
-
-    <NGrid :cols="4" :x-gap="12" :y-gap="12" class="stats-grid">
-      <NGi v-for="card in statCards" :key="card.label">
-        <NCard class="stat-card" size="small">
-          <div class="stat-inner">
-            <div class="stat-icon" :style="{ background: card.color + '18', color: card.color }">
-              <NIcon :size="22"><component :is="card.icon" /></NIcon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ card.value }}</span>
-              <span class="stat-label">{{ card.label }}</span>
-            </div>
-          </div>
-        </NCard>
-      </NGi>
-    </NGrid>
-
-    <div class="quick-actions">
-      <NButton
-        v-for="action in quickActions"
-        :key="action.label"
-        :type="action.type"
-        size="large"
-        @click="router.push(action.to)"
-      >
-        <template #icon>
-          <NIcon><component :is="action.icon" /></NIcon>
-        </template>
-        {{ action.label }}
-      </NButton>
-    </div>
-
-    <NCard title="最近文章" :loading="loading" class="recent-card">
-      <div v-if="recentPosts.length === 0" class="empty-state">
-        <p>还没有文章，开始你的第一篇创作吧</p>
-        <NButton type="primary" @click="router.push('/posts/new')">写文章</NButton>
+  <ConsoleShell>
+    <div class="console-page">
+      <div class="page-heading">
+        <h2>控制台</h2>
+        <p class="page-desc">管理你的内容与创作</p>
       </div>
-      <div v-else class="post-list">
-        <div v-for="post in recentPosts" :key="post.id" class="post-row">
-          <div class="post-info">
-            <span class="post-title" @click="router.push(`/posts/${post.slug || post.id}`)">
-              {{ post.title }}
-            </span>
-            <NTag size="tiny" :type="getStatus(post).type" :bordered="false">
-              {{ getStatus(post).label }}
-            </NTag>
+
+      <NGrid :cols="2" :x-gap="12" :y-gap="12" class="stats-grid">
+        <NGi v-for="card in statCards" :key="card.label">
+          <div class="glass-card stat-card">
+            <div class="stat-inner">
+              <div class="stat-icon" :style="{ background: card.color + '18', color: card.color }">
+                <NIcon :size="22"><component :is="card.icon" /></NIcon>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ card.value }}</span>
+                <span class="stat-label">{{ card.label }}</span>
+              </div>
+            </div>
           </div>
-          <div class="post-meta">
-            <span>{{ (post.created_at || '').slice(0, 10) }}</span>
-            <span v-if="post.likes !== undefined">{{ post.likes }} 赞</span>
-            <span v-if="post.views !== undefined">{{ post.views }} 阅读</span>
+        </NGi>
+      </NGrid>
+
+      <NCard title="最近文章" :loading="loading" class="section-card" :bordered="false">
+        <div v-if="recentPosts.length === 0" class="empty-state">
+          <p>还没有文章，开始你的第一篇创作吧</p>
+          <NButton type="primary" @click="$router.push('/posts/new')">写文章</NButton>
+        </div>
+        <div v-else class="post-list">
+          <div v-for="post in recentPosts" :key="post.id" class="post-row">
+            <div class="post-info">
+              <span class="post-title" @click="$router.push(`/posts/${post.slug || post.id}`)">
+                {{ post.title }}
+              </span>
+              <NTag size="tiny" :type="getStatus(post).type" :bordered="false">
+                {{ getStatus(post).label }}
+              </NTag>
+            </div>
+            <div class="post-meta">
+              <span>{{ (post.created_at || '').slice(0, 10) }}</span>
+              <span v-if="post.likes !== undefined">{{ post.likes }} 赞</span>
+              <span v-if="post.views !== undefined">{{ post.views }} 阅读</span>
+            </div>
           </div>
         </div>
-      </div>
-    </NCard>
-  </div>
+      </NCard>
+    </div>
+  </ConsoleShell>
 </template>
 
 <style scoped>
 .console-page {
-  max-width: 960px;
-  margin: 0 auto;
+  max-width: 100%;
 }
 
-.console-header {
+.page-heading {
   margin-bottom: 20px;
 }
 
-.console-header h2 {
+.page-heading h2 {
   margin: 0 0 4px;
   font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.console-desc {
+.page-desc {
   margin: 0;
   font-size: 14px;
   color: var(--text-tertiary);
@@ -153,8 +132,17 @@ onMounted(fetchData)
   margin-bottom: 20px;
 }
 
+.glass-card {
+  background: rgba(255, 248, 236, 0.72);
+  border: 1px solid rgba(130, 95, 65, 0.14);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
 .stat-card {
-  --n-padding: 16px;
+  display: flex;
+  align-items: center;
 }
 
 .stat-inner {
@@ -191,14 +179,11 @@ onMounted(fetchData)
   color: var(--text-tertiary);
 }
 
-.quick-actions {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.recent-card {
-  --n-padding: 20px;
+.section-card {
+  background: rgba(255, 248, 236, 0.72);
+  border: 1px solid rgba(130, 95, 65, 0.14);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(4px);
 }
 
 .post-list {
@@ -211,7 +196,7 @@ onMounted(fetchData)
   align-items: center;
   justify-content: space-between;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgba(130, 95, 65, 0.1);
 }
 
 .post-row:last-child {

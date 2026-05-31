@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NCard, NInput, NButton, NSelect, NTag, NDivider, useMessage, NIcon } from 'naive-ui'
-import { EyeOutline, SaveOutline, SendOutline, ArrowBackOutline } from '@vicons/ionicons5'
+import { NInput, NButton, NSelect, NTag, NDivider, useMessage, NIcon, NPopover } from 'naive-ui'
+import { EyeOutline, SaveOutline, SendOutline, InformationCircleOutline } from '@vicons/ionicons5'
+import ConsoleShell from '@/components/ConsoleShell.vue'
 import {
   createPostApi,
   updatePostApi,
@@ -25,16 +26,36 @@ const form = ref({
   title: '',
   content: '',
   tags: [] as string[],
-  access_level: 'A10'
+  access_level: 'A5'
 })
 const tagOptions = ref<{ label: string; value: string }[]>([])
 const lastSaved = ref<string | null>(null)
 
 const accessLevelOptions = [
-  { label: '公开发布', value: 'A10' },
-  { label: '登录可见', value: 'A5' },
-  { label: '仅自己', value: 'A1' }
+  { label: '所有人可见', value: 'A5' },
+  { label: '社区成员可见', value: 'A3' },
+  { label: '仅核心成员可见', value: 'A1' },
+  { label: '仅管理员可见', value: 'A0' }
 ]
+
+const accessLevelDescriptions: Record<string, { summary: string; detail: string }> = {
+  A5: {
+    summary: '默认权限，所有访客均可浏览',
+    detail: '文章对所有用户可见，包括未登录访客。适合公开发布的内容。'
+  },
+  A3: {
+    summary: 'P3 等级及以上的用户可浏览',
+    detail: '仅向权限等级 P3 及以上的用户开放。适合面向有一定贡献的社区成员的内容。'
+  },
+  A1: {
+    summary: 'P1 等级及以上的用户可浏览',
+    detail: '仅向权限等级 P1 及以上的核心成员开放。适合敏感或内部内容。'
+  },
+  A0: {
+    summary: '仅 P0 超级管理员可浏览',
+    detail: '最高权限限制，仅超级管理员可查看。适合系统级内容。'
+  }
+}
 
 const wordCount = computed(() => {
   const text = form.value.content.trim()
@@ -50,7 +71,7 @@ const canSubmit = computed(() => {
 const fetchTags = async () => {
   const res = await getBlogTagsApi({ page: 1, page_size: 100 }, { silent: true })
   tagOptions.value = (res.list || []).map((tag: BlogTag) => ({
-    label: tag.name,
+    label: `${tag.name}（${tag.count || 0}）`,
     value: tag.name
   }))
 }
@@ -119,7 +140,7 @@ const submit = async () => {
         title: form.value.title,
         content: form.value.content,
         tags: form.value.tags,
-        access_level: Number(form.value.access_level.slice(1))
+        access_level: form.value.access_level
       })
       removeDraft()
       message.success('发布成功，帖子已提交审核')
@@ -152,33 +173,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="post-editor-page">
-    <div class="editor-shell">
-      <div class="editor-main">
-        <NCard class="editor-card" :loading="loading">
-          <template #header>
+  <ConsoleShell>
+    <div class="post-editor-page">
+      <div class="page-heading">
+        <h2>{{ mode === 'edit' ? '编辑文章' : '创作新文章' }}</h2>
+      </div>
+      <div class="editor-shell">
+        <div class="editor-main">
+          <div class="section-card editor-card">
             <div class="editor-header">
-              <div class="header-left">
-                <NButton text @click="router.push('/posts')" class="back-btn">
-                  <template #icon>
-                    <NIcon><ArrowBackOutline /></NIcon>
-                  </template>
-                </NButton>
-                <h2>{{ mode === 'edit' ? '编辑文章' : '创作新文章' }}</h2>
-              </div>
               <div class="header-right">
                 <span class="word-count">{{ wordCount }} 字</span>
                 <NButton quaternary size="small" @click="showPreview = !showPreview">
-                  <template #icon>
-                    <NIcon><EyeOutline /></NIcon>
-                  </template>
+                  <template #icon
+                    ><NIcon><EyeOutline /></NIcon
+                  ></template>
                   {{ showPreview ? '编辑' : '预览' }}
                 </NButton>
               </div>
             </div>
-          </template>
 
-          <div class="editor-body">
             <div v-show="!showPreview" class="edit-area">
               <div class="title-section">
                 <NInput
@@ -186,7 +200,7 @@ onBeforeUnmount(() => {
                   placeholder="输入文章标题……"
                   size="large"
                   :maxlength="120"
-                  class="title-input"
+                  class="themed-input title-input"
                   :input-props="{
                     style: 'font-size: 22px; font-weight: 600; border: none; padding: 12px 0;'
                   }"
@@ -204,7 +218,7 @@ onBeforeUnmount(() => {
                   type="textarea"
                   :autosize="{ minRows: 18, maxRows: 36 }"
                   placeholder="开始写下你的想法……"
-                  class="content-input"
+                  class="themed-input content-input"
                 />
               </div>
             </div>
@@ -219,9 +233,8 @@ onBeforeUnmount(() => {
                     size="small"
                     :bordered="false"
                     class="preview-tag"
+                    >{{ tag }}</NTag
                   >
-                    {{ tag }}
-                  </NTag>
                 </div>
                 <NDivider />
                 <div class="preview-body">{{ form.content }}</div>
@@ -231,65 +244,100 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </div>
-        </NCard>
-      </div>
+        </div>
 
-      <aside class="editor-sidebar">
-        <NCard class="sidebar-card" size="small">
-          <template #header><span class="sidebar-title">发布设置</span></template>
-          <div class="sidebar-section">
-            <label class="field-label">可见范围</label>
-            <NSelect v-model:value="form.access_level" :options="accessLevelOptions" size="small" />
-          </div>
-          <div class="sidebar-section">
-            <label class="field-label">标签</label>
-            <NSelect
-              v-model:value="form.tags"
-              multiple
-              filterable
-              tag
-              :options="tagOptions"
-              placeholder="添加标签"
-              size="small"
-            />
-          </div>
-        </NCard>
-
-        <NCard class="sidebar-card" size="small">
-          <template #header><span class="sidebar-title">操作</span></template>
-          <div class="sidebar-actions">
-            <NButton
-              type="primary"
-              block
-              :loading="submitting"
-              :disabled="!canSubmit"
-              @click="submit"
-            >
-              <template #icon>
-                <NIcon><SendOutline /></NIcon>
-              </template>
-              {{ mode === 'edit' ? '保存修改' : '提交审核' }}
-            </NButton>
-            <NButton block @click="saveDraft">
-              <template #icon>
-                <NIcon><SaveOutline /></NIcon>
-              </template>
-              保存草稿
-            </NButton>
-            <div class="draft-info" v-if="lastSaved">
-              <span class="draft-time">草稿已存 {{ lastSaved }}</span>
+        <aside class="editor-sidebar">
+          <div class="section-card sidebar-card">
+            <div class="sidebar-section-title">发布设置</div>
+            <div class="sidebar-section">
+              <div class="field-row">
+                <label class="field-label">可见范围</label>
+                <NPopover trigger="hover" placement="left" :width="260">
+                  <template #trigger>
+                    <NIcon size="16" class="help-icon"><InformationCircleOutline /></NIcon>
+                  </template>
+                  <div class="help-content">
+                    <p class="help-title">关于可见范围</p>
+                    <p class="help-intro">
+                      权限等级越低（A→0），可见范围越小；你的等级决定了你能设置的最高权限。
+                    </p>
+                    <div v-for="opt in accessLevelOptions" :key="opt.value" class="help-item">
+                      <strong>{{ opt.label }}</strong>
+                      <p class="help-summary">{{ accessLevelDescriptions[opt.value].summary }}</p>
+                      <p class="help-detail">{{ accessLevelDescriptions[opt.value].detail }}</p>
+                    </div>
+                    <p class="help-note">发布后仍可在文章管理中修改可见范围。</p>
+                  </div>
+                </NPopover>
+              </div>
+              <NSelect
+                v-model:value="form.access_level"
+                :options="accessLevelOptions"
+                size="small"
+                class="themed-select"
+              />
+            </div>
+            <div class="sidebar-section">
+              <label class="field-label">标签</label>
+              <NSelect
+                v-model:value="form.tags"
+                multiple
+                filterable
+                tag
+                :options="tagOptions"
+                placeholder="搜索或输入新标签"
+                size="small"
+                class="themed-select"
+              />
             </div>
           </div>
-        </NCard>
-      </aside>
+
+          <div class="section-card sidebar-card">
+            <div class="sidebar-section-title">操作</div>
+            <div class="sidebar-actions">
+              <NButton
+                type="primary"
+                block
+                :loading="submitting"
+                :disabled="!canSubmit"
+                @click="submit"
+              >
+                <template #icon
+                  ><NIcon><SendOutline /></NIcon
+                ></template>
+                {{ mode === 'edit' ? '保存修改' : '提交审核' }}
+              </NButton>
+              <NButton block @click="saveDraft">
+                <template #icon
+                  ><NIcon><SaveOutline /></NIcon
+                ></template>
+                保存草稿
+              </NButton>
+              <div class="draft-info" v-if="lastSaved">
+                <span class="draft-time">草稿已存 {{ lastSaved }}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
-  </div>
+  </ConsoleShell>
 </template>
 
 <style scoped>
 .post-editor-page {
-  max-width: 1120px;
-  margin: 0 auto;
+  max-width: 100%;
+}
+
+.page-heading {
+  margin-bottom: 16px;
+}
+
+.page-heading h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .editor-shell {
@@ -300,36 +348,20 @@ onBeforeUnmount(() => {
 }
 
 .editor-card {
-  --n-padding: 0;
+  padding: 20px;
+}
+
+.section-card {
+  background: rgba(255, 248, 236, 0.72);
+  border: 1px solid rgba(130, 95, 65, 0.14);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(4px);
 }
 
 .editor-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-left h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.back-btn {
-  color: var(--text-tertiary);
-  transition: color 0.2s;
-}
-
-.back-btn:hover {
-  color: var(--primary-color);
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 
 .header-right {
@@ -343,18 +375,9 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
-.editor-body {
-  padding: 0 24px 24px;
-}
-
 .title-section {
   position: relative;
-  padding-top: 8px;
-}
-
-.title-input :deep(.n-input__input) {
-  font-size: 22px !important;
-  font-weight: 600 !important;
+  padding-top: 4px;
 }
 
 .title-counter {
@@ -412,11 +435,16 @@ onBeforeUnmount(() => {
 
 .sidebar-card {
   margin-bottom: 16px;
+  padding: 16px;
 }
 
-.sidebar-title {
+.sidebar-section-title {
   font-size: 14px;
   font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(130, 95, 65, 0.1);
 }
 
 .sidebar-section {
@@ -427,11 +455,59 @@ onBeforeUnmount(() => {
   margin-bottom: 0;
 }
 
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
 .field-label {
   display: block;
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+}
+
+.help-icon {
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.help-icon:hover {
+  color: var(--primary-color);
+}
+
+.help-content {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.help-title {
+  font-weight: 600;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.help-item {
+  margin-bottom: 8px;
+}
+
+.help-item:last-child {
+  margin-bottom: 0;
+}
+
+.help-item p {
+  margin: 2px 0 0;
+  color: var(--text-tertiary);
+}
+
+.help-note {
+  margin: 8px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  border-top: 1px solid rgba(130, 95, 65, 0.1);
+  padding-top: 6px;
 }
 
 .sidebar-actions {
@@ -448,11 +524,54 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
+/* ── 主题覆盖：输入框/下拉框 ── */
+.themed-input {
+  --n-color: rgba(255, 248, 236, 0.52) !important;
+}
+
+.themed-input :deep(.n-input__border) {
+  border-color: rgba(130, 95, 65, 0.14) !important;
+}
+
+.themed-input :deep(.n-input__state-border) {
+  border-color: rgba(154, 90, 47, 0.3) !important;
+}
+
+.themed-select {
+  --n-color: rgba(255, 248, 236, 0.52) !important;
+}
+
+.themed-select :deep(.n-base-selection__border) {
+  border-color: rgba(130, 95, 65, 0.14) !important;
+}
+
+.themed-select :deep(.n-base-selection__state-border) {
+  border-color: rgba(154, 90, 47, 0.3) !important;
+}
+
+.help-intro {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.help-summary {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.help-detail {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
 @media (max-width: 860px) {
   .editor-shell {
     grid-template-columns: 1fr;
   }
-
   .editor-sidebar {
     order: -1;
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { NCard, NGrid, NGi, NDataTable, NAlert } from 'naive-ui'
+import ConsoleShell from '@/components/ConsoleShell.vue'
 import { getMyPostsApi, getPostCommentsApi, type BlogPost } from '@/services/api'
 
 interface MetricRow {
@@ -17,7 +18,6 @@ const rows = ref<MetricRow[]>([])
 const totalPosts = ref(0)
 const totalComments = ref(0)
 const totalLikes = ref(0)
-const totalFavorites = ref(0)
 
 const columns = [
   { title: '标题', key: 'title' },
@@ -34,14 +34,16 @@ const columns = [
 const statCards = computed(() => [
   { label: '文章总数', value: totalPosts.value },
   { label: '总评论', value: totalComments.value },
-  { label: '总点赞', value: totalLikes.value },
-  { label: '总收藏', value: totalFavorites.value }
+  { label: '总点赞', value: totalLikes.value }
 ])
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getMyPostsApi({ page: 1, page_size: 50 })
+    const res = await getMyPostsApi(
+      { page: 1, page_size: 50 },
+      { silent: true, skipAuthLogout: true }
+    )
     const list = res.list || []
     totalPosts.value = list.length
 
@@ -50,7 +52,7 @@ const fetchData = async () => {
         const comments = await getPostCommentsApi(
           post.id,
           { page: 1, page_size: 1 },
-          { silent: true }
+          { silent: true, skipAuthLogout: true }
         )
         return {
           post,
@@ -70,7 +72,11 @@ const fetchData = async () => {
 
     totalComments.value = rows.value.reduce((sum, item) => sum + item.comments, 0)
     totalLikes.value = rows.value.reduce((sum, item) => sum + item.likes, 0)
-    totalFavorites.value = 0
+  } catch {
+    rows.value = []
+    totalPosts.value = 0
+    totalComments.value = 0
+    totalLikes.value = 0
   } finally {
     loading.value = false
   }
@@ -80,35 +86,78 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="creator-dashboard">
-    <NAlert type="info" style="margin-bottom: 12px">
-      TODO：后端补充 analytics 接口后，将聚合逻辑替换为 `/blog/analytics/*`。
-    </NAlert>
-    <NGrid :cols="4" :x-gap="12">
-      <NGi v-for="card in statCards" :key="card.label">
-        <NCard class="card-glass">
-          <div class="stat-label">{{ card.label }}</div>
-          <div class="stat-value">{{ card.value }}</div>
+  <ConsoleShell>
+    <div class="creator-dashboard">
+      <div class="page-heading">
+        <h2>创作者看板</h2>
+      </div>
+
+      <NAlert type="info" style="margin-bottom: 12px">
+        TODO：后端补充 analytics 接口后，将聚合逻辑替换为 `/blog/analytics/*`。
+      </NAlert>
+
+      <NGrid :cols="3" :x-gap="12">
+        <NGi v-for="card in statCards" :key="card.label">
+          <div class="section-card stat-card">
+            <div class="stat-label">{{ card.label }}</div>
+            <div class="stat-value">{{ card.value }}</div>
+          </div>
+        </NGi>
+      </NGrid>
+
+      <div class="section-card" style="margin-top: 12px; padding: 0">
+        <NCard
+          :loading="loading"
+          title="内容表现排行（近 50 篇）"
+          :bordered="false"
+          style="background: transparent"
+        >
+          <NDataTable :columns="columns" :data="rows" />
         </NCard>
-      </NGi>
-    </NGrid>
-    <NCard style="margin-top: 12px" :loading="loading" title="内容表现排行（近 50 篇）">
-      <NDataTable :columns="columns" :data="rows" />
-    </NCard>
-  </div>
+      </div>
+    </div>
+  </ConsoleShell>
 </template>
 
 <style scoped>
 .creator-dashboard {
+  max-width: 100%;
+}
+
+.page-heading {
+  margin-bottom: 16px;
+}
+
+.page-heading h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-card {
+  background: rgba(255, 248, 236, 0.72);
+  border: 1px solid rgba(130, 95, 65, 0.14);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(4px);
+}
+
+.stat-card {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: 20px;
 }
+
 .stat-label {
   color: var(--text-secondary);
   margin-bottom: 6px;
+  font-size: 14px;
 }
+
 .stat-value {
   font-size: 28px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 </style>
