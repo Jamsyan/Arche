@@ -24,7 +24,6 @@
           </div>
         </div>
         <div class="action-area">
-          <RouterLink v-if="isLoggedIn" to="/posts/new" class="nav-item">创作</RouterLink>
           <RouterLink v-if="isLoggedIn" to="/profile" class="avatar-link">{{
             userInitial
           }}</RouterLink>
@@ -37,7 +36,10 @@
     </header>
     <main class="guest-main">
       <div class="container">
-        <slot />
+        <ConsoleShell v-if="isConsoleRoute">
+          <slot />
+        </ConsoleShell>
+        <slot v-else />
       </div>
     </main>
     <footer class="guest-footer glass">
@@ -99,18 +101,21 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { NIcon } from 'naive-ui'
 import { DocumentTextOutline, SearchOutline } from '@vicons/ionicons5'
 import SiteLogo from '@/components/SiteLogo.vue'
+import ConsoleShell from '@/components/ConsoleShell.vue'
 import { useUserStore } from '@/store/modules/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const route = useRoute()
 const searchKeyword = ref('')
 
 const currentYear = new Date().getFullYear()
 const isLoggedIn = computed(() => Boolean(userStore.token))
+const isConsoleRoute = computed(() => route.meta?.console === true)
 const userInitial = computed(
   () => (userStore.userInfo?.nickname || userStore.userInfo?.username || '我')[0]
 )

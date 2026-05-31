@@ -1,20 +1,50 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NInput, NButton, NSelect, NTag, NDivider, useMessage, NIcon, NPopover } from 'naive-ui'
-import { EyeOutline, SaveOutline, SendOutline, InformationCircleOutline } from '@vicons/ionicons5'
-import ConsoleShell from '@/components/ConsoleShell.vue'
+import {
+  NInput,
+  NButton,
+  NSelect,
+  NTag,
+  NDivider,
+  useMessage,
+  NIcon,
+  NPopover,
+  useDialog
+} from 'naive-ui'
+import {
+  EyeOutline,
+  SaveOutline,
+  SendOutline,
+  InformationCircleOutline,
+  CloudUploadOutline,
+  ImageOutline,
+  DocumentOutline,
+  TrashOutline
+} from '@vicons/ionicons5'
 import {
   createPostApi,
   updatePostApi,
   getPostByIdApi,
   getBlogTagsApi,
+  uploadOssFileApi,
+  getMyOssFilesApi,
+  deleteOssFileApi,
+  getOssFileUrl,
+  type OSSFile,
   type BlogTag
 } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
+const dialog = useDialog()
+
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
+const mediaFiles = ref<OSSFile[]>([])
+const loadingMedia = ref(false)
+const contentRef = ref<InstanceType<typeof NInput> | null>(null)
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -160,10 +190,83 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+const triggerFileInput = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileSelect = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  uploading.value = true
+  try {
+    await uploadOssFileApi(file, false, { silent: true })
+    message.success('上传成功')
+    input.value = ''
+    await fetchMediaFiles()
+  } catch {
+    message.error('上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+const fetchMediaFiles = async () => {
+  loadingMedia.value = true
+  try {
+    const res = await getMyOssFilesApi(
+      { limit: 20, offset: 0 },
+      { silent: true, skipAuthLogout: true }
+    )
+    mediaFiles.value = res.list
+  } catch {
+    // 静默失败
+  } finally {
+    loadingMedia.value = false
+  }
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const insertMedia = async (file: OSSFile) => {
+  const url = getOssFileUrl(file.id)
+  const filename = file.path.split('/').pop() || 'media'
+  const isImage = file.mime_type.startsWith('image/')
+  const snippet = isImage ? `![${filename}](${url})` : `[${filename}](${url})`
+
+  form.value.content += '\n' + snippet
+  message.success('已插入到文章末尾')
+}
+
+const confirmDeleteMedia = (file: OSSFile) => {
+  const filename = file.path.split('/').pop() || '文件'
+  dialog.warning({
+    title: '删除素材',
+    content: `确定删除「${filename}」吗？`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteOssFileApi(file.id, { silent: true })
+        message.success('已删除')
+        mediaFiles.value = mediaFiles.value.filter((f) => f.id !== file.id)
+      } catch {
+        message.error('删除失败')
+      }
+    }
+  })
+}
+
 onMounted(async () => {
   await fetchTags()
   await fetchDetail()
   loadDraft()
+  await fetchMediaFiles()
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -173,155 +276,200 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <ConsoleShell>
-    <div class="post-editor-page">
-      <div class="page-heading">
-        <h2>{{ mode === 'edit' ? '编辑文章' : '创作新文章' }}</h2>
+  <div class="post-editor-page">
+    <div class="page-heading">
+      <h2>{{ mode === 'edit' ? '编辑文章' : '创作新文章' }}</h2>
+    </div>
+    <div class="editor-shell">
+      <div class="editor-main">
+        <div class="section-card editor-card">
+          <div class="editor-header">
+            <div class="header-right">
+              <span class="word-count">{{ wordCount }} 字</span>
+              <NButton quaternary size="small" @click="showPreview = !showPreview">
+                <template #icon
+                  ><NIcon><EyeOutline /></NIcon
+                ></template>
+                {{ showPreview ? '编辑' : '预览' }}
+              </NButton>
+            </div>
+          </div>
+
+          <div v-show="!showPreview" class="edit-area">
+            <div class="title-section">
+              <NInput
+                v-model:value="form.title"
+                placeholder="输入文章标题……"
+                size="large"
+                :maxlength="120"
+                class="themed-input title-input"
+                :input-props="{
+                  style: 'font-size: 22px; font-weight: 600; border: none; padding: 12px 0;'
+                }"
+              />
+              <div class="title-counter">
+                <span class="counter-text">{{ titleWordCount }}/120</span>
+              </div>
+            </div>
+
+            <NDivider style="margin: 0 0 16px" />
+
+            <div class="content-section">
+              <NInput
+                ref="contentRef"
+                v-model:value="form.content"
+                type="textarea"
+                :autosize="{ minRows: 18, maxRows: 36 }"
+                placeholder="开始写下你的想法……"
+                class="themed-input content-input"
+              />
+            </div>
+          </div>
+
+          <div v-show="showPreview" class="preview-area">
+            <div class="preview-content" v-if="form.content">
+              <h1 class="preview-title">{{ form.title || '（无标题）' }}</h1>
+              <div class="preview-meta">
+                <NTag
+                  v-for="tag in form.tags"
+                  :key="tag"
+                  size="small"
+                  :bordered="false"
+                  class="preview-tag"
+                  >{{ tag }}</NTag
+                >
+              </div>
+              <NDivider />
+              <div class="preview-body">{{ form.content }}</div>
+            </div>
+            <div v-else class="preview-empty">
+              <p>暂无内容可预览</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="editor-shell">
-        <div class="editor-main">
-          <div class="section-card editor-card">
-            <div class="editor-header">
-              <div class="header-right">
-                <span class="word-count">{{ wordCount }} 字</span>
-                <NButton quaternary size="small" @click="showPreview = !showPreview">
-                  <template #icon
-                    ><NIcon><EyeOutline /></NIcon
-                  ></template>
-                  {{ showPreview ? '编辑' : '预览' }}
-                </NButton>
-              </div>
-            </div>
 
-            <div v-show="!showPreview" class="edit-area">
-              <div class="title-section">
-                <NInput
-                  v-model:value="form.title"
-                  placeholder="输入文章标题……"
-                  size="large"
-                  :maxlength="120"
-                  class="themed-input title-input"
-                  :input-props="{
-                    style: 'font-size: 22px; font-weight: 600; border: none; padding: 12px 0;'
-                  }"
-                />
-                <div class="title-counter">
-                  <NTag size="tiny" :bordered="false">{{ titleWordCount }}/120</NTag>
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/*,video/*"
+        style="display: none"
+        @change="handleFileSelect"
+      />
+
+      <aside class="editor-sidebar">
+        <div class="section-card sidebar-card">
+          <div class="sidebar-section-title">发布设置</div>
+          <div class="sidebar-section">
+            <div class="field-row">
+              <label class="field-label">可见范围</label>
+              <NPopover trigger="hover" placement="left" :width="260">
+                <template #trigger>
+                  <NIcon size="16" class="help-icon"><InformationCircleOutline /></NIcon>
+                </template>
+                <div class="help-content">
+                  <p class="help-title">关于可见范围</p>
+                  <p class="help-intro">
+                    权限等级越低（A→0），可见范围越小；你的等级决定了你能设置的最高权限。
+                  </p>
+                  <div v-for="opt in accessLevelOptions" :key="opt.value" class="help-item">
+                    <strong>{{ opt.label }}</strong>
+                    <p class="help-summary">{{ accessLevelDescriptions[opt.value].summary }}</p>
+                    <p class="help-detail">{{ accessLevelDescriptions[opt.value].detail }}</p>
+                  </div>
+                  <p class="help-note">发布后仍可在文章管理中修改可见范围。</p>
                 </div>
-              </div>
-
-              <NDivider style="margin: 0 0 16px" />
-
-              <div class="content-section">
-                <NInput
-                  v-model:value="form.content"
-                  type="textarea"
-                  :autosize="{ minRows: 18, maxRows: 36 }"
-                  placeholder="开始写下你的想法……"
-                  class="themed-input content-input"
-                />
-              </div>
+              </NPopover>
             </div>
+            <NSelect
+              v-model:value="form.access_level"
+              :options="accessLevelOptions"
+              size="small"
+              class="themed-select"
+            />
+          </div>
+          <div class="sidebar-section">
+            <label class="field-label">标签</label>
+            <NSelect
+              v-model:value="form.tags"
+              multiple
+              filterable
+              tag
+              :options="tagOptions"
+              placeholder="搜索或输入新标签"
+              size="small"
+              class="themed-select"
+            />
+          </div>
+        </div>
 
-            <div v-show="showPreview" class="preview-area">
-              <div class="preview-content" v-if="form.content">
-                <h1 class="preview-title">{{ form.title || '（无标题）' }}</h1>
-                <div class="preview-meta">
-                  <NTag
-                    v-for="tag in form.tags"
-                    :key="tag"
-                    size="small"
-                    :bordered="false"
-                    class="preview-tag"
-                    >{{ tag }}</NTag
-                  >
-                </div>
-                <NDivider />
-                <div class="preview-body">{{ form.content }}</div>
-              </div>
-              <div v-else class="preview-empty">
-                <p>暂无内容可预览</p>
-              </div>
+        <div class="section-card sidebar-card">
+          <div class="sidebar-section-title">操作</div>
+          <div class="sidebar-actions">
+            <NButton
+              type="primary"
+              block
+              :loading="submitting"
+              :disabled="!canSubmit"
+              @click="submit"
+            >
+              <template #icon
+                ><NIcon><SendOutline /></NIcon
+              ></template>
+              {{ mode === 'edit' ? '保存修改' : '提交审核' }}
+            </NButton>
+            <NButton block @click="saveDraft">
+              <template #icon
+                ><NIcon><SaveOutline /></NIcon
+              ></template>
+              保存草稿
+            </NButton>
+            <div class="draft-info" v-if="lastSaved">
+              <span class="draft-time">草稿已存 {{ lastSaved }}</span>
             </div>
           </div>
         </div>
 
-        <aside class="editor-sidebar">
-          <div class="section-card sidebar-card">
-            <div class="sidebar-section-title">发布设置</div>
-            <div class="sidebar-section">
-              <div class="field-row">
-                <label class="field-label">可见范围</label>
-                <NPopover trigger="hover" placement="left" :width="260">
-                  <template #trigger>
-                    <NIcon size="16" class="help-icon"><InformationCircleOutline /></NIcon>
-                  </template>
-                  <div class="help-content">
-                    <p class="help-title">关于可见范围</p>
-                    <p class="help-intro">
-                      权限等级越低（A→0），可见范围越小；你的等级决定了你能设置的最高权限。
-                    </p>
-                    <div v-for="opt in accessLevelOptions" :key="opt.value" class="help-item">
-                      <strong>{{ opt.label }}</strong>
-                      <p class="help-summary">{{ accessLevelDescriptions[opt.value].summary }}</p>
-                      <p class="help-detail">{{ accessLevelDescriptions[opt.value].detail }}</p>
-                    </div>
-                    <p class="help-note">发布后仍可在文章管理中修改可见范围。</p>
-                  </div>
-                </NPopover>
-              </div>
-              <NSelect
-                v-model:value="form.access_level"
-                :options="accessLevelOptions"
-                size="small"
-                class="themed-select"
-              />
-            </div>
-            <div class="sidebar-section">
-              <label class="field-label">标签</label>
-              <NSelect
-                v-model:value="form.tags"
-                multiple
-                filterable
-                tag
-                :options="tagOptions"
-                placeholder="搜索或输入新标签"
-                size="small"
-                class="themed-select"
-              />
-            </div>
+        <div class="section-card sidebar-card">
+          <div class="sidebar-section-title">多媒体素材</div>
+          <div class="media-upload-area">
+            <NButton block dashed :loading="uploading" @click="triggerFileInput">
+              <template #icon
+                ><NIcon><CloudUploadOutline /></NIcon
+              ></template>
+              上传图片 / 视频
+            </NButton>
           </div>
-
-          <div class="section-card sidebar-card">
-            <div class="sidebar-section-title">操作</div>
-            <div class="sidebar-actions">
-              <NButton
-                type="primary"
-                block
-                :loading="submitting"
-                :disabled="!canSubmit"
-                @click="submit"
-              >
-                <template #icon
-                  ><NIcon><SendOutline /></NIcon
-                ></template>
-                {{ mode === 'edit' ? '保存修改' : '提交审核' }}
-              </NButton>
-              <NButton block @click="saveDraft">
-                <template #icon
-                  ><NIcon><SaveOutline /></NIcon
-                ></template>
-                保存草稿
-              </NButton>
-              <div class="draft-info" v-if="lastSaved">
-                <span class="draft-time">草稿已存 {{ lastSaved }}</span>
+          <div v-if="loadingMedia" class="media-loading">加载中……</div>
+          <div v-else-if="mediaFiles.length > 0" class="media-list">
+            <div v-for="file in mediaFiles" :key="file.id" class="media-item">
+              <div class="media-info">
+                <NIcon size="16" class="media-type-icon">
+                  <ImageOutline v-if="file.mime_type.startsWith('image/')" />
+                  <DocumentOutline v-else />
+                </NIcon>
+                <div class="media-meta">
+                  <span class="media-name">{{ file.path.split('/').pop() }}</span>
+                  <span class="media-size">{{ formatFileSize(file.size) }}</span>
+                </div>
+              </div>
+              <div class="media-actions">
+                <NButton size="tiny" quaternary @click="insertMedia(file)">插入</NButton>
+                <NButton size="tiny" quaternary type="error" @click="confirmDeleteMedia(file)">
+                  <template #icon
+                    ><NIcon><TrashOutline /></NIcon
+                  ></template>
+                </NButton>
               </div>
             </div>
           </div>
-        </aside>
-      </div>
+          <div v-else class="media-empty">
+            <span>暂无素材，上传后可插入到文章中</span>
+          </div>
+        </div>
+      </aside>
     </div>
-  </ConsoleShell>
+  </div>
 </template>
 
 <style scoped>
@@ -383,7 +531,14 @@ onBeforeUnmount(() => {
 .title-counter {
   position: absolute;
   right: 0;
-  bottom: -4px;
+  bottom: 2px;
+}
+
+.counter-text {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px;
 }
 
 .content-section {
@@ -527,6 +682,8 @@ onBeforeUnmount(() => {
 /* ── 主题覆盖：输入框/下拉框 ── */
 .themed-input {
   --n-color: rgba(255, 248, 236, 0.52) !important;
+  --n-color-focus: rgba(255, 248, 236, 0.52) !important;
+  --n-box-shadow-focus: 0 0 0 2px rgba(154, 90, 47, 0.18) !important;
 }
 
 .themed-input :deep(.n-input__border) {
@@ -539,6 +696,13 @@ onBeforeUnmount(() => {
 
 .themed-select {
   --n-color: rgba(255, 248, 236, 0.52) !important;
+  --n-color-active: rgba(255, 248, 236, 0.52) !important;
+}
+
+.themed-select :deep(.n-base-selection) {
+  --n-color: rgba(255, 248, 236, 0.52) !important;
+  --n-color-active: rgba(255, 248, 236, 0.52) !important;
+  --n-box-shadow-focus: 0 0 0 2px rgba(154, 90, 47, 0.18) !important;
 }
 
 .themed-select :deep(.n-base-selection__border) {
@@ -568,6 +732,86 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
+/* ── 多媒体素材 ── */
+.media-upload-area {
+  margin-bottom: 12px;
+}
+
+.media-loading {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  padding: 12px 0;
+}
+
+.media-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.media-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.media-item:hover {
+  background: rgba(130, 95, 65, 0.06);
+}
+
+.media-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.media-type-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.media-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.media-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-size {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.media-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.media-empty {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 16px 0;
+  line-height: 1.6;
+}
+
 @media (max-width: 860px) {
   .editor-shell {
     grid-template-columns: 1fr;
@@ -575,5 +819,15 @@ onBeforeUnmount(() => {
   .editor-sidebar {
     order: -1;
   }
+}
+</style>
+
+<!-- 非 scoped：NSelect 下拉菜单弹出面板背景色统一 -->
+<style>
+.n-base-select-menu {
+  --n-color: rgba(255, 248, 236, 0.97) !important;
+  --n-option-color-pending: rgba(154, 90, 47, 0.08) !important;
+  --n-option-color-active: rgba(154, 90, 47, 0.06) !important;
+  --n-option-color-active-pending: rgba(154, 90, 47, 0.12) !important;
 }
 </style>

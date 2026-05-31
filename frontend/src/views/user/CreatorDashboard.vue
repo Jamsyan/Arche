@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { NCard, NGrid, NGi, NDataTable, NAlert } from 'naive-ui'
-import ConsoleShell from '@/components/ConsoleShell.vue'
 import { getMyPostsApi, getPostCommentsApi, type BlogPost } from '@/services/api'
 
 interface MetricRow {
@@ -86,37 +85,35 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <ConsoleShell>
-    <div class="creator-dashboard">
-      <div class="page-heading">
-        <h2>创作者看板</h2>
-      </div>
-
-      <NAlert type="info" style="margin-bottom: 12px">
-        TODO：后端补充 analytics 接口后，将聚合逻辑替换为 `/blog/analytics/*`。
-      </NAlert>
-
-      <NGrid :cols="3" :x-gap="12">
-        <NGi v-for="card in statCards" :key="card.label">
-          <div class="section-card stat-card">
-            <div class="stat-label">{{ card.label }}</div>
-            <div class="stat-value">{{ card.value }}</div>
-          </div>
-        </NGi>
-      </NGrid>
-
-      <div class="section-card" style="margin-top: 12px; padding: 0">
-        <NCard
-          :loading="loading"
-          title="内容表现排行（近 50 篇）"
-          :bordered="false"
-          style="background: transparent"
-        >
-          <NDataTable :columns="columns" :data="rows" />
-        </NCard>
-      </div>
+  <div class="creator-dashboard">
+    <div class="page-heading">
+      <h2>创作者看板</h2>
     </div>
-  </ConsoleShell>
+
+    <NAlert type="info" style="margin-bottom: 12px">
+      TODO：后端补充 analytics 接口后，将聚合逻辑替换为 `/blog/analytics/*`。
+    </NAlert>
+
+    <NGrid :cols="3" :x-gap="12">
+      <NGi v-for="card in statCards" :key="card.label">
+        <div class="section-card stat-card">
+          <div class="stat-label">{{ card.label }}</div>
+          <div class="stat-value">{{ card.value }}</div>
+        </div>
+      </NGi>
+    </NGrid>
+
+    <div class="section-card" style="margin-top: 12px; padding: 0">
+      <NCard
+        :loading="loading"
+        title="内容表现排行（近 50 篇）"
+        :bordered="false"
+        style="background: transparent"
+      >
+        <NDataTable :columns="columns" :data="rows" />
+      </NCard>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -159,5 +156,16 @@ onMounted(fetchData)
   font-size: 28px;
   font-weight: 700;
   color: var(--text-primary);
+}
+</style>
+
+<style>
+.n-data-table {
+  --n-th-color: rgba(255, 248, 236, 0.52) !important;
+  --n-td-color: rgba(255, 248, 236, 0.52) !important;
+  --n-td-color-hover: rgba(154, 90, 47, 0.04) !important;
+  --n-border-color: rgba(130, 95, 65, 0.1) !important;
+  --n-th-text-color: var(--text-secondary) !important;
+  --n-td-text-color: var(--text-primary) !important;
 }
 </style>

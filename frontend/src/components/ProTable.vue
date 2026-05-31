@@ -34,8 +34,8 @@ const props = withDefaults(
     page: 1,
     pageSize: 10,
     pageSizes: () => [10, 20, 50],
-    showSizePicker: true,
-    showQuickJumper: true
+    showSizePicker: false,
+    showQuickJumper: false
   }
 )
 void props.request
@@ -106,15 +106,45 @@ watch(
       :row-key="(row: any) => row[rowKey]"
       single-line
     />
-    <NPagination
-      :page="innerPage"
-      :page-size="innerPageSize"
-      :item-count="pagination.itemCount"
-      :page-sizes="pagination.pageSizes"
-      :show-size-picker="showSizePicker"
-      :show-quick-jumper="showQuickJumper"
-      @update:page="handleUpdatePage"
-      @update:page-size="handleUpdatePageSize"
-    />
+    <div class="pager">
+      <NPagination
+        :page="innerPage"
+        :page-size="innerPageSize"
+        :item-count="pagination.itemCount"
+        :page-sizes="pagination.pageSizes"
+        :show-size-picker="showSizePicker"
+        :show-quick-jumper="showQuickJumper"
+        @update:page="handleUpdatePage"
+        @update:page-size="handleUpdatePageSize"
+      />
+    </div>
   </NSpace>
 </template>
+
+<style scoped>
+.pager {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+</style>
+
+<style>
+.n-pagination {
+  --n-item-color-disabled: transparent !important;
+  --n-button-border: 1px solid rgba(130, 95, 65, 0.14) !important;
+  --n-button-border-hover: 1px solid rgba(130, 95, 65, 0.14) !important;
+  --n-button-border-pressed: 1px solid rgba(130, 95, 65, 0.14) !important;
+}
+
+.n-data-table {
+  --n-th-color: rgba(255, 248, 236, 0.52) !important;
+  --n-td-color: rgba(255, 248, 236, 0.52) !important;
+  --n-td-color-hover: rgba(154, 90, 47, 0.04) !important;
+  --n-border-color: rgba(130, 95, 65, 0.1) !important;
+  --n-th-text-color: var(--text-secondary) !important;
+  --n-td-text-color: var(--text-primary) !important;
+  --n-th-icon-color: var(--text-tertiary) !important;
+  --n-th-icon-color-active: var(--primary-color) !important;
+}
+</style>

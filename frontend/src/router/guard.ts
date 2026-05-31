@@ -89,18 +89,12 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // 如果路由还没有加载，生成可访问的路由
+  // 如果权限路由尚未加载，初始化权限状态
   if (!permissionStore.routesLoaded && userStore.userInfo) {
     try {
-      // 根据用户角色生成路由
-      const routes = await permissionStore.generateRoutes(userStore.userInfo.role)
-      // 动态添加路由
-      routes.forEach((route) => {
-        router.addRoute(route)
-      })
-      // 重定向到当前路径，确保路由已经加载
-      next({ ...to, replace: true })
-      return
+      // 根据用户角色生成可访问路由列表（用于菜单渲染）
+      await permissionStore.generateRoutes(userStore.userInfo.role)
+      // 路由已静态注册，无需 addRoute
     } catch {
       // 生成路由失败，跳转到首页
       $message.error('获取权限失败，请重新登录')

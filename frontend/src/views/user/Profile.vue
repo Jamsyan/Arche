@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NDescriptions, NDescriptionsItem, NButton, NModal, NTag, useMessage } from 'naive-ui'
-import ConsoleShell from '@/components/ConsoleShell.vue'
+import { NButton, NDescriptions, NDescriptionsItem, NModal, NTag, useMessage } from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 
 const router = useRouter()
@@ -25,66 +24,64 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <ConsoleShell>
-    <div class="profile-page">
-      <div class="page-heading">
-        <h2>个人资料</h2>
-      </div>
-
-      <div class="section-card">
-        <NDescriptions :column="1" :bordered="false" label-style="width: 100px">
-          <NDescriptionsItem label="用户ID">
-            {{ userStore.userInfo?.id || '-' }}
-          </NDescriptionsItem>
-          <NDescriptionsItem label="用户名">
-            {{ userStore.userInfo?.username || '-' }}
-          </NDescriptionsItem>
-          <NDescriptionsItem label="昵称">
-            {{ userStore.userInfo?.nickname || '-' }}
-          </NDescriptionsItem>
-          <NDescriptionsItem label="角色">
-            <NTag
-              :type="userStore.userInfo?.role === 'admin' ? 'error' : 'primary'"
-              :bordered="false"
-            >
-              {{
-                userStore.userInfo?.role === 'admin'
-                  ? '管理员'
-                  : userStore.userInfo?.role === 'user'
-                    ? '普通用户'
-                    : '访客'
-              }}
-            </NTag>
-          </NDescriptionsItem>
-          <NDescriptionsItem label="权限">
-            {{
-              userStore.userInfo?.permissions.length
-                ? `${userStore.userInfo.permissions.length} 项权限`
-                : '无权限'
-            }}
-          </NDescriptionsItem>
-          <NDescriptionsItem label="注册时间">
-            {{ (userStore.userInfo as any)?.created_at || '-' }}
-          </NDescriptionsItem>
-        </NDescriptions>
-
-        <div class="action-section">
-          <NButton type="error" @click="showLogoutModal = true">退出登录</NButton>
-        </div>
-      </div>
-
-      <NModal
-        v-model:show="showLogoutModal"
-        title="确认退出"
-        preset="dialog"
-        positive-text="确认"
-        negative-text="取消"
-        @positive-click="handleLogout"
-      >
-        <p>确定要退出当前账号吗？</p>
-      </NModal>
+  <div class="profile-page">
+    <div class="page-heading">
+      <h2>个人资料</h2>
     </div>
-  </ConsoleShell>
+
+    <div class="section-card">
+      <NDescriptions :column="1" :bordered="false" label-style="width: 100px">
+        <NDescriptionsItem label="用户ID">
+          {{ userStore.userInfo?.id || '-' }}
+        </NDescriptionsItem>
+        <NDescriptionsItem label="用户名">
+          {{ userStore.userInfo?.username || '-' }}
+        </NDescriptionsItem>
+        <NDescriptionsItem label="昵称">
+          {{ userStore.userInfo?.nickname || '-' }}
+        </NDescriptionsItem>
+        <NDescriptionsItem label="角色">
+          <NTag
+            :type="userStore.userInfo?.role === 'admin' ? 'error' : 'primary'"
+            :bordered="false"
+          >
+            {{
+              userStore.userInfo?.role === 'admin'
+                ? '管理员'
+                : userStore.userInfo?.role === 'user'
+                  ? '普通用户'
+                  : '访客'
+            }}
+          </NTag>
+        </NDescriptionsItem>
+        <NDescriptionsItem label="权限">
+          {{
+            userStore.userInfo?.permissions.length
+              ? `${userStore.userInfo.permissions.length} 项权限`
+              : '无权限'
+          }}
+        </NDescriptionsItem>
+        <NDescriptionsItem label="注册时间">
+          {{ (userStore.userInfo as any)?.created_at || '-' }}
+        </NDescriptionsItem>
+      </NDescriptions>
+
+      <div class="action-section">
+        <NButton type="error" @click="showLogoutModal = true">退出登录</NButton>
+      </div>
+    </div>
+
+    <NModal
+      v-model:show="showLogoutModal"
+      title="确认退出"
+      preset="dialog"
+      positive-text="确认"
+      negative-text="取消"
+      @positive-click="handleLogout"
+    >
+      <p>确定要退出当前账号吗？</p>
+    </NModal>
+  </div>
 </template>
 
 <style scoped>

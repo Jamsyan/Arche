@@ -2,7 +2,6 @@
 import { onMounted, ref } from 'vue'
 import { NCard, NButton, NGrid, NGi, NTag, NIcon } from 'naive-ui'
 import { CreateOutline, DocumentTextOutline } from '@vicons/ionicons5'
-import ConsoleShell from '@/components/ConsoleShell.vue'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
 
 const loading = ref(false)
@@ -56,54 +55,52 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <ConsoleShell>
-    <div class="console-page">
-      <div class="page-heading">
-        <h2>控制台</h2>
-        <p class="page-desc">管理你的内容与创作</p>
-      </div>
-
-      <NGrid :cols="2" :x-gap="12" :y-gap="12" class="stats-grid">
-        <NGi v-for="card in statCards" :key="card.label">
-          <div class="glass-card stat-card">
-            <div class="stat-inner">
-              <div class="stat-icon" :style="{ background: card.color + '18', color: card.color }">
-                <NIcon :size="22"><component :is="card.icon" /></NIcon>
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ card.value }}</span>
-                <span class="stat-label">{{ card.label }}</span>
-              </div>
-            </div>
-          </div>
-        </NGi>
-      </NGrid>
-
-      <NCard title="最近文章" :loading="loading" class="section-card" :bordered="false">
-        <div v-if="recentPosts.length === 0" class="empty-state">
-          <p>还没有文章，开始你的第一篇创作吧</p>
-          <NButton type="primary" @click="$router.push('/posts/new')">写文章</NButton>
-        </div>
-        <div v-else class="post-list">
-          <div v-for="post in recentPosts" :key="post.id" class="post-row">
-            <div class="post-info">
-              <span class="post-title" @click="$router.push(`/posts/${post.slug || post.id}`)">
-                {{ post.title }}
-              </span>
-              <NTag size="tiny" :type="getStatus(post).type" :bordered="false">
-                {{ getStatus(post).label }}
-              </NTag>
-            </div>
-            <div class="post-meta">
-              <span>{{ (post.created_at || '').slice(0, 10) }}</span>
-              <span v-if="post.likes !== undefined">{{ post.likes }} 赞</span>
-              <span v-if="post.views !== undefined">{{ post.views }} 阅读</span>
-            </div>
-          </div>
-        </div>
-      </NCard>
+  <div class="console-page">
+    <div class="page-heading">
+      <h2>控制台</h2>
+      <p class="page-desc">管理你的内容与创作</p>
     </div>
-  </ConsoleShell>
+
+    <NGrid :cols="2" :x-gap="12" :y-gap="12" class="stats-grid">
+      <NGi v-for="card in statCards" :key="card.label">
+        <div class="glass-card stat-card">
+          <div class="stat-inner">
+            <div class="stat-icon" :style="{ background: card.color + '18', color: card.color }">
+              <NIcon :size="22"><component :is="card.icon" /></NIcon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">{{ card.value }}</span>
+              <span class="stat-label">{{ card.label }}</span>
+            </div>
+          </div>
+        </div>
+      </NGi>
+    </NGrid>
+
+    <NCard title="最近文章" :loading="loading" class="section-card" :bordered="false">
+      <div v-if="recentPosts.length === 0" class="empty-state">
+        <p>还没有文章，开始你的第一篇创作吧</p>
+        <NButton type="primary" @click="$router.push('/posts/new')">写文章</NButton>
+      </div>
+      <div v-else class="post-list">
+        <div v-for="post in recentPosts" :key="post.id" class="post-row">
+          <div class="post-info">
+            <span class="post-title" @click="$router.push(`/posts/${post.slug || post.id}`)">
+              {{ post.title }}
+            </span>
+            <NTag size="tiny" :type="getStatus(post).type" :bordered="false">
+              {{ getStatus(post).label }}
+            </NTag>
+          </div>
+          <div class="post-meta">
+            <span>{{ (post.created_at || '').slice(0, 10) }}</span>
+            <span v-if="post.likes !== undefined">{{ post.likes }} 赞</span>
+            <span v-if="post.views !== undefined">{{ post.views }} 阅读</span>
+          </div>
+        </div>
+      </div>
+    </NCard>
+  </div>
 </template>
 
 <style scoped>

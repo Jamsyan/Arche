@@ -3,7 +3,6 @@ import { ref, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
 import { AddOutline } from '@/icons'
-import ConsoleShell from '@/components/ConsoleShell.vue'
 import ProTable from '@/components/ProTable.vue'
 import { deletePostApi, getMyPostsApi, type BlogPost, type Paginated } from '@/services/api'
 
@@ -136,21 +135,19 @@ const handleDelete = async (row: PostRow) => {
 </script>
 
 <template>
-  <ConsoleShell>
-    <div class="posts-page">
-      <div class="page-heading">
-        <h2>我的文章</h2>
-        <NButton type="primary" @click="handleCreate">
-          <template #icon><AddOutline /></template>
-          新建文章
-        </NButton>
-      </div>
-
-      <div class="section-card">
-        <ProTable :columns="columns" :data="tableData" :request="fetchPosts" row-key="key" />
-      </div>
+  <div class="posts-page">
+    <div class="page-heading">
+      <h2>我的文章</h2>
+      <NButton type="primary" @click="handleCreate">
+        <template #icon><AddOutline /></template>
+        新建文章
+      </NButton>
     </div>
-  </ConsoleShell>
+
+    <div class="section-card">
+      <ProTable :columns="columns" :data="tableData" :request="fetchPosts" row-key="key" />
+    </div>
+  </div>
 </template>
 
 <style scoped>
