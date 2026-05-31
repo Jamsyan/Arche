@@ -12,8 +12,6 @@ import {
 } from '@vicons/ionicons5'
 import ProTable from '@/components/ProTable.vue'
 import { getBlogPostsApi, type BlogPost } from '@/services/api'
-import { blogMockData } from '@/services/mock'
-import { withFallback } from '@/services/mock'
 import type { MockExploreItem } from '@/services/mock/types'
 
 type ExploreFilterMode = 'tag' | 'author'
@@ -57,11 +55,7 @@ const convertBlogPostToExploreItem = (post: BlogPost, index: number): MockExplor
 const fetchExploreData = async () => {
   loading.value = true
   try {
-    const result = await withFallback(
-      () => getBlogPostsApi({ page: 1, page_size: 20, sort_by: 'created_at' }),
-      { list: blogMockData.posts, total: blogMockData.posts.length, page: 1, page_size: 20 },
-      { silent: true }
-    )
+    const result = await getBlogPostsApi({ page: 1, page_size: 20, sort_by: 'created_at' })
     if (result.list && result.list.length > 0) {
       exploreItems.value = result.list.map(convertBlogPostToExploreItem)
       const tagSet = new Set<string>()
@@ -73,20 +67,15 @@ const fetchExploreData = async () => {
       allTags.value = ['全部', ...Array.from(tagSet)]
       allAuthors.value = ['全部作者', ...Array.from(authorSet)]
     } else {
-      applyFallbackExploreData()
+      exploreItems.value = []
+      allTags.value = ['全部']
+      allAuthors.value = ['全部作者']
     }
   } catch {
-    applyFallbackExploreData()
+    message.error('获取文章列表失败，请刷新重试')
   } finally {
     loading.value = false
   }
-}
-
-const applyFallbackExploreData = () => {
-  exploreItems.value = blogMockData.exploreItems
-  allTags.value = blogMockData.tags
-  allAuthors.value = blogMockData.authors
-  message.warning('后端暂不可用，已展示演示数据')
 }
 
 onMounted(() => {

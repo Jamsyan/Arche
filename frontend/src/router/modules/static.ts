@@ -7,6 +7,7 @@ import Explore from '@/views/Explore.vue'
 import About from '@/views/About.vue'
 import NotFound from '@/views/NotFound.vue'
 import Forbidden from '@/views/Forbidden.vue'
+import Console from '@/views/user/Console.vue'
 
 export const staticRoutes: RouteRecordRaw[] = [
   {
@@ -52,6 +53,16 @@ export const staticRoutes: RouteRecordRaw[] = [
     meta: {
       layout: 'guest',
       requiresAuth: false
+    }
+  },
+  {
+    path: '/console',
+    name: 'Console',
+    component: Console,
+    meta: {
+      title: '控制台',
+      layout: 'guest',
+      requiresAuth: true
     }
   },
   {

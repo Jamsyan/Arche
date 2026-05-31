@@ -11,8 +11,6 @@ import {
 } from '@vicons/ionicons5'
 import { getBlogPostsApi, type BlogPost } from '@/services/api'
 import { useUserStore } from '@/store/modules/user'
-import { blogMockData } from '@/services/mock'
-import { withFallback } from '@/services/mock'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,49 +46,17 @@ const fetchPosts = async () => {
   loading.value = true
   try {
     const [latestRes, hotRes] = await Promise.all([
-      withFallback(
-        () => getBlogPostsApi({ page: page.value, page_size: 12, sort_by: 'created_at' }),
-        { list: blogMockData.posts, total: blogMockData.posts.length, page: 1, page_size: 12 },
-        { silent: true }
-      ),
-      withFallback(
-        () => getBlogPostsApi({ page: 1, page_size: 6, sort_by: 'views' }),
-        {
-          list: blogMockData.posts.slice(0, 6),
-          total: blogMockData.posts.length,
-          page: 1,
-          page_size: 6
-        },
-        { silent: true }
-      )
+      getBlogPostsApi({ page: page.value, page_size: 12, sort_by: 'created_at' }),
+      getBlogPostsApi({ page: 1, page_size: 6, sort_by: 'views' })
     ])
     const latestList = filterByAccess(latestRes.list || [])
     const hotList = filterByAccess(hotRes.list || [])
-    const usedFallback =
-      latestRes.list === blogMockData.posts || hotRes.list === blogMockData.posts.slice(0, 6)
-    if (latestList.length === 0 && hotList.length === 0) {
-      posts.value = blogMockData.posts
-      hotPosts.value = blogMockData.posts.slice(0, 6)
-      total.value = blogMockData.posts.length
-      hotIndex.value = 0
-      if (!usedFallback) {
-        message.warning('接口暂不可用，已展示示例内容')
-      }
-      return
-    }
-    posts.value = latestList.length > 0 ? latestList : blogMockData.posts
-    hotPosts.value = hotList.length > 0 ? hotList : posts.value.slice(0, 6)
-    total.value = latestRes.total || posts.value.length
+    posts.value = latestList
+    hotPosts.value = hotList.length > 0 ? hotList : latestList.slice(0, 6)
+    total.value = latestRes.total || 0
     hotIndex.value = 0
-    if (usedFallback) {
-      message.warning('接口暂不可用，已展示示例内容')
-    }
   } catch {
-    posts.value = blogMockData.posts
-    hotPosts.value = blogMockData.posts.slice(0, 6)
-    total.value = blogMockData.posts.length
-    hotIndex.value = 0
-    message.warning('接口暂不可用，已展示示例内容')
+    message.error('获取文章列表失败，请刷新重试')
   } finally {
     loading.value = false
   }

@@ -10,7 +10,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/Profile.vue'),
       meta: {
         title: '个人中心',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
         permission: API_PERMISSION.AUTH_ME,
         icon: 'PersonOutline'
@@ -22,7 +22,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/Posts.vue'),
       meta: {
         title: '我的文章',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
         permission: API_PERMISSION.BLOG_POSTS_READ,
         icon: 'DocumentTextOutline'
@@ -34,7 +34,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/PostEditor.vue'),
       meta: {
         title: '新建文章',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
         permission: API_PERMISSION.BLOG_POSTS_WRITE,
         icon: 'CreateOutline',
@@ -47,7 +47,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/PostEditor.vue'),
       meta: {
         title: '编辑文章',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
         permission: API_PERMISSION.BLOG_POSTS_WRITE,
         icon: 'CreateOutline',
@@ -60,7 +60,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/CreatorDashboard.vue'),
       meta: {
         title: '创作者看板',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
         permission: API_PERMISSION.BLOG_POSTS_READ,
         icon: 'InformationCircleOutline'

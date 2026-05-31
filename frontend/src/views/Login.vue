@@ -36,22 +36,22 @@
           :show-feedback="true"
           @submit="handleLogin"
         >
-          <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
-            <NSelect
-              v-model:value="formModel.role"
-              :options="roleOptions"
-              placeholder="请选择登录身份"
-            />
-          </NFormItemGi>
-          <NFormItemGi v-else label="账号" path="identity" :span="1">
+          <NFormItemGi label="账号" path="identity" :span="1">
             <NInput v-model:value="formModel.identity" placeholder="请输入用户名或邮箱" />
           </NFormItemGi>
-          <NFormItemGi v-if="!useMockLogin" label="密码" path="password" :span="1">
+          <NFormItemGi label="密码" path="password" :span="1">
             <NInput
               v-model:value="formModel.password"
               type="password"
               show-password-on="click"
               placeholder="请输入密码"
+            />
+          </NFormItemGi>
+          <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
+            <NSelect
+              v-model:value="formModel.role"
+              :options="roleOptions"
+              placeholder="请选择登录身份"
             />
           </NFormItemGi>
           <template #actions="{ submit }">
@@ -225,15 +225,8 @@ const handleLogin = async () => {
     }
     await sleep(560)
 
-    // 根据角色跳转到对应页面
-    const currentRole = userStore.userInfo?.role || formModel.value.role
-    if (currentRole === 'admin') {
-      await router.push('/admin')
-    } else if (currentRole === 'user') {
-      await router.push('/posts')
-    } else {
-      await router.push('/')
-    }
+    // 登录后统一回首页
+    await router.push('/')
   } catch {
     setLockFeedback('error')
     $message.error('登录失败，请重试')

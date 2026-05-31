@@ -7,6 +7,7 @@
           <nav class="nav-menu">
             <RouterLink to="/" class="nav-item">首页</RouterLink>
             <RouterLink to="/explore" class="nav-item">探索</RouterLink>
+            <RouterLink v-if="isLoggedIn" to="/console" class="nav-item">控制台</RouterLink>
             <RouterLink to="/about" class="nav-item">关于</RouterLink>
           </nav>
           <div class="search-wrap">
@@ -23,7 +24,7 @@
           </div>
         </div>
         <div class="action-area">
-          <RouterLink v-if="isLoggedIn" to="/creator" class="nav-item">创作</RouterLink>
+          <RouterLink v-if="isLoggedIn" to="/posts/new" class="nav-item">创作</RouterLink>
           <RouterLink v-if="isLoggedIn" to="/profile" class="avatar-link">{{
             userInitial
           }}</RouterLink>
