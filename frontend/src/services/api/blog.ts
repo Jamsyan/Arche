@@ -34,7 +34,7 @@ export interface CreatePostPayload {
   title: string
   content: string
   tags?: string[]
-  access_level?: number
+  access_level?: string
 }
 
 export interface UpdatePostPayload {

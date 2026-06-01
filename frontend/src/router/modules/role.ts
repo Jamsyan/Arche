@@ -10,8 +10,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/Profile.vue'),
       meta: {
         title: '个人中心',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
+        console: true,
         permission: API_PERMISSION.AUTH_ME,
         icon: 'PersonOutline'
       }
@@ -22,8 +23,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/Posts.vue'),
       meta: {
         title: '我的文章',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
+        console: true,
         permission: API_PERMISSION.BLOG_POSTS_READ,
         icon: 'DocumentTextOutline'
       }
@@ -34,8 +36,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/PostEditor.vue'),
       meta: {
         title: '新建文章',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
+        console: true,
         permission: API_PERMISSION.BLOG_POSTS_WRITE,
         icon: 'CreateOutline',
         menu: false
@@ -47,8 +50,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/PostEditor.vue'),
       meta: {
         title: '编辑文章',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
+        console: true,
         permission: API_PERMISSION.BLOG_POSTS_WRITE,
         icon: 'CreateOutline',
         menu: false
@@ -60,8 +64,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/user/CreatorDashboard.vue'),
       meta: {
         title: '创作者看板',
-        layout: 'user',
+        layout: 'guest',
         requiresAuth: true,
+        console: true,
         permission: API_PERMISSION.BLOG_POSTS_READ,
         icon: 'InformationCircleOutline'
       }
@@ -74,8 +79,9 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
       component: () => import('@/views/admin/Admin.vue'),
       meta: {
         title: '管理后台',
-        layout: 'admin',
+        layout: 'guest',
         requiresAuth: true,
+        console: true,
         role: 'admin',
         permission: API_PERMISSION.AUTH_USERS_LIST,
         menu: false
@@ -88,7 +94,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
           component: () => import('@/views/admin/Users.vue'),
           meta: {
             title: '用户管理',
-            layout: 'admin',
+            layout: 'guest',
             requiresAuth: true,
             role: 'admin',
             permission: API_PERMISSION.AUTH_USERS_LIST,
@@ -101,11 +107,24 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
           component: () => import('@/views/admin/Plugins.vue'),
           meta: {
             title: '插件管理',
-            layout: 'admin',
+            layout: 'guest',
             requiresAuth: true,
             role: 'admin',
             permission: API_PERMISSION.ASSETS_READ,
             icon: 'AppsOutline'
+          }
+        },
+        {
+          path: 'system',
+          name: 'AdminSystemMonitor',
+          component: () => import('@/views/admin/SystemMonitor.vue'),
+          meta: {
+            title: '系统监控',
+            layout: 'guest',
+            requiresAuth: true,
+            role: 'admin',
+            permission: API_PERMISSION.SYSTEM_READ,
+            icon: 'SettingsOutline'
           }
         },
         {
@@ -114,7 +133,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
           component: () => import('@/views/admin/ModerationPending.vue'),
           meta: {
             title: '待审核帖子',
-            layout: 'admin',
+            layout: 'guest',
             requiresAuth: true,
             role: 'admin',
             permission: API_PERMISSION.BLOG_POSTS_MODERATE,
@@ -127,7 +146,7 @@ export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = 
           component: () => import('@/views/admin/ModerationPosts.vue'),
           meta: {
             title: '帖子管理',
-            layout: 'admin',
+            layout: 'guest',
             requiresAuth: true,
             role: 'admin',
             permission: API_PERMISSION.BLOG_POSTS_MODERATE,

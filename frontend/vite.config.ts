@@ -85,11 +85,12 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       open: true, // 自动打开浏览器
       proxy: {
-        // API代理
+        // API代理：后端路由均挂载在 /api 前缀下（如 /api/auth/login），
+        // 前端 baseURL 也是 /api，所以请求路径为 /api/auth/login，
+        // 代理直接透传到后端，不做 rewrite
         '/api': {
           target: apiBaseUrl,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          changeOrigin: true
         }
       },
       // 热更新配置

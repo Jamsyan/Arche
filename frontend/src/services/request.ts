@@ -21,6 +21,7 @@ export interface RequestOptions {
   silent?: boolean
   dedupe?: boolean
   dedupeKey?: string
+  skipAuthLogout?: boolean
 }
 
 export type RequestConfig = AxiosRequestConfig & RequestOptions
@@ -168,8 +169,10 @@ service.interceptors.response.use(
           break
         case 401:
           errorMessage = '未登录或登录已过期，请重新登录'
-          clearAuthStorage()
-          notifyUnauthorized()
+          if (!config?.requestOptions?.skipAuthLogout) {
+            clearAuthStorage()
+            notifyUnauthorized()
+          }
           break
         case 403:
           errorMessage = '权限不足，无法访问'
@@ -196,13 +199,14 @@ service.interceptors.response.use(
 
 // 封装请求方法
 const request = <T = any>(config: RequestConfig): Promise<T> => {
-  const { silent, dedupe, dedupeKey, ...axiosConfig } = config
+  const { silent, dedupe, dedupeKey, skipAuthLogout, ...axiosConfig } = config
   return service.request<any, T>({
     ...axiosConfig,
     requestOptions: {
       silent,
       dedupe,
-      dedupeKey
+      dedupeKey,
+      skipAuthLogout
     }
   } as RequestInternalConfig)
 }

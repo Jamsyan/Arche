@@ -34,8 +34,8 @@ const props = withDefaults(
     page: 1,
     pageSize: 10,
     pageSizes: () => [10, 20, 50],
-    showSizePicker: true,
-    showQuickJumper: true
+    showSizePicker: false,
+    showQuickJumper: false
   }
 )
 void props.request
@@ -106,15 +106,25 @@ watch(
       :row-key="(row: any) => row[rowKey]"
       single-line
     />
-    <NPagination
-      :page="innerPage"
-      :page-size="innerPageSize"
-      :item-count="pagination.itemCount"
-      :page-sizes="pagination.pageSizes"
-      :show-size-picker="showSizePicker"
-      :show-quick-jumper="showQuickJumper"
-      @update:page="handleUpdatePage"
-      @update:page-size="handleUpdatePageSize"
-    />
+    <div class="pager">
+      <NPagination
+        :page="innerPage"
+        :page-size="innerPageSize"
+        :item-count="pagination.itemCount"
+        :page-sizes="pagination.pageSizes"
+        :show-size-picker="showSizePicker"
+        :show-quick-jumper="showQuickJumper"
+        @update:page="handleUpdatePage"
+        @update:page-size="handleUpdatePageSize"
+      />
+    </div>
   </NSpace>
 </template>
+
+<style scoped>
+.pager {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+</style>

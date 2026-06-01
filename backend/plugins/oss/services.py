@@ -77,22 +77,29 @@ class StorageService:
     # --- 后端初始化 ---
 
     def _get_minio(self):
-        """获取 MinIO 对象存储后端（本地主力）。"""
+        """获取 MinIO 对象存储后端（本地主力）。连接失败时返回 None。"""
         if self._minio is not None:
             return self._minio
+        if getattr(self, "_minio_failed", False):
+            return None
 
-        from minio import Minio
-        from backend.plugins.oss.backends import MinIOBackend
+        try:
+            from minio import Minio
+            from backend.plugins.oss.backends import MinIOBackend
 
-        config = self.container.get("config")
-        client = Minio(
-            config.get("MINIO_ENDPOINT", "localhost:9000"),
-            access_key=config.get("MINIO_ROOT_USER", "veiladmin"),
-            secret_key=config.get("MINIO_ROOT_PASSWORD", "veiladmin123"),
-            secure=config.get("MINIO_SECURE", "false").lower() == "true",
-        )
-        self._minio = MinIOBackend(client, bucket="veil-oss")
-        return self._minio
+            config = self.container.get("config")
+            client = Minio(
+                config.get("MINIO_ENDPOINT", "localhost:9000"),
+                access_key=config.get("MINIO_ROOT_USER", "veiladmin"),
+                secret_key=config.get("MINIO_ROOT_PASSWORD", "veiladmin123"),
+                secure=config.get("MINIO_SECURE", "false").lower() == "true",
+            )
+            self._minio = MinIOBackend(client, bucket="veil-oss")
+            return self._minio
+        except Exception as e:
+            logger.warning(f"[OSS] MinIO 不可用，文件存储功能受限: {e}")
+            self._minio_failed = True
+            return None
 
     def _get_aliyun(self):
         """获取阿里云 OSS 后端（冷存储/VIP）。"""

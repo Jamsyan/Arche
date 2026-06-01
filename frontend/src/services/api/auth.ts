@@ -21,6 +21,7 @@ export interface UserInfo {
   avatar?: string
   role: string
   permissions: string[]
+  level?: number
 }
 
 interface RawUserInfo extends Partial<UserInfo> {
@@ -39,12 +40,14 @@ export interface LoginResponse {
 const normalizeLoginResponse = (raw: LoginResponse) => {
   const token = raw.token || raw.access_token || ''
   const baseUser = raw.userInfo || raw.user
+  const userLevel = baseUser?.level ?? 5
   const userInfoBase = {
     id: baseUser?.id || '',
     username: baseUser?.username || '',
     nickname: baseUser?.nickname || baseUser?.username || '',
-    role: baseUser?.role || (baseUser?.level === 0 ? 'admin' : 'user'),
-    permissions: baseUser?.permissions || (baseUser?.level === 0 ? ['*'] : [])
+    role: baseUser?.role || '',
+    level: userLevel,
+    permissions: baseUser?.permissions || []
   }
   const userInfo: UserInfo = baseUser?.avatar
     ? { ...userInfoBase, avatar: baseUser.avatar }
@@ -75,8 +78,9 @@ export const getUserInfoApi = (config?: RequestConfig) =>
       id: String(raw.id || ''),
       username: String(raw.username || ''),
       nickname: String(raw.nickname || raw.username || ''),
-      role: raw.role || (raw.level === 0 ? 'admin' : 'user'),
-      permissions: raw.permissions || (raw.level === 0 ? ['*'] : [])
+      role: raw.role || '',
+      level: raw.level ?? 5,
+      permissions: raw.permissions || []
     }
     return raw.avatar ? { ...base, avatar: raw.avatar as string } : base
   })

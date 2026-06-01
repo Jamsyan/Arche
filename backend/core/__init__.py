@@ -133,6 +133,15 @@ def _setup_logging() -> None:
         }
         logging_config["root"]["handlers"] = handlers
 
+    # 第三方库日志抑制：APScheduler 的调度日志（每秒执行/完成）只应在 WARNING 及以上输出
+    logging_config["loggers"] = {
+        "apscheduler": {
+            "level": "WARNING",
+            "handlers": handlers,
+            "propagate": False,
+        },
+    }
+
     logging.config.dictConfig(logging_config)
 
 

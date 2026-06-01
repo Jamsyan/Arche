@@ -424,8 +424,7 @@ class BlogService:
             author_result = await session.execute(
                 select(User.username).where(User.id == author_id)
             )
-            author_row = author_result.scalar_one_or_none()
-            author_username = author_row.username if author_row else None
+            author_username = author_result.scalar_one_or_none()
 
             result = self._post_to_dict(post, author_username=author_username)
             result["tags"] = await self.get_post_tags(post.id)

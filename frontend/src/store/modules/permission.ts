@@ -3,63 +3,51 @@ import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { roleRoutes } from '@/router'
 
-// 路由权限类型
-export interface PermissionState {
-  // 可访问的路由
-  routes: RouteRecordRaw[]
-  // 权限码列表
-  permissions: string[]
-  // 角色
-  role: string
-  // 路由是否已经加载
-  routesLoaded: boolean
-}
-
 export const usePermissionStore = defineStore(
   'permission',
   () => {
     const routes = ref<RouteRecordRaw[]>([])
     const permissions = ref<string[]>([])
     const role = ref<string>('guest')
+    const level = ref<number>(5) // P0=最高, P5=最低
     const routesLoaded = ref(false)
 
-    // 路由白名单，不需要权限就可以访问
     const whiteList = ['/login', '/404', '/403']
 
-    // 检查是否有权限
+    // P等级检查：等级数字越小权限越高
+    const hasLevel = (requiredLevel: number): boolean => level.value <= requiredLevel
+
     const hasPermission = (permission: string): boolean => {
       return (
+        level.value === 0 ||
         permissions.value.includes('*') ||
-        permissions.value.includes(permission) ||
-        role.value === 'admin'
+        permissions.value.includes(permission)
       )
     }
 
-    // 根据角色生成可访问的路由
     const generateRoutes = async (userRole: string): Promise<RouteRecordRaw[]> => {
       role.value = userRole
-      // 从路由配置中获取对应用户角色的路由
       const accessibleRoutes = roleRoutes[userRole as keyof typeof roleRoutes] || []
       routes.value = accessibleRoutes
       routesLoaded.value = true
       return accessibleRoutes
     }
 
-    // 设置权限列表
     const setPermissions = (perms: string[]) => {
       permissions.value = perms
     }
 
-    const setUserPermission = (userRole: string, perms: string[] = []) => {
+    const setUserPermission = (userRole: string, perms: string[] = [], userLevel = 5) => {
       role.value = userRole
       permissions.value = perms
+      level.value = userLevel
     }
 
-    // 重置权限状态
     const resetPermission = () => {
       routes.value = []
       permissions.value = []
       role.value = 'guest'
+      level.value = 5
       routesLoaded.value = false
     }
 
@@ -71,8 +59,10 @@ export const usePermissionStore = defineStore(
       routes,
       permissions,
       role,
+      level,
       routesLoaded,
       whiteList,
+      hasLevel,
       hasPermission,
       generateRoutes,
       setPermissions,
@@ -82,6 +72,6 @@ export const usePermissionStore = defineStore(
     }
   },
   {
-    persist: false // 权限不需要持久化，每次登录重新获取
+    persist: false
   }
 )

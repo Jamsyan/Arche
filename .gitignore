@@ -10,6 +10,7 @@ __pycache__/
 venv/
 
 # IDE
+.trae/
 .idea/
 .vscode/
 *.swp

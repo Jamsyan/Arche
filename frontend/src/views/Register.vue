@@ -120,19 +120,25 @@ const handleRegister = async () => {
           @submit="handleRegister"
         >
           <NFormItemGi label="邮箱" path="email"
-            ><NInput v-model:value="formModel.email"
+            ><NInput v-model:value="formModel.email" placeholder="请输入邮箱"
           /></NFormItemGi>
           <NFormItemGi label="用户名" path="username"
-            ><NInput v-model:value="formModel.username"
+            ><NInput v-model:value="formModel.username" placeholder="请输入用户名"
           /></NFormItemGi>
           <NFormItemGi label="密码" path="password">
-            <NInput v-model:value="formModel.password" type="password" show-password-on="click" />
+            <NInput
+              v-model:value="formModel.password"
+              type="password"
+              show-password-on="click"
+              placeholder="请输入密码"
+            />
           </NFormItemGi>
           <NFormItemGi label="确认密码" path="confirmPassword">
             <NInput
               v-model:value="formModel.confirmPassword"
               type="password"
               show-password-on="click"
+              placeholder="请再次输入密码"
             />
           </NFormItemGi>
           <template #actions="{ submit }">
@@ -151,7 +157,7 @@ const handleRegister = async () => {
   width: 100%;
   max-width: 980px;
   margin: 0 auto;
-  padding: var(--spacing-xl) 0;
+  padding: 0;
 }
 
 .register-shell {
@@ -164,8 +170,8 @@ const handleRegister = async () => {
 .register-visual {
   position: relative;
   overflow: hidden;
-  min-height: 560px;
-  padding: 28px;
+  min-height: 480px;
+  padding: 24px;
   display: flex;
   align-items: flex-end;
 }
@@ -293,7 +299,7 @@ const handleRegister = async () => {
 }
 
 .register-card {
-  padding: var(--spacing-2xl);
+  padding: var(--spacing-xl);
   animation: register-card-enter 0.38s ease both;
 }
 
@@ -308,7 +314,7 @@ const handleRegister = async () => {
 }
 .card-header {
   text-align: center;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 .logo-icon {
   width: 64px;

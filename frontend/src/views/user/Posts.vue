@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
+import { NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
 import { AddOutline } from '@/icons'
 import ProTable from '@/components/ProTable.vue'
 import { deletePostApi, getMyPostsApi, type BlogPost, type Paginated } from '@/services/api'
@@ -17,6 +17,7 @@ interface PostRow {
   createdAt: string
   status: string
 }
+
 const columns = [
   {
     title: '标题',
@@ -135,34 +136,44 @@ const handleDelete = async (row: PostRow) => {
 
 <template>
   <div class="posts-page">
-    <NCard class="posts-card">
-      <template #header>
-        <div class="page-header">
-          <h2>我的文章</h2>
-          <NButton type="primary" @click="handleCreate">
-            <template #icon>
-              <AddOutline />
-            </template>
-            新建文章
-          </NButton>
-        </div>
-      </template>
+    <div class="page-heading">
+      <h2>我的文章</h2>
+      <NButton type="primary" @click="handleCreate">
+        <template #icon><AddOutline /></template>
+        新建文章
+      </NButton>
+    </div>
 
+    <div class="section-card">
       <ProTable :columns="columns" :data="tableData" :request="fetchPosts" row-key="key" />
-    </NCard>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.page-header {
+.posts-page {
+  max-width: 100%;
+}
+
+.page-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
 }
 
-.page-header h2 {
+.page-heading h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-card {
+  background: rgba(255, 248, 236, 0.72);
+  border: 1px solid rgba(130, 95, 65, 0.14);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  backdrop-filter: blur(4px);
 }
 </style>
