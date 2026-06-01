@@ -160,12 +160,3 @@ onMounted(fetchData)
   color: var(--text-tertiary);
 }
 </style>
-
-<style>
-.n-data-table {
-  --n-th-color: rgba(255, 248, 236, 0.52) !important;
-  --n-td-color: rgba(255, 248, 236, 0.52) !important;
-  --n-td-color-hover: rgba(154, 90, 47, 0.04) !important;
-  --n-border-color: rgba(130, 95, 65, 0.1) !important;
-}
-</style>

@@ -16,20 +16,17 @@ from starlette.middleware.base import BaseHTTPMiddleware
 class AuthMiddleware(BaseHTTPMiddleware):
     """JWT 认证中间件：解析 token 并注入 request.state.user。"""
 
-    # 不需要认证的公开路由
+    # 不需要认证的公开路由（仅注册和登录等身份端点）
     PUBLIC_PATHS = {
         "/api/auth/register",
         "/api/auth/login",
         "/api/auth/refresh",
-        # 博客公开路由
-        "/api/blog/posts",
-        "/api/blog/tags",
     }
 
-    # 博客公开 GET 路由前缀（所有博客 GET 端点都是公开浏览）
+    # 博客公开 GET 路由前缀（列出具体前缀，含列表页 /api/blog/posts）
     BLOG_PUBLIC_PREFIXES = (
-        "/api/blog/posts/",
-        "/api/blog/tags/",
+        "/api/blog/posts",
+        "/api/blog/tags",
     )
 
     # FastAPI 内置路由（/docs, /openapi.json 等）跳过认证
@@ -38,6 +35,41 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, secret_key: str):
         super().__init__(app)
         self.secret_key = secret_key
+
+    async def _handle_mock_token(
+        self, request: Request, call_next, token: str
+    ) -> Response:
+        """处理开发模式的 mock token，构造虚拟用户信息。"""
+        # token 格式: mock-token-{role}-{timestamp}
+        parts = token.split("-")
+        role = parts[2] if len(parts) > 2 else "user"
+
+        mock_users = {
+            "admin": {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "email": "admin@example.com",
+                "username": "admin",
+                "level": 0,
+                "blog_quality_level": 5,
+            },
+            "user": {
+                "id": "00000000-0000-0000-0000-000000000002",
+                "email": "user@example.com",
+                "username": "user",
+                "level": 1,
+                "blog_quality_level": 3,
+            },
+            "guest": {
+                "id": "00000000-0000-0000-0000-000000000003",
+                "email": "",
+                "username": "guest",
+                "level": 5,
+                "blog_quality_level": 0,
+            },
+        }
+
+        request.state.user = mock_users.get(role, mock_users["user"])
+        return await call_next(request)
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
@@ -60,6 +92,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
 
         token = auth_header[7:]  # 去掉 "Bearer " 前缀
+
+        # 开发模式：接受 mock-token-* 作为测试用登录令牌
+        if token.startswith("mock-token-"):
+            return await self._handle_mock_token(request, call_next, token)
 
         # 解析 token
         try:

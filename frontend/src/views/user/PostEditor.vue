@@ -821,13 +821,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-
-<!-- 非 scoped：NSelect 下拉菜单弹出面板背景色统一 -->
-<style>
-.n-base-select-menu {
-  --n-color: rgba(255, 248, 236, 0.97) !important;
-  --n-option-color-pending: rgba(154, 90, 47, 0.08) !important;
-  --n-option-color-active: rgba(154, 90, 47, 0.06) !important;
-  --n-option-color-active-pending: rgba(154, 90, 47, 0.12) !important;
-}
-</style>
