@@ -41,8 +41,8 @@ const fetchData = async () => {
     )
     recentPosts.value = res.list || []
     totalPosts.value = res.total || recentPosts.value.length
-    statCards[0].value = totalPosts
-    statCards[1].value = recentPosts.value.filter((p) => p.status === 'draft').length
+    statCards[0]!.value = totalPosts
+    statCards[1]!.value = recentPosts.value.filter((p) => p.status === 'draft').length
   } catch {
     recentPosts.value = []
     totalPosts.value = 0

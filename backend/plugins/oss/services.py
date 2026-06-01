@@ -80,7 +80,7 @@ class StorageService:
         """获取 MinIO 对象存储后端（本地主力）。连接失败时返回 None。"""
         if self._minio is not None:
             return self._minio
-        if getattr(self, '_minio_failed', False):
+        if getattr(self, "_minio_failed", False):
             return None
 
         try:

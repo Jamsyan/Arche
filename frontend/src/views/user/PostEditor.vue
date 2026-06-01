@@ -374,8 +374,8 @@ onBeforeUnmount(() => {
                   </p>
                   <div v-for="opt in accessLevelOptions" :key="opt.value" class="help-item">
                     <strong>{{ opt.label }}</strong>
-                    <p class="help-summary">{{ accessLevelDescriptions[opt.value].summary }}</p>
-                    <p class="help-detail">{{ accessLevelDescriptions[opt.value].detail }}</p>
+                    <p class="help-summary">{{ accessLevelDescriptions[opt.value]?.summary }}</p>
+                    <p class="help-detail">{{ accessLevelDescriptions[opt.value]?.detail }}</p>
                   </div>
                   <p class="help-note">发布后仍可在文章管理中修改可见范围。</p>
                 </div>
