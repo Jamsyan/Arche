@@ -159,7 +159,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       layout: 'guest',
       requiresAuth: true,
       console: true,
-      role: 'admin',
+      level: 0,
       permission: API_PERMISSION.AUTH_USERS_LIST
     },
     redirect: '/admin/users',
@@ -172,7 +172,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '用户管理',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.AUTH_USERS_LIST
         }
       },
@@ -184,7 +184,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '插件管理',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.ASSETS_READ
         }
       },
@@ -196,7 +196,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '系统监控',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.SYSTEM_READ
         }
       },
@@ -208,7 +208,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: 'OSS 存储',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.SYSTEM_READ
         }
       },
@@ -220,7 +220,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '配置管理',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.CONFIG_READ
         }
       },
@@ -232,7 +232,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '爬虫管理',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.CRAWLER_READ
         }
       },
@@ -244,7 +244,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '资产目录',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.ASSETS_READ
         }
       },
@@ -256,7 +256,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '待审核帖子',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.BLOG_POSTS_MODERATE
         }
       },
@@ -268,7 +268,7 @@ export const staticRoutes: RouteRecordRaw[] = [
           title: '帖子管理',
           layout: 'guest',
           requiresAuth: true,
-          role: 'admin',
+          level: 0,
           permission: API_PERMISSION.BLOG_POSTS_MODERATE
         }
       }

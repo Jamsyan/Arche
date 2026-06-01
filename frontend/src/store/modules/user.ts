@@ -19,16 +19,17 @@ export const useUserStore = defineStore(
 
     const applyUserSession = (nextToken: string, nextUserInfo: UserInfo) => {
       const permissionStore = usePermissionStore()
+      const userLevel = nextUserInfo.level ?? 5
       const normalizedPermissions =
         nextUserInfo.permissions?.length > 0
           ? nextUserInfo.permissions
-          : nextUserInfo.role === 'admin'
+          : userLevel === 0
             ? ['*']
             : []
 
       token.value = nextToken
       userInfo.value = nextUserInfo
-      permissionStore.setUserPermission(nextUserInfo.role, normalizedPermissions)
+      permissionStore.setUserPermission(nextUserInfo.role, normalizedPermissions, userLevel)
 
       localStorage.setItem('token', nextToken)
       localStorage.setItem(

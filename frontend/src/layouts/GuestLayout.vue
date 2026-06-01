@@ -24,9 +24,16 @@
           </div>
         </div>
         <div class="action-area">
-          <RouterLink v-if="isLoggedIn" to="/profile" class="avatar-link">{{
-            userInitial
-          }}</RouterLink>
+          <div v-if="isLoggedIn" class="user-menu-wrap">
+            <button class="avatar-btn" @click="showUserMenu = !showUserMenu">
+              {{ userInitial }}
+            </button>
+            <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
+              <RouterLink to="/profile" class="dropdown-item">个人中心</RouterLink>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
+            </div>
+          </div>
           <template v-else>
             <RouterLink to="/register" class="nav-item">加入我们</RouterLink>
             <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
@@ -112,6 +119,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const route = useRoute()
 const searchKeyword = ref('')
+const showUserMenu = ref(false)
 
 const currentYear = new Date().getFullYear()
 const isLoggedIn = computed(() => Boolean(userStore.token))
@@ -127,6 +135,23 @@ const goSearch = () => {
       q: searchKeyword.value || undefined
     }
   })
+}
+
+const handleLogout = async () => {
+  showUserMenu.value = false
+  await userStore.logout()
+  router.push('/')
+}
+
+const handleClickOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.user-menu-wrap')) {
+    showUserMenu.value = false
+  }
+}
+
+if (typeof window !== 'undefined') {
+  document.addEventListener('click', handleClickOutside)
 }
 </script>
 
@@ -144,7 +169,6 @@ const goSearch = () => {
   top: 0;
   z-index: 100;
   background: rgba(255, 250, 241, 0.82);
-  overflow-x: auto;
 }
 
 .header-content {
@@ -271,7 +295,7 @@ const goSearch = () => {
   box-shadow: var(--shadow-md);
 }
 
-.avatar-link {
+.avatar-btn {
   width: 34px;
   height: 34px;
   border-radius: 999px;
@@ -283,11 +307,64 @@ const goSearch = () => {
   color: var(--text-primary);
   font-size: 13px;
   background: rgba(255, 250, 241, 0.88);
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.avatar-link:hover {
+.avatar-btn:hover {
   border-color: var(--primary-color);
   color: var(--primary-color);
+}
+
+.user-menu-wrap {
+  position: relative;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 140px;
+  background: rgba(255, 250, 241, 0.97);
+  border: 1px solid rgba(130, 95, 65, 0.14);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  z-index: 300;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-decoration: none;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dropdown-item:hover {
+  background: rgba(154, 90, 47, 0.08);
+  color: var(--primary-color);
+}
+
+.logout-item {
+  color: var(--text-secondary);
+}
+
+.logout-item:hover {
+  color: var(--error-color);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(130, 95, 65, 0.1);
+  margin: 4px 0;
 }
 
 .guest-main {

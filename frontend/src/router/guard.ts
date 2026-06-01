@@ -104,6 +104,11 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const requiredPermission = to.meta?.permission
+  const requiredLevel = to.meta?.level as number | undefined
+  if (requiredLevel !== undefined && !permissionStore.hasLevel(requiredLevel)) {
+    next({ path: '/403', query: { redirect: to.fullPath } })
+    return
+  }
   if (!canAccessRoutePermission(permissionStore, requiredPermission)) {
     next({ path: '/403', query: { redirect: to.fullPath } })
     return

@@ -18,7 +18,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const isAdmin = computed(() => userStore.userInfo?.role === 'admin')
+const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
 const collapsedGroups = ref<Set<string>>(new Set())
 
 const navGroups = computed(() => {
@@ -34,10 +34,6 @@ const navGroups = computed(() => {
         { label: '写文章', icon: CreateOutline, to: '/posts/new' },
         { label: '创作者看板', icon: InformationCircleOutline, to: '/creator' }
       ]
-    },
-    {
-      label: '系统',
-      items: [{ label: '个人中心', icon: PersonOutline, to: '/profile' }]
     }
   ]
 
