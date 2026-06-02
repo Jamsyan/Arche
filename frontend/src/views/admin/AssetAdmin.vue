@@ -15,8 +15,6 @@ const columns = [
 
 const typeEntries = ref<{ type: string; count: number }[]>([])
 
-const statCards = [{ label: '资产总数', value: () => stats.value.total, color: '#9a5a2f' }]
-
 const fetchData = async () => {
   loading.value = true
   try {
@@ -26,9 +24,6 @@ const fetchData = async () => {
       type,
       count
     }))
-    if (typeEntries.value.length > 0) {
-      statCards[0] = { label: '资产总数', value: () => stats.value.total, color: '#9a5a2f' }
-    }
   } catch {
     // 静默
   } finally {

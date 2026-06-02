@@ -147,7 +147,11 @@ service.interceptors.response.use(
 
       return Promise.reject(new Error(res.message || '请求失败'))
     } else {
-      return res.data
+      const data = res.data
+      if (data && typeof data === 'object' && 'items' in data) {
+        ;(data as Record<string, unknown>).list = (data as Record<string, unknown>).items
+      }
+      return data
     }
   },
   (error: unknown) => {

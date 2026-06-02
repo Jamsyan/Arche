@@ -100,7 +100,7 @@ onMounted(fetchData)
   <div class="config-admin-page">
     <div class="page-heading">
       <h2>配置管理</h2>
-      <NButton size="small" quaternary @click="handleReload">刷新缓存</NButton>
+      <NButton size="small" @click="handleReload">刷新缓存</NButton>
     </div>
 
     <div class="filter-bar">

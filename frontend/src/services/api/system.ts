@@ -2,9 +2,9 @@ import { get, type RequestConfig } from '../request'
 import type { ApiListParams, Paginated } from './types/common'
 
 export interface SystemSummary {
-  cpu_usage: number
-  memory_usage: number
-  disk_usage: number
+  cpu_percent: number
+  memory_percent: number
+  disk_percent: number
 }
 
 export interface MetricPoint {
