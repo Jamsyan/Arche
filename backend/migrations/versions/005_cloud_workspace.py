@@ -91,34 +91,51 @@ def upgrade() -> None:
         batch_op.create_index("ix_code_repos_git_url", ["git_url"], unique=True)
 
     # 创建 artifacts 表
-    op.create_table(
-        "artifacts",
-        sa.Column("id", _UUIDString(), nullable=False),
-        sa.Column("job_id", _UUIDString(), nullable=False),
-        sa.Column("name", sa.String(length=256), nullable=False),
-        sa.Column("path", sa.String(length=1024), nullable=False),
-        sa.Column(
-            "artifact_type",
-            sa.String(length=64),
-            nullable=False,
-            server_default="checkpoint",
-        ),
-        sa.Column("size_bytes", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column(
-            "storage_location",
-            sa.String(length=32),
-            nullable=False,
-            server_default="minio",
-        ),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(["job_id"], ["training_jobs.id"]),
-    )
+    conn = op.get_bind()
+    if conn.dialect.name == "postgresql":
+        op.execute("""
+            CREATE TABLE artifacts (
+                id UUID NOT NULL,
+                job_id UUID NOT NULL,
+                name VARCHAR(256) NOT NULL,
+                path VARCHAR(1024) NOT NULL,
+                artifact_type VARCHAR(64) NOT NULL DEFAULT 'checkpoint',
+                size_bytes INTEGER NOT NULL DEFAULT 0,
+                storage_location VARCHAR(32) NOT NULL DEFAULT 'minio',
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                PRIMARY KEY (id),
+                FOREIGN KEY(job_id) REFERENCES training_jobs(id)
+            )
+        """)
+    else:
+        op.create_table(
+            "artifacts",
+            sa.Column("id", _UUIDString(), nullable=False),
+            sa.Column("job_id", _UUIDString(), nullable=False),
+            sa.Column("name", sa.String(length=256), nullable=False),
+            sa.Column("path", sa.String(length=1024), nullable=False),
+            sa.Column(
+                "artifact_type",
+                sa.String(length=64),
+                nullable=False,
+                server_default="checkpoint",
+            ),
+            sa.Column("size_bytes", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column(
+                "storage_location",
+                sa.String(length=32),
+                nullable=False,
+                server_default="minio",
+            ),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.func.now(),
+                nullable=False,
+            ),
+            sa.PrimaryKeyConstraint("id"),
+            sa.ForeignKeyConstraint(["job_id"], ["training_jobs.id"]),
+        )
     with op.batch_alter_table("artifacts", schema=None) as batch_op:
         batch_op.create_index("ix_artifacts_job_id", ["job_id"], unique=False)
         batch_op.create_index(
