@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { NCard, NButton, NGrid, NGi, NTag, NIcon } from 'naive-ui'
 import { CreateOutline, DocumentTextOutline } from '@vicons/ionicons5'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
@@ -8,15 +8,20 @@ const loading = ref(false)
 const recentPosts = ref<BlogPost[]>([])
 const totalPosts = ref(0)
 
-const statCards = [
+const statCards = computed(() => [
   {
     label: '我的文章',
-    value: totalPosts,
+    value: totalPosts.value,
     icon: DocumentTextOutline,
     color: 'var(--primary-color)'
   },
-  { label: '草稿箱', value: 0, icon: CreateOutline, color: 'var(--accent-color)' }
-]
+  {
+    label: '草稿箱',
+    value: recentPosts.value.filter((p) => p.status === 'draft').length,
+    icon: CreateOutline,
+    color: 'var(--accent-color)'
+  }
+])
 
 const statusMap: Record<
   string,
@@ -41,8 +46,6 @@ const fetchData = async () => {
     )
     recentPosts.value = res.list || []
     totalPosts.value = res.total || recentPosts.value.length
-    statCards[0]!.value = totalPosts
-    statCards[1]!.value = recentPosts.value.filter((p) => p.status === 'draft').length
   } catch {
     recentPosts.value = []
     totalPosts.value = 0
