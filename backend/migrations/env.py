@@ -31,6 +31,10 @@ from backend.plugins.cloud_integration.models import (  # noqa: F401
     TrainingJob,
     TrainingInstance,
     TrainingCost,
+    TrainingTaskStep,
+    Dataset,
+    CodeRepo,
+    Artifact,
 )
 from backend.plugins.asset_mgmt.models import AssetIndex  # noqa: F401
 from backend.plugins.monitor.models import MonitorTemplate  # noqa: F401
