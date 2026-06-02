@@ -111,10 +111,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -165,14 +174,14 @@ jobs:
           echo "Trigger: $EVENT"
           echo "Ref: $REF"
 
-          # 情况 1：tag push → 用 tag 构建
+          # tag push (v*) → 用 tag 版本直接构建
           if [[ "$REF" == refs/tags/v* ]]; then
             TAG="${REF#refs/tags/v}"
             echo "Tag push → build: $TAG"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
-          # 情况 2：push 到 master → 视为合并 → 自增版本构建
+          # push 到 master → 自增 patch 版本后构建
           elif [[ "$EVENT" == "push" && "$REF" == refs/heads/master ]]; then
             LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -n "$LATEST" ]; then
@@ -188,7 +197,7 @@ jobs:
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
-          # 情况 3：pull_request 或其他 → 不构建
+          # pull_request 或其他 → 不构建
           else
             echo "No build condition met → skip"
             echo "should_build=false" >> $GITHUB_OUTPUT
@@ -203,6 +212,22 @@ jobs:
     with:
       image_tag: ${{ needs.gate.outputs.image_tag }}
     secrets: inherit
+
+  # ── 落地版本号（仅 push 到 master：构建成功后把自增 tag 推回仓库） ──
+  tag-release:
+    needs: [gate, build]
+    if: needs.gate.outputs.should_build == 'true' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create and push version tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ needs.gate.outputs.image_tag }}
+          git push origin v${{ needs.gate.outputs.image_tag }}
 
   # ── 部署（构建成功就执行，无需额外判断） ──
   deploy:
