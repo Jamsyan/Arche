@@ -70,23 +70,44 @@ def upgrade() -> None:
         )
 
     # 新建 training_task_steps 表
-    op.create_table(
-        "training_task_steps",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("step_name", sa.String(64), nullable=False),
-        sa.Column("status", sa.String(32), nullable=False, server_default="pending"),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("result_data", sa.JSON(), nullable=True, server_default="{}"),
-        sa.Column("retry_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(["job_id"], ["training_jobs.id"]),
-    )
+    conn = op.get_bind()
+    if conn.dialect.name == "postgresql":
+        op.execute("""
+            CREATE TABLE training_task_steps (
+                id UUID NOT NULL,
+                job_id UUID NOT NULL,
+                step_name VARCHAR(64) NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                started_at TIMESTAMP WITH TIME ZONE,
+                completed_at TIMESTAMP WITH TIME ZONE,
+                error_message TEXT,
+                result_data JSON DEFAULT '{}',
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                PRIMARY KEY (id),
+                FOREIGN KEY(job_id) REFERENCES training_jobs(id)
+            )
+        """)
+    else:
+        op.create_table(
+            "training_task_steps",
+            sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("job_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("step_name", sa.String(64), nullable=False),
+            sa.Column(
+                "status", sa.String(32), nullable=False, server_default="pending"
+            ),
+            sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("error_message", sa.Text(), nullable=True),
+            sa.Column("result_data", sa.JSON(), nullable=True, server_default="{}"),
+            sa.Column("retry_count", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column(
+                "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+            ),
+            sa.PrimaryKeyConstraint("id"),
+            sa.ForeignKeyConstraint(["job_id"], ["training_jobs.id"]),
+        )
     op.create_index(
         "ix_training_task_steps_job_id",
         "training_task_steps",

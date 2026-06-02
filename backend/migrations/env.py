@@ -76,12 +76,13 @@ def get_url() -> str:
 def run_migrations_offline() -> None:
     """离线模式：生成 SQL 脚本，不连接数据库。"""
     url = get_url()
+    is_sqlite = url.startswith("sqlite")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,  # SQLite 批量模式
+        render_as_batch=is_sqlite,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -89,10 +90,11 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """在线模式：实际连接数据库执行迁移。"""
+    is_sqlite = connection.dialect.name == "sqlite"
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=True,  # SQLite 批量模式
+        render_as_batch=is_sqlite,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -101,11 +103,19 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """异步迁移：使用 aiosqlite / asyncpg 执行。"""
     url = get_url()
-    # 替换 alembic.ini 中的 url，使其使用环境变量
     config.set_main_option("sqlalchemy.url", url)
 
+    cfg = {}
+    section = config.get_section(config.config_ini_section)
+    if section:
+        for key in section:
+            if key.startswith("sqlalchemy."):
+                cfg[key] = section[key]
+    if "sqlalchemy.url" not in cfg:
+        cfg["sqlalchemy.url"] = url
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        cfg,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -129,8 +139,9 @@ def run_migrations_online() -> None:
         # 同步数据库（备用方案）
         connectable = config.attributes.get("connection", None)
         if connectable is None:
+            cfg = {"sqlalchemy.url": url}
             connectable = async_engine_from_config(
-                config.get_section(config.config_ini_section, {}),
+                cfg,
                 prefix="sqlalchemy.",
                 poolclass=pool.NullPool,
             )
