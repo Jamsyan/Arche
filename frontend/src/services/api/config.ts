@@ -1,10 +1,19 @@
-import { get, post, put, type RequestConfig } from '../request'
+import { del, get, post, put, type RequestConfig } from '../request'
 
 export interface ConfigItem {
   key: string
   value: string
   group?: string
   description?: string
+  is_sensitive?: boolean
+}
+
+export interface CreateConfigPayload {
+  key: string
+  value: string
+  group?: string
+  description?: string
+  is_sensitive?: boolean
 }
 
 export interface ConfigListParams {
@@ -19,6 +28,12 @@ export const getConfigItemApi = (key: string, config?: RequestConfig) =>
 
 export const updateConfigItemApi = (key: string, value: string, config?: RequestConfig) =>
   put<ConfigItem>(`/admin/config/${key}`, { value }, config)
+
+export const createConfigItemApi = (payload: CreateConfigPayload, config?: RequestConfig) =>
+  post<ConfigItem>('/admin/config', payload, config)
+
+export const deleteConfigItemApi = (key: string, config?: RequestConfig) =>
+  del<void>(`/admin/config/${key}`, undefined, config)
 
 export const getConfigGroupsApi = (config?: RequestConfig) =>
   get<string[]>('/admin/config/groups', undefined, config)

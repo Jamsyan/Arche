@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from 'vue'
-import { NButton, NInput, NModal, useMessage } from 'naive-ui'
+import { NButton, NInput, NModal, NPopconfirm, NSpace, NCheckbox, useMessage } from 'naive-ui'
 import ProTable from '@/components/ProTable.vue'
 import {
   getConfigListApi,
   updateConfigItemApi,
+  createConfigItemApi,
+  deleteConfigItemApi,
   getConfigGroupsApi,
   reloadConfigApi,
   type ConfigItem
@@ -14,32 +16,69 @@ const message = useMessage()
 const configs = ref<ConfigItem[]>([])
 const groups = ref<string[]>([])
 const activeGroup = ref<string>('')
+const loading = ref(false)
+
+// 编辑
 const editModal = ref(false)
 const editKey = ref('')
 const editValue = ref('')
 
-const filteredConfigs = ref<ConfigItem[]>([])
+// 新建
+const createModal = ref(false)
+const createForm = ref({
+  key: '',
+  value: '',
+  group: 'general',
+  description: '',
+  is_sensitive: false
+})
 
 const columns = [
-  { title: 'Key', key: 'key', width: 200 },
+  { title: 'Key', key: 'key', width: 180 },
   { title: '值', key: 'value', ellipsis: true },
-  { title: '分组', key: 'group', width: 100 },
+  { title: '分组', key: 'group', width: 90 },
   { title: '描述', key: 'description', ellipsis: true },
+  {
+    title: '敏感',
+    key: 'is_sensitive',
+    width: 60,
+    render: (row: ConfigItem) => (row.is_sensitive ? '是' : '否')
+  },
   {
     title: '操作',
     key: 'actions',
-    width: 100,
+    width: 140,
     render: (row: ConfigItem) =>
-      h(
-        NButton,
-        {
-          size: 'tiny',
-          type: 'primary',
-          quaternary: true,
-          onClick: () => openEdit(row)
-        },
-        { default: () => '编辑' }
-      )
+      h(NSpace, { size: 'small' }, [
+        h(
+          NButton,
+          {
+            size: 'tiny',
+            type: 'primary',
+            quaternary: true,
+            onClick: () => openEdit(row)
+          },
+          { default: () => '编辑' }
+        ),
+        h(
+          NPopconfirm,
+          {
+            title: '确认删除',
+            content: `确定要删除配置"${row.key}"吗？`,
+            positiveText: '确认',
+            negativeText: '取消',
+            onPositiveClick: () => handleDelete(row.key)
+          },
+          {
+            trigger: () =>
+              h(
+                NButton,
+                { size: 'tiny', type: 'error', quaternary: true },
+                { default: () => '删除' }
+              )
+          }
+        )
+      ])
   }
 ]
 
@@ -60,6 +99,44 @@ const handleSave = async () => {
   }
 }
 
+const handleCreate = async () => {
+  try {
+    const f = createForm.value
+    await createConfigItemApi(
+      {
+        key: f.key,
+        value: f.value,
+        group: f.group,
+        description: f.description,
+        is_sensitive: f.is_sensitive
+      },
+      { silent: true }
+    )
+    message.success('已创建')
+    createModal.value = false
+    createForm.value = {
+      key: '',
+      value: '',
+      group: 'general',
+      description: '',
+      is_sensitive: false
+    }
+    await fetchData()
+  } catch {
+    message.error('创建失败')
+  }
+}
+
+const handleDelete = async (key: string) => {
+  try {
+    await deleteConfigItemApi(key, { silent: true })
+    message.success('已删除')
+    await fetchData()
+  } catch {
+    message.error('删除失败')
+  }
+}
+
 const handleReload = async () => {
   try {
     await reloadConfigApi({ silent: true })
@@ -71,20 +148,23 @@ const handleReload = async () => {
 
 const filterByGroup = (group: string) => {
   activeGroup.value = group
-  filteredConfigs.value = group ? configs.value.filter((c) => c.group === group) : configs.value
+  fetchData()
 }
 
 const fetchData = async () => {
+  loading.value = true
   try {
+    const params = activeGroup.value ? { group: activeGroup.value } : undefined
     const [list, grps] = await Promise.all([
-      getConfigListApi(undefined, { silent: true, skipAuthLogout: true }),
+      getConfigListApi(params, { silent: true, skipAuthLogout: true }),
       getConfigGroupsApi({ silent: true, skipAuthLogout: true })
     ])
     configs.value = list || []
     groups.value = grps || []
-    filterByGroup(activeGroup.value)
   } catch {
     // 静默
+  } finally {
+    loading.value = false
   }
 }
 
@@ -95,7 +175,10 @@ onMounted(fetchData)
   <div class="config-admin-page">
     <div class="page-heading">
       <h2>配置管理</h2>
-      <NButton size="small" @click="handleReload">刷新缓存</NButton>
+      <NSpace size="small">
+        <NButton size="small" type="primary" @click="createModal = true">新建</NButton>
+        <NButton size="small" @click="handleReload">刷新缓存</NButton>
+      </NSpace>
     </div>
 
     <div class="filter-bar">
@@ -118,9 +201,10 @@ onMounted(fetchData)
     </div>
 
     <div class="section-card table-card">
-      <ProTable :columns="columns" :data="filteredConfigs" row-key="key" />
+      <ProTable :columns="columns" :data="configs" row-key="key" :loading="loading" />
     </div>
 
+    <!-- 编辑弹窗 -->
     <NModal
       v-model:show="editModal"
       title="编辑配置"
@@ -128,7 +212,7 @@ onMounted(fetchData)
       preset="card"
       style="width: 500px"
     >
-      <div class="edit-form">
+      <div class="form">
         <div class="field-row">
           <label>Key</label>
           <code>{{ editKey }}</code>
@@ -137,9 +221,52 @@ onMounted(fetchData)
           <label>值</label>
           <NInput v-model:value="editValue" type="textarea" :rows="3" class="themed-input" />
         </div>
-        <div class="edit-actions">
+        <div class="form-actions">
           <NButton @click="editModal = false">取消</NButton>
           <NButton type="primary" @click="handleSave">保存</NButton>
+        </div>
+      </div>
+    </NModal>
+
+    <!-- 新建弹窗 -->
+    <NModal
+      v-model:show="createModal"
+      title="新建配置项"
+      :mask-closable="false"
+      preset="card"
+      style="width: 500px"
+    >
+      <div class="form">
+        <div class="field-row">
+          <label>Key *</label>
+          <NInput v-model:value="createForm.key" placeholder="配置键名" class="themed-input" />
+        </div>
+        <div class="field-row">
+          <label>值 *</label>
+          <NInput
+            v-model:value="createForm.value"
+            type="textarea"
+            :rows="3"
+            placeholder="配置值"
+            class="themed-input"
+          />
+        </div>
+        <div class="field-row">
+          <label>分组</label>
+          <NInput v-model:value="createForm.group" placeholder="general" class="themed-input" />
+        </div>
+        <div class="field-row">
+          <label>描述</label>
+          <NInput v-model:value="createForm.description" placeholder="选填" class="themed-input" />
+        </div>
+        <div class="field-row">
+          <NCheckbox v-model:checked="createForm.is_sensitive"
+            >敏感字段（值会用 *** 掩码显示）</NCheckbox
+          >
+        </div>
+        <div class="form-actions">
+          <NButton @click="createModal = false">取消</NButton>
+          <NButton type="primary" @click="handleCreate">创建</NButton>
         </div>
       </div>
     </NModal>
@@ -177,7 +304,7 @@ onMounted(fetchData)
 .table-card {
   padding: 16px;
 }
-.edit-form {
+.form {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -198,7 +325,7 @@ onMounted(fetchData)
   padding: 4px 8px;
   border-radius: 4px;
 }
-.edit-actions {
+.form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
