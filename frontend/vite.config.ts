@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
@@ -134,6 +135,14 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['vue', 'vue-router', 'pinia', 'naive-ui'],
       force: false
+    },
+
+    // 测试配置
+    test: {
+      globals: false,
+      environment: 'jsdom',
+      include: ['src/**/*.{test,spec}.{ts,js}'],
+      css: true
     },
 
     // CSS预处理器配置
