@@ -22,6 +22,7 @@ export interface UserInfo {
   role: string
   permissions: string[]
   level?: number
+  created_at?: string
 }
 
 interface RawUserInfo extends Partial<UserInfo> {
@@ -80,7 +81,8 @@ export const getUserInfoApi = (config?: RequestConfig) =>
       nickname: String(raw.nickname || raw.username || ''),
       role: raw.role || '',
       level: raw.level ?? 5,
-      permissions: raw.permissions || []
+      permissions: raw.permissions || [],
+      created_at: raw.created_at as string | undefined
     }
     return raw.avatar ? { ...base, avatar: raw.avatar as string } : base
   })

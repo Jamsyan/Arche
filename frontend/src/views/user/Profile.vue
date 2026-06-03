@@ -62,7 +62,7 @@ const handleLogout = async () => {
           }}
         </NDescriptionsItem>
         <NDescriptionsItem label="注册时间">
-          {{ (userStore.userInfo as any)?.created_at || '-' }}
+          {{ userStore.userInfo?.created_at?.slice(0, 10) || '-' }}
         </NDescriptionsItem>
       </NDescriptions>
 

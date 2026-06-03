@@ -143,7 +143,7 @@ const fetchPlugins = async (params: {
   }))
   tableData.value = list
   message.info(
-    `系统摘要已同步（CPU: ${(summary.cpu_usage || 0).toFixed(1)}%，配置分组: ${groups.length}）`
+    `系统摘要已同步（CPU: ${(summary.cpu_percent || 0).toFixed(1)}%，配置分组: ${groups.length}）`
   )
   return {
     total: assets.total,

@@ -14,8 +14,6 @@ const message = useMessage()
 const configs = ref<ConfigItem[]>([])
 const groups = ref<string[]>([])
 const activeGroup = ref<string>('')
-const loading = ref(false)
-
 const editModal = ref(false)
 const editKey = ref('')
 const editValue = ref('')
@@ -77,7 +75,6 @@ const filterByGroup = (group: string) => {
 }
 
 const fetchData = async () => {
-  loading.value = true
   try {
     const [list, grps] = await Promise.all([
       getConfigListApi(undefined, { silent: true, skipAuthLogout: true }),
@@ -88,8 +85,6 @@ const fetchData = async () => {
     filterByGroup(activeGroup.value)
   } catch {
     // 静默
-  } finally {
-    loading.value = false
   }
 }
 
@@ -100,7 +95,7 @@ onMounted(fetchData)
   <div class="config-admin-page">
     <div class="page-heading">
       <h2>配置管理</h2>
-      <NButton size="small" quaternary @click="handleReload">刷新缓存</NButton>
+      <NButton size="small" @click="handleReload">刷新缓存</NButton>
     </div>
 
     <div class="filter-bar">

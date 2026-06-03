@@ -10,7 +10,7 @@ import {
 
 const message = useMessage()
 
-const summary = ref<SystemSummary>({ cpu_usage: 0, memory_usage: 0, disk_usage: 0 })
+const summary = ref<SystemSummary>({ cpu_percent: 0, memory_percent: 0, disk_percent: 0 })
 const processes = ref<ProcessInfo[]>([])
 const loading = ref(false)
 
@@ -46,9 +46,9 @@ const processColumns = [
 ]
 
 const summaryCards = [
-  { label: 'CPU 使用率', key: 'cpu_usage' as const, color: '#9a5a2f' },
-  { label: '内存使用率', key: 'memory_usage' as const, color: '#b8743d' },
-  { label: '磁盘使用率', key: 'disk_usage' as const, color: '#6f3f22' }
+  { label: 'CPU 使用率', key: 'cpu_percent' as const, color: '#9a5a2f' },
+  { label: '内存使用率', key: 'memory_percent' as const, color: '#b8743d' },
+  { label: '磁盘使用率', key: 'disk_percent' as const, color: '#6f3f22' }
 ]
 
 const fetchData = async () => {
