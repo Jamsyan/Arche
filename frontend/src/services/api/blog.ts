@@ -20,7 +20,8 @@ export interface BlogComment {
   id: string
   post_id: string
   content: string
-  user_id: string
+  author_id: string
+  author_username?: string
   created_at?: string
 }
 

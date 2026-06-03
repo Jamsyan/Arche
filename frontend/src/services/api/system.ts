@@ -42,5 +42,11 @@ export const getNetworkMetricsApi = (config?: RequestConfig) =>
 export const getSystemHistoryApi = (params?: ApiListParams, config?: RequestConfig) =>
   get<Paginated<Record<string, unknown>>>('/system/history', params, config)
 
-export const getProcessesApi = (params?: ProcessQueryParams, config?: RequestConfig) =>
-  get<ProcessInfo[]>('/system/processes', params, config)
+export const getProcessesApi = async (params?: ProcessQueryParams, config?: RequestConfig) => {
+  const raw = await get<{ items: ProcessInfo[]; total: number; limit: number }>(
+    '/system/processes',
+    params,
+    config
+  )
+  return raw.items || []
+}

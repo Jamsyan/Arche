@@ -31,9 +31,6 @@ const handleLogout = async () => {
 
     <div class="section-card">
       <NDescriptions :column="1" :bordered="false" label-style="width: 100px">
-        <NDescriptionsItem label="用户ID">
-          {{ userStore.userInfo?.id || '-' }}
-        </NDescriptionsItem>
         <NDescriptionsItem label="用户名">
           {{ userStore.userInfo?.username || '-' }}
         </NDescriptionsItem>

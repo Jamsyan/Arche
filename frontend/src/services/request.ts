@@ -40,8 +40,48 @@ const service: AxiosInstance = axios.create({
   }
 })
 
+// --- refresh_token 自动续期 ---
+let isRefreshing = false
+// eslint-disable-next-line no-unused-vars
+let failedQueue: Array<{ resolve: (t: string) => void; reject: (e: unknown) => void }> = []
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error)
+    } else if (token) {
+      prom.resolve(token)
+    }
+  })
+  failedQueue = []
+}
+
+const refreshAccessTokenDirect = async (): Promise<string | null> => {
+  const refreshToken = localStorage.getItem('refresh_token')
+  if (!refreshToken) return null
+  try {
+    const res = await axios.post<ResponseData<{ access_token: string }>>(
+      '/api/auth/refresh',
+      { refresh_token: refreshToken },
+      { timeout: 10000 }
+    )
+    const data = res.data
+    if (data.code === 200 || data.code === 'ok') {
+      const newToken = data.data?.access_token
+      if (newToken) {
+        localStorage.setItem('token', newToken)
+        return newToken
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 const clearAuthStorage = () => {
   localStorage.removeItem('token')
+  localStorage.removeItem('refresh_token')
   localStorage.removeItem('userInfo')
 }
 
@@ -172,11 +212,42 @@ service.interceptors.response.use(
           errorMessage = '请求参数错误'
           break
         case 401:
-          errorMessage = '未登录或登录已过期，请重新登录'
-          if (!config?.requestOptions?.skipAuthLogout) {
+          // 跳过自身 refresh 请求的刷新逻辑，避免无限循环
+          if (config?.url?.includes('/auth/refresh')) {
             clearAuthStorage()
             notifyUnauthorized()
+            break
           }
+          if (!config?.requestOptions?.skipAuthLogout) {
+            // 尝试用 refresh_token 续期
+            if (!isRefreshing) {
+              isRefreshing = true
+              const newToken = await refreshAccessTokenDirect()
+              isRefreshing = false
+              if (newToken) {
+                processQueue(null, newToken)
+                // 用新 token 重试原始请求
+                config.headers.Authorization = `Bearer ${newToken}`
+                return service(config)
+              }
+              // 刷新失败，清空状态
+              processQueue(new Error('刷新 token 失败'), null)
+              clearAuthStorage()
+              notifyUnauthorized()
+            } else {
+              // 已有刷新请求进行中，将当前请求入队等待
+              return new Promise((resolve, reject) => {
+                failedQueue.push({
+                  resolve: (token: string) => {
+                    config.headers.Authorization = `Bearer ${token}`
+                    resolve(service(config))
+                  },
+                  reject
+                })
+              })
+            }
+          }
+          errorMessage = '未登录或登录已过期，请重新登录'
           break
         case 403:
           errorMessage = '权限不足，无法访问'

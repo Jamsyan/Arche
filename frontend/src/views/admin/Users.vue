@@ -28,11 +28,6 @@ const tableData = ref<UserRow[]>([])
 
 const columns = [
   {
-    title: '用户ID',
-    key: 'id',
-    width: 120
-  },
-  {
     title: '用户名',
     key: 'username',
     ellipsis: true

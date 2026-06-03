@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserInfo } from '@/services/api/auth'
-import { loginApi, logoutApi, getUserInfoApi, type LoginParams } from '@/services/api/auth'
+import {
+  loginApi,
+  logoutApi,
+  refreshTokenApi,
+  getUserInfoApi,
+  type LoginParams
+} from '@/services/api/auth'
 import { usePermissionStore } from '@/store/modules/permission'
 import { authMockData } from '@/services/mock'
 
@@ -12,12 +18,18 @@ export const useUserStore = defineStore(
   () => {
     // token
     const token = ref<string | null>(localStorage.getItem('token'))
+    // refresh_token
+    const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
     // 用户信息
     const userInfo = ref<UserInfo | null>(null)
     // 登录状态
     const isLoggedIn = computed(() => !!token.value && !!userInfo.value)
 
-    const applyUserSession = (nextToken: string, nextUserInfo: UserInfo) => {
+    const applyUserSession = (
+      nextToken: string,
+      nextUserInfo: UserInfo,
+      nextRefreshToken?: string
+    ) => {
       const permissionStore = usePermissionStore()
       const userLevel = nextUserInfo.level ?? 5
       const normalizedPermissions =
@@ -28,10 +40,14 @@ export const useUserStore = defineStore(
             : []
 
       token.value = nextToken
+      refreshToken.value = nextRefreshToken || null
       userInfo.value = nextUserInfo
       permissionStore.setUserPermission(nextUserInfo.role, normalizedPermissions, userLevel)
 
       localStorage.setItem('token', nextToken)
+      if (nextRefreshToken) {
+        localStorage.setItem('refresh_token', nextRefreshToken)
+      }
       localStorage.setItem(
         'userInfo',
         JSON.stringify({
@@ -47,7 +63,7 @@ export const useUserStore = defineStore(
       if (!res.token) {
         throw new Error('登录返回缺少 token')
       }
-      applyUserSession(res.token, res.userInfo)
+      applyUserSession(res.token, res.userInfo, res.refresh_token)
       return res
     }
 
@@ -85,11 +101,31 @@ export const useUserStore = defineStore(
       return res
     }
 
+    // 刷新 access_token（使用 refresh_token）
+    const refreshAccessToken = async (): Promise<string | null> => {
+      const savedRefreshToken = refreshToken.value || localStorage.getItem('refresh_token')
+      if (!savedRefreshToken) return null
+      try {
+        const res = await refreshTokenApi(savedRefreshToken)
+        const newToken = res.access_token
+        if (newToken) {
+          token.value = newToken
+          localStorage.setItem('token', newToken)
+          return newToken
+        }
+        return null
+      } catch {
+        return null
+      }
+    }
+
     // 清除用户状态
     const clearUserState = () => {
       token.value = null
+      refreshToken.value = null
       userInfo.value = null
       localStorage.removeItem('token')
+      localStorage.removeItem('refresh_token')
       localStorage.removeItem('userInfo')
       usePermissionStore().resetPermission()
     }
@@ -101,9 +137,13 @@ export const useUserStore = defineStore(
     // 初始化用户状态，从localStorage恢复
     const initUserState = () => {
       const savedToken = localStorage.getItem('token')
+      const savedRefreshToken = localStorage.getItem('refresh_token')
       const savedUserInfo = localStorage.getItem('userInfo')
       if (savedToken) {
         token.value = savedToken
+      }
+      if (savedRefreshToken) {
+        refreshToken.value = savedRefreshToken
       }
       if (savedUserInfo) {
         try {
@@ -119,12 +159,14 @@ export const useUserStore = defineStore(
 
     return {
       token,
+      refreshToken,
       userInfo,
       isLoggedIn,
       login,
       loginAsRole,
       logout,
       getUserInfo,
+      refreshAccessToken,
       clearUserState,
       resetState,
       initUserState

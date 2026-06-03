@@ -69,6 +69,12 @@ export const loginApi = (params: LoginParams, config?: RequestConfig) =>
 export const registerApi = (params: RegisterParams, config?: RequestConfig) =>
   post<LoginResponse>('/auth/register', params, config).then(normalizeLoginResponse)
 
+// 刷新 access token
+export const refreshTokenApi = (refresh_token: string, config?: RequestConfig) =>
+  post<LoginResponse>('/auth/refresh', { refresh_token }, config).then((raw) => ({
+    access_token: raw.access_token || raw.token || ''
+  }))
+
 // 登出
 export const logoutApi = (config?: RequestConfig) => post<void>('/auth/logout', undefined, config)
 
