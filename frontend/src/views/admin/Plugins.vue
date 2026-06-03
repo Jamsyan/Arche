@@ -139,7 +139,7 @@ const fetchPlugins = async (params: {
   ])
   const list = (assets.list || []).map((item) => ({
     ...item,
-    status: item.status || '已启用'
+    status: item.status ?? '已启用'
   }))
   tableData.value = list
   message.info(

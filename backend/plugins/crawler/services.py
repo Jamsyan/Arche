@@ -209,8 +209,10 @@ class CrawlerOrchestrator:
                     "title": r.title,
                     "content_type": r.content_type,
                     "status_code": r.status_code,
+                    "status": str(r.status_code),
                     "source": r.source,
                     "crawled_at": r.crawled_at.isoformat() if r.crawled_at else None,
+                    "created_at": r.crawled_at.isoformat() if r.crawled_at else None,
                     "file_path": r.file_path,
                     "file_size": r.file_size,
                 }
@@ -241,8 +243,10 @@ class CrawlerOrchestrator:
                 "title": r.title,
                 "content_type": r.content_type,
                 "status_code": r.status_code,
+                "status": str(r.status_code),
                 "source": r.source,
                 "crawled_at": r.crawled_at.isoformat() if r.crawled_at else None,
+                "created_at": r.crawled_at.isoformat() if r.crawled_at else None,
                 "file_path": r.file_path,
                 "file_size": r.file_size,
             }

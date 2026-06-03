@@ -45,7 +45,7 @@ const fetchData = async () => {
       { silent: true, skipAuthLogout: true }
     )
     recentPosts.value = res.list || []
-    totalPosts.value = res.total || recentPosts.value.length
+    totalPosts.value = res.total ?? recentPosts.value.length
   } catch {
     recentPosts.value = []
     totalPosts.value = 0

@@ -133,7 +133,7 @@ const toUserRow = (item: AdminUser): UserRow => ({
   id: item.id,
   username: item.username,
   nickname: item.nickname || item.username,
-  role: item.role || 'user',
+  role: item.role ?? 'user',
   createdAt: item.created_at ? item.created_at.slice(0, 10) : '-',
   status: item.is_active === false ? '禁用' : '活跃'
 })

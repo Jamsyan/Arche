@@ -5,16 +5,31 @@ from __future__ import annotations
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
+import jwt
 import pytest
 
 from backend.tests.conftest import patch_container_service
 
 
 @pytest.fixture
-def cloud_service_mock(db_container):
+def cloud_service_mock(db_container, admin_headers):
+    # 解码 admin token 获取用户 ID，用于 _verify_job_owner 测试
+    token = admin_headers["Authorization"].replace("Bearer ", "")
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        admin_id = payload.get("sub", str(uuid.uuid4()))
+    except Exception:
+        admin_id = str(uuid.uuid4())
+
     service = MagicMock()
     service.list_jobs = AsyncMock(return_value={"items": [], "total": 0})
-    service.get_job = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "j"})
+    service.get_job = AsyncMock(
+        return_value={
+            "id": str(uuid.uuid4()),
+            "name": "j",
+            "creator_id": admin_id,
+        }
+    )
     service.create_job = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "j"})
     service.delete_job = AsyncMock(return_value=None)
     service.start_job = AsyncMock(return_value={"status": "running"})
@@ -37,7 +52,11 @@ def cloud_service_mock(db_container):
         return_value={"id": str(uuid.uuid4()), "name": "ds"}
     )
     service.get_dataset = AsyncMock(
-        return_value={"id": str(uuid.uuid4()), "name": "ds"}
+        return_value={
+            "id": str(uuid.uuid4()),
+            "name": "ds",
+            "created_by": admin_id,
+        }
     )
     service.delete_dataset = AsyncMock(return_value=None)
     service.sync_dataset = AsyncMock(return_value={"status": "queued"})

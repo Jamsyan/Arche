@@ -754,7 +754,7 @@ class BlogService:
 
             return {
                 "items": [
-                    {**self._tag_to_dict(t), "post_count": post_count_map.get(t.id, 0)}
+                    {**self._tag_to_dict(t), "count": post_count_map.get(t.id, 0)}
                     for t in tags
                 ],
                 "total": total,

@@ -63,6 +63,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Verify generated API types exist
+        working-directory: frontend
+        run: test -f src/services/api/generated.d.ts && echo "API types OK"
+
       - name: Build
         working-directory: frontend
         run: npm run build

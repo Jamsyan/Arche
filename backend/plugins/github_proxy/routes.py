@@ -89,17 +89,10 @@ async def clear_cache(request: Request):
     }
 
 
-@router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-@require_level(1)
-async def proxy_github(path: str, request: Request, mode: str = "auto"):
-    """反向代理 GitHub API（需 P1 权限）。
-
-    转发所有 HTTP 方法到 https://api.github.com/{path}，
-    自动注入 GitHub Token，缓存 GET 请求。
-
-    Args:
-        mode: 模式选择 - auto（默认，HTTP 失败自动降级到 CLI）, http（仅 HTTP）, cli（仅 CLI）
-    """
+async def _proxy_github_impl(
+    path: str, request: Request, mode: str = "auto"
+) -> JSONResponse:
+    """反向代理 GitHub API 内部实现。"""
     from backend.core.middleware import require_user
 
     container: ServiceContainer = request.app.state.container
@@ -107,7 +100,6 @@ async def proxy_github(path: str, request: Request, mode: str = "auto"):
     user = require_user(request)
 
     query_params = dict(request.query_params)
-    # 移除 mode 参数，不传给 GitHub
     query_params.pop("mode", None)
 
     body = None
@@ -132,11 +124,43 @@ async def proxy_github(path: str, request: Request, mode: str = "auto"):
         response_headers["X-GitHub-Fallback"] = result["fallback_from"]
         response_headers["X-GitHub-Fallback-Reason"] = result.get("fallback_reason", "")
 
-    status_code = result["status_code"]
-    data = result["data"]
-
     return JSONResponse(
-        status_code=status_code,
-        content=data,
+        status_code=result["status_code"],
+        content=result["data"],
         headers=response_headers,
     )
+
+
+@router.get("/{path:path}")
+@require_level(1)
+async def proxy_github_get(path: str, request: Request, mode: str = "auto"):
+    """反向代理 GitHub API - GET（需 P1 权限）。"""
+    return await _proxy_github_impl(path, request, mode)
+
+
+@router.post("/{path:path}")
+@require_level(1)
+async def proxy_github_post(path: str, request: Request, mode: str = "auto"):
+    """反向代理 GitHub API - POST（需 P1 权限）。"""
+    return await _proxy_github_impl(path, request, mode)
+
+
+@router.put("/{path:path}")
+@require_level(1)
+async def proxy_github_put(path: str, request: Request, mode: str = "auto"):
+    """反向代理 GitHub API - PUT（需 P1 权限）。"""
+    return await _proxy_github_impl(path, request, mode)
+
+
+@router.patch("/{path:path}")
+@require_level(1)
+async def proxy_github_patch(path: str, request: Request, mode: str = "auto"):
+    """反向代理 GitHub API - PATCH（需 P1 权限）。"""
+    return await _proxy_github_impl(path, request, mode)
+
+
+@router.delete("/{path:path}")
+@require_level(1)
+async def proxy_github_delete(path: str, request: Request, mode: str = "auto"):
+    """反向代理 GitHub API - DELETE（需 P1 权限）。"""
+    return await _proxy_github_impl(path, request, mode)

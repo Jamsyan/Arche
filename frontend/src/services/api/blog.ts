@@ -62,7 +62,7 @@ export interface BlogListParams extends ApiListParams {
 
 const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
   total: raw.total || 0,
-  page: raw.page || 1,
+  page: raw.page ?? 1,
   page_size: raw.page_size || 20,
   list: raw.list || raw.items || []
 })

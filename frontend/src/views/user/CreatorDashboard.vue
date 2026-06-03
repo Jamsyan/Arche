@@ -63,7 +63,7 @@ const fetchData = async () => {
     rows.value = commentTotals.map(({ post, comments }) => ({
       key: post.id,
       title: post.title,
-      status: post.status || 'pending',
+      status: post.status ?? 'pending',
       comments,
       likes: post.likes || 0,
       createdAt: post.created_at?.slice(0, 10) || '-'
