@@ -60,10 +60,11 @@ const refreshAccessTokenDirect = async (): Promise<string | null> => {
   const refreshToken = localStorage.getItem('refresh_token')
   if (!refreshToken) return null
   try {
-    const res = await axios.post<ResponseData<{ access_token: string }>>(
+    const baseURL = import.meta.env.VITE_API_BASE_URL || ''
+    const refreshAxios = axios.create({ baseURL, timeout: 10000 })
+    const res = await refreshAxios.post<ResponseData<{ access_token: string }>>(
       '/api/auth/refresh',
-      { refresh_token: refreshToken },
-      { timeout: 10000 }
+      { refresh_token: refreshToken }
     )
     const data = res.data
     if (data.code === 200 || data.code === 'ok') {
@@ -194,7 +195,7 @@ service.interceptors.response.use(
       return data
     }
   },
-  (error: unknown) => {
+  async (error: unknown) => {
     const axiosError = error as AxiosError
     const config = axiosError.config as RequestInternalConfig | undefined
     removePendingController(config)
@@ -203,7 +204,16 @@ service.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    console.error('Response error:', error)
+    // 401/timeout/无响应 是预期行为（后端未就绪或 token 过期），不刷 error 级别
+    const isExpected =
+      !axiosError.response ||
+      axiosError.response?.status === 401 ||
+      axiosError.code === 'ECONNABORTED'
+    if (isExpected) {
+      console.warn('Request warning:', axiosError.message || error)
+    } else {
+      console.error('Response error:', error)
+    }
     let errorMessage = '网络错误，请稍后重试'
 
     if (axiosError.response) {
@@ -218,13 +228,13 @@ service.interceptors.response.use(
             notifyUnauthorized()
             break
           }
-          if (!config?.requestOptions?.skipAuthLogout) {
+          if (config && !config.requestOptions?.skipAuthLogout) {
             // 尝试用 refresh_token 续期
             if (!isRefreshing) {
               isRefreshing = true
               const newToken = await refreshAccessTokenDirect()
               isRefreshing = false
-              if (newToken) {
+              if (newToken && config) {
                 processQueue(null, newToken)
                 // 用新 token 重试原始请求
                 config.headers.Authorization = `Bearer ${newToken}`
@@ -239,8 +249,12 @@ service.interceptors.response.use(
               return new Promise((resolve, reject) => {
                 failedQueue.push({
                   resolve: (token: string) => {
-                    config.headers.Authorization = `Bearer ${token}`
-                    resolve(service(config))
+                    if (config) {
+                      config.headers.Authorization = `Bearer ${token}`
+                      resolve(service(config))
+                    } else {
+                      reject(new Error('配置丢失'))
+                    }
                   },
                   reject
                 })

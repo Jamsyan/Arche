@@ -16,7 +16,6 @@ import Admin from '@/views/admin/Admin.vue'
 import AdminUsers from '@/views/admin/Users.vue'
 import AdminPlugins from '@/views/admin/Plugins.vue'
 import AdminSystemMonitor from '@/views/admin/SystemMonitor.vue'
-import ModerationPending from '@/views/admin/ModerationPending.vue'
 import ModerationPosts from '@/views/admin/ModerationPosts.vue'
 import OssAdmin from '@/views/admin/OssAdmin.vue'
 import ConfigAdmin from '@/views/admin/ConfigAdmin.vue'
@@ -251,9 +250,9 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'moderation/pending',
         name: 'AdminModerationPending',
-        component: ModerationPending,
+        redirect: { name: 'AdminModerationPosts' },
         meta: {
-          title: '待审核帖子',
+          title: '帖子管理',
           layout: 'guest',
           requiresAuth: true,
           level: 0,

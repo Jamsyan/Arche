@@ -29,7 +29,7 @@ describe('system API', () => {
 
     const result = await getProcessesApi({ limit: 50 })
     expect(result).toHaveLength(1)
-    expect(result[0].pid).toBe(1)
+    expect(result[0]?.pid).toBe(1)
     expect(get).toHaveBeenCalledWith('/system/processes', { limit: 50 }, undefined)
   })
 

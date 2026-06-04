@@ -95,7 +95,7 @@ export const useUserStore = defineStore(
     // 获取用户信息
     const getUserInfo = async () => {
       const res = await getUserInfoApi()
-      userInfo.value = res
+      userInfo.value = res as UserInfo
       localStorage.setItem('userInfo', JSON.stringify(res))
       usePermissionStore().setUserPermission(res.role, res.permissions)
       return res

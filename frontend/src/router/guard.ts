@@ -53,7 +53,7 @@ const getJwtExp = (token: string): number | null => {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null // 不是合法 JWT（可能是 mock-token）
-    const payload = JSON.parse(atob(parts[1]))
+    const payload = JSON.parse(atob(parts[1]!))
     return payload.exp || null
   } catch {
     return null
