@@ -9,7 +9,7 @@ import {
   deleteConfigItemApi,
   getConfigGroupsApi,
   reloadConfigApi,
-  type ConfigItem
+  type ConfigItem,
 } from '@/services/api'
 
 const message = useMessage()
@@ -25,13 +25,7 @@ const editValue = ref('')
 
 // 新建
 const createModal = ref(false)
-const createForm = ref({
-  key: '',
-  value: '',
-  group: 'general',
-  description: '',
-  is_sensitive: false
-})
+const createForm = ref({ key: '', value: '', group: 'general', description: '', is_sensitive: false })
 
 const columns = [
   { title: 'Key', key: 'key', width: 180 },
@@ -42,7 +36,7 @@ const columns = [
     title: '敏感',
     key: 'is_sensitive',
     width: 60,
-    render: (row: ConfigItem) => (row.is_sensitive ? '是' : '否')
+    render: (row: ConfigItem) => (row.is_sensitive ? '是' : '否'),
   },
   {
     title: '操作',
@@ -50,36 +44,23 @@ const columns = [
     width: 140,
     render: (row: ConfigItem) =>
       h(NSpace, { size: 'small' }, [
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            type: 'primary',
-            quaternary: true,
-            onClick: () => openEdit(row)
-          },
-          { default: () => '编辑' }
-        ),
-        h(
-          NPopconfirm,
-          {
-            title: '确认删除',
-            content: `确定要删除配置"${row.key}"吗？`,
-            positiveText: '确认',
-            negativeText: '取消',
-            onPositiveClick: () => handleDelete(row.key)
-          },
-          {
-            trigger: () =>
-              h(
-                NButton,
-                { size: 'tiny', type: 'error', quaternary: true },
-                { default: () => '删除' }
-              )
-          }
-        )
-      ])
-  }
+        h(NButton, {
+          size: 'tiny',
+          type: 'primary',
+          quaternary: true,
+          onClick: () => openEdit(row),
+        }, { default: () => '编辑' }),
+        h(NPopconfirm, {
+          title: '确认删除',
+          content: `确定要删除配置"${row.key}"吗？`,
+          positiveText: '确认',
+          negativeText: '取消',
+          onPositiveClick: () => handleDelete(row.key),
+        }, {
+          trigger: () => h(NButton, { size: 'tiny', type: 'error', quaternary: true }, { default: () => '删除' }),
+        }),
+      ]),
+  },
 ]
 
 const openEdit = (item: ConfigItem) => {
@@ -103,24 +84,12 @@ const handleCreate = async () => {
   try {
     const f = createForm.value
     await createConfigItemApi(
-      {
-        key: f.key,
-        value: f.value,
-        group: f.group,
-        description: f.description,
-        is_sensitive: f.is_sensitive
-      },
-      { silent: true }
+      { key: f.key, value: f.value, group: f.group, description: f.description, is_sensitive: f.is_sensitive },
+      { silent: true },
     )
     message.success('已创建')
     createModal.value = false
-    createForm.value = {
-      key: '',
-      value: '',
-      group: 'general',
-      description: '',
-      is_sensitive: false
-    }
+    createForm.value = { key: '', value: '', group: 'general', description: '', is_sensitive: false }
     await fetchData()
   } catch {
     message.error('创建失败')
@@ -157,7 +126,7 @@ const fetchData = async () => {
     const params = activeGroup.value ? { group: activeGroup.value } : undefined
     const [list, grps] = await Promise.all([
       getConfigListApi(params, { silent: true, skipAuthLogout: true }),
-      getConfigGroupsApi({ silent: true, skipAuthLogout: true })
+      getConfigGroupsApi({ silent: true, skipAuthLogout: true }),
     ])
     configs.value = list || []
     groups.value = grps || []
@@ -187,8 +156,7 @@ onMounted(fetchData)
         quaternary
         :type="!activeGroup ? 'primary' : 'default'"
         @click="filterByGroup('')"
-        >全部</NButton
-      >
+      >全部</NButton>
       <NButton
         v-for="g in groups"
         :key="g"
@@ -196,8 +164,7 @@ onMounted(fetchData)
         quaternary
         :type="activeGroup === g ? 'primary' : 'default'"
         @click="filterByGroup(g)"
-        >{{ g }}</NButton
-      >
+      >{{ g }}</NButton>
     </div>
 
     <div class="section-card table-card">
@@ -243,13 +210,7 @@ onMounted(fetchData)
         </div>
         <div class="field-row">
           <label>值 *</label>
-          <NInput
-            v-model:value="createForm.value"
-            type="textarea"
-            :rows="3"
-            placeholder="配置值"
-            class="themed-input"
-          />
+          <NInput v-model:value="createForm.value" type="textarea" :rows="3" placeholder="配置值" class="themed-input" />
         </div>
         <div class="field-row">
           <label>分组</label>
@@ -260,9 +221,7 @@ onMounted(fetchData)
           <NInput v-model:value="createForm.description" placeholder="选填" class="themed-input" />
         </div>
         <div class="field-row">
-          <NCheckbox v-model:checked="createForm.is_sensitive"
-            >敏感字段（值会用 *** 掩码显示）</NCheckbox
-          >
+          <NCheckbox v-model:checked="createForm.is_sensitive">敏感字段（值会用 *** 掩码显示）</NCheckbox>
         </div>
         <div class="form-actions">
           <NButton @click="createModal = false">取消</NButton>
