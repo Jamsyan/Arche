@@ -30,7 +30,7 @@ async def get_stats(request: Request):
 
     # 运行中实例数（简化，实际应该统计 provider 实例）
     running_instances = sum(
-        1 for j in jobs.get("items", []) if j.get("orchestrator_status") == "running"
+        1 for j in jobs.get("items", []) if j.get("orchestrator_step") == "running"
     )
 
     return {
