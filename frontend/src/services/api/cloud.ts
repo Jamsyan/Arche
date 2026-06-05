@@ -22,7 +22,7 @@ export interface CloudJob {
   training_script?: string
   requirements_file?: string
   created_at?: string
-  orchestrator_status?: string
+  orchestrator_step?: string
 }
 
 /** 创建任务请求 */
@@ -134,9 +134,6 @@ export interface CloudStats {
   running_instances: number
 }
 
-/**
- * 任务操作
- */
 export const getCloudStatsApi = (config?: RequestConfig) =>
   get<CloudStats>('/cloud/stats', undefined, config)
 
