@@ -169,8 +169,6 @@ class CrawlerOrchestrator:
                         session.add(record)
                         await session.commit()
                 except Exception as e:
-                    import logging
-
                     logging.getLogger(__name__).error(f"保存爬虫记录失败: {e}")
 
             _asyncio.get_running_loop().create_task(_save())
