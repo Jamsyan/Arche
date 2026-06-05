@@ -74,16 +74,13 @@ export const logoutApi = (config?: RequestConfig) => post<void>('/auth/logout', 
 
 // 获取当前用户信息
 export const getUserInfoApi = (config?: RequestConfig) =>
-  get<Record<string, any>>('/auth/me', undefined, config).then((raw) => {
-    const base: Record<string, any> = {
-      id: String(raw.id || ''),
-      username: String(raw.username || ''),
-      nickname: String(raw.nickname || raw.username || ''),
-      role: raw.role || '',
-      level: raw.level ?? 5,
-      permissions: raw.permissions || [],
-    }
-    if (raw.created_at != null) base.created_at = String(raw.created_at)
-    if (raw.avatar) base.avatar = String(raw.avatar)
-    return base as UserInfo
-  })
+  get<Record<string, any>>('/auth/me', undefined, config).then((raw) => ({
+    id: String(raw.id || ''),
+    username: String(raw.username || ''),
+    nickname: String(raw.nickname || raw.username || ''),
+    role: raw.role || '',
+    level: raw.level ?? 5,
+    permissions: raw.permissions || [],
+    ...(raw.created_at ? { created_at: raw.created_at as string } : {}),
+    ...(raw.avatar ? { avatar: raw.avatar as string } : {})
+  }))
