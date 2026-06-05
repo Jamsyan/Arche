@@ -1,5 +1,6 @@
 import { del, get, post, put, type RequestConfig } from '../request'
-import type { ApiListParams, BatchActionPayload, BackendPaginated, Paginated } from './types/common'
+import type { ApiListParams, BatchActionPayload, BackendPaginated } from './types/common'
+import { normalizePaginated } from './types/common'
 
 export interface BlogPost {
   id: string

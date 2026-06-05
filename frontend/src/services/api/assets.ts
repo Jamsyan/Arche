@@ -1,5 +1,5 @@
 import { get, type RequestConfig } from '../request'
-import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
+import type { ApiListParams, BackendPaginated } from './types/common'
 import { normalizePaginated } from './types/common'
 
 export interface AssetItem {

@@ -4,6 +4,7 @@ import { normalizePaginated } from './types/common'
 
 export interface SystemSummary {
   cpu_percent: number
+  cpu_count?: number
   memory_percent: number
   disk_percent: number
   memory_used_gb?: number
