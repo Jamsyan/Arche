@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { adminRoutes } from '@/router'
+import router, { adminRoutes } from '@/router'
 
 export const usePermissionStore = defineStore(
   'permission',
@@ -28,8 +28,19 @@ export const usePermissionStore = defineStore(
     }
 
     const generateRoutes = async (userLevel: number): Promise<RouteRecordRaw[]> => {
+      // 清除之前动态注册的 admin 路由
+      if (router.hasRoute('Admin')) {
+        router.removeRoute('Admin')
+      }
+
       const accessibleRoutes = userLevel === 0 ? adminRoutes : []
       routes.value = accessibleRoutes
+
+      // 管理员动态注册 admin 路由
+      if (userLevel === 0 && adminRoutes.length > 0) {
+        router.addRoute(adminRoutes[0]!)
+      }
+
       routesLoaded.value = true
       return accessibleRoutes
     }
@@ -44,6 +55,11 @@ export const usePermissionStore = defineStore(
     }
 
     const resetPermission = () => {
+      // 清除动态注册的 admin 路由
+      if (router.hasRoute('Admin')) {
+        router.removeRoute('Admin')
+      }
+
       routes.value = []
       permissions.value = []
       level.value = 5

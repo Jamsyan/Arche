@@ -122,9 +122,8 @@ router.beforeEach(async (to, from, next) => {
   // 如果权限路由尚未加载，初始化权限状态
   if (!permissionStore.routesLoaded && userStore.userInfo) {
     try {
-      // 根据用户角色生成可访问路由列表（用于菜单渲染）
+      // 根据用户角色生成可访问路由列表，admin 路由通过 addRoute 动态注册
       await permissionStore.generateRoutes(userStore.userInfo?.level ?? 5)
-      // 路由已静态注册，无需 addRoute
     } catch {
       // 生成路由失败，跳转到首页
       $message.error('获取权限失败，请重新登录')
