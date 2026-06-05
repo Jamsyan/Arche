@@ -228,8 +228,8 @@ onMounted(fetchPost)
   margin: 0 auto;
 }
 .section-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   backdrop-filter: blur(4px);
 }
@@ -306,7 +306,7 @@ onMounted(fetchPost)
   height: 34px;
   border-radius: 999px;
   background: var(--primary-color);
-  color: #fff;
+  color: var(--text-on-primary, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -342,7 +342,7 @@ onMounted(fetchPost)
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: rgba(130, 95, 65, 0.12);
+  background: var(--primary-light-color);
   color: var(--text-secondary);
   display: flex;
   align-items: center;

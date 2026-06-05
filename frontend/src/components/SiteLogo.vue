@@ -31,8 +31,8 @@ withDefaults(
   display: block;
   object-fit: cover;
   border-radius: 999px;
-  border: 2px solid rgba(239, 227, 207, 0.95);
-  box-shadow: 0 4px 12px rgba(67, 45, 28, 0.2);
+  border: 2px solid var(--surface-strong-color);
+  box-shadow: 0 4px 12px var(--paper-shadow-color);
   flex-shrink: 0;
 }
 
@@ -40,7 +40,7 @@ withDefaults(
   font-weight: 700;
   font-size: 20px;
   letter-spacing: 0.5px;
-  background: linear-gradient(120deg, #8f4f2a 0%, #c89b3c 100%);
+  background: linear-gradient(120deg, var(--primary-color) 0%, var(--accent-color) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

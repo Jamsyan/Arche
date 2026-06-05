@@ -8,7 +8,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/Users.vue'),
     meta: {
       title: '用户管理',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.AUTH_USERS_LIST
@@ -20,7 +21,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/Plugins.vue'),
     meta: {
       title: '插件管理',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.ASSETS_READ
@@ -32,7 +34,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/SystemMonitor.vue'),
     meta: {
       title: '系统监控',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.SYSTEM_READ
@@ -44,7 +47,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/OssAdmin.vue'),
     meta: {
       title: 'OSS 存储',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.SYSTEM_READ
@@ -56,7 +60,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/ConfigAdmin.vue'),
     meta: {
       title: '配置管理',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.CONFIG_READ
@@ -68,7 +73,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/CrawlerAdmin.vue'),
     meta: {
       title: '爬虫管理',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.CRAWLER_READ
@@ -80,7 +86,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/AssetAdmin.vue'),
     meta: {
       title: '资产目录',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.ASSETS_READ
@@ -92,7 +99,8 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/ModerationPosts.vue'),
     meta: {
       title: '帖子管理',
-      layout: 'admin',
+      layout: 'guest',
+      console: true,
       requiresAuth: true,
       level: 0,
       permission: API_PERMISSION.BLOG_POSTS_MODERATE
@@ -105,7 +113,7 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/admin/Admin.vue'),
-    meta: { title: '管理后台', layout: 'admin', requiresAuth: true, level: 0 },
+    meta: { title: '管理后台', layout: 'guest', console: true, requiresAuth: true, level: 0 },
     redirect: '/admin/moderation/posts',
     children
   }

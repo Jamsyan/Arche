@@ -130,8 +130,8 @@ onMounted(fetchData)
 }
 
 .glass-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   padding: 16px;
   backdrop-filter: blur(4px);
@@ -177,8 +177,8 @@ onMounted(fetchData)
 }
 
 .section-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   backdrop-filter: blur(4px);
 }

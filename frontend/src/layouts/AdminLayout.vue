@@ -344,7 +344,7 @@ onBeforeUnmount(() => {
 
 .nav-item.nav-item-active {
   background: var(--primary-color);
-  color: rgba(255, 250, 241, 0.98);
+  color: var(--text-on-primary, #fff);
 }
 
 .nav-icon {

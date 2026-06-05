@@ -518,9 +518,9 @@ const compactRows = computed(() =>
 .combo-top {
   width: 100%;
   height: 52px;
-  background: rgba(252, 242, 228, 0.96);
+  background: var(--surface-color);
   border-radius: 40px 20px 0 40px;
-  border: 1px solid rgba(130, 95, 65, 0.22);
+  border: 1px solid var(--border-color);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -536,7 +536,7 @@ const compactRows = computed(() =>
   bottom: -1px;
   width: 56%;
   height: 2px;
-  background: rgba(252, 242, 228, 0.96);
+  background: var(--surface-color);
   content: '';
 }
 
@@ -554,9 +554,9 @@ const compactRows = computed(() =>
   width: 56%;
   height: 46px;
   align-self: flex-end;
-  background: rgba(251, 240, 226, 0.95);
+  background: var(--surface-color);
   border-radius: 0 0 20px 20px;
-  border: 1px solid rgba(130, 95, 65, 0.22);
+  border: 1px solid var(--border-color);
   border-top-color: transparent;
   display: flex;
   align-items: center;
@@ -617,7 +617,7 @@ const compactRows = computed(() =>
 }
 
 .mode-button.active {
-  color: #fff;
+  color: var(--text-on-primary, #fff);
 }
 
 .search-input {
@@ -626,7 +626,7 @@ const compactRows = computed(() =>
   height: 40px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
-  background: rgba(255, 246, 233, 0.9);
+  background: var(--surface-color);
   padding: 0 14px 0 38px;
   color: var(--text-primary);
   outline: none;
@@ -644,7 +644,7 @@ const compactRows = computed(() =>
   box-shadow:
     0 0 0 3px var(--primary-light-color),
     0 8px 20px rgba(111, 63, 34, 0.16);
-  background: rgba(255, 248, 236, 0.96);
+  background: var(--surface-color);
   transform: translateY(-1px);
 }
 
@@ -665,9 +665,9 @@ const compactRows = computed(() =>
   padding: 10px;
   box-sizing: border-box;
   align-content: flex-start;
-  background: rgba(251, 240, 226, 0.95);
+  background: var(--surface-color);
   border-radius: 16px;
-  border: 1px solid rgba(130, 95, 65, 0.22);
+  border: 1px solid var(--border-color);
   box-shadow: none;
 }
 
@@ -868,7 +868,7 @@ const compactRows = computed(() =>
 
 .view-switch button.active {
   background: rgba(111, 63, 34, 0.72);
-  color: #fff;
+  color: var(--text-on-primary, #fff);
 }
 
 .display-list {
@@ -894,10 +894,10 @@ const compactRows = computed(() =>
 }
 
 .compact-table :deep(.n-data-table) {
-  --n-td-color: rgba(255, 249, 240, 0.9);
-  --n-td-color-hover: rgba(255, 244, 229, 0.95);
-  --n-th-color: rgba(246, 236, 223, 0.95);
-  --n-border-color: rgba(130, 95, 65, 0.16);
+  --n-td-color: var(--surface-color);
+  --n-td-color-hover: var(--glass-bg-hover);
+  --n-th-color: var(--surface-strong-color);
+  --n-border-color: var(--border-color);
   --n-th-text-color: var(--text-secondary);
   --n-td-text-color: var(--text-primary);
 }
@@ -905,12 +905,12 @@ const compactRows = computed(() =>
 .compact-table :deep(.n-data-table .n-data-table-wrapper),
 .compact-table :deep(.n-data-table .n-scrollbar-container),
 .compact-table :deep(.n-data-table .n-data-table-base-table) {
-  background: rgba(255, 248, 236, 0.78);
+  background: var(--surface-color);
   border-radius: 10px;
 }
 
 .compact-table :deep(.n-data-table thead th) {
-  background: rgba(246, 236, 223, 0.96) !important;
+  background: var(--surface-strong-color) !important;
   color: var(--text-secondary) !important;
 }
 

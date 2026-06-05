@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   border: none;
   padding: 0;
-  background: rgba(154, 90, 47, 0.26);
+  background: color-mix(in srgb, var(--primary-color) 26%, transparent);
   cursor: pointer;
   overflow: hidden;
   transition: transform 0.25s ease;
@@ -260,7 +260,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: rgba(154, 90, 47, 0.55);
+  background: color-mix(in srgb, var(--primary-color) 55%, transparent);
   transform: scale(0.65);
   transition: transform 0.25s ease;
 }

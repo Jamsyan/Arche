@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   border: none;
-  background: rgba(255, 250, 241, 0.76);
+  background: var(--surface-color);
   border-radius: var(--radius-md);
   cursor: pointer;
   display: flex;
@@ -194,7 +194,7 @@ onBeforeUnmount(() => {
 }
 
 .menu-toggle:hover {
-  background: rgba(239, 227, 207, 0.92);
+  background: var(--surface-strong-color);
   transform: scale(1.05);
 }
 
@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
 }
 
 .user-info-btn:hover {
-  background: rgba(239, 227, 207, 0.82);
+  background: var(--surface-strong-color);
 }
 
 .username {
@@ -335,7 +335,7 @@ onBeforeUnmount(() => {
 
 .nav-item.nav-item-active {
   background: var(--primary-color);
-  color: white;
+  color: var(--text-on-primary, #fff);
   box-shadow: var(--shadow-md);
 }
 
@@ -414,11 +414,11 @@ onBeforeUnmount(() => {
 }
 
 .layout-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(154, 90, 47, 0.22);
+  background: var(--primary-light-color);
   border-radius: 2px;
 }
 
 .layout-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(154, 90, 47, 0.34);
+  background: color-mix(in srgb, var(--primary-color) 34%, transparent);
 }
 </style>

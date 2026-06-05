@@ -225,16 +225,16 @@ onMounted(() => fetchPosts())
   width: 380px;
   flex-shrink: 0;
   overflow-y: auto;
-  background: rgba(255, 248, 236, 0.52);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   padding: 8px;
 }
 .detail-panel {
   flex: 1;
   overflow-y: auto;
-  background: rgba(255, 248, 236, 0.52);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   padding: 20px;
 }
@@ -257,12 +257,12 @@ onMounted(() => fetchPosts())
   transition: all 0.15s;
 }
 .post-card:hover {
-  background: rgba(255, 248, 236, 0.8);
-  border-color: rgba(130, 95, 65, 0.2);
+  background: var(--glass-bg-hover);
+  border-color: var(--border-color);
 }
 .post-card.active {
-  background: rgba(169, 121, 82, 0.1);
-  border-color: rgba(169, 121, 82, 0.3);
+  background: var(--primary-light-color);
+  border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 .card-header {
   display: flex;

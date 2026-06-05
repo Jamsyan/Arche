@@ -296,8 +296,8 @@ onMounted(fetchData)
   flex-wrap: wrap;
 }
 .section-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   backdrop-filter: blur(4px);
 }
@@ -321,7 +321,7 @@ onMounted(fetchData)
 .field-row code {
   font-size: 13px;
   color: var(--text-primary);
-  background: rgba(130, 95, 65, 0.06);
+  background: var(--primary-light-color);
   padding: 4px 8px;
   border-radius: 4px;
 }

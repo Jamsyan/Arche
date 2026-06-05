@@ -154,8 +154,8 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid rgba(154, 90, 47, 0.24);
-  box-shadow: 0 10px 22px rgba(67, 45, 28, 0.12);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 24%, transparent);
+  box-shadow: 0 10px 22px var(--paper-shadow-color);
   opacity: 0;
   transition:
     opacity 0.28s ease,
@@ -165,8 +165,8 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 }
 
 .blog-card--grid:hover {
-  border-color: rgba(154, 90, 47, 0.34);
-  box-shadow: 0 12px 24px rgba(67, 45, 28, 0.16);
+  border-color: color-mix(in srgb, var(--primary-color) 34%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, #432d1c 16%, transparent);
 }
 
 .blog-card--grid:hover::after {
@@ -184,7 +184,7 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
   position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid rgba(255, 250, 241, 0.56);
+  border: 1px solid var(--surface-color);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -220,7 +220,7 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 .cover-tag {
   align-self: flex-start;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.94);
+  color: var(--text-on-primary, #fff);
   background: rgba(15, 23, 42, 0.32);
   border-radius: 999px;
   padding: 2px 8px;
@@ -229,7 +229,7 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 .cover-date {
   align-self: flex-end;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text-on-primary, #fff);
 }
 
 /* ── 正文 ── */
@@ -266,9 +266,9 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(154, 90, 47, 0.14);
-  border: 1px solid rgba(154, 90, 47, 0.24);
-  color: rgba(111, 63, 34, 0.65);
+  background: var(--primary-light-color);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 24%, transparent);
+  color: color-mix(in srgb, var(--primary-pressed-color) 65%, transparent);
   flex-shrink: 0;
 }
 
@@ -317,8 +317,8 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
   margin: 14px 0 0;
   line-height: 22px;
   font-weight: 500;
-  background: rgba(154, 90, 47, 0.08);
-  border-left: 3px solid rgba(154, 90, 47, 0.34);
+  background: var(--primary-light-color);
+  border-left: 3px solid color-mix(in srgb, var(--primary-color) 34%, transparent);
   border-radius: 8px;
   padding: 10px 10px 10px 12px;
   font-family: 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
@@ -352,7 +352,7 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 .blog-card--grid .card-meta {
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid rgba(47, 38, 29, 0.12);
+  border-top: 1px solid var(--border-color);
   display: flex;
   gap: 12px;
   align-items: center;
@@ -385,8 +385,8 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 }
 
 .blog-card--list:hover {
-  border-color: rgba(154, 90, 47, 0.34);
-  box-shadow: 0 12px 24px rgba(67, 45, 28, 0.16);
+  border-color: color-mix(in srgb, var(--primary-color) 34%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, #432d1c 16%, transparent);
 }
 
 /* ── Compact 布局 ── */
@@ -404,8 +404,8 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 }
 
 .blog-card--compact:hover {
-  background: rgba(154, 90, 47, 0.04);
-  border-color: rgba(154, 90, 47, 0.24);
+  background: color-mix(in srgb, var(--primary-color) 4%, transparent);
+  border-color: color-mix(in srgb, var(--primary-color) 24%, transparent);
 }
 
 .blog-card--compact .card-body {
@@ -424,7 +424,7 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
   gap: 8px;
   min-width: 0;
   padding-top: 8px;
-  border-top: 1px solid rgba(47, 38, 29, 0.12);
+  border-top: 1px solid var(--border-color);
 }
 
 .action-chip {
@@ -434,9 +434,9 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
   gap: 5px;
   padding: 3px 6px;
   border-radius: 999px;
-  border: 1px solid rgba(47, 38, 29, 0.12);
-  background: rgba(255, 250, 241, 0.9);
-  color: rgba(47, 38, 29, 0.72);
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
   line-height: 1;
   min-width: 0;
 }
@@ -450,8 +450,8 @@ const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 
 .action-chip--hot {
   color: var(--primary-color);
-  border-color: rgba(154, 90, 47, 0.24);
-  background: rgba(154, 90, 47, 0.1);
+  border-color: color-mix(in srgb, var(--primary-color) 24%, transparent);
+  background: var(--primary-light-color);
 }
 
 /* ── 统计数字等宽 ── */

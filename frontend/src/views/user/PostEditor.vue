@@ -535,8 +535,8 @@ onBeforeUnmount(() => {
 }
 
 .section-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
   backdrop-filter: blur(4px);
 }
@@ -604,7 +604,7 @@ onBeforeUnmount(() => {
 }
 
 .preview-tag {
-  background: rgba(154, 90, 47, 0.1);
+  background: var(--primary-light-color);
   color: var(--primary-color);
 }
 
@@ -634,7 +634,7 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(130, 95, 65, 0.1);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar-section {
@@ -696,7 +696,7 @@ onBeforeUnmount(() => {
   margin: 8px 0 0;
   color: var(--text-tertiary);
   font-size: 12px;
-  border-top: 1px solid rgba(130, 95, 65, 0.1);
+  border-top: 1px solid var(--border-color);
   padding-top: 6px;
 }
 
@@ -718,15 +718,15 @@ onBeforeUnmount(() => {
 .themed-input {
   --n-color: rgba(255, 248, 236, 0.52) !important;
   --n-color-focus: rgba(255, 248, 236, 0.52) !important;
-  --n-box-shadow-focus: 0 0 0 2px rgba(154, 90, 47, 0.18) !important;
+  --n-box-shadow-focus: 0 0 0 2px var(--primary-light-color) !important;
 }
 
 .themed-input :deep(.n-input__border) {
-  border-color: rgba(130, 95, 65, 0.14) !important;
+  border-color: var(--border-color) !important;
 }
 
 .themed-input :deep(.n-input__state-border) {
-  border-color: rgba(154, 90, 47, 0.3) !important;
+  border-color: color-mix(in srgb, var(--primary-color) 30%, transparent) !important;
 }
 
 .themed-select {
@@ -737,15 +737,15 @@ onBeforeUnmount(() => {
 .themed-select :deep(.n-base-selection) {
   --n-color: rgba(255, 248, 236, 0.52) !important;
   --n-color-active: rgba(255, 248, 236, 0.52) !important;
-  --n-box-shadow-focus: 0 0 0 2px rgba(154, 90, 47, 0.18) !important;
+  --n-box-shadow-focus: 0 0 0 2px var(--primary-light-color) !important;
 }
 
 .themed-select :deep(.n-base-selection__border) {
-  border-color: rgba(130, 95, 65, 0.14) !important;
+  border-color: var(--border-color) !important;
 }
 
 .themed-select :deep(.n-base-selection__state-border) {
-  border-color: rgba(154, 90, 47, 0.3) !important;
+  border-color: color-mix(in srgb, var(--primary-color) 30%, transparent) !important;
 }
 
 .help-intro {
@@ -797,7 +797,7 @@ onBeforeUnmount(() => {
 }
 
 .media-item:hover {
-  background: rgba(130, 95, 65, 0.06);
+  background: var(--primary-light-color);
 }
 
 .media-info {

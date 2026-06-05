@@ -123,7 +123,7 @@ const searchKeyword = ref('')
 const showUserMenu = ref(false)
 
 const currentYear = new Date().getFullYear()
-const isLoggedIn = computed(() => Boolean(userStore.token))
+const isLoggedIn = computed(() => userStore.isLoggedIn)
 const isConsoleRoute = computed(() => route.meta?.console === true)
 const userInitial = computed(
   () => (userStore.userInfo?.nickname || userStore.userInfo?.username || '我')[0]
@@ -169,7 +169,7 @@ if (typeof window !== 'undefined') {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 250, 241, 0.82);
+  background: var(--surface-color);
 }
 
 .header-content {
@@ -212,7 +212,7 @@ if (typeof window !== 'undefined') {
   height: 40px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
-  background: rgba(255, 250, 241, 0.92);
+  background: var(--surface-color);
   padding: 0 14px 0 38px;
   color: var(--text-primary);
   outline: none;
@@ -228,8 +228,8 @@ if (typeof window !== 'undefined') {
   border-color: var(--primary-color);
   box-shadow:
     0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(111, 63, 34, 0.16);
-  background: rgba(255, 250, 241, 0.98);
+    0 8px 20px color-mix(in srgb, var(--primary-pressed-color) 16%, transparent);
+  background: var(--glass-bg-hover);
   transform: translateY(-1px);
 }
 
@@ -327,10 +327,10 @@ if (typeof window !== 'undefined') {
   top: calc(100% + 6px);
   right: 0;
   min-width: 140px;
-  background: rgba(255, 250, 241, 0.97);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
   backdrop-filter: blur(8px);
   z-index: 300;
   overflow: hidden;
@@ -351,7 +351,7 @@ if (typeof window !== 'undefined') {
 }
 
 .dropdown-item:hover {
-  background: rgba(154, 90, 47, 0.08);
+  background: var(--primary-light-color);
   color: var(--primary-color);
 }
 
@@ -365,7 +365,7 @@ if (typeof window !== 'undefined') {
 
 .dropdown-divider {
   height: 1px;
-  background: rgba(130, 95, 65, 0.1);
+  background: var(--border-color);
   margin: 4px 0;
 }
 
@@ -375,7 +375,7 @@ if (typeof window !== 'undefined') {
 }
 
 .guest-footer {
-  background: rgba(255, 250, 241, 0.76);
+  background: var(--surface-color);
   border-top: var(--glass-border);
   padding: var(--spacing-xl) 0 var(--spacing-lg);
   color: var(--text-secondary);
