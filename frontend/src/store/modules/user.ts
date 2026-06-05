@@ -11,8 +11,6 @@ import {
 import { usePermissionStore } from '@/store/modules/permission'
 import { authMockData } from '@/services/mock'
 
-export type UserRole = 'user' | 'admin' | 'guest'
-
 export const useUserStore = defineStore(
   'user',
   () => {
@@ -42,7 +40,7 @@ export const useUserStore = defineStore(
       token.value = nextToken
       refreshToken.value = nextRefreshToken || null
       userInfo.value = nextUserInfo
-      permissionStore.setUserPermission(nextUserInfo.role, normalizedPermissions, userLevel)
+      permissionStore.setUserPermission(normalizedPermissions, userLevel)
 
       localStorage.setItem('token', nextToken)
       if (nextRefreshToken) {
@@ -67,15 +65,15 @@ export const useUserStore = defineStore(
       return res
     }
 
-    // 演示模式登录，数据来源统一为 services/mock/auth.ts
-    const loginAsRole = async (role: UserRole) => {
-      const mockUser = authMockData.users[role] as UserInfo | undefined
+    // 演示模式登录（仅开发环境 mock）
+    const loginAsRole = async (role: 'user' | 'admin' | 'guest') => {
+      const mockUser = authMockData.users[role]
       if (!mockUser) {
         throw new Error(`未知的演示角色: ${role}`)
       }
       const res = {
         token: `mock-token-${role}-${Date.now()}`,
-        userInfo: mockUser
+        userInfo: mockUser as unknown as UserInfo
       }
 
       applyUserSession(res.token, res.userInfo)
@@ -97,7 +95,7 @@ export const useUserStore = defineStore(
       const res = await getUserInfoApi()
       userInfo.value = res as UserInfo
       localStorage.setItem('userInfo', JSON.stringify(res))
-      usePermissionStore().setUserPermission(res.role, res.permissions)
+      usePermissionStore().setUserPermission(res.permissions, res.level ?? 5)
       return res
     }
 
@@ -149,7 +147,10 @@ export const useUserStore = defineStore(
         try {
           const parsedUserInfo = JSON.parse(savedUserInfo) as UserInfo
           userInfo.value = parsedUserInfo
-          usePermissionStore().setUserPermission(parsedUserInfo.role, parsedUserInfo.permissions)
+          usePermissionStore().setUserPermission(
+            parsedUserInfo.permissions,
+            parsedUserInfo.level ?? 5
+          )
         } catch (e) {
           console.error('解析用户信息失败:', e)
           localStorage.removeItem('userInfo')

@@ -123,7 +123,7 @@ router.beforeEach(async (to, from, next) => {
   if (!permissionStore.routesLoaded && userStore.userInfo) {
     try {
       // 根据用户角色生成可访问路由列表（用于菜单渲染）
-      await permissionStore.generateRoutes(userStore.userInfo.role)
+      await permissionStore.generateRoutes(userStore.userInfo?.level ?? 5)
       // 路由已静态注册，无需 addRoute
     } catch {
       // 生成路由失败，跳转到首页

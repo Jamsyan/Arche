@@ -1,18 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { roleRoutes } from '@/router'
+import { adminRoutes } from '@/router'
 
 export const usePermissionStore = defineStore(
   'permission',
   () => {
     const routes = ref<RouteRecordRaw[]>([])
     const permissions = ref<string[]>([])
-    const role = ref<string>('guest')
     const level = ref<number>(5) // P0=最高, P5=最低
     const routesLoaded = ref(false)
 
     const whiteList = ['/login', '/404', '/403']
+
+    // 是否为管理员（level 0）
+    const isAdmin = () => level.value === 0
 
     // P等级检查：等级数字越小权限越高
     const hasLevel = (requiredLevel: number): boolean => level.value <= requiredLevel
@@ -25,9 +27,8 @@ export const usePermissionStore = defineStore(
       )
     }
 
-    const generateRoutes = async (userRole: string): Promise<RouteRecordRaw[]> => {
-      role.value = userRole
-      const accessibleRoutes = roleRoutes[userRole as keyof typeof roleRoutes] || []
+    const generateRoutes = async (userLevel: number): Promise<RouteRecordRaw[]> => {
+      const accessibleRoutes = userLevel === 0 ? adminRoutes : []
       routes.value = accessibleRoutes
       routesLoaded.value = true
       return accessibleRoutes
@@ -37,8 +38,7 @@ export const usePermissionStore = defineStore(
       permissions.value = perms
     }
 
-    const setUserPermission = (userRole: string, perms: string[] = [], userLevel = 5) => {
-      role.value = userRole
+    const setUserPermission = (perms: string[] = [], userLevel = 5) => {
       permissions.value = perms
       level.value = userLevel
     }
@@ -46,7 +46,6 @@ export const usePermissionStore = defineStore(
     const resetPermission = () => {
       routes.value = []
       permissions.value = []
-      role.value = 'guest'
       level.value = 5
       routesLoaded.value = false
     }
@@ -58,10 +57,10 @@ export const usePermissionStore = defineStore(
     return {
       routes,
       permissions,
-      role,
       level,
       routesLoaded,
       whiteList,
+      isAdmin,
       hasLevel,
       hasPermission,
       generateRoutes,

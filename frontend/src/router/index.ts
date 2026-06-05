@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { staticRoutes } from './modules/static'
-export { roleRoutes } from './modules/role'
+export { adminRoutes } from './modules/role'
 
 const router = createRouter({
   history: createWebHistory(),

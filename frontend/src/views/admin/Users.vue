@@ -19,7 +19,7 @@ interface UserRow {
   id: string
   username: string
   nickname: string
-  role: string
+  level: number
   createdAt: string
   status: string
 }
@@ -39,17 +39,17 @@ const columns = [
   },
   {
     title: '角色',
-    key: 'role',
+    key: 'level',
     width: 120,
-    render: (row: { role: string }) => {
+    render: (row: { level: number }) => {
+      const level = row.level ?? 5
       return h(
         NTag,
         {
-          type: row.role === 'admin' ? 'error' : row.role === 'user' ? 'primary' : 'default'
+          type: level === 0 ? 'error' : level <= 1 ? 'primary' : 'default'
         },
         {
-          default: () =>
-            row.role === 'admin' ? '管理员' : row.role === 'user' ? '普通用户' : '访客'
+          default: () => (level === 0 ? '管理员' : level <= 1 ? '高级用户' : '普通用户')
         }
       )
     }
@@ -133,7 +133,7 @@ const toUserRow = (item: AdminUser): UserRow => ({
   id: item.id,
   username: item.username,
   nickname: item.nickname || item.username,
-  role: item.role ?? 'user',
+  level: item.level ?? 5,
   createdAt: item.created_at ? item.created_at.slice(0, 10) : '-',
   status: item.is_active === false ? '禁用' : '活跃'
 })

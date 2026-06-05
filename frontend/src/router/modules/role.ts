@@ -109,17 +109,13 @@ const children: RouteRecordRaw[] = [
   }
 ]
 
-export const roleRoutes: Record<'guest' | 'user' | 'admin', RouteRecordRaw[]> = {
-  guest: [],
-  user: [],
-  admin: [
-    {
-      path: '/admin',
-      name: 'Admin',
-      component: Admin,
-      meta: { title: '管理后台', layout: 'admin', requiresAuth: true, level: 0 },
-      redirect: '/admin/moderation/posts',
-      children
-    }
-  ]
-}
+export const adminRoutes: RouteRecordRaw[] = [
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: Admin,
+    meta: { title: '管理后台', layout: 'admin', requiresAuth: true, level: 0 },
+    redirect: '/admin/moderation/posts',
+    children
+  }
+]

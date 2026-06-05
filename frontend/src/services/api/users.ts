@@ -7,7 +7,6 @@ export interface AdminUser {
   username: string
   nickname: string
   avatar?: string
-  role: string
   permissions: string[]
   is_active?: boolean
   level?: number

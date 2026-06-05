@@ -44,7 +44,7 @@ describe('auth API', () => {
     expect(result.id).toBe('1')
     expect(result.username).toBe('admin')
     expect(result.level).toBe(0)
-    expect(result.role).toBe('')
+    expect(result.permissions).toEqual(['*'])
     expect(result.nickname).toBe('admin')
   })
 

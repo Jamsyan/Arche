@@ -39,16 +39,10 @@ const handleLogout = async () => {
         </NDescriptionsItem>
         <NDescriptionsItem label="角色">
           <NTag
-            :type="userStore.userInfo?.role === 'admin' ? 'error' : 'primary'"
+            :type="(userStore.userInfo?.level ?? 5) === 0 ? 'error' : 'primary'"
             :bordered="false"
           >
-            {{
-              userStore.userInfo?.role === 'admin'
-                ? '管理员'
-                : userStore.userInfo?.role === 'user'
-                  ? '普通用户'
-                  : '访客'
-            }}
+            {{ (userStore.userInfo?.level ?? 5) === 0 ? '管理员' : '普通用户' }}
           </NTag>
         </NDescriptionsItem>
         <NDescriptionsItem label="权限">
