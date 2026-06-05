@@ -88,7 +88,7 @@ onMounted(fetchData)
       <div v-else class="post-list">
         <div v-for="post in recentPosts" :key="post.id" class="post-row">
           <div class="post-info">
-            <span class="post-title" @click="$router.push(`/posts/${post.slug || post.id}`)">
+            <span class="post-title" @click="$router.push(`/blog/${post.slug}`)">
               {{ post.title }}
             </span>
             <NTag size="tiny" :type="getStatus(post).type" :bordered="false">

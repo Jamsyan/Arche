@@ -48,7 +48,6 @@ const navGroups = computed(() => {
         { label: '爬虫管理', icon: InformationCircleOutline, to: '/admin/crawler' },
         { label: '资产目录', icon: AppsOutline, to: '/admin/assets' },
         { label: '帖子管理', icon: DocumentTextOutline, to: '/admin/moderation/posts' },
-        { label: '审批管理', icon: InformationCircleOutline, to: '/admin/moderation/pending' },
         { label: '插件管理', icon: AppsOutline, to: '/admin/plugins' }
       ]
     })

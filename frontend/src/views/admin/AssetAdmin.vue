@@ -12,7 +12,21 @@ const columns = [
   { title: '创建时间', key: 'created_at', width: 160 }
 ]
 
-const typeEntries = ref<{ type: string; count: number }[]>([])
+const typeEntries = ref<{ type: string; count: number; label: string }[]>([])
+
+const typeLabelMap: Record<string, string> = {
+  blog_post: '博客帖子',
+  file: '文件',
+  crawl_result: '爬取结果',
+  training_job: '训练任务',
+  dataset: '数据集',
+  artifact: '构建产物',
+  config: '配置',
+  code_repo: '代码仓库',
+  oss_file: 'OSS文件',
+  monitor_template: '监控模板',
+  training_instance: '训练实例'
+}
 
 const fetchData = async () => {
   try {
@@ -20,7 +34,8 @@ const fetchData = async () => {
     stats.value = statsRes
     typeEntries.value = Object.entries(statsRes.by_type || {}).map(([type, count]) => ({
       type,
-      count
+      count,
+      label: typeLabelMap[type] || type
     }))
   } catch {
     // 静默
@@ -46,7 +61,7 @@ onMounted(fetchData)
       <NGi v-for="entry in typeEntries" :key="entry.type">
         <div class="section-card stat-card">
           <div class="stat-value">{{ entry.count }}</div>
-          <div class="stat-label">{{ entry.type }}</div>
+          <div class="stat-label">{{ entry.label }}</div>
         </div>
       </NGi>
     </NGrid>

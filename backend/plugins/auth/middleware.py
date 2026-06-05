@@ -79,8 +79,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path in self.PUBLIC_PATHS or path.startswith(self.INTERNAL_PREFIXES):
             return await call_next(request)
 
-        # 博客公开 GET 路由放行（限定具体前缀，避免放行 moderation 等管理端点）
+        # 博客公开 GET 路由：允许未认证访问，但如果有 token 就解析注入用户信息
         if method == "GET" and path.startswith(self.BLOG_PUBLIC_PREFIXES):
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                # 开发模式：接受 mock-token-*
+                if token.startswith("mock-token-"):
+                    return await self._handle_mock_token(request, call_next, token)
+                try:
+                    payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
+                    request.state.user = {
+                        "id": payload["sub"],
+                        "email": payload.get("email", ""),
+                        "username": payload.get("username", ""),
+                        "level": payload["level"],
+                        "blog_quality_level": payload.get("blog_quality_level", 0),
+                    }
+                except Exception:
+                    pass  # token 无效，当作匿名用户
             return await call_next(request)
 
         # 提取 Authorization header
