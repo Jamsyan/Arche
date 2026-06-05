@@ -1,5 +1,5 @@
 import { del, get, post, type RequestConfig } from '../request'
-import type { ApiListParams, Paginated } from './types/common'
+import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
 
 /** 训练任务 */
 export interface CloudJob {
@@ -21,6 +21,7 @@ export interface CloudJob {
   training_script?: string
   requirements_file?: string
   created_at?: string
+  orchestrator_status?: string
 }
 
 /** 创建任务请求 */
@@ -35,6 +36,7 @@ export interface CreateCloudJobPayload {
   requirements_file?: string
   provider?: string
   gpu_type?: string
+  log_pattern?: string
   instance_name?: string
 }
 
@@ -126,16 +128,28 @@ export interface CloudArtifact {
   created_at?: string
 }
 
+export interface CloudStats {
+  running_jobs: number
+  running_instances: number
+}
+
+const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
+  total: raw.total || 0,
+  page: raw.page || 1,
+  page_size: raw.page_size || 20,
+  list: raw.list || raw.items || []
+})
+
 /**
  * 任务操作
  */
 export const getCloudStatsApi = (config?: RequestConfig) =>
-  get<{ running_jobs: number; running_instances: number }>('/cloud/stats', undefined, config)
+  get<CloudStats>('/cloud/stats', undefined, config)
 
 export const getCloudJobsApi = (
   params?: ApiListParams & { status?: string },
   config?: RequestConfig
-) => get<Paginated<CloudJob>>('/cloud/jobs', params, config)
+) => get<BackendPaginated<CloudJob>>('/cloud/jobs', params, config).then(normalizePaginated)
 
 export const getCloudJobDetailApi = (jobId: string, config?: RequestConfig) =>
   get<CloudJob>(`/cloud/jobs/${jobId}`, undefined, config)
@@ -161,8 +175,14 @@ export const failCloudJobApi = (jobId: string, error_message: string, config?: R
 export const getCloudJobLogsApi = (jobId: string, lines?: number, config?: RequestConfig) =>
   get<{ logs: string[]; total_lines: number }>(`/cloud/jobs/${jobId}/logs`, { lines }, config)
 
-export const getCloudInstancesApi = (jobId: string, config?: RequestConfig) =>
-  get<Paginated<CloudInstance>>(`/cloud/jobs/${jobId}/instances`, undefined, config)
+export const getCloudInstancesApi = (
+  jobId: string,
+  params?: ApiListParams,
+  config?: RequestConfig
+) =>
+  get<BackendPaginated<CloudInstance>>(`/cloud/jobs/${jobId}/instances`, params, config).then(
+    normalizePaginated
+  )
 
 export const createCloudInstanceApi = (
   jobId: string,

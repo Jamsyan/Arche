@@ -193,3 +193,38 @@ class TestCrawlerOrchestrator:
         orch = CrawlerOrchestrator(db_container)
         missing = await orch.get_record(str(uuid.uuid4()))
         assert missing is None
+
+    async def test_save_record_logs_error_on_db_failure(self, caplog):
+        """验证 _save_record 在数据库错误时记录日志而非静默失败。
+
+        这是关键缺陷修复的测试：之前的实现用 except Exception: pass 静默吞掉所有错误，
+        导致爬虫数据静默丢失，无法追踪问题。
+        """
+        import logging
+
+        # 设置日志捕获
+        caplog.set_level(logging.ERROR, logger="backend.plugins.crawler.services")
+
+        container = MagicMock()
+        orch = CrawlerOrchestrator(container)
+
+        # 替换 container.get 使其在获取 db 时抛出异常
+        def mock_get(key):
+            if key == "db":
+                raise RuntimeError("db not ready")
+            return MagicMock()
+
+        container.get = mock_get
+
+        item = CrawlItem(
+            url="https://example.com/test",
+            title="Test",
+            content_type="article",
+            status_code=200,
+            source="example.com",
+        )
+
+        orch._save_record(item)
+
+        # 验证错误被记录
+        assert any("创建保存任务失败" in record.message for record in caplog.records)

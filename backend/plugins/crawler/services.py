@@ -154,23 +154,28 @@ class CrawlerOrchestrator:
             import asyncio as _asyncio
 
             async def _save():
-                async with session_factory() as session:
-                    record = CrawlRecord(
-                        url=item.url,
-                        title=item.title[:512] if item.title else None,
-                        content_type=item.content_type or None,
-                        status_code=item.status_code,
-                        source=item.source or urlparse(item.url).netloc,
-                        crawled_at=datetime.now(timezone.utc),
-                        file_path=item.oss_path,
-                        file_size=item.file_size,
-                    )
-                    session.add(record)
-                    await session.commit()
+                try:
+                    async with session_factory() as session:
+                        record = CrawlRecord(
+                            url=item.url,
+                            title=item.title[:512] if item.title else None,
+                            content_type=item.content_type or None,
+                            status_code=item.status_code,
+                            source=item.source or urlparse(item.url).netloc,
+                            crawled_at=datetime.now(timezone.utc),
+                            file_path=item.oss_path,
+                            file_size=item.file_size,
+                        )
+                        session.add(record)
+                        await session.commit()
+                except Exception as e:
+                    logging.getLogger(__name__).error(f"保存爬虫记录失败: {e}")
 
             _asyncio.get_running_loop().create_task(_save())
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(f"创建保存任务失败: {e}")
 
     async def add_seed(self, url: str) -> bool:
         """手动添加种子 URL。"""
