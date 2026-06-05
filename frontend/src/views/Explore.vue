@@ -169,9 +169,8 @@ function toBlogPost(item: MockExploreItem): BlogPost {
   }
 }
 
-const handleOpenItem = () => {
-  // TODO: navigate to post detail
-  // router.push(`/blog/${slug}`);
+const handleOpenItem = (post: BlogPost) => {
+  router.push(`/blog/${post.slug}`)
 }
 
 const removeCompoundFilter = (type: '标签' | '用户', value: string) => {
