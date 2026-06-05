@@ -58,14 +58,14 @@ const handleLogout = async () => {
 
 .logout-btn {
   padding: 8px 16px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  background: white;
+  border: var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
   cursor: pointer;
 }
 
 .logout-btn:hover {
-  border-color: #1890ff;
-  color: #1890ff;
+  border-color: var(--primary-hover-color);
+  color: var(--primary-hover-color);
 }
 </style>

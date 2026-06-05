@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NIcon, NPagination, NTag, useMessage } from 'naive-ui'
-import {
-  BookmarkOutline,
-  FlameOutline,
-  HeartOutline,
-  PersonOutline,
-  ShareSocialOutline
-} from '@vicons/ionicons5'
+import { NPagination, useMessage } from 'naive-ui'
 import { getBlogPostsApi, type BlogPost } from '@/services/api'
+import BlogCard from '@/components/blog/BlogCard.vue'
 import { useUserStore } from '@/store/modules/user'
 
 const route = useRoute()
@@ -90,23 +84,12 @@ const openPost = (post: BlogPost) => {
   router.push(`/blog/${post.slug}`)
 }
 
-const getAuthorName = (post: BlogPost) => post.author_username || '匿名作者'
-
-const getAuthorAvatarUrl = (post: BlogPost) => {
-  const maybePost = post as BlogPost & { author_avatar?: string; avatar?: string }
-  return maybePost.author_avatar || maybePost.avatar || ''
-}
-
-const getCoverUrl = (post: BlogPost) =>
-  `https://picsum.photos/seed/${encodeURIComponent(post.slug || post.id)}/280/360`
-
-const getShareCount = (post: BlogPost) => Math.max(1, Math.round((post.views || 0) / 18))
-
-const getFavoriteCount = (post: BlogPost) => Math.max(1, Math.round((post.likes || 0) * 0.65))
-
 const startHotTimer = () => {
   if (hotTimer) {
     clearInterval(hotTimer)
+  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return
   }
   hotTimer = setInterval(() => {
     if (hotGroups.value.length > 1) {
@@ -150,21 +133,15 @@ onBeforeUnmount(() => {
     >
       <Transition name="hero-slide" mode="out-in">
         <div :key="hotIndex" class="hero-track">
-          <article
+          <BlogCard
             v-for="post in currentHotGroup"
             :key="post.id"
-            class="hero-card"
-            @click="openPost(post)"
-          >
-            <p class="hero-tag">精选推荐</p>
-            <h2>{{ post.title }}</h2>
-            <p class="hero-excerpt">{{ post.content?.slice(0, 120) || '暂无摘要' }}</p>
-            <div class="hero-meta">
-              <span>{{ post.author_username || '匿名' }}</span>
-              <span>👁 {{ post.views || 0 }}</span>
-              <span>👍 {{ post.likes || 0 }}</span>
-            </div>
-          </article>
+            :post="post"
+            layout="grid"
+            :show-cover="false"
+            :show-actions="false"
+            @open="openPost(post)"
+          />
         </div>
       </Transition>
       <div class="carousel-controls">
@@ -187,64 +164,15 @@ onBeforeUnmount(() => {
     <section class="post-section">
       <div v-if="latestPosts.length === 0" class="empty">暂无内容</div>
       <div v-else class="latest-grid">
-        <article
+        <BlogCard
           v-for="post in latestPosts"
           :key="post.id"
-          class="post-card card-glass"
-          @click="openPost(post)"
-        >
-          <div class="post-author">
-            <span class="author-avatar">
-              <img
-                v-if="getAuthorAvatarUrl(post)"
-                class="author-avatar-image"
-                :src="getAuthorAvatarUrl(post)"
-                :alt="`${getAuthorName(post)} 头像`"
-                loading="lazy"
-              />
-              <NIcon v-else size="14" aria-hidden="true">
-                <PersonOutline />
-              </NIcon>
-            </span>
-            <span class="author-name">@{{ getAuthorName(post) }}</span>
-          </div>
-          <div class="post-main">
-            <div class="post-left">
-              <h4>{{ post.title }}</h4>
-              <p class="post-excerpt">{{ post.content?.slice(0, 96) || '暂无摘要' }}</p>
-            </div>
-            <div class="post-cover">
-              <img
-                class="cover-image"
-                :src="getCoverUrl(post)"
-                :alt="`${post.title} 封面`"
-                loading="lazy"
-              />
-              <span class="cover-tag">{{ (post.tags || [])[0] || '日志' }}</span>
-              <span class="cover-date">{{ post.created_at?.slice(0, 10) || '-' }}</span>
-            </div>
-          </div>
-          <footer class="post-footer">
-            <div class="post-actions">
-              <span class="action-chip" title="点赞">
-                <NIcon size="16"><HeartOutline /></NIcon>
-                <em>{{ post.likes || 0 }}</em>
-              </span>
-              <span class="action-chip" title="收藏">
-                <NIcon size="16"><BookmarkOutline /></NIcon>
-                <em>{{ getFavoriteCount(post) }}</em>
-              </span>
-              <span class="action-chip" title="分享">
-                <NIcon size="16"><ShareSocialOutline /></NIcon>
-                <em>{{ getShareCount(post) }}</em>
-              </span>
-              <span class="action-chip action-chip-hot" title="热度">
-                <NIcon size="16"><FlameOutline /></NIcon>
-                <em>{{ post.views || 0 }}</em>
-              </span>
-            </div>
-          </footer>
-        </article>
+          :post="post"
+          layout="grid"
+          :show-cover="true"
+          :show-actions="true"
+          @open="openPost(post)"
+        />
       </div>
     </section>
 
@@ -253,22 +181,14 @@ onBeforeUnmount(() => {
         <h3>继续浏览</h3>
       </div>
       <div class="quick-list">
-        <article
+        <BlogCard
           v-for="post in quickPosts"
           :key="post.id"
-          class="quick-item"
-          @click="openPost(post)"
-        >
-          <div>
-            <h4>{{ post.title }}</h4>
-            <div class="quick-tags">
-              <NTag v-for="tag in (post.tags || []).slice(0, 2)" :key="tag" size="small">
-                {{ tag }}
-              </NTag>
-            </div>
-          </div>
-          <span>{{ post.created_at?.slice(0, 10) || '-' }}</span>
-        </article>
+          :post="post"
+          layout="compact"
+          :show-excerpt="false"
+          @open="openPost(post)"
+        />
       </div>
     </section>
 
@@ -304,45 +224,6 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.hero-card {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 250, 241, 0.72);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 180px;
-  cursor: pointer;
-}
-
-.hero-tag {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-tertiary);
-  letter-spacing: 0.08em;
-}
-
-.hero-card h2 {
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.35;
-}
-
-.hero-excerpt {
-  margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
-
-.hero-meta {
-  display: flex;
-  gap: 12px;
-  color: var(--text-tertiary);
-  font-size: 12px;
-  margin-top: auto;
 }
 
 .carousel-controls {
@@ -414,261 +295,14 @@ onBeforeUnmount(() => {
 
 .latest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 12px;
-}
-
-.post-card {
-  position: relative;
-  isolation: isolate;
-  cursor: pointer;
-  border: 1px solid var(--border-color);
-  padding: 14px;
-  display: grid;
-  grid-template-rows: 24px minmax(0, 1fr) 52px;
-  gap: 10px;
-  min-height: 286px;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: box-shadow, border-color;
-  transition:
-    box-shadow 0.28s ease,
-    border-color 0.28s ease;
-}
-
-.post-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 1px solid rgba(154, 90, 47, 0.24);
-  box-shadow: 0 10px 22px rgba(67, 45, 28, 0.12);
-  opacity: 0;
-  transform: translateY(0);
-  transition:
-    opacity 0.28s ease,
-    transform 0.28s ease;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.post-card:hover {
-  border-color: rgba(154, 90, 47, 0.34);
-  box-shadow: 0 12px 24px rgba(67, 45, 28, 0.16);
-}
-
-.post-card:hover::after {
-  opacity: 1;
-  transform: translateY(-3px);
-}
-
-.post-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
-  gap: 14px;
-  align-items: start;
-  min-height: 152px;
-}
-
-.post-left {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-width: 0;
-  min-height: 152px;
-}
-
-.post-author {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 24px;
-  min-width: 0;
-}
-
-.post-card h4 {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: calc(1em * 1.35 * 2);
-}
-
-.post-excerpt {
-  margin: 14px 0 0;
-  color: rgba(47, 38, 29, 0.7);
-  line-height: 22px;
-  font-size: 13px;
-  font-weight: 500;
-  background: rgba(154, 90, 47, 0.08);
-  border-left: 3px solid rgba(154, 90, 47, 0.34);
-  border-radius: 8px;
-  padding: 10px 10px 10px 12px;
-  font-family: 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  display: block;
-  overflow: hidden;
-  align-self: end;
-  max-height: calc(22px * 3 + 20px);
-}
-
-.post-footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: center;
-  min-height: 40px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(47, 38, 29, 0.12);
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.author-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: rgba(154, 90, 47, 0.14);
-  border: 1px solid rgba(154, 90, 47, 0.24);
-  color: rgba(111, 63, 34, 0.65);
-}
-
-.author-avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.author-name {
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-}
-
-.post-actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-
-.action-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 3px 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(47, 38, 29, 0.12);
-  background: rgba(255, 250, 241, 0.9);
-  color: rgba(47, 38, 29, 0.72);
-  line-height: 1;
-  min-width: 0;
-}
-
-.action-chip em {
-  font-style: normal;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.action-chip-hot {
-  color: var(--primary-color);
-  border-color: rgba(154, 90, 47, 0.24);
-  background: rgba(154, 90, 47, 0.1);
-}
-
-.post-cover {
-  position: relative;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid rgba(255, 250, 241, 0.56);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 10px;
-  min-height: 152px;
-}
-
-.cover-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0;
-}
-
-.post-cover::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: linear-gradient(
-    180deg,
-    rgba(15, 23, 42, 0.1) 0%,
-    rgba(15, 23, 42, 0.32) 62%,
-    rgba(15, 23, 42, 0.5) 100%
-  );
-}
-
-.cover-tag {
-  position: relative;
-  z-index: 2;
-  align-self: flex-start;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.94);
-  background: rgba(15, 23, 42, 0.32);
-  border-radius: 999px;
-  padding: 2px 8px;
-}
-
-.cover-date {
-  position: relative;
-  z-index: 2;
-  align-self: flex-end;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.88);
 }
 
 .quick-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.quick-item {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.quick-item h4 {
-  margin: 0 0 8px;
-  font-size: 16px;
-}
-
-.quick-tags {
-  display: flex;
-  gap: 8px;
-}
-
-.quick-item > span {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .pager {
@@ -682,51 +316,20 @@ onBeforeUnmount(() => {
   padding: 14px 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .hero-slide-enter-active,
+  .hero-slide-leave-active {
+    transition: none !important;
+  }
+}
+
 @media (max-width: 680px) {
   .hero-track {
     grid-template-columns: 1fr;
   }
 
-  .hero-card h2 {
-    font-size: 21px;
-  }
-
   .latest-grid {
     grid-template-columns: 1fr;
-  }
-
-  .post-main {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .post-card {
-    grid-template-rows: auto auto auto;
-    min-height: unset;
-  }
-
-  .post-cover {
-    min-height: 78px;
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .post-footer {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: unset;
-  }
-
-  .post-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .action-chip {
-    justify-content: flex-start;
-  }
-
-  .quick-item {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 </style>

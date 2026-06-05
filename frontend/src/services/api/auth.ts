@@ -13,13 +13,12 @@ export interface RegisterParams {
   password: string
 }
 
-// 用户信息
+// 用户信息（level 唯一决定权限：0=管理员，其他=普通用户）
 export interface UserInfo {
   id: string
   username: string
   nickname: string
   avatar?: string
-  role: string
   permissions: string[]
   level?: number
   created_at?: string
@@ -46,7 +45,6 @@ const normalizeLoginResponse = (raw: LoginResponse) => {
     id: baseUser?.id || '',
     username: baseUser?.username || '',
     nickname: baseUser?.nickname || baseUser?.username || '',
-    role: baseUser?.role || '',
     level: userLevel,
     permissions: baseUser?.permissions || []
   }
@@ -69,18 +67,26 @@ export const loginApi = (params: LoginParams, config?: RequestConfig) =>
 export const registerApi = (params: RegisterParams, config?: RequestConfig) =>
   post<LoginResponse>('/auth/register', params, config).then(normalizeLoginResponse)
 
+// 刷新 access token
+export const refreshTokenApi = (refresh_token: string, config?: RequestConfig) =>
+  post<LoginResponse>('/auth/refresh', { refresh_token }, config).then((raw) => ({
+    access_token: raw.access_token || raw.token || ''
+  }))
+
 // 登出
 export const logoutApi = (config?: RequestConfig) => post<void>('/auth/logout', undefined, config)
 
 // 获取当前用户信息
 export const getUserInfoApi = (config?: RequestConfig) =>
-  get<Record<string, any>>('/auth/me', undefined, config).then((raw) => ({
-    id: String(raw.id || ''),
-    username: String(raw.username || ''),
-    nickname: String(raw.nickname || raw.username || ''),
-    role: raw.role || '',
-    level: raw.level ?? 5,
-    permissions: raw.permissions || [],
-    ...(raw.created_at ? { created_at: raw.created_at as string } : {}),
-    ...(raw.avatar ? { avatar: raw.avatar as string } : {})
-  }))
+  get<Record<string, any>>('/auth/me', undefined, config).then((raw) => {
+    const userLevel = raw.level ?? 5
+    const base = {
+      id: String(raw.id || ''),
+      username: String(raw.username || ''),
+      nickname: String(raw.nickname || raw.username || ''),
+      level: userLevel,
+      permissions: userLevel === 0 ? ['*'] : raw.permissions || [],
+      created_at: raw.created_at as string | undefined
+    }
+    return raw.avatar ? { ...base, avatar: raw.avatar as string } : base
+  })

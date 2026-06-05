@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from backend.core.middleware import require_level, require_user
 from backend.plugins.monitor.models import MonitorTemplate
 
 router = APIRouter(prefix="/api/monitor", tags=["monitor"])
@@ -41,24 +42,32 @@ class ComponentDataResponse(BaseModel):
 
 
 @router.get("/templates")
-async def list_templates() -> list[dict[str, Any]]:
-    """获取用户的监控模板列表。"""
+@require_level(0)
+async def list_templates(request: Request) -> list[dict[str, Any]]:
+    """获取当前用户的监控模板列表。"""
+    user = require_user(request)
+    user_id = user["id"]
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(select(MonitorTemplate))
+        result = await session.execute(
+            select(MonitorTemplate).where(MonitorTemplate.user_id == user_id)
+        )
         templates = result.scalars().all()
         return [t.to_dict() for t in templates]
 
 
 @router.post("/templates")
-async def create_template(data: TemplateCreate) -> dict[str, Any]:
+@require_level(0)
+async def create_template(data: TemplateCreate, request: Request) -> dict[str, Any]:
     """创建新的监控模板。"""
+    user = require_user(request)
     session_factory = get_session_factory()
     async with session_factory() as session:
         template = MonitorTemplate(
             name=data.name,
             components=data.components,
             refresh_interval=data.refresh_interval,
+            user_id=user["id"],
         )
         session.add(template)
         await session.commit()
@@ -67,12 +76,17 @@ async def create_template(data: TemplateCreate) -> dict[str, Any]:
 
 
 @router.get("/templates/{template_id}")
-async def get_template(template_id: str) -> dict[str, Any]:
+@require_level(0)
+async def get_template(template_id: str, request: Request) -> dict[str, Any]:
     """获取单个监控模板。"""
+    user = require_user(request)
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
-            select(MonitorTemplate).where(MonitorTemplate.id == template_id)
+            select(MonitorTemplate).where(
+                MonitorTemplate.id == template_id,
+                MonitorTemplate.user_id == user["id"],
+            )
         )
         template = result.scalar_one_or_none()
         if not template:
@@ -81,12 +95,19 @@ async def get_template(template_id: str) -> dict[str, Any]:
 
 
 @router.put("/templates/{template_id}")
-async def update_template(template_id: str, data: TemplateUpdate) -> dict[str, Any]:
+@require_level(0)
+async def update_template(
+    template_id: str, data: TemplateUpdate, request: Request
+) -> dict[str, Any]:
     """更新监控模板。"""
+    user = require_user(request)
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
-            select(MonitorTemplate).where(MonitorTemplate.id == template_id)
+            select(MonitorTemplate).where(
+                MonitorTemplate.id == template_id,
+                MonitorTemplate.user_id == user["id"],
+            )
         )
         template = result.scalar_one_or_none()
         if not template:
@@ -105,12 +126,17 @@ async def update_template(template_id: str, data: TemplateUpdate) -> dict[str, A
 
 
 @router.delete("/templates/{template_id}")
-async def delete_template(template_id: str) -> dict[str, str]:
+@require_level(0)
+async def delete_template(template_id: str, request: Request) -> dict[str, str]:
     """删除监控模板。"""
+    user = require_user(request)
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
-            select(MonitorTemplate).where(MonitorTemplate.id == template_id)
+            select(MonitorTemplate).where(
+                MonitorTemplate.id == template_id,
+                MonitorTemplate.user_id == user["id"],
+            )
         )
         template = result.scalar_one_or_none()
         if not template:
@@ -122,7 +148,8 @@ async def delete_template(template_id: str) -> dict[str, str]:
 
 
 @router.get("/components/{component_id}/data")
-async def get_component_data(component_id: str) -> dict[str, Any]:
+@require_level(0)
+async def get_component_data(component_id: str, request: Request) -> dict[str, Any]:
     """获取组件数据。"""
     # TODO: 实现各组件的数据获取
     # 目前返回模拟数据

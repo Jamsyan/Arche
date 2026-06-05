@@ -1,5 +1,6 @@
 import { get, type RequestConfig } from '../request'
-import type { ApiListParams, Paginated } from './types/common'
+import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
+import { normalizePaginated } from './types/common'
 
 export interface AssetItem {
   id: string
@@ -8,9 +9,14 @@ export interface AssetItem {
   created_at?: string
 }
 
+export interface AssetFileStats {
+  count: number
+  total_size_bytes: number
+}
+
 export interface AssetStats {
   total: number
-  by_type: Record<string, number>
+  by_type: Record<string, number | AssetFileStats>
 }
 
 export interface AssetQueryParams extends ApiListParams {
@@ -24,10 +30,10 @@ export interface AssetSearchParams extends AssetQueryParams {
 }
 
 export const getAssetsApi = (params?: AssetQueryParams, config?: RequestConfig) =>
-  get<Paginated<AssetItem>>('/assets', params, config)
+  get<BackendPaginated<AssetItem>>('/assets', params, config).then(normalizePaginated)
 
 export const searchAssetsApi = (params?: AssetSearchParams, config?: RequestConfig) =>
-  get<Paginated<AssetItem>>('/assets/search', params, config)
+  get<BackendPaginated<AssetItem>>('/assets/search', params, config).then(normalizePaginated)
 
 export const getAssetStatsApi = (config?: RequestConfig) =>
   get<AssetStats>('/assets/stats', undefined, config)

@@ -48,6 +48,18 @@ const canAccessRoutePermission = (
   return true
 }
 
+// 解码 JWT payload 获取 exp 时间戳（秒）
+const getJwtExp = (token: string): number | null => {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null // 不是合法 JWT（可能是 mock-token）
+    const payload = JSON.parse(atob(parts[1]!))
+    return payload.exp || null
+  } catch {
+    return null
+  }
+}
+
 router.beforeEach(async (to, from, next) => {
   if (from.path && from.path !== to.path) {
     cancelAllPendingRequests()
@@ -75,6 +87,24 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
+  // token 过期预检：如果 token 已过期（或 5 分钟内过期），尝试刷新
+  const exp = getJwtExp(token)
+  if (exp !== null) {
+    const now = Math.floor(Date.now() / 1000)
+    if (now >= exp - 300) {
+      // 过期或即将过期，尝试刷新
+      const newToken = await userStore.refreshAccessToken()
+      if (!newToken) {
+        // 刷新失败，清除状态跳转登录
+        $message.error('登录已过期，请重新登录')
+        userStore.clearUserState()
+        permissionStore.resetPermission()
+        next({ path: '/login', query: { redirect: to.fullPath } })
+        return
+      }
+    }
+  }
+
   // 有token，但是用户信息不存在，获取用户信息
   if (!userStore.userInfo) {
     try {
@@ -92,9 +122,8 @@ router.beforeEach(async (to, from, next) => {
   // 如果权限路由尚未加载，初始化权限状态
   if (!permissionStore.routesLoaded && userStore.userInfo) {
     try {
-      // 根据用户角色生成可访问路由列表（用于菜单渲染）
-      await permissionStore.generateRoutes(userStore.userInfo.role)
-      // 路由已静态注册，无需 addRoute
+      // 根据用户角色生成可访问路由列表，admin 路由通过 addRoute 动态注册
+      await permissionStore.generateRoutes(userStore.userInfo?.level ?? 5)
     } catch {
       // 生成路由失败，跳转到首页
       $message.error('获取权限失败，请重新登录')
