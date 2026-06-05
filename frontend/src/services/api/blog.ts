@@ -3,8 +3,7 @@ import {
   normalizePaginated,
   type ApiListParams,
   type BatchActionPayload,
-  type BackendPaginated,
-  type Paginated,
+  type BackendPaginated
 } from './types/common'
 
 export interface BlogPost {
@@ -65,7 +64,6 @@ export interface BlogListParams extends ApiListParams {
   sort_by?: string
   status?: string
 }
-
 
 export const getBlogPostsApi = (params?: BlogListParams, config?: RequestConfig) =>
   get<BackendPaginated<BlogPost>>('/blog/posts', params, config).then(normalizePaginated)

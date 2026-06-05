@@ -654,7 +654,10 @@ class StorageService:
             by_type = {
                 r[0]: {"count": r[1], "size": r[2] or 0} for r in type_result.all()
             }
-            minio_usage = self._get_minio().get_disk_usage()
+            try:
+                minio_usage = self._get_minio().get_disk_usage()
+            except Exception:
+                minio_usage = None
 
         return {
             "total_files": total_files,
