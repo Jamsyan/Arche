@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
 import { AddOutline } from '@/icons'
 import ProTable from '@/components/ProTable.vue'
+import BlogCard from '@/components/blog/BlogCard.vue'
 import { deletePostApi, getMyPostsApi, type BlogPost, type Paginated } from '@/services/api'
 
 const message = useMessage()
@@ -18,11 +19,30 @@ interface PostRow {
   status: string
 }
 
+const toBlogPost = (row: PostRow): BlogPost => ({
+  id: row.id,
+  slug: row.id,
+  title: row.title,
+  content: '',
+  tags: [],
+  created_at: row.createdAt,
+  status: row.status
+})
+
 const columns = [
   {
     title: '标题',
     key: 'title',
-    ellipsis: true
+    width: 400,
+    render: (row: PostRow) =>
+      h('div', { class: 'posts-title-cell' }, [
+        h(BlogCard, {
+          post: toBlogPost(row),
+          layout: 'compact',
+          showExcerpt: false,
+          showMeta: false
+        } as Record<string, unknown>)
+      ])
   },
   {
     title: '发布时间',
@@ -178,5 +198,11 @@ const handleDelete = async (row: PostRow) => {
   border-radius: var(--radius-md);
   padding: 16px;
   backdrop-filter: blur(4px);
+}
+
+.posts-title-cell :deep(.blog-card--compact) {
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 </style>

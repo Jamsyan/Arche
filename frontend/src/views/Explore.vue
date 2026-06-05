@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NIcon, NTag, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
@@ -12,6 +12,7 @@ import {
   SearchOutline
 } from '@vicons/ionicons5'
 import ProTable from '@/components/ProTable.vue'
+import BlogCard from '@/components/blog/BlogCard.vue'
 import { getBlogPostsApi, type BlogPost } from '@/services/api'
 import type { MockExploreItem } from '@/services/mock/types'
 
@@ -154,84 +155,24 @@ const activeCompoundFilters = computed<CompoundFilterChip[]>(() => [
     : [{ type: '用户' as const, value: '全部作者', isDefault: true }])
 ])
 
-const WideExcerptCell = defineComponent({
-  name: 'WideExcerptCell',
-  props: {
-    text: {
-      type: String,
-      required: true
-    }
-  },
-  setup(props) {
-    const scroller = ref<HTMLElement | null>(null)
-    const canScroll = ref(false)
-    const thumbTop = ref(0)
-    const thumbHeight = ref(0)
-    let resizeObserver: ResizeObserver | null = null
-
-    const updateThumb = () => {
-      const el = scroller.value
-      if (!el) return
-
-      const scrollRange = el.scrollHeight - el.clientHeight
-      canScroll.value = scrollRange > 1
-
-      if (!canScroll.value) {
-        thumbTop.value = 0
-        thumbHeight.value = 0
-        return
-      }
-
-      const trackHeight = el.clientHeight - 4
-      const nextThumbHeight = Math.max(18, (el.clientHeight / el.scrollHeight) * trackHeight)
-      const maxThumbTop = Math.max(0, trackHeight - nextThumbHeight)
-
-      thumbHeight.value = nextThumbHeight
-      thumbTop.value = (el.scrollTop / scrollRange) * maxThumbTop
-    }
-
-    onMounted(() => {
-      nextTick(updateThumb)
-      if (scroller.value) {
-        resizeObserver = new ResizeObserver(updateThumb)
-        resizeObserver.observe(scroller.value)
-      }
-    })
-
-    onBeforeUnmount(() => {
-      resizeObserver?.disconnect()
-    })
-
-    watch(
-      () => props.text,
-      () => {
-        void nextTick(updateThumb)
-      }
-    )
-
-    return () =>
-      h('div', { class: ['wide-excerpt-cell', { 'is-scrollable': canScroll.value }] }, [
-        h(
-          'div',
-          {
-            ref: scroller,
-            class: 'wide-excerpt-scroll',
-            onScroll: updateThumb
-          },
-          props.text
-        ),
-        h('span', { class: 'wide-excerpt-track', 'aria-hidden': 'true' }, [
-          h('span', {
-            class: 'wide-excerpt-thumb',
-            style: {
-              height: `${thumbHeight.value}px`,
-              transform: `translateY(${thumbTop.value}px)`
-            }
-          })
-        ])
-      ])
+function toBlogPost(item: MockExploreItem): BlogPost {
+  return {
+    id: String(item.id),
+    slug: item.title,
+    title: item.title,
+    content: item.content || item.excerpt,
+    tags: item.tags,
+    author_username: item.author,
+    created_at: item.date,
+    likes: item.likes,
+    views: 0
   }
-})
+}
+
+const handleOpenItem = () => {
+  // TODO: navigate to post detail
+  // router.push(`/blog/${slug}`);
+}
 
 const removeCompoundFilter = (type: '标签' | '用户', value: string) => {
   if (type === '标签') {
@@ -293,52 +234,6 @@ const filteredItems = computed(() => {
   return list
 })
 
-const wideColumns: DataTableColumns<any> = [
-  {
-    title: '标题',
-    key: 'title',
-    minWidth: 260,
-    render: (row) =>
-      h('div', { class: 'wide-title-cell' }, [
-        h('div', { class: 'wide-title-main' }, row.title),
-        h('div', { class: 'wide-title-sub' }, `作者 ${row.author} · 创建于 ${row.createdAt}`)
-      ])
-  },
-  {
-    title: '摘要',
-    key: 'excerpt',
-    minWidth: 320,
-    render: (row) => h(WideExcerptCell, { text: row.previewText })
-  },
-  {
-    title: '作者',
-    key: 'author',
-    width: 120,
-    filterOptions: allAuthors.value
-      .filter((author) => author !== '全部作者')
-      .map((author) => ({ label: author, value: author })),
-    filter: (value, row) => row.author === value
-  },
-  {
-    title: '点赞',
-    key: 'likes',
-    width: 88,
-    sorter: (a, b) => a.likes - b.likes
-  },
-  {
-    title: '收藏',
-    key: 'favorites',
-    width: 88,
-    sorter: (a, b) => a.favorites - b.favorites
-  },
-  {
-    title: '创建时间',
-    key: 'createdAt',
-    width: 140,
-    sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  }
-]
-
 const compactColumns: DataTableColumns<any> = [
   {
     title: '作者',
@@ -388,15 +283,6 @@ const compactRows = computed(() =>
     key: item.id,
     createdAt: item.date,
     heat: item.likes * 2 + item.favorites,
-    ...item
-  }))
-)
-
-const wideRows = computed(() =>
-  filteredItems.value.map((item) => ({
-    key: item.id,
-    createdAt: item.date,
-    previewText: (item.content || item.excerpt).slice(0, 180),
     ...item
   }))
 )
@@ -546,29 +432,16 @@ const wideRows = computed(() =>
               :show-size-picker="false"
               :show-quick-jumper="false"
             />
-            <ProTable
-              v-else-if="viewMode === 'wide-row'"
-              key="wide-row-table"
-              class="wide-table"
-              :columns="wideColumns"
-              :data="wideRows"
-              row-key="key"
-              :page-size="10"
-              :show-size-picker="false"
-              :show-quick-jumper="false"
-            />
-            <div v-else key="card-list" class="display-list" :class="`mode-${viewMode}`">
-              <article v-for="item in filteredItems" :key="item.id" class="display-item">
-                <div class="item-cover" :style="{ background: item.cover }" />
-                <div class="item-main">
-                  <h4>{{ item.title }}</h4>
-                  <p>{{ item.excerpt }}</p>
-                  <div class="meta">
-                    作者 {{ item.author }} · {{ item.date }} · 点赞 {{ item.likes }} · 收藏
-                    {{ item.favorites }}
-                  </div>
-                </div>
-              </article>
+            <div v-else key="blog-card-list" class="display-list" :class="`mode-${viewMode}`">
+              <BlogCard
+                v-for="item in filteredItems"
+                :key="item.id"
+                :post="toBlogPost(item)"
+                :layout="viewMode === 'wide-row' ? 'list' : 'grid'"
+                :show-cover="viewMode === 'card'"
+                :show-excerpt="true"
+                @open="handleOpenItem"
+              />
             </div>
           </Transition>
         </section>
@@ -1016,88 +889,6 @@ const wideRows = computed(() =>
   grid-template-columns: 1fr;
 }
 
-.display-item {
-  border: 1px solid rgba(130, 95, 65, 0.14);
-  border-radius: 12px;
-  background: rgba(255, 251, 244, 0.92);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  animation: card-item-enter 0.32s ease both;
-  will-change: opacity, transform;
-}
-
-.display-item:nth-child(1) {
-  animation-delay: 0.03s;
-}
-
-.display-item:nth-child(2) {
-  animation-delay: 0.06s;
-}
-
-.display-item:nth-child(3) {
-  animation-delay: 0.09s;
-}
-
-.display-item:nth-child(4) {
-  animation-delay: 0.12s;
-}
-
-.display-item:nth-child(n + 5) {
-  animation-delay: 0.14s;
-}
-
-.item-cover {
-  display: none;
-}
-
-.item-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.display-item h4 {
-  margin: 0;
-  font-size: 14px;
-}
-
-.display-item p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.display-item .meta {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.display-list.mode-card .display-item {
-  padding: 0;
-  overflow: hidden;
-  gap: 0;
-}
-
-.display-list.mode-card .item-cover {
-  display: block;
-  height: 124px;
-  width: 100%;
-}
-
-.display-list.mode-card .item-main {
-  padding: 10px 12px;
-}
-
-.display-list.mode-wide-row .display-item {
-  padding: 10px 12px;
-}
-
-.display-list.mode-wide-row .item-cover {
-  display: none;
-}
-
 .compact-table {
   min-height: 0;
 }
@@ -1150,164 +941,6 @@ const wideRows = computed(() =>
 
 .compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(n + 4)) {
   animation-delay: 0.12s;
-}
-
-.wide-table {
-  min-height: 0;
-}
-
-.wide-table :deep(.n-data-table) {
-  --n-td-color: rgba(255, 249, 240, 0.9);
-  --n-td-color-hover: rgba(255, 244, 229, 0.95);
-  --n-th-color: rgba(246, 236, 223, 0.95);
-  --n-border-color: rgba(130, 95, 65, 0.16);
-  --n-th-text-color: var(--text-secondary);
-  --n-td-text-color: var(--text-primary);
-}
-
-.wide-table :deep(.n-data-table .n-data-table-wrapper),
-.wide-table :deep(.n-data-table .n-scrollbar-container),
-.wide-table :deep(.n-data-table .n-data-table-base-table) {
-  background: rgba(255, 248, 236, 0.78);
-  border-radius: 10px;
-}
-
-.wide-table :deep(.n-data-table thead th) {
-  background: rgba(246, 236, 223, 0.96) !important;
-  color: var(--text-secondary) !important;
-}
-
-.wide-table :deep(.n-data-table tbody td) {
-  background: rgba(255, 249, 240, 0.9) !important;
-  color: var(--text-primary) !important;
-  vertical-align: top;
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-
-.wide-table :deep(.n-data-table tbody tr:hover td) {
-  background: rgba(255, 244, 229, 0.95) !important;
-}
-
-.wide-table :deep(.n-data-table-tbody > .n-data-table-tr) {
-  animation: table-row-enter 0.28s ease both;
-}
-
-.wide-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(1)) {
-  animation-delay: 0.03s;
-}
-
-.wide-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(2)) {
-  animation-delay: 0.06s;
-}
-
-.wide-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(3)) {
-  animation-delay: 0.09s;
-}
-
-.wide-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(n + 4)) {
-  animation-delay: 0.12s;
-}
-
-.wide-table :deep(.wide-title-cell) {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  line-height: 1.45;
-  height: 100%;
-}
-
-.wide-table :deep(.wide-title-main) {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.wide-table :deep(.wide-title-sub) {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-top: auto;
-  padding-top: 6px;
-}
-
-.wide-table :deep(.wide-excerpt-cell) {
-  position: relative;
-  max-height: 72px;
-}
-
-.wide-table :deep(.wide-excerpt-scroll) {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text-secondary);
-  white-space: normal;
-  word-break: break-word;
-  max-height: 72px;
-  overflow-y: auto;
-  padding-right: 14px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.wide-table :deep(.wide-excerpt-scroll::-webkit-scrollbar) {
-  display: none;
-}
-
-.wide-table :deep(.wide-excerpt-track) {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  bottom: 2px;
-  width: 8px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.18s ease;
-}
-
-.wide-table :deep(.wide-excerpt-cell.is-scrollable .wide-excerpt-track) {
-  opacity: 0.72;
-}
-
-.wide-table :deep(.wide-excerpt-track::before) {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  border-radius: 999px;
-  background: rgba(130, 95, 65, 0.18);
-  content: '';
-  transform: translateX(-50%);
-}
-
-.wide-table :deep(.wide-excerpt-thumb) {
-  position: absolute;
-  top: 0;
-  right: 3px;
-  width: 2px;
-  border-radius: 999px;
-  background: rgba(130, 95, 65, 0.46);
-  transition:
-    right 0.18s ease,
-    width 0.18s ease,
-    background-color 0.18s ease;
-  will-change: transform, height;
-}
-
-.wide-table :deep(.wide-excerpt-cell:hover .wide-excerpt-thumb) {
-  right: 2px;
-  width: 4px;
-  background: rgba(130, 95, 65, 0.62);
-}
-
-@keyframes card-item-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes table-row-enter {

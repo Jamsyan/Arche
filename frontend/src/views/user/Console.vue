@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { NCard, NButton, NGrid, NGi, NTag, NIcon } from 'naive-ui'
 import { CreateOutline, DocumentTextOutline } from '@vicons/ionicons5'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
+import BlogCard from '@/components/blog/BlogCard.vue'
 
 const loading = ref(false)
 const recentPosts = ref<BlogPost[]>([])
@@ -85,21 +86,17 @@ onMounted(fetchData)
         <p>还没有文章，开始你的第一篇创作吧</p>
         <NButton type="primary" @click="$router.push('/posts/new')">写文章</NButton>
       </div>
-      <div v-else class="post-list">
-        <div v-for="post in recentPosts" :key="post.id" class="post-row">
-          <div class="post-info">
-            <span class="post-title" @click="$router.push(`/blog/${post.slug}`)">
-              {{ post.title }}
-            </span>
-            <NTag size="tiny" :type="getStatus(post).type" :bordered="false">
-              {{ getStatus(post).label }}
-            </NTag>
-          </div>
-          <div class="post-meta">
-            <span>{{ (post.created_at || '').slice(0, 10) }}</span>
-            <span v-if="post.likes !== undefined">{{ post.likes }} 赞</span>
-            <span v-if="post.views !== undefined">{{ post.views }} 阅读</span>
-          </div>
+      <div v-else>
+        <div v-for="post in recentPosts" :key="post.id" class="console-item-row">
+          <BlogCard
+            :post="post"
+            layout="compact"
+            :show-excerpt="false"
+            @open="$router.push(`/blog/${post.slug}`)"
+          />
+          <NTag size="tiny" :type="getStatus(post).type" :bordered="false">
+            {{ getStatus(post).label }}
+          </NTag>
         </div>
       </div>
     </NCard>
@@ -186,50 +183,14 @@ onMounted(fetchData)
   backdrop-filter: blur(4px);
 }
 
-.post-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.post-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(130, 95, 65, 0.1);
-}
-
-.post-row:last-child {
-  border-bottom: none;
-}
-
-.post-info {
+.console-item-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
 }
 
-.post-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.post-title:hover {
-  color: var(--primary-color);
-}
-
-.post-meta {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
+.console-item-row :deep(.blog-card) {
+  flex: 1;
 }
 
 .empty-state {
