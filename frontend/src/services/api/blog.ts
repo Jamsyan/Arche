@@ -1,6 +1,11 @@
 import { del, get, post, put, type RequestConfig } from '../request'
-import type { ApiListParams, BatchActionPayload, BackendPaginated } from './types/common'
-import { normalizePaginated } from './types/common'
+import {
+  normalizePaginated,
+  type ApiListParams,
+  type BatchActionPayload,
+  type BackendPaginated,
+  type Paginated,
+} from './types/common'
 
 export interface BlogPost {
   id: string
@@ -61,12 +66,6 @@ export interface BlogListParams extends ApiListParams {
   status?: string
 }
 
-const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
-  total: raw.total || 0,
-  page: raw.page ?? 1,
-  page_size: raw.page_size || 20,
-  list: raw.list || raw.items || []
-})
 
 export const getBlogPostsApi = (params?: BlogListParams, config?: RequestConfig) =>
   get<BackendPaginated<BlogPost>>('/blog/posts', params, config).then(normalizePaginated)
