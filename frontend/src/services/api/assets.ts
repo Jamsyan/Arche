@@ -1,5 +1,6 @@
 import { get, type RequestConfig } from '../request'
-import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
+import type { ApiListParams, BackendPaginated } from './types/common'
+import { normalizePaginated } from './types/common'
 
 export interface AssetItem {
   id: string
@@ -22,13 +23,6 @@ export interface AssetSearchParams extends AssetQueryParams {
   date_from?: string
   date_to?: string
 }
-
-const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
-  total: raw.total || 0,
-  page: raw.page || 1,
-  page_size: raw.page_size || 20,
-  list: raw.list || raw.items || []
-})
 
 export const getAssetsApi = (params?: AssetQueryParams, config?: RequestConfig) =>
   get<BackendPaginated<AssetItem>>('/assets', params, config).then(normalizePaginated)
