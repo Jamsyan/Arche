@@ -122,7 +122,6 @@ const handleRegister = async () => {
           <NFormItemGi label="邮箱" path="email"
             ><NInput
               v-model:value="formModel.email"
-              type="email"
               placeholder="请输入邮箱"
               :input-props="{ name: 'email', autocomplete: 'email' }"
           /></NFormItemGi>

@@ -1,20 +1,11 @@
 import type { RouteRecordRaw } from 'vue-router'
-import Admin from '@/views/admin/Admin.vue'
-import AdminUsers from '@/views/admin/Users.vue'
-import AdminPlugins from '@/views/admin/Plugins.vue'
-import AdminSystemMonitor from '@/views/admin/SystemMonitor.vue'
-import OssAdmin from '@/views/admin/OssAdmin.vue'
-import ConfigAdmin from '@/views/admin/ConfigAdmin.vue'
-import CrawlerAdmin from '@/views/admin/CrawlerAdmin.vue'
-import AssetAdmin from '@/views/admin/AssetAdmin.vue'
-import ModerationPosts from '@/views/admin/ModerationPosts.vue'
 import { API_PERMISSION } from '@/constants/permissions'
 
 const children: RouteRecordRaw[] = [
   {
     path: 'users',
     name: 'AdminUsers',
-    component: AdminUsers,
+    component: () => import('@/views/admin/Users.vue'),
     meta: {
       title: '用户管理',
       layout: 'admin',
@@ -26,7 +17,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'plugins',
     name: 'AdminPlugins',
-    component: AdminPlugins,
+    component: () => import('@/views/admin/Plugins.vue'),
     meta: {
       title: '插件管理',
       layout: 'admin',
@@ -38,7 +29,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'system',
     name: 'AdminSystemMonitor',
-    component: AdminSystemMonitor,
+    component: () => import('@/views/admin/SystemMonitor.vue'),
     meta: {
       title: '系统监控',
       layout: 'admin',
@@ -50,7 +41,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'oss',
     name: 'AdminOss',
-    component: OssAdmin,
+    component: () => import('@/views/admin/OssAdmin.vue'),
     meta: {
       title: 'OSS 存储',
       layout: 'admin',
@@ -62,7 +53,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'config',
     name: 'AdminConfig',
-    component: ConfigAdmin,
+    component: () => import('@/views/admin/ConfigAdmin.vue'),
     meta: {
       title: '配置管理',
       layout: 'admin',
@@ -74,7 +65,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'crawler',
     name: 'AdminCrawler',
-    component: CrawlerAdmin,
+    component: () => import('@/views/admin/CrawlerAdmin.vue'),
     meta: {
       title: '爬虫管理',
       layout: 'admin',
@@ -86,7 +77,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'assets',
     name: 'AdminAssets',
-    component: AssetAdmin,
+    component: () => import('@/views/admin/AssetAdmin.vue'),
     meta: {
       title: '资产目录',
       layout: 'admin',
@@ -98,7 +89,7 @@ const children: RouteRecordRaw[] = [
   {
     path: 'moderation/posts',
     name: 'AdminModerationPosts',
-    component: ModerationPosts,
+    component: () => import('@/views/admin/ModerationPosts.vue'),
     meta: {
       title: '帖子管理',
       layout: 'admin',
@@ -113,7 +104,7 @@ export const adminRoutes: RouteRecordRaw[] = [
   {
     path: '/admin',
     name: 'Admin',
-    component: Admin,
+    component: () => import('@/views/admin/Admin.vue'),
     meta: { title: '管理后台', layout: 'admin', requiresAuth: true, level: 0 },
     redirect: '/admin/moderation/posts',
     children

@@ -106,7 +106,8 @@ watch(
     if (viewMode.value !== 'card') query.view = viewMode.value
     if (contentSearch.value) query.q = contentSearch.value
 
-    router.replace({ query: Object.keys(query).length ? query : undefined })
+    const keys = Object.keys(query)
+    router.replace(keys.length ? { path: route.path, query } : { path: route.path })
   },
   { deep: true }
 )

@@ -7,20 +7,6 @@ import Explore from '@/views/Explore.vue'
 import About from '@/views/About.vue'
 import NotFound from '@/views/NotFound.vue'
 import Forbidden from '@/views/Forbidden.vue'
-import Console from '@/views/user/Console.vue'
-import Profile from '@/views/user/Profile.vue'
-import Posts from '@/views/user/Posts.vue'
-import PostEditor from '@/views/user/PostEditor.vue'
-import CreatorDashboard from '@/views/user/CreatorDashboard.vue'
-import Admin from '@/views/admin/Admin.vue'
-import AdminUsers from '@/views/admin/Users.vue'
-import AdminPlugins from '@/views/admin/Plugins.vue'
-import AdminSystemMonitor from '@/views/admin/SystemMonitor.vue'
-import ModerationPosts from '@/views/admin/ModerationPosts.vue'
-import OssAdmin from '@/views/admin/OssAdmin.vue'
-import ConfigAdmin from '@/views/admin/ConfigAdmin.vue'
-import CrawlerAdmin from '@/views/admin/CrawlerAdmin.vue'
-import AssetAdmin from '@/views/admin/AssetAdmin.vue'
 import { API_PERMISSION } from '@/constants/permissions'
 
 export const staticRoutes: RouteRecordRaw[] = [
@@ -72,7 +58,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/console',
     name: 'Console',
-    component: Console,
+    component: () => import('@/views/user/Console.vue'),
     meta: {
       title: '控制台',
       layout: 'guest',
@@ -92,7 +78,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/profile',
     name: 'Profile',
-    component: Profile,
+    component: () => import('@/views/user/Profile.vue'),
     meta: {
       title: '个人中心',
       layout: 'guest',
@@ -104,7 +90,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/posts',
     name: 'Posts',
-    component: Posts,
+    component: () => import('@/views/user/Posts.vue'),
     meta: {
       title: '我的文章',
       layout: 'guest',
@@ -116,7 +102,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/posts/new',
     name: 'PostCreate',
-    component: PostEditor,
+    component: () => import('@/views/user/PostEditor.vue'),
     meta: {
       title: '新建文章',
       layout: 'guest',
@@ -128,7 +114,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/posts/:id/edit',
     name: 'PostEdit',
-    component: PostEditor,
+    component: () => import('@/views/user/PostEditor.vue'),
     meta: {
       title: '编辑文章',
       layout: 'guest',
@@ -140,7 +126,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/creator',
     name: 'CreatorDashboard',
-    component: CreatorDashboard,
+    component: () => import('@/views/user/CreatorDashboard.vue'),
     meta: {
       title: '创作者看板',
       layout: 'guest',
@@ -152,7 +138,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/admin',
     name: 'Admin',
-    component: Admin,
+    component: () => import('@/views/admin/Admin.vue'),
     meta: {
       title: '管理后台',
       layout: 'guest',
@@ -166,7 +152,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'users',
         name: 'AdminUsers',
-        component: AdminUsers,
+        component: () => import('@/views/admin/Users.vue'),
         meta: {
           title: '用户管理',
           layout: 'guest',
@@ -178,7 +164,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'plugins',
         name: 'AdminPlugins',
-        component: AdminPlugins,
+        component: () => import('@/views/admin/Plugins.vue'),
         meta: {
           title: '插件管理',
           layout: 'guest',
@@ -190,7 +176,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'system',
         name: 'AdminSystemMonitor',
-        component: AdminSystemMonitor,
+        component: () => import('@/views/admin/SystemMonitor.vue'),
         meta: {
           title: '系统监控',
           layout: 'guest',
@@ -202,7 +188,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'oss',
         name: 'AdminOss',
-        component: OssAdmin,
+        component: () => import('@/views/admin/OssAdmin.vue'),
         meta: {
           title: 'OSS 存储',
           layout: 'guest',
@@ -214,7 +200,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'config',
         name: 'AdminConfig',
-        component: ConfigAdmin,
+        component: () => import('@/views/admin/ConfigAdmin.vue'),
         meta: {
           title: '配置管理',
           layout: 'guest',
@@ -226,7 +212,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'crawler',
         name: 'AdminCrawler',
-        component: CrawlerAdmin,
+        component: () => import('@/views/admin/CrawlerAdmin.vue'),
         meta: {
           title: '爬虫管理',
           layout: 'guest',
@@ -238,7 +224,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'assets',
         name: 'AdminAssets',
-        component: AssetAdmin,
+        component: () => import('@/views/admin/AssetAdmin.vue'),
         meta: {
           title: '资产目录',
           layout: 'guest',
@@ -262,7 +248,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'moderation/posts',
         name: 'AdminModerationPosts',
-        component: ModerationPosts,
+        component: () => import('@/views/admin/ModerationPosts.vue'),
         meta: {
           title: '帖子管理',
           layout: 'guest',

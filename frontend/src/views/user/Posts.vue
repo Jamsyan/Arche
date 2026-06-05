@@ -41,7 +41,7 @@ const columns = [
           layout: 'compact',
           showExcerpt: false,
           showMeta: false
-        } as Record<string, unknown>)
+        })
       ])
   },
   {
