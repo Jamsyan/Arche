@@ -212,13 +212,13 @@ function handleClick(e: MouseEvent) {
   border-color: var(--error-color);
 }
 .ar-button--danger:hover:not(.is-disabled) {
-  background-color: #d44a3b;
-  border-color: #d44a3b;
+  background-color: #a82e20;
+  border-color: #a82e20;
   box-shadow: var(--shadow-md);
 }
 .ar-button--danger:active:not(.is-disabled) {
-  background-color: #a82e20;
-  border-color: #a82e20;
+  background-color: #8a1a1a;
+  border-color: #8a1a1a;
 }
 
 /* ── spinner ── */

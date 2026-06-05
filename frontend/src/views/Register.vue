@@ -113,7 +113,7 @@ const handleRegister = async () => {
           <p>注册后即可发布和管理你的博客内容</p>
         </div>
 
-        <NForm :model="formModel" :rules="rules" label-width="92">
+        <NForm :model="formModel" :rules="rules" label-width="80">
           <NGrid :cols="1">
             <NFormItemGi label="邮箱" path="email"
               ><ArInput v-model:value="formModel.email" placeholder="请输入邮箱"
@@ -137,10 +137,12 @@ const handleRegister = async () => {
                 placeholder="请再次输入密码"
               />
             </NFormItemGi>
-            <NGi :span="1" style="margin-top: 16px">
-              <ArButton type="primary" size="lg" block :loading="loading" @click="handleRegister"
-                >立即注册</ArButton
-              >
+            <NGi :span="1" style="margin-top: 20px">
+              <div class="form-action">
+                <ArButton type="primary" size="lg" :loading="loading" @click="handleRegister"
+                  >立即注册</ArButton
+                >
+              </div>
             </NGi>
           </NGrid>
         </NForm>
@@ -309,7 +311,7 @@ const handleRegister = async () => {
 }
 
 .register-card {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-2xl);
   background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -324,6 +326,10 @@ const handleRegister = async () => {
 .register-card :deep(.n-card-content) {
   background: var(--surface-color);
   border-radius: 12px;
+}
+
+.register-card :deep(.n-form-item-blank) {
+  width: 100%;
 }
 .card-header {
   text-align: center;
@@ -355,6 +361,15 @@ const handleRegister = async () => {
   margin-top: 14px;
   text-align: center;
   color: var(--text-secondary);
+}
+
+.form-action {
+  display: flex;
+  justify-content: center;
+}
+
+.form-action .ar-button {
+  min-width: 200px;
 }
 
 .bottom a {

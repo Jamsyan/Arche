@@ -5,6 +5,10 @@ import Register from '@/views/Register.vue'
 import PostDetail from '@/views/PostDetail.vue'
 import Explore from '@/views/Explore.vue'
 import About from '@/views/About.vue'
+import Create from '@/views/Create.vue'
+import Assets from '@/views/Assets.vue'
+import Scheduler from '@/views/Scheduler.vue'
+import GitHub from '@/views/GitHub.vue'
 import NotFound from '@/views/NotFound.vue'
 import Forbidden from '@/views/Forbidden.vue'
 import { API_PERMISSION } from '@/constants/permissions'
@@ -39,6 +43,30 @@ export const staticRoutes: RouteRecordRaw[] = [
     name: 'About',
     component: About,
     meta: { layout: 'guest', requiresAuth: false }
+  },
+  {
+    path: '/create',
+    name: 'Create',
+    component: Create,
+    meta: { title: '创作', layout: 'guest', requiresAuth: true }
+  },
+  {
+    path: '/assets',
+    name: 'Assets',
+    component: Assets,
+    meta: { title: '素材库', layout: 'guest', requiresAuth: true }
+  },
+  {
+    path: '/scheduler',
+    name: 'Scheduler',
+    component: Scheduler,
+    meta: { title: '调度器', layout: 'guest', requiresAuth: true }
+  },
+  {
+    path: '/github',
+    name: 'GitHub',
+    component: GitHub,
+    meta: { title: 'GitHub', layout: 'guest', requiresAuth: false }
   },
   {
     path: '/console',

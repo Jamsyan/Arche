@@ -24,8 +24,10 @@
           >首页</RouterLink
         >
         <RouterLink to="/explore" class="nav-item">探索</RouterLink>
-        <RouterLink v-if="isLoggedIn" to="/console" class="nav-item">控制台</RouterLink>
-        <RouterLink to="/about" class="nav-item">关于</RouterLink>
+        <RouterLink v-if="isLoggedIn" to="/create" class="nav-item">创作</RouterLink>
+        <RouterLink v-if="isLoggedIn" to="/assets" class="nav-item">素材库</RouterLink>
+        <RouterLink v-if="isLoggedIn" to="/scheduler" class="nav-item">调度器</RouterLink>
+        <RouterLink to="/github" class="nav-item">GitHub</RouterLink>
       </nav>
       <div class="search-wrap">
         <NIcon class="search-leading-icon" size="17" aria-hidden="true">
@@ -54,18 +56,21 @@
 
     <!-- Header Right -->
     <div class="header-right">
-      <div v-if="layoutMode === 'guest' && isLoggedIn" class="user-menu-wrap">
-        <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
-          {{ userInitial }}
-        </button>
-        <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
-          <RouterLink to="/profile" class="dropdown-item">个人中心</RouterLink>
-          <div class="dropdown-divider"></div>
-          <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
+      <div v-if="layoutMode === 'guest' && isLoggedIn" class="header-right-inner">
+        <RouterLink to="/console" class="nav-item console-btn">控制台</RouterLink>
+        <div class="user-menu-wrap">
+          <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
+            {{ userInitial }}
+          </button>
+          <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
+            <RouterLink to="/profile" class="dropdown-item">个人中心</RouterLink>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
+          </div>
         </div>
       </div>
       <template v-else-if="layoutMode === 'guest'">
-        <RouterLink to="/register" class="nav-item">加入我们</RouterLink>
+        <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
         <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
       </template>
       <div v-else class="user-menu-wrap">
@@ -112,6 +117,7 @@ const appStore = useAppStore()
 
 const searchKeyword = ref('')
 const showUserMenu = ref(false)
+const repoUrl = 'https://github.com/jamnodesmith/Arche'
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const userInitial = computed(
@@ -205,6 +211,12 @@ onBeforeUnmount(() => {
   gap: var(--spacing-sm);
   flex-shrink: 0;
   position: relative;
+}
+
+.header-right-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 /* ── Menu Toggle ── */

@@ -1,30 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NDataTable, NIcon, NTag, useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import {
-  AppsOutline,
-  ListOutline,
-  PersonOutline,
-  PricetagOutline,
-  ReorderThreeOutline,
-  SearchOutline
-} from '@vicons/ionicons5'
+import { NIcon, NTag, useMessage } from 'naive-ui'
+import { PersonOutline, PricetagOutline } from '@vicons/ionicons5'
 import { PostCard } from '@/components/blog'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import type { MockExploreItem } from '@/services/mock/types'
 
 type ExploreFilterMode = 'tag' | 'author'
-type ExploreViewMode = 'card' | 'wide-row' | 'compact-row'
 
 const filterMode = ref<ExploreFilterMode>('tag')
 const selectedTags = ref<string[]>([])
-const tagFilter = ref('')
 const selectedAuthors = ref<string[]>([])
-const authorFilter = ref('')
-const contentSearch = ref('')
-const viewMode = ref<ExploreViewMode>('card')
 
 const router = useRouter()
 const route = useRoute()
@@ -88,22 +75,17 @@ onMounted(async () => {
   if (q.mode === 'tag' || q.mode === 'author') filterMode.value = q.mode
   if (q.tags) selectedTags.value = String(q.tags).split(',').filter(Boolean)
   if (q.authors) selectedAuthors.value = String(q.authors).split(',').filter(Boolean)
-  if (q.view === 'card' || q.view === 'wide-row' || q.view === 'compact-row')
-    viewMode.value = q.view
-  if (q.q) contentSearch.value = String(q.q)
 
   await fetchExploreData()
 })
 
 watch(
-  [filterMode, selectedTags, selectedAuthors, viewMode, contentSearch],
+  [filterMode, selectedTags, selectedAuthors],
   () => {
     const query: Record<string, string> = {}
     if (filterMode.value !== 'tag') query.mode = filterMode.value
     if (selectedTags.value.length > 0) query.tags = selectedTags.value.join(',')
     if (selectedAuthors.value.length > 0) query.authors = selectedAuthors.value.join(',')
-    if (viewMode.value !== 'card') query.view = viewMode.value
-    if (contentSearch.value) query.q = contentSearch.value
 
     const keys = Object.keys(query)
     router.replace(keys.length ? { path: route.path, query } : { path: route.path })
@@ -143,16 +125,15 @@ const toggleSidebarOption = (option: string) => {
 type CompoundFilterChip = {
   type: '标签' | '用户'
   value: string
-  isDefault: boolean
 }
 
 const activeCompoundFilters = computed<CompoundFilterChip[]>(() => [
   ...(selectedTags.value.length > 0
-    ? selectedTags.value.map((value) => ({ type: '标签' as const, value, isDefault: false }))
-    : [{ type: '标签' as const, value: '全部', isDefault: true }]),
+    ? selectedTags.value.map((value) => ({ type: '标签' as const, value }))
+    : []),
   ...(selectedAuthors.value.length > 0
-    ? selectedAuthors.value.map((value) => ({ type: '用户' as const, value, isDefault: false }))
-    : [{ type: '用户' as const, value: '全部作者', isDefault: true }])
+    ? selectedAuthors.value.map((value) => ({ type: '用户' as const, value }))
+    : [])
 ])
 
 function toBlogPost(item: MockExploreItem): BlogPost {
@@ -173,53 +154,36 @@ const handleOpenItem = (post: BlogPost) => {
   router.push(`/blog/${post.slug}`)
 }
 
-const removeCompoundFilter = (type: '标签' | '用户', value: string) => {
-  if (type === '标签') {
-    selectedTags.value = selectedTags.value.filter((tag) => tag !== value)
-    return
-  }
-  selectedAuthors.value = selectedAuthors.value.filter((author) => author !== value)
-}
-
 const handleCompoundFilterChipClick = (chip: CompoundFilterChip) => {
-  if (chip.isDefault) {
-    if (chip.type === '标签') {
-      selectedTags.value = []
-      return
-    }
-    selectedAuthors.value = []
+  if (chip.type === '标签') {
+    selectedTags.value = selectedTags.value.filter((tag) => tag !== chip.value)
     return
   }
-  removeCompoundFilter(chip.type, chip.value)
+  selectedAuthors.value = selectedAuthors.value.filter((author) => author !== chip.value)
 }
 
-const visibleTags = computed(() => {
-  const filterValue = tagFilter.value.trim().toLowerCase()
-  if (!filterValue) {
-    return allTags.value
-  }
-  return allTags.value.filter((tag) => tag.toLowerCase().includes(filterValue))
-})
+const visibleTags = computed(() => allTags.value)
 
-const visibleAuthors = computed(() => {
-  const filterValue = authorFilter.value.trim().toLowerCase()
-  if (!filterValue) {
-    return allAuthors.value
-  }
-  return allAuthors.value.filter((author) => author.toLowerCase().includes(filterValue))
-})
+const visibleAuthors = computed(() => allAuthors.value)
+
+const tagThemeOverrides = {
+  borderRadius: '8px',
+  colorChecked: 'var(--primary-color)',
+  colorCheckedHover: 'var(--primary-hover-color)',
+  colorCheckedPressed: 'var(--primary-pressed-color)',
+  textColorChecked: '#fff',
+  border: 'none',
+  padding: '0 14px',
+  height: '30px',
+  fontSize: '13px',
+  color: 'var(--surface-color)',
+  textColor: 'var(--text-primary)',
+  colorCheckable: 'transparent',
+  colorHoverCheckable: 'var(--surface-hover-color)'
+}
 
 const filteredItems = computed(() => {
   let list = [...exploreItems.value]
-  const keyword = contentSearch.value.trim().toLowerCase()
-  if (keyword) {
-    list = list.filter(
-      (item) =>
-        item.title.toLowerCase().includes(keyword) ||
-        item.excerpt.toLowerCase().includes(keyword) ||
-        item.author.toLowerCase().includes(keyword)
-    )
-  }
 
   if (selectedAuthors.value.length > 0) {
     list = list.filter((item) => selectedAuthors.value.includes(item.author))
@@ -232,112 +196,35 @@ const filteredItems = computed(() => {
   list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   return list
 })
-
-const compactColumns: DataTableColumns<any> = [
-  {
-    title: '作者',
-    key: 'author',
-    width: 120,
-    filterOptions: allAuthors.value
-      .filter((author) => author !== '全部作者')
-      .map((author) => ({ label: author, value: author })),
-    filter: (value, row) => row.author === value
-  },
-  {
-    title: '标题',
-    key: 'title',
-    minWidth: 220,
-    ellipsis: {
-      tooltip: true
-    }
-  },
-  {
-    title: '点赞',
-    key: 'likes',
-    width: 88,
-    sorter: (a, b) => a.likes - b.likes
-  },
-  {
-    title: '收藏',
-    key: 'favorites',
-    width: 88,
-    sorter: (a, b) => a.favorites - b.favorites
-  },
-  {
-    title: '热度',
-    key: 'heat',
-    width: 88,
-    sorter: (a, b) => a.heat - b.heat
-  },
-  {
-    title: '创建时间',
-    key: 'createdAt',
-    width: 140,
-    sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  }
-]
-
-const compactRows = computed(() =>
-  filteredItems.value.map((item) => ({
-    key: item.id,
-    createdAt: item.date,
-    heat: item.likes * 2 + item.favorites,
-    ...item
-  }))
-)
 </script>
 
 <template>
   <div class="explore-page">
     <section class="explore-body">
       <aside class="tag-sidebar">
-        <div class="filter-combo">
-          <div class="combo-top">
-            <NIcon class="search-leading-icon" size="16" aria-hidden="true">
-              <SearchOutline />
+        <div class="filter-tabs">
+          <button
+            class="filter-tab"
+            :class="{ active: filterMode === 'tag' }"
+            type="button"
+            @click="filterMode = 'tag'"
+          >
+            <NIcon size="14" aria-hidden="true">
+              <PricetagOutline />
             </NIcon>
-            <input
-              class="search-input"
-              type="search"
-              :value="filterMode === 'tag' ? tagFilter : authorFilter"
-              :placeholder="filterMode === 'tag' ? '筛选标签' : '筛选作者'"
-              @input="
-                (e) =>
-                  filterMode === 'tag'
-                    ? (tagFilter = (e.target as HTMLInputElement).value)
-                    : (authorFilter = (e.target as HTMLInputElement).value)
-              "
-            />
-          </div>
-          <div class="combo-bottom">
-            <div
-              class="combo-bottom-inner"
-              :class="filterMode === 'tag' ? 'mode-tag' : 'mode-author'"
-            >
-              <button
-                class="mode-button"
-                :class="{ active: filterMode === 'tag' }"
-                type="button"
-                @click="filterMode = 'tag'"
-              >
-                <NIcon size="14" aria-hidden="true">
-                  <PricetagOutline />
-                </NIcon>
-                <span>标签</span>
-              </button>
-              <button
-                class="mode-button"
-                :class="{ active: filterMode === 'author' }"
-                type="button"
-                @click="filterMode = 'author'"
-              >
-                <NIcon size="14" aria-hidden="true">
-                  <PersonOutline />
-                </NIcon>
-                <span>用户</span>
-              </button>
-            </div>
-          </div>
+            <span>标签</span>
+          </button>
+          <button
+            class="filter-tab"
+            :class="{ active: filterMode === 'author' }"
+            type="button"
+            @click="filterMode = 'author'"
+          >
+            <NIcon size="14" aria-hidden="true">
+              <PersonOutline />
+            </NIcon>
+            <span>用户</span>
+          </button>
         </div>
         <Transition name="tag-stack-panel" mode="out-in">
           <div :key="filterMode" class="tag-stack">
@@ -347,6 +234,7 @@ const compactRows = computed(() =>
               checkable
               :checked="isOptionChecked(option)"
               class="stack-tag"
+              :theme-overrides="tagThemeOverrides"
               @update:checked="() => toggleSidebarOption(option)"
             >
               {{ option }}
@@ -356,96 +244,34 @@ const compactRows = computed(() =>
       </aside>
 
       <main class="content">
-        <section class="content-search-panel">
-          <div class="content-search-row">
-            <NIcon class="search-leading-icon content-search-icon" size="16" aria-hidden="true">
-              <SearchOutline />
-            </NIcon>
-            <input
-              v-model.trim="contentSearch"
-              class="content-search-input"
-              type="search"
-              placeholder="搜索内容"
-            />
-          </div>
-        </section>
         <section class="content-display-panel">
-          <div class="display-filter-bar">
-            <TransitionGroup name="compound-chip" tag="div" class="compound-filter-tabs">
+          <div v-if="activeCompoundFilters.length > 0" class="filter-bar">
+            <TransitionGroup name="filter-chip" tag="div" class="filter-chip-list">
               <button
                 v-for="chip in activeCompoundFilters"
                 :key="`${chip.type}-${chip.value}`"
                 type="button"
-                class="compound-chip"
-                :class="{ 'is-default': chip.isDefault }"
+                class="filter-chip"
                 @click="handleCompoundFilterChipClick(chip)"
               >
-                {{ chip.type }}: {{ chip.value }}{{ chip.isDefault ? '' : ' ×' }}
+                <span class="chip-label">{{ chip.type }}</span>
+                <span class="chip-value">{{ chip.value }}</span>
+                <span class="chip-close" aria-hidden="true">×</span>
               </button>
             </TransitionGroup>
-            <div class="view-switch" :class="viewMode">
-              <button
-                type="button"
-                :class="{ active: viewMode === 'card' }"
-                @click="viewMode = 'card'"
-                aria-label="卡片视图"
-                title="卡片视图"
-              >
-                <NIcon size="15" aria-hidden="true">
-                  <AppsOutline />
-                </NIcon>
-              </button>
-              <button
-                type="button"
-                :class="{ active: viewMode === 'wide-row' }"
-                @click="viewMode = 'wide-row'"
-                aria-label="宽行视图"
-                title="宽行视图"
-              >
-                <NIcon size="15" aria-hidden="true">
-                  <ListOutline />
-                </NIcon>
-              </button>
-              <button
-                type="button"
-                :class="{ active: viewMode === 'compact-row' }"
-                @click="viewMode = 'compact-row'"
-                aria-label="窄行视图"
-                title="窄行视图"
-              >
-                <NIcon size="15" aria-hidden="true">
-                  <ReorderThreeOutline />
-                </NIcon>
-              </button>
-            </div>
           </div>
-          <Transition name="view-mode" mode="out-in">
-            <NDataTable
-              v-if="viewMode === 'compact-row'"
-              key="compact-row-table"
-              class="compact-table"
-              :columns="compactColumns"
-              :data="compactRows"
-              :row-key="(row: any) => row.key"
-              :pagination="{
-                pageSize: 10,
-                pageSizes: [],
-                showSizePicker: false,
-                showQuickJumper: false
-              }"
+          <div class="explore-grid">
+            <PostCard
+              v-for="item in filteredItems"
+              :key="item.id"
+              :post="toBlogPost(item)"
+              layout="grid"
+              :show-cover="true"
+              :show-excerpt="true"
+              :show-actions="true"
+              @open="handleOpenItem"
             />
-            <div v-else key="blog-card-list" class="display-list" :class="`mode-${viewMode}`">
-              <PostCard
-                v-for="item in filteredItems"
-                :key="item.id"
-                :post="toBlogPost(item)"
-                :layout="viewMode === 'wide-row' ? 'list' : 'grid'"
-                :show-cover="viewMode === 'card'"
-                :show-excerpt="true"
-                @open="handleOpenItem"
-              />
-            </div>
-          </Transition>
+          </div>
         </section>
       </main>
     </section>
@@ -511,159 +337,49 @@ const compactRows = computed(() =>
   border-radius: var(--radius-lg);
 }
 
-.filter-combo {
+.filter-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 0;
+  gap: 4px;
   width: 100%;
-  max-width: 250px;
-  min-height: 0;
-  margin: var(--spacing-sm) 5px;
-}
-
-.combo-top {
-  width: 100%;
-  height: 52px;
   background: var(--bg-inset-color);
-  border-radius: var(--radius-full) var(--radius-lg) 0 var(--radius-full);
-  border: 1px solid var(--border-color);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;
-  text-align: left;
-  padding: 0 10px;
-  position: relative;
-}
-
-.combo-top::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  width: 56%;
-  height: 2px;
-  background: var(--bg-inset-color);
-  content: '';
-}
-
-.search-leading-icon {
-  position: absolute;
-  left: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  pointer-events: none;
-  transition: color var(--transition-normal);
-}
-
-.combo-bottom {
-  width: 56%;
-  height: 46px;
-  align-self: flex-end;
-  background: var(--bg-inset-color);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  border: 1px solid var(--border-color);
-  border-top-color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.combo-bottom-inner {
-  width: 127px;
-  height: 75%;
-  background: var(--surface-inset-color);
-  border-radius: var(--radius-full);
-  transform: translateY(-2px);
-  border: 1px solid var(--border-color);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
+  border-radius: var(--radius-md);
   padding: 3px;
+  border: 1px solid var(--border-color);
   box-sizing: border-box;
-  position: relative;
 }
 
-.combo-bottom-inner::before {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
-  height: calc(100% - 6px);
-  border-radius: var(--radius-full);
-  background: var(--primary-color);
-  transition: transform 0.28s ease;
-  z-index: 0;
-}
-
-.combo-bottom-inner.mode-author::before {
-  transform: translateX(100%);
-}
-
-.mode-button {
-  height: 100%;
+.filter-tab {
+  flex: 1;
+  height: 32px;
   border: 0;
-  border-radius: var(--radius-full);
+  border-radius: calc(var(--radius-md) - 2px);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: color var(--transition-normal);
-  position: relative;
-  z-index: 1;
-}
-
-.mode-button.active {
-  color: #fff;
-}
-
-.search-input {
-  width: 100%;
-  max-width: 237px;
-  height: 40px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
-  padding: 0 14px 0 38px;
-  color: var(--text-primary);
-  outline: none;
+  gap: 5px;
   font-size: 13px;
-  text-align: left;
-  transition:
-    border-color var(--transition-normal),
-    box-shadow var(--transition-normal),
-    background var(--transition-normal),
-    transform var(--transition-normal);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
 }
 
-.search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow:
-    0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(58, 90, 74, 0.16);
+.filter-tab.active {
   background: var(--surface-color);
-  transform: translateY(-1px);
-}
-
-.combo-top:focus-within .search-leading-icon {
-  color: var(--primary-color);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .tag-stack {
   display: flex;
   flex-wrap: wrap;
   flex: 1;
-  gap: var(--spacing-sm);
+  gap: 8px;
   overflow-y: auto;
   min-height: 0;
   width: 100%;
-  max-width: 250px;
-  margin: 5px;
+  margin: 0;
   padding: var(--spacing-md);
   box-sizing: border-box;
   align-content: flex-start;
@@ -674,6 +390,11 @@ const compactRows = computed(() =>
 
 .stack-tag {
   margin: 0;
+  transition: transform var(--transition-fast);
+}
+
+.stack-tag:hover {
+  transform: translateY(-1px);
 }
 
 .tag-stack-panel-enter-active,
@@ -696,50 +417,6 @@ const compactRows = computed(() =>
   gap: var(--spacing-md);
 }
 
-.content-search-panel {
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.content-search-row {
-  position: relative;
-}
-
-.content-search-icon {
-  left: 14px;
-}
-
-.content-search-input {
-  width: 100%;
-  height: 40px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
-  padding: 0 14px 0 38px;
-  color: var(--text-primary);
-  outline: none;
-  font-size: 13px;
-  transition:
-    border-color var(--transition-normal),
-    box-shadow var(--transition-normal),
-    background var(--transition-normal),
-    transform var(--transition-normal);
-}
-
-.content-search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow:
-    0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(58, 90, 74, 0.16);
-  background: var(--surface-color);
-  transform: translateY(-1px);
-}
-
-.content-search-row:focus-within .content-search-icon {
-  color: var(--primary-color);
-}
-
 .content-display-panel {
   flex: 1;
   min-height: 0;
@@ -752,182 +429,78 @@ const compactRows = computed(() =>
   gap: var(--spacing-md);
 }
 
-.display-filter-bar {
-  display: flex;
-  align-items: end;
-  gap: 6px;
-  flex-wrap: wrap;
+.filter-bar {
+  margin-bottom: 4px;
 }
 
-.compound-filter-tabs {
-  min-height: 30px;
+.filter-chip-list {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1;
   flex-wrap: wrap;
 }
 
-.compound-chip {
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
-  background: var(--bg-inset-color);
-  color: var(--text-primary);
-  padding: 4px 10px;
-  font-size: 12px;
+  background: var(--surface-color);
   cursor: pointer;
   font-family: var(--font-sans);
+  font-size: 12px;
+  transition: all var(--transition-fast);
 }
 
-.compound-chip:hover {
-  background: var(--surface-inset-color);
+.filter-chip:hover {
+  background: var(--surface-strong-color);
+  border-color: var(--text-tertiary);
 }
 
-.compound-chip.is-default {
-  border-style: dashed;
-  color: var(--text-secondary);
-  background: var(--bg-color);
+.chip-label {
+  color: var(--text-tertiary);
 }
 
-.compound-chip.is-default:hover {
-  background: var(--bg-inset-color);
+.chip-value {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
 }
 
-.compound-chip-enter-active,
-.compound-chip-leave-active {
+.chip-close {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+.filter-chip:hover .chip-close {
+  color: var(--error-color);
+}
+
+.filter-chip-enter-active,
+.filter-chip-leave-active {
   transition: all var(--transition-normal);
 }
 
-.compound-chip-enter-from,
-.compound-chip-leave-to {
+.filter-chip-enter-from,
+.filter-chip-leave-to {
   opacity: 0;
   transform: translateY(4px) scale(0.96);
 }
 
-.compound-chip-move {
+.filter-chip-move {
   transition: transform var(--transition-normal);
 }
 
-.view-mode-enter-active,
-.view-mode-leave-active {
-  transition: all var(--transition-normal);
-}
-
-.view-mode-enter-from,
-.view-mode-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-.view-switch {
-  margin-left: auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  background: var(--bg-inset-color);
-  display: inline-flex;
-  padding: 2px;
-  gap: 2px;
-}
-
-.view-switch button {
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: var(--radius-full);
-  width: 32px;
-  height: 28px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.view-switch button.active {
-  background: var(--primary-color);
-  color: #fff;
-}
-
-.display-list {
+.explore-grid {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  scrollbar-gutter: stable;
   display: grid;
-  gap: var(--spacing-sm);
-}
-
-.display-list.mode-card {
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-}
-
-.display-list.mode-wide-row {
-  grid-template-columns: 1fr;
-}
-
-.compact-table {
-  min-height: 0;
-}
-
-.compact-table :deep(.n-data-table) {
-  --n-td-color: var(--surface-color);
-  --n-td-color-hover: var(--surface-strong-color);
-  --n-th-color: var(--surface-inset-color);
-  --n-border-color: var(--border-color);
-  --n-th-text-color: var(--text-secondary);
-  --n-td-text-color: var(--text-primary);
-}
-
-.compact-table :deep(.n-data-table .n-data-table-wrapper),
-.compact-table :deep(.n-data-table .n-scrollbar-container),
-.compact-table :deep(.n-data-table .n-data-table-base-table) {
-  background: var(--surface-color);
-  border-radius: var(--radius-md);
-}
-
-.compact-table :deep(.n-data-table thead th) {
-  background: var(--surface-inset-color) !important;
-  color: var(--text-secondary) !important;
-}
-
-.compact-table :deep(.n-data-table tbody td) {
-  background: var(--surface-color) !important;
-  color: var(--text-primary) !important;
-}
-
-.compact-table :deep(.n-data-table tbody tr:hover td) {
-  background: var(--surface-strong-color) !important;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr) {
-  animation: table-row-enter 0.28s ease both;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(1)) {
-  animation-delay: 0.03s;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(2)) {
-  animation-delay: 0.06s;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(3)) {
-  animation-delay: 0.09s;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(n + 4)) {
-  animation-delay: 0.12s;
-}
-
-@keyframes table-row-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+  align-content: start;
 }
 
 @media (max-width: 1100px) {

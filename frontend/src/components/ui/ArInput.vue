@@ -174,6 +174,7 @@ defineExpose({
 
 /* ── focus ring (complement to Naive UI's own) ── */
 .ar-input {
+  width: 100%;
   border-radius: var(--radius-md);
   transition: box-shadow var(--transition-fast);
 }

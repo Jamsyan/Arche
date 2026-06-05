@@ -1,6 +1,6 @@
 /* =============================================================
    东方现代主义 × 墨色体系 — 设计系统
-   宣纸为底，墨色为文，黛青为骨
+   宣纸为底，墨色为文，朱砂为骨
    ============================================================= */
 
 :root {
@@ -25,22 +25,22 @@
   --border-color: rgba(26, 24, 23, 0.1);
   --divider-color: rgba(26, 24, 23, 0.07);
 
-  /* 主色 — 黛青 */
-  --primary-color: #3a5a4a;
-  --primary-hover-color: #4a7a62;
-  --primary-pressed-color: #2a4a3a;
-  --primary-light-color: rgba(58, 90, 74, 0.12);
+  /* 主色 — 朱砂红 */
+  --primary-color: #b83a2a;
+  --primary-hover-color: #d44a3a;
+  --primary-pressed-color: #9a2a1a;
+  --primary-light-color: rgba(184, 58, 42, 0.12);
 
   /* 点缀色 — 传统五色 */
-  --accent-red: #c23a2b;
+  --accent-cinnabar: #c23a2b;
   --accent-blue: #4a7c94;
   --accent-yellow: #d4a017;
   --accent-green: #2d5a3a;
 
-  /* 语义色 — 墨色体系兼容 */
-  --success-color: #4a7a5a;
-  --warning-color: #b8851a;
-  --error-color: #c23a2b;
+  /* 语义色 */
+  --success-color: #4a8a5a;
+  --warning-color: #d4a017;
+  --error-color: #b83a2a;
   --info-color: #4a7c94;
 
   /* =========================================================
@@ -134,8 +134,8 @@
   --n-primary-hover-color: var(--primary-hover-color);
   --n-primary-pressed-color: var(--primary-pressed-color);
   --n-primary-hover-tint: var(--primary-light-color);
-  --n-primary-hover-ripple: rgba(58, 90, 74, 0.18);
-  --n-primary-active-tint: rgba(58, 90, 74, 0.18);
+  --n-primary-hover-ripple: rgba(184, 58, 42, 0.18);
+  --n-primary-active-tint: rgba(184, 58, 42, 0.18);
 
   /* 语义色映射 */
   --n-success-color: var(--success-color);
@@ -167,6 +167,7 @@
      向下兼容别名 — 旧变量映射到新体系
      ========================================================= */
   --accent-color: var(--accent-yellow);
+  --accent-red: var(--accent-cinnabar);
   --glass-bg: var(--surface-color);
   --glass-bg-hover: rgba(245, 240, 232, 0.96);
   --glass-blur: blur(12px);
@@ -175,7 +176,7 @@
 }
 
 /* =============================================================
-   深色模式 — 浅墨灰基底
+   深色模式 — 浅墨灰基底，朱砂红更亮
    ============================================================= */
 .dark {
   color-scheme: dark;
@@ -197,16 +198,16 @@
   --border-color: rgba(230, 225, 218, 0.12);
   --divider-color: rgba(230, 225, 218, 0.08);
 
-  /* 主色 */
-  --primary-color: #4a7a62;
-  --primary-hover-color: #5a8a72;
-  --primary-pressed-color: #3a6a52;
-  --primary-light-color: rgba(74, 122, 98, 0.18);
+  /* 主色 — 朱砂红（深色模式更亮） */
+  --primary-color: #d44a3a;
+  --primary-hover-color: #e85a4a;
+  --primary-pressed-color: #b83a2a;
+  --primary-light-color: rgba(212, 74, 58, 0.18);
 
   /* 语义色 */
-  --success-color: #5a8a6a;
-  --warning-color: #d4a020;
-  --error-color: #d44a3b;
+  --success-color: #5a9a6a;
+  --warning-color: #e0b020;
+  --error-color: #d44a3a;
 
   /* 渐变 */
   --bg-gradient: linear-gradient(180deg, #1a1817 0%, #22201e 50%, #2a2724 100%);
@@ -223,6 +224,7 @@
 
   /* 向下兼容别名 — 旧变量映射到新体系 */
   --accent-color: var(--accent-yellow);
+  --accent-red: var(--accent-cinnabar);
   --glass-bg: var(--surface-color);
   --glass-bg-hover: rgba(34, 32, 30, 0.96);
   --glass-blur: blur(12px);
@@ -242,8 +244,8 @@
 
   --n-border-color: var(--border-color);
   --n-primary-hover-tint: var(--primary-light-color);
-  --n-primary-hover-ripple: rgba(74, 122, 98, 0.22);
-  --n-primary-active-tint: rgba(74, 122, 98, 0.22);
+  --n-primary-hover-ripple: rgba(212, 74, 58, 0.22);
+  --n-primary-active-tint: rgba(212, 74, 58, 0.22);
 }
 
 /* 深色模式下的玻璃表面 */

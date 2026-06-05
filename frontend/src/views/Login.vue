@@ -49,10 +49,12 @@
                 placeholder="请选择登录身份"
               />
             </NFormItemGi>
-            <NGi :span="1" style="margin-top: 16px">
-              <ArButton type="primary" size="lg" block :loading="loading" @click="handleLogin">
-                立即登录
-              </ArButton>
+            <NGi :span="1" style="margin-top: 20px">
+              <div class="form-action">
+                <ArButton type="primary" size="lg" :loading="loading" @click="handleLogin">
+                  立即登录
+                </ArButton>
+              </div>
             </NGi>
           </NGrid>
         </NForm>
@@ -406,6 +408,10 @@ const handleLogin = async () => {
   border-radius: 12px;
 }
 
+.login-card :deep(.n-form-item-blank) {
+  width: 100%;
+}
+
 .card-header {
   text-align: center;
   margin-bottom: var(--spacing-xl);
@@ -465,6 +471,15 @@ const handleLogin = async () => {
   margin-top: 14px;
   text-align: center;
   color: var(--text-secondary);
+}
+
+.form-action {
+  display: flex;
+  justify-content: center;
+}
+
+.form-action .ar-button {
+  min-width: 200px;
 }
 
 .register-entry a {
