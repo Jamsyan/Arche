@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import {
   NInput,
   NButton,
@@ -96,6 +96,41 @@ const titleWordCount = computed(() => form.value.title.trim().length)
 
 const canSubmit = computed(() => {
   return form.value.title.trim().length > 0 && form.value.content.trim().length > 0
+})
+
+const hasUnsavedChanges = computed(() => {
+  const key = mode.value === 'edit' ? `post-draft-${postId.value}` : 'post-draft-new'
+  const saved = localStorage.getItem(key)
+  if (!saved) return !!(form.value.title.trim() || form.value.content.trim())
+  try {
+    const draft = JSON.parse(saved)
+    return (
+      draft.title !== form.value.title ||
+      draft.content !== form.value.content ||
+      JSON.stringify(draft.tags) !== JSON.stringify(form.value.tags)
+    )
+  } catch {
+    return !!(form.value.title.trim() || form.value.content.trim())
+  }
+})
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!hasUnsavedChanges.value) {
+    next()
+    return
+  }
+  dialog.warning({
+    title: '未保存的更改',
+    content: '你有未保存的更改，确定要离开吗？',
+    positiveText: '离开',
+    negativeText: '留下',
+    onPositiveClick: () => {
+      next()
+    },
+    onNegativeClick: () => {
+      next(false)
+    }
+  })
 })
 
 const fetchTags = async () => {

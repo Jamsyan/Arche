@@ -108,6 +108,9 @@ const startHotTimer = () => {
   if (hotTimer) {
     clearInterval(hotTimer)
   }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return
+  }
   hotTimer = setInterval(() => {
     if (hotGroups.value.length > 1) {
       hotIndex.value = (hotIndex.value + 1) % hotGroups.value.length
@@ -218,6 +221,8 @@ onBeforeUnmount(() => {
                 class="cover-image"
                 :src="getCoverUrl(post)"
                 :alt="`${post.title} 封面`"
+                width="120"
+                height="152"
                 loading="lazy"
               />
               <span class="cover-tag">{{ (post.tags || [])[0] || '日志' }}</span>
@@ -680,6 +685,15 @@ onBeforeUnmount(() => {
 .empty {
   color: var(--text-tertiary);
   padding: 14px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-slide-enter-active,
+  .hero-slide-leave-active,
+  .post-card,
+  .post-card::after {
+    transition: none !important;
+  }
 }
 
 @media (max-width: 680px) {

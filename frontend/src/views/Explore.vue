@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { NIcon, NTag, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import {
@@ -24,6 +25,9 @@ const selectedAuthors = ref<string[]>([])
 const authorFilter = ref('')
 const contentSearch = ref('')
 const viewMode = ref<ExploreViewMode>('card')
+
+const router = useRouter()
+const route = useRoute()
 
 const message = useMessage()
 const exploreItems = ref<MockExploreItem[]>([])
@@ -78,9 +82,33 @@ const fetchExploreData = async () => {
   }
 }
 
-onMounted(() => {
-  void fetchExploreData()
+onMounted(async () => {
+  // 从 URL 读取初始筛选参数
+  const q = route.query
+  if (q.mode === 'tag' || q.mode === 'author') filterMode.value = q.mode
+  if (q.tags) selectedTags.value = String(q.tags).split(',').filter(Boolean)
+  if (q.authors) selectedAuthors.value = String(q.authors).split(',').filter(Boolean)
+  if (q.view === 'card' || q.view === 'wide-row' || q.view === 'compact-row')
+    viewMode.value = q.view
+  if (q.q) contentSearch.value = String(q.q)
+
+  await fetchExploreData()
 })
+
+watch(
+  [filterMode, selectedTags, selectedAuthors, viewMode, contentSearch],
+  () => {
+    const query: Record<string, string> = {}
+    if (filterMode.value !== 'tag') query.mode = filterMode.value
+    if (selectedTags.value.length > 0) query.tags = selectedTags.value.join(',')
+    if (selectedAuthors.value.length > 0) query.authors = selectedAuthors.value.join(',')
+    if (viewMode.value !== 'card') query.view = viewMode.value
+    if (contentSearch.value) query.q = contentSearch.value
+
+    router.replace({ query: Object.keys(query).length ? query : undefined })
+  },
+  { deep: true }
+)
 
 const isOptionChecked = (option: string) => {
   if (filterMode.value === 'tag') {

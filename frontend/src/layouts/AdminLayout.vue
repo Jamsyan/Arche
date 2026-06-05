@@ -14,14 +14,16 @@
         <div class="header-actions">
           <span class="admin-badge">管理员</span>
         </div>
-        <div class="user-info" @click="showUserMenu = !showUserMenu">
+        <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '管理员' }}</span>
           <PersonCircleOutline class="avatar" />
-        </div>
+        </button>
         <!-- 用户下拉菜单 -->
         <div v-if="showUserMenu" class="user-menu">
-          <div class="menu-item" @click="goToHome"><HomeOutline /> 回到首页</div>
-          <div class="menu-item" @click="handleLogout"><LogOutOutline /> 退出登录</div>
+          <button class="menu-item" @click="goToHome"><HomeOutline /> 回到首页</button>
+          <button class="menu-item logout-btn" @click="handleLogout">
+            <LogOutOutline /> 退出登录
+          </button>
         </div>
       </div>
     </header>
@@ -77,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { MenuOutline, PersonCircleOutline, HomeOutline, LogOutOutline } from '@/icons'
 import { useUserStore } from '@/store/modules/user'
@@ -122,6 +124,22 @@ const handleLogout = async () => {
   router.push('/login')
   showUserMenu.value = false
 }
+
+// 点击外部关闭用户菜单
+const handleClickOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.header-right')) {
+    showUserMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>
@@ -163,7 +181,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease;
 }
 
 .menu-toggle:hover {
@@ -199,7 +217,7 @@ const handleLogout = async () => {
   font-weight: 500;
 }
 
-.user-info {
+.user-info-btn {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -207,9 +225,13 @@ const handleLogout = async () => {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.3s ease;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
 }
 
-.user-info:hover {
+.user-info-btn:hover {
   background: var(--glass-bg-hover);
 }
 
@@ -243,6 +265,11 @@ const handleLogout = async () => {
   cursor: pointer;
   transition: background 0.3s ease;
   font-size: 14px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  width: 100%;
 }
 
 .menu-item:hover {
@@ -266,6 +293,7 @@ const handleLogout = async () => {
   bottom: 0;
   left: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .layout-sidebar.sidebar-collapsed {
@@ -302,7 +330,9 @@ const handleLogout = async () => {
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
   font-size: 14px;
   font-weight: 500;
 }

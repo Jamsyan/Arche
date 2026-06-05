@@ -19,13 +19,14 @@
               class="search-input"
               type="search"
               placeholder="搜索"
+              aria-label="搜索文章"
               @keydown.enter="goSearch"
             />
           </div>
         </div>
         <div class="action-area">
           <div v-if="isLoggedIn" class="user-menu-wrap">
-            <button class="avatar-btn" @click="showUserMenu = !showUserMenu">
+            <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
               {{ userInitial }}
             </button>
             <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
@@ -175,7 +176,6 @@ if (typeof window !== 'undefined') {
   width: 100%;
   height: 53px;
   padding: 0 var(--spacing-md);
-  min-width: 1080px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -206,7 +206,9 @@ if (typeof window !== 'undefined') {
 }
 
 .search-input {
-  width: 250px;
+  max-width: 250px;
+  width: 100%;
+  min-width: 0;
   height: 40px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
@@ -464,6 +466,32 @@ if (typeof window !== 'undefined') {
 }
 
 @media (max-width: 768px) {
+  .header-content {
+    height: auto;
+    padding: var(--spacing-sm) var(--spacing-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .center-zone {
+    flex-basis: 100%;
+    order: 3;
+    margin-left: 0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .nav-menu {
+    gap: 4px;
+    margin-left: 0;
+  }
+
+  .nav-item {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
   .footer-content {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
