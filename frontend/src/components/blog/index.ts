@@ -1,0 +1,8 @@
+export { default as PostCard } from './PostCard.vue'
+export { default as PostDetail } from './PostDetail.vue'
+export { default as PostEditor } from './PostEditor.vue'
+export { default as LikeButton } from './LikeButton.vue'
+export { default as FavoriteButton } from './FavoriteButton.vue'
+export { default as CommentList } from './CommentList.vue'
+export { default as CommentForm } from './CommentForm.vue'
+export { default as TagList } from './TagList.vue'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NIcon, NTag, useMessage } from 'naive-ui'
+import { NDataTable, NIcon, NTag, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import {
   AppsOutline,
@@ -11,9 +11,8 @@ import {
   ReorderThreeOutline,
   SearchOutline
 } from '@vicons/ionicons5'
-import ProTable from '@/components/ProTable.vue'
-import BlogCard from '@/components/blog/BlogCard.vue'
-import { getBlogPostsApi, type BlogPost } from '@/services/api'
+import { PostCard } from '@/components/blog'
+import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import type { MockExploreItem } from '@/services/mock/types'
 
 type ExploreFilterMode = 'tag' | 'author'
@@ -291,7 +290,7 @@ const compactRows = computed(() =>
 <template>
   <div class="explore-page">
     <section class="explore-body">
-      <aside class="tag-sidebar card-glass">
+      <aside class="tag-sidebar">
         <div class="filter-combo">
           <div class="combo-top">
             <NIcon class="search-leading-icon" size="16" aria-hidden="true">
@@ -356,7 +355,7 @@ const compactRows = computed(() =>
         </Transition>
       </aside>
 
-      <main class="content card-glass">
+      <main class="content">
         <section class="content-search-panel">
           <div class="content-search-row">
             <NIcon class="search-leading-icon content-search-icon" size="16" aria-hidden="true">
@@ -421,19 +420,22 @@ const compactRows = computed(() =>
             </div>
           </div>
           <Transition name="view-mode" mode="out-in">
-            <ProTable
+            <NDataTable
               v-if="viewMode === 'compact-row'"
               key="compact-row-table"
               class="compact-table"
               :columns="compactColumns"
               :data="compactRows"
-              row-key="key"
-              :page-size="10"
-              :show-size-picker="false"
-              :show-quick-jumper="false"
+              :row-key="(row: any) => row.key"
+              :pagination="{
+                pageSize: 10,
+                pageSizes: [],
+                showSizePicker: false,
+                showQuickJumper: false
+              }"
             />
             <div v-else key="blog-card-list" class="display-list" :class="`mode-${viewMode}`">
-              <BlogCard
+              <PostCard
                 v-for="item in filteredItems"
                 :key="item.id"
                 :post="toBlogPost(item)"
@@ -456,13 +458,14 @@ const compactRows = computed(() =>
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--layout-gap);
+  font-family: var(--font-sans);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--spacing-lg);
   align-items: center;
 }
 
@@ -482,7 +485,7 @@ const compactRows = computed(() =>
 .explore-body {
   display: grid;
   grid-template-columns: minmax(280px, 300px) minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--layout-gap);
   overflow: visible;
   align-items: start;
 }
@@ -492,17 +495,20 @@ const compactRows = computed(() =>
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  gap: 17px;
+  gap: var(--spacing-md);
   width: 100%;
   max-width: 320px;
   min-height: 360px;
-  padding: 10px 5px;
+  padding: var(--spacing-md);
   box-sizing: border-box;
   position: sticky;
   top: 87px;
   align-self: start;
   max-height: calc(100vh - 87px);
   overflow-y: auto;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .filter-combo {
@@ -512,14 +518,14 @@ const compactRows = computed(() =>
   width: 100%;
   max-width: 250px;
   min-height: 0;
-  margin: 10px 5px 5px;
+  margin: var(--spacing-sm) 5px;
 }
 
 .combo-top {
   width: 100%;
   height: 52px;
-  background: var(--surface-color);
-  border-radius: 40px 20px 0 40px;
+  background: var(--bg-inset-color);
+  border-radius: var(--radius-full) var(--radius-lg) 0 var(--radius-full);
   border: 1px solid var(--border-color);
   display: flex;
   justify-content: center;
@@ -536,7 +542,7 @@ const compactRows = computed(() =>
   bottom: -1px;
   width: 56%;
   height: 2px;
-  background: var(--surface-color);
+  background: var(--bg-inset-color);
   content: '';
 }
 
@@ -547,15 +553,15 @@ const compactRows = computed(() =>
   transform: translateY(-50%);
   color: var(--text-tertiary);
   pointer-events: none;
-  transition: color 0.25s ease;
+  transition: color var(--transition-normal);
 }
 
 .combo-bottom {
   width: 56%;
   height: 46px;
   align-self: flex-end;
-  background: var(--surface-color);
-  border-radius: 0 0 20px 20px;
+  background: var(--bg-inset-color);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   border: 1px solid var(--border-color);
   border-top-color: transparent;
   display: flex;
@@ -566,14 +572,10 @@ const compactRows = computed(() =>
 .combo-bottom-inner {
   width: 127px;
   height: 75%;
-  background: rgba(255, 246, 233, 0.96);
-  border-radius: 40px;
+  background: var(--surface-inset-color);
+  border-radius: var(--radius-full);
   transform: translateY(-2px);
-  border: 1px solid rgba(123, 84, 52, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 2px rgba(95, 63, 38, 0.2),
-    inset 0 0 0 1px rgba(123, 84, 52, 0.12);
+  border: 1px solid var(--border-color);
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
@@ -589,8 +591,8 @@ const compactRows = computed(() =>
   left: 3px;
   width: calc(50% - 3px);
   height: calc(100% - 6px);
-  border-radius: 999px;
-  background: rgba(111, 63, 34, 0.72);
+  border-radius: var(--radius-full);
+  background: var(--primary-color);
   transition: transform 0.28s ease;
   z-index: 0;
 }
@@ -602,7 +604,7 @@ const compactRows = computed(() =>
 .mode-button {
   height: 100%;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-secondary);
   display: inline-flex;
@@ -611,13 +613,13 @@ const compactRows = computed(() =>
   gap: 4px;
   font-size: 12px;
   cursor: pointer;
-  transition: color 0.22s ease;
+  transition: color var(--transition-normal);
   position: relative;
   z-index: 1;
 }
 
 .mode-button.active {
-  color: var(--text-on-primary, #fff);
+  color: #fff;
 }
 
 .search-input {
@@ -633,17 +635,17 @@ const compactRows = computed(() =>
   font-size: 13px;
   text-align: left;
   transition:
-    border-color 0.3s ease,
-    box-shadow 0.3s ease,
-    background 0.3s ease,
-    transform 0.3s ease;
+    border-color var(--transition-normal),
+    box-shadow var(--transition-normal),
+    background var(--transition-normal),
+    transform var(--transition-normal);
 }
 
 .search-input:focus {
   border-color: var(--primary-color);
   box-shadow:
     0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(111, 63, 34, 0.16);
+    0 8px 20px rgba(58, 90, 74, 0.16);
   background: var(--surface-color);
   transform: translateY(-1px);
 }
@@ -656,55 +658,29 @@ const compactRows = computed(() =>
   display: flex;
   flex-wrap: wrap;
   flex: 1;
-  gap: 8px;
+  gap: var(--spacing-sm);
   overflow-y: auto;
   min-height: 0;
   width: 100%;
   max-width: 250px;
-  margin: 5px 5px 10px;
-  padding: 10px;
+  margin: 5px;
+  padding: var(--spacing-md);
   box-sizing: border-box;
   align-content: flex-start;
-  background: var(--surface-color);
-  border-radius: 16px;
+  background: var(--bg-inset-color);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  box-shadow: none;
 }
 
 .stack-tag {
   margin: 0;
-  border-radius: 999px;
-  background: rgba(255, 249, 240, 0.98);
-  border-color: rgba(145, 105, 72, 0.18);
-  box-shadow:
-    0 1px 2px rgba(69, 44, 24, 0.22),
-    0 3px 8px rgba(69, 44, 24, 0.12);
-  transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
-}
-
-.stack-tag:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 247, 236, 1);
-  box-shadow:
-    0 2px 4px rgba(69, 44, 24, 0.24),
-    0 5px 10px rgba(69, 44, 24, 0.14);
-}
-
-:deep(.stack-tag.n-tag--checked) {
-  border-radius: 999px;
-  box-shadow:
-    0 0 0 1px rgba(59, 130, 246, 0.15),
-    0 8px 18px rgba(59, 130, 246, 0.2);
 }
 
 .tag-stack-panel-enter-active,
 .tag-stack-panel-leave-active {
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity var(--transition-normal),
+    transform var(--transition-normal);
 }
 
 .tag-stack-panel-enter-from,
@@ -717,7 +693,7 @@ const compactRows = computed(() =>
   min-height: 360px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 
 .content-search-panel {
@@ -739,24 +715,24 @@ const compactRows = computed(() =>
   height: 40px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
-  background: rgba(255, 250, 241, 0.92);
+  background: var(--surface-color);
   padding: 0 14px 0 38px;
   color: var(--text-primary);
   outline: none;
   font-size: 13px;
   transition:
-    border-color 0.3s ease,
-    box-shadow 0.3s ease,
-    background 0.3s ease,
-    transform 0.3s ease;
+    border-color var(--transition-normal),
+    box-shadow var(--transition-normal),
+    background var(--transition-normal),
+    transform var(--transition-normal);
 }
 
 .content-search-input:focus {
   border-color: var(--primary-color);
   box-shadow:
     0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(111, 63, 34, 0.16);
-  background: rgba(255, 250, 241, 0.98);
+    0 8px 20px rgba(58, 90, 74, 0.16);
+  background: var(--surface-color);
   transform: translateY(-1px);
 }
 
@@ -767,13 +743,13 @@ const compactRows = computed(() =>
 .content-display-panel {
   flex: 1;
   min-height: 0;
-  border-radius: 14px;
-  border: 1px solid rgba(130, 95, 65, 0.12);
-  background: rgba(255, 250, 241, 0.62);
-  padding: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  padding: var(--content-padding);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--spacing-md);
 }
 
 .display-filter-bar {
@@ -793,32 +769,33 @@ const compactRows = computed(() =>
 }
 
 .compound-chip {
-  border: 1px solid rgba(130, 95, 65, 0.2);
-  border-radius: 999px;
-  background: rgba(255, 248, 236, 0.92);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--bg-inset-color);
   color: var(--text-primary);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
+  font-family: var(--font-sans);
 }
 
 .compound-chip:hover {
-  background: rgba(255, 244, 229, 0.98);
+  background: var(--surface-inset-color);
 }
 
 .compound-chip.is-default {
   border-style: dashed;
   color: var(--text-secondary);
-  background: rgba(255, 246, 233, 0.88);
+  background: var(--bg-color);
 }
 
 .compound-chip.is-default:hover {
-  background: rgba(255, 242, 225, 0.94);
+  background: var(--bg-inset-color);
 }
 
 .compound-chip-enter-active,
 .compound-chip-leave-active {
-  transition: all 0.26s ease;
+  transition: all var(--transition-normal);
 }
 
 .compound-chip-enter-from,
@@ -828,12 +805,12 @@ const compactRows = computed(() =>
 }
 
 .compound-chip-move {
-  transition: transform 0.26s ease;
+  transition: transform var(--transition-normal);
 }
 
 .view-mode-enter-active,
 .view-mode-leave-active {
-  transition: all 0.22s ease;
+  transition: all var(--transition-normal);
 }
 
 .view-mode-enter-from,
@@ -844,9 +821,9 @@ const compactRows = computed(() =>
 
 .view-switch {
   margin-left: auto;
-  border: 1px solid rgba(130, 95, 65, 0.2);
-  border-radius: 999px;
-  background: rgba(255, 248, 236, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--bg-inset-color);
   display: inline-flex;
   padding: 2px;
   gap: 2px;
@@ -856,7 +833,7 @@ const compactRows = computed(() =>
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   width: 32px;
   height: 28px;
   padding: 0;
@@ -867,8 +844,8 @@ const compactRows = computed(() =>
 }
 
 .view-switch button.active {
-  background: rgba(111, 63, 34, 0.72);
-  color: var(--text-on-primary, #fff);
+  background: var(--primary-color);
+  color: #fff;
 }
 
 .display-list {
@@ -877,15 +854,14 @@ const compactRows = computed(() =>
   overflow: auto;
   scrollbar-gutter: stable;
   display: grid;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .display-list.mode-card {
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
 
-.display-list.mode-wide-row,
-.display-list.mode-compact-row {
+.display-list.mode-wide-row {
   grid-template-columns: 1fr;
 }
 
@@ -895,8 +871,8 @@ const compactRows = computed(() =>
 
 .compact-table :deep(.n-data-table) {
   --n-td-color: var(--surface-color);
-  --n-td-color-hover: var(--glass-bg-hover);
-  --n-th-color: var(--surface-strong-color);
+  --n-td-color-hover: var(--surface-strong-color);
+  --n-th-color: var(--surface-inset-color);
   --n-border-color: var(--border-color);
   --n-th-text-color: var(--text-secondary);
   --n-td-text-color: var(--text-primary);
@@ -906,21 +882,21 @@ const compactRows = computed(() =>
 .compact-table :deep(.n-data-table .n-scrollbar-container),
 .compact-table :deep(.n-data-table .n-data-table-base-table) {
   background: var(--surface-color);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .compact-table :deep(.n-data-table thead th) {
-  background: var(--surface-strong-color) !important;
+  background: var(--surface-inset-color) !important;
   color: var(--text-secondary) !important;
 }
 
 .compact-table :deep(.n-data-table tbody td) {
-  background: rgba(255, 249, 240, 0.9) !important;
+  background: var(--surface-color) !important;
   color: var(--text-primary) !important;
 }
 
 .compact-table :deep(.n-data-table tbody tr:hover td) {
-  background: rgba(255, 244, 229, 0.95) !important;
+  background: var(--surface-strong-color) !important;
 }
 
 .compact-table :deep(.n-data-table-tbody > .n-data-table-tr) {

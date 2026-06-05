@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref, h } from 'vue'
+import { ref, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
+import { useMessage } from 'naive-ui'
+import { NDataTable, NPagination } from 'naive-ui'
 import { AddOutline } from '@/icons'
-import ProTable from '@/components/ProTable.vue'
-import BlogCard from '@/components/blog/BlogCard.vue'
-import { deletePostApi, getMyPostsApi, type BlogPost, type Paginated } from '@/services/api'
+import ArButton from '@/components/ui/ArButton.vue'
+import ArTag from '@/components/ui/ArTag.vue'
+import { PostCard } from '@/components/blog'
+import { deletePostApi, getMyPostsApi, type BlogPost } from '@/services/api'
 
 const message = useMessage()
 const router = useRouter()
 const tableData = ref<PostRow[]>([])
+
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const loading = ref(false)
 
 interface PostRow {
   key: string
@@ -29,6 +36,19 @@ const toBlogPost = (row: PostRow): BlogPost => ({
   status: row.status
 })
 
+const statusColorMap: Record<
+  string,
+  { label: string; color: 'green' | 'yellow' | 'red' | 'default' }
+> = {
+  published: { label: '已发布', color: 'green' },
+  pending: { label: '待审核', color: 'yellow' },
+  rejected: { label: '已驳回', color: 'red' }
+}
+
+const getStatusMeta = (status: string) => {
+  return statusColorMap[status] || { label: status, color: 'default' as const }
+}
+
 const columns = [
   {
     title: '标题',
@@ -36,11 +56,10 @@ const columns = [
     width: 400,
     render: (row: PostRow) =>
       h('div', { class: 'posts-title-cell' }, [
-        h(BlogCard, {
+        h(PostCard, {
           post: toBlogPost(row),
           layout: 'compact',
-          showExcerpt: false,
-          showMeta: false
+          showExcerpt: false
         })
       ])
   },
@@ -54,16 +73,12 @@ const columns = [
     key: 'status',
     width: 120,
     render: (row: { status: string }) => {
-      const statusMap: Record<
-        string,
-        { label: string; type: 'success' | 'warning' | 'error' | 'default' }
-      > = {
-        published: { label: '已发布', type: 'success' },
-        pending: { label: '待审核', type: 'warning' },
-        rejected: { label: '已驳回', type: 'error' }
-      }
-      const s = statusMap[row.status] || { label: row.status, type: 'default' }
-      return h(NTag, { type: s.type }, { default: () => s.label })
+      const meta = getStatusMeta(row.status)
+      return h(
+        ArTag,
+        { color: meta.color, type: 'light', size: 'sm' },
+        { default: () => meta.label }
+      )
     }
   },
   {
@@ -73,36 +88,22 @@ const columns = [
     render: (row: PostRow) => {
       return h('div', { style: { display: 'flex', gap: '8px' } }, [
         h(
-          NButton,
+          ArButton,
           {
-            size: 'small',
-            type: 'primary',
-            quaternary: true,
+            size: 'sm',
+            type: 'ghost',
             onClick: () => handleEdit(row)
           },
           { default: () => '编辑' }
         ),
         h(
-          NPopconfirm,
+          ArButton,
           {
-            title: '确认删除',
-            content: `确定要删除文章"${row.title}"吗？`,
-            positiveText: '确认',
-            negativeText: '取消',
-            onPositiveClick: () => handleDelete(row)
+            size: 'sm',
+            type: 'danger',
+            onClick: () => confirmDelete(row)
           },
-          {
-            trigger: () =>
-              h(
-                NButton,
-                {
-                  size: 'small',
-                  type: 'error',
-                  quaternary: true
-                },
-                { default: () => '删除' }
-              )
-          }
+          { default: () => '删除' }
         )
       ])
     }
@@ -117,21 +118,18 @@ const toPostRow = (item: BlogPost): PostRow => ({
   status: item.status || '草稿'
 })
 
-const fetchPosts = async (params: {
-  page: number
-  pageSize: number
-}): Promise<Paginated<PostRow>> => {
-  const res = await getMyPostsApi({
-    page: params.page,
-    page_size: params.pageSize
-  })
-  const list = (res.list || []).map(toPostRow)
-  tableData.value = list
-  return {
-    total: res.total,
-    page: res.page,
-    page_size: res.page_size,
-    list
+const fetchPosts = async () => {
+  loading.value = true
+  try {
+    const res = await getMyPostsApi({
+      page: currentPage.value,
+      page_size: pageSize.value
+    })
+    const list = (res.list || []).map(toPostRow)
+    tableData.value = list
+    total.value = res.total
+  } finally {
+    loading.value = false
   }
 }
 
@@ -143,32 +141,70 @@ const handleEdit = (row: PostRow) => {
   router.push(`/posts/${row.id}/edit`)
 }
 
+const confirmDelete = (row: PostRow) => {
+  const confirmed = window.confirm(`确定要删除文章"${row.title}"吗？`)
+  if (confirmed) {
+    handleDelete(row)
+  }
+}
+
 const handleDelete = async (row: PostRow) => {
   try {
     await deletePostApi(row.id)
     const index = tableData.value.findIndex((item) => item.key === row.key)
     if (index > -1) {
       tableData.value.splice(index, 1)
+      total.value = Math.max(0, total.value - 1)
     }
     message.success('删除成功')
   } catch {
     message.error('删除文章失败')
   }
 }
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page
+  fetchPosts()
+}
+
+const handlePageSizeChange = (size: number) => {
+  pageSize.value = size
+  currentPage.value = 1
+  fetchPosts()
+}
+
+onMounted(fetchPosts)
 </script>
 
 <template>
   <div class="posts-page">
     <div class="page-heading">
       <h2>我的文章</h2>
-      <NButton type="primary" @click="handleCreate">
+      <ArButton type="primary" @click="handleCreate">
         <template #icon><AddOutline /></template>
         新建文章
-      </NButton>
+      </ArButton>
     </div>
 
     <div class="section-card">
-      <ProTable :columns="columns" :data="tableData" :request="fetchPosts" row-key="key" />
+      <NDataTable
+        :columns="columns"
+        :data="tableData"
+        :loading="loading"
+        :row-key="(row: any) => row.key"
+        single-line
+      />
+      <div class="pager">
+        <NPagination
+          :page="currentPage"
+          :page-size="pageSize"
+          :item-count="total"
+          :page-sizes="[10, 20, 50]"
+          show-size-picker
+          @update:page="handlePageChange"
+          @update:page-size="handlePageSizeChange"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -182,22 +218,28 @@ const handleDelete = async (row: PostRow) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .page-heading h2 {
   margin: 0;
   font-size: 24px;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
 
 .section-card {
   background: var(--surface-color);
-  border: var(--glass-border);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: var(--spacing-lg);
   backdrop-filter: blur(4px);
+}
+
+.pager {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--spacing-md);
 }
 
 .posts-title-cell :deep(.blog-card--compact) {

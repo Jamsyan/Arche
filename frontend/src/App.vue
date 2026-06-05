@@ -4,36 +4,13 @@
       <NDialogProvider>
         <NNotificationProvider>
           <NLoadingBarProvider>
-            <!-- 动态选择布局 -->
-            <GuestLayout v-if="currentLayout === 'guest'">
+            <component :is="layoutComponent">
               <RouterView v-slot="{ Component }">
                 <Transition :name="appStore.transitionName" mode="out-in">
                   <component :is="Component" />
                 </Transition>
               </RouterView>
-            </GuestLayout>
-            <UserLayout v-else-if="currentLayout === 'user'">
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </UserLayout>
-            <AdminLayout v-else-if="currentLayout === 'admin'">
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </AdminLayout>
-            <!-- 默认用访客布局 -->
-            <GuestLayout v-else>
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </GuestLayout>
+            </component>
           </NLoadingBarProvider>
         </NNotificationProvider>
       </NDialogProvider>
@@ -42,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import {
   NConfigProvider,
   NMessageProvider,
@@ -60,6 +37,7 @@ import AdminLayout from '@/layouts/AdminLayout.vue'
 
 const route = useRoute()
 const appStore = useAppStore()
+
 const themeOverrides: GlobalThemeOverrides = {
   common: {
     primaryColor: '#9a5a2f',
@@ -88,9 +66,22 @@ const themeOverrides: GlobalThemeOverrides = {
   }
 }
 
+const layoutMap: Record<string, typeof GuestLayout> = {
+  guest: GuestLayout,
+  user: UserLayout,
+  admin: AdminLayout
+}
+
 // 计算当前应该使用的布局
 const currentLayout = computed(() => {
-  return (route.meta.layout as 'guest' | 'user' | 'admin') || 'guest'
+  return (route.meta.layout as string) || 'guest'
+})
+
+// 使用 shallowRef 避免深层响应
+const layoutComponent = shallowRef(layoutMap[currentLayout.value] || GuestLayout)
+
+watch(currentLayout, (layout) => {
+  layoutComponent.value = layoutMap[layout] || GuestLayout
 })
 
 // 主题切换

@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <div class="login-shell">
-      <aside class="login-visual card-glass" aria-hidden="true">
+      <aside class="login-visual" aria-hidden="true">
         <div class="visual-orb orb-a" />
         <div class="visual-orb orb-b" />
         <div class="visual-grid" />
@@ -21,7 +21,7 @@
         </div>
       </aside>
 
-      <div class="login-card card-glass">
+      <div class="login-card">
         <div class="card-header">
           <div class="logo-icon" :class="`lock-${lockFeedback}`">
             <component :is="lockIcon" />
@@ -29,42 +29,33 @@
           <h2>欢迎回来</h2>
         </div>
 
-        <ProForm
-          :model="formModel"
-          :columns="1"
-          :label-width="80"
-          :show-feedback="true"
-          @submit="handleLogin"
-        >
-          <NFormItemGi label="账号" path="identity" :span="1">
-            <NInput
-              v-model:value="formModel.identity"
-              placeholder="请输入用户名或邮箱"
-              :input-props="{ name: 'identity', autocomplete: 'username' }"
-            />
-          </NFormItemGi>
-          <NFormItemGi label="密码" path="password" :span="1">
-            <NInput
-              v-model:value="formModel.password"
-              type="password"
-              show-password-on="click"
-              placeholder="请输入密码"
-              :input-props="{ autocomplete: 'current-password' }"
-            />
-          </NFormItemGi>
-          <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
-            <NSelect
-              v-model:value="formModel.role"
-              :options="roleOptions"
-              placeholder="请选择登录身份"
-            />
-          </NFormItemGi>
-          <template #actions="{ submit }">
-            <NButton type="primary" size="large" block :loading="loading" @click="submit">
-              立即登录
-            </NButton>
-          </template>
-        </ProForm>
+        <NForm :model="formModel" :show-feedback="true" label-width="80">
+          <NGrid :cols="1">
+            <NFormItemGi label="账号" path="identity" :span="1">
+              <ArInput v-model:value="formModel.identity" placeholder="请输入用户名或邮箱" />
+            </NFormItemGi>
+            <NFormItemGi label="密码" path="password" :span="1">
+              <ArInput
+                v-model:value="formModel.password"
+                type="password"
+                show-password-on="click"
+                placeholder="请输入密码"
+              />
+            </NFormItemGi>
+            <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
+              <NSelect
+                v-model:value="formModel.role"
+                :options="roleOptions"
+                placeholder="请选择登录身份"
+              />
+            </NFormItemGi>
+            <NGi :span="1" style="margin-top: 16px">
+              <ArButton type="primary" size="lg" block :loading="loading" @click="handleLogin">
+                立即登录
+              </ArButton>
+            </NGi>
+          </NGrid>
+        </NForm>
         <div class="register-entry">还没账号？<RouterLink to="/register">立即注册</RouterLink></div>
       </div>
     </div>
@@ -74,11 +65,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NSelect, NButton, NFormItemGi, NInput } from 'naive-ui'
+import { NForm, NGrid, NGi, NSelect, NFormItemGi } from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 import { $message } from '@/utils/message'
 import { LockClosedOutline, LockOpenOutline } from '@/icons'
-import ProForm from '@/components/ProForm.vue'
+import ArInput from '@/components/ui/ArInput.vue'
+import ArButton from '@/components/ui/ArButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -271,6 +263,9 @@ const handleLogin = async () => {
   display: flex;
   align-items: flex-end;
   padding: 28px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .visual-content {
@@ -374,7 +369,6 @@ const handleLogin = async () => {
   font-size: 12px;
   line-height: 1;
   padding: 8px 12px;
-  backdrop-filter: blur(1px);
 }
 
 .badge-a {
@@ -397,6 +391,9 @@ const handleLogin = async () => {
 
 .login-card {
   padding: var(--spacing-2xl);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .login-card :deep(.n-card) {
@@ -504,15 +501,6 @@ const handleLogin = async () => {
   }
 }
 
-@keyframes grid-float {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(26px);
-  }
-}
-
 @keyframes float-soft-a {
   0%,
   100% {
@@ -586,19 +574,6 @@ const handleLogin = async () => {
   80% {
     transform: translateX(3px);
   }
-}
-
-.visual-copy-enter-active,
-.visual-copy-leave-active {
-  transition:
-    opacity 0.28s ease,
-    transform 0.28s ease;
-}
-
-.visual-copy-enter-from,
-.visual-copy-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
 }
 
 @media (max-width: 860px) {

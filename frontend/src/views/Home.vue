@@ -2,8 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NPagination, useMessage } from 'naive-ui'
-import { getBlogPostsApi, type BlogPost } from '@/services/api'
-import BlogCard from '@/components/blog/BlogCard.vue'
+import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
+import { PostCard } from '@/components/blog'
 import { useUserStore } from '@/store/modules/user'
 
 const route = useRoute()
@@ -128,18 +128,16 @@ onBeforeUnmount(() => {
   <div class="home-page">
     <section
       v-if="currentHotGroup.length > 0"
-      class="hero-carousel card-glass"
+      class="hero-carousel"
       :style="{ '--hot-interval': `${HOT_ROTATE_INTERVAL_MS}ms` }"
     >
       <Transition name="hero-slide" mode="out-in">
         <div :key="hotIndex" class="hero-track">
-          <BlogCard
+          <PostCard
             v-for="post in currentHotGroup"
             :key="post.id"
             :post="post"
             layout="grid"
-            :show-cover="false"
-            :show-actions="false"
             @open="openPost(post)"
           />
         </div>
@@ -164,15 +162,20 @@ onBeforeUnmount(() => {
     <section class="post-section">
       <div v-if="latestPosts.length === 0" class="empty">暂无内容</div>
       <div v-else class="latest-grid">
-        <BlogCard
-          v-for="post in latestPosts"
+        <div
+          v-for="(post, index) in latestPosts"
           :key="post.id"
-          :post="post"
-          layout="grid"
-          :show-cover="true"
-          :show-actions="true"
-          @open="openPost(post)"
-        />
+          class="stagger-item"
+          :style="{ animationDelay: `${index * 60}ms` }"
+        >
+          <PostCard
+            :post="post"
+            layout="grid"
+            :show-cover="true"
+            :show-actions="true"
+            @open="openPost(post)"
+          />
+        </div>
       </div>
     </section>
 
@@ -181,7 +184,7 @@ onBeforeUnmount(() => {
         <h3>继续浏览</h3>
       </div>
       <div class="quick-list">
-        <BlogCard
+        <PostCard
           v-for="post in quickPosts"
           :key="post.id"
           :post="post"
@@ -209,21 +212,26 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 0 0 18px;
+  gap: var(--layout-gap);
+  padding: 0 0 var(--spacing-lg);
+  font-family: var(--font-sans);
 }
 
 .hero-carousel {
   min-height: 240px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-md);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--content-padding);
 }
 
 .hero-track {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--spacing-md);
 }
 
 .carousel-controls {
@@ -242,13 +250,13 @@ onBeforeUnmount(() => {
 .dot {
   width: 10px;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: none;
   padding: 0;
   background: color-mix(in srgb, var(--primary-color) 26%, transparent);
   cursor: pointer;
   overflow: hidden;
-  transition: transform 0.25s ease;
+  transition: transform var(--transition-normal);
 }
 
 .dot:hover {
@@ -262,7 +270,7 @@ onBeforeUnmount(() => {
   border-radius: inherit;
   background: color-mix(in srgb, var(--primary-color) 55%, transparent);
   transform: scale(0.65);
-  transition: transform 0.25s ease;
+  transition: transform var(--transition-normal);
 }
 
 .dot.active .dot-fill {
@@ -273,8 +281,8 @@ onBeforeUnmount(() => {
 .hero-slide-enter-active,
 .hero-slide-leave-active {
   transition:
-    opacity 0.4s ease,
-    transform 0.4s ease;
+    opacity var(--transition-slow),
+    transform var(--transition-slow);
 }
 
 .hero-slide-enter-from {
@@ -290,30 +298,37 @@ onBeforeUnmount(() => {
 .post-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--spacing-md);
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 .latest-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 12px;
+  gap: var(--layout-gap);
 }
 
 .quick-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .pager {
   display: flex;
   justify-content: center;
-  padding-top: 6px;
+  padding-top: var(--spacing-sm);
 }
 
 .empty {
   color: var(--text-tertiary);
-  padding: 14px 0;
+  padding: var(--spacing-md) 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

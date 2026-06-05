@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NInput, NFormItemGi, type FormRules } from 'naive-ui'
-import ProForm from '@/components/ProForm.vue'
+import { NForm, NGrid, NGi, NFormItemGi, type FormRules } from 'naive-ui'
+import ArInput from '@/components/ui/ArInput.vue'
+import ArButton from '@/components/ui/ArButton.vue'
 import { registerApi } from '@/services/api'
 import { $message } from '@/utils/message'
 import { LockClosedOutline } from '@/icons'
@@ -83,7 +84,7 @@ const handleRegister = async () => {
 <template>
   <div class="register-page">
     <div class="register-shell">
-      <aside class="register-visual card-glass" aria-hidden="true">
+      <aside class="register-visual" aria-hidden="true">
         <div class="visual-orb orb-a" />
         <div class="visual-orb orb-b" />
         <div class="visual-grid" />
@@ -105,54 +106,44 @@ const handleRegister = async () => {
         </div>
       </aside>
 
-      <div class="register-card card-glass">
+      <div class="register-card">
         <div class="card-header">
           <div class="logo-icon"><LockClosedOutline /></div>
           <h2>创建账号</h2>
           <p>注册后即可发布和管理你的博客内容</p>
         </div>
 
-        <ProForm
-          :model="formModel"
-          :rules="rules"
-          :columns="1"
-          :label-width="92"
-          @submit="handleRegister"
-        >
-          <NFormItemGi label="邮箱" path="email"
-            ><NInput
-              v-model:value="formModel.email"
-              placeholder="请输入邮箱"
-              :input-props="{ name: 'email', autocomplete: 'email' }"
-          /></NFormItemGi>
-          <NFormItemGi label="用户名" path="username"
-            ><NInput
-              v-model:value="formModel.username"
-              placeholder="请输入用户名"
-              :input-props="{ name: 'username', autocomplete: 'username' }"
-          /></NFormItemGi>
-          <NFormItemGi label="密码" path="password">
-            <NInput
-              v-model:value="formModel.password"
-              type="password"
-              show-password-on="click"
-              placeholder="请输入密码"
-              :input-props="{ autocomplete: 'new-password' }"
-            />
-          </NFormItemGi>
-          <NFormItemGi label="确认密码" path="confirmPassword">
-            <NInput
-              v-model:value="formModel.confirmPassword"
-              type="password"
-              show-password-on="click"
-              placeholder="请再次输入密码"
-              :input-props="{ autocomplete: 'new-password' }"
-            />
-          </NFormItemGi>
-          <template #actions="{ submit }">
-            <NButton type="primary" block :loading="loading" @click="submit">立即注册</NButton>
-          </template>
-        </ProForm>
+        <NForm :model="formModel" :rules="rules" label-width="92">
+          <NGrid :cols="1">
+            <NFormItemGi label="邮箱" path="email"
+              ><ArInput v-model:value="formModel.email" placeholder="请输入邮箱"
+            /></NFormItemGi>
+            <NFormItemGi label="用户名" path="username"
+              ><ArInput v-model:value="formModel.username" placeholder="请输入用户名"
+            /></NFormItemGi>
+            <NFormItemGi label="密码" path="password">
+              <ArInput
+                v-model:value="formModel.password"
+                type="password"
+                show-password-on="click"
+                placeholder="请输入密码"
+              />
+            </NFormItemGi>
+            <NFormItemGi label="确认密码" path="confirmPassword">
+              <ArInput
+                v-model:value="formModel.confirmPassword"
+                type="password"
+                show-password-on="click"
+                placeholder="请再次输入密码"
+              />
+            </NFormItemGi>
+            <NGi :span="1" style="margin-top: 16px">
+              <ArButton type="primary" size="lg" block :loading="loading" @click="handleRegister"
+                >立即注册</ArButton
+              >
+            </NGi>
+          </NGrid>
+        </NForm>
 
         <div class="bottom">已有账号？<RouterLink to="/login">去登录</RouterLink></div>
       </div>
@@ -182,6 +173,9 @@ const handleRegister = async () => {
   padding: 24px;
   display: flex;
   align-items: flex-end;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .register-visual-content {
@@ -276,7 +270,7 @@ const handleRegister = async () => {
   border-radius: 999px;
   color: var(--text-secondary);
   background: var(--surface-color);
-  border: var(--glass-border);
+  border: 1px solid var(--border-color);
   transition: all 0.24s ease;
 }
 
@@ -316,6 +310,9 @@ const handleRegister = async () => {
 
 .register-card {
   padding: var(--spacing-xl);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   animation: register-card-enter 0.38s ease both;
 }
 

@@ -16,19 +16,6 @@ const children: RouteRecordRaw[] = [
     }
   },
   {
-    path: 'plugins',
-    name: 'AdminPlugins',
-    component: () => import('@/views/admin/Plugins.vue'),
-    meta: {
-      title: '插件管理',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: API_PERMISSION.ASSETS_READ
-    }
-  },
-  {
     path: 'system',
     name: 'AdminSystemMonitor',
     component: () => import('@/views/admin/SystemMonitor.vue'),
@@ -42,50 +29,11 @@ const children: RouteRecordRaw[] = [
     }
   },
   {
-    path: 'oss',
-    name: 'AdminOss',
-    component: () => import('@/views/admin/OssAdmin.vue'),
+    path: 'resources',
+    name: 'AdminResources',
+    component: () => import('@/views/admin/ResourceAdmin.vue'),
     meta: {
-      title: 'OSS 存储',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: API_PERMISSION.SYSTEM_READ
-    }
-  },
-  {
-    path: 'config',
-    name: 'AdminConfig',
-    component: () => import('@/views/admin/ConfigAdmin.vue'),
-    meta: {
-      title: '配置管理',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: API_PERMISSION.CONFIG_READ
-    }
-  },
-  {
-    path: 'crawler',
-    name: 'AdminCrawler',
-    component: () => import('@/views/admin/CrawlerAdmin.vue'),
-    meta: {
-      title: '爬虫管理',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: API_PERMISSION.CRAWLER_READ
-    }
-  },
-  {
-    path: 'assets',
-    name: 'AdminAssets',
-    component: () => import('@/views/admin/AssetAdmin.vue'),
-    meta: {
-      title: '资产目录',
+      title: '资源管理',
       layout: 'guest',
       console: true,
       requiresAuth: true,

@@ -1,14 +1,9 @@
 <script setup lang="ts">
 import { h, onMounted, onUnmounted, ref } from 'vue'
-import { NCard, NGrid, NGi, NProgress, NDataTable, NTag } from 'naive-ui'
-import {
-  getSystemSummaryApi,
-  getProcessesApi,
-  type SystemSummary,
-  type ProcessInfo
-} from '@/services/api'
+import { NDataTable, NTag } from 'naive-ui'
+import { getProcessesApi, type ProcessInfo } from '@/services/api'
+import { SystemMetrics } from '@/components/admin'
 
-const summary = ref<SystemSummary>({ cpu_percent: 0, memory_percent: 0, disk_percent: 0 })
 const processes = ref<ProcessInfo[]>([])
 const loading = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -44,21 +39,11 @@ const processColumns = [
   }
 ]
 
-const summaryCards = [
-  { label: 'CPU 使用率', key: 'cpu_percent' as const, color: '#9a5a2f' },
-  { label: '内存使用率', key: 'memory_percent' as const, color: '#b8743d' },
-  { label: '磁盘使用率', key: 'disk_percent' as const, color: '#6f3f22' }
-]
-
-const fetchData = async () => {
+const fetchProcesses = async () => {
   loading.value = true
   try {
-    const [summaryRes, processesRes] = await Promise.all([
-      getSystemSummaryApi({ silent: true, skipAuthLogout: true }),
-      getProcessesApi({ limit: 30 }, { silent: true, skipAuthLogout: true })
-    ])
-    if (summaryRes) summary.value = summaryRes
-    if (processesRes) processes.value = processesRes
+    const res = await getProcessesApi({ limit: 30 }, { silent: true, skipAuthLogout: true })
+    if (res) processes.value = res
   } catch {
     // 静默失败，保留上次数据
   } finally {
@@ -67,9 +52,8 @@ const fetchData = async () => {
 }
 
 onMounted(() => {
-  fetchData()
-  // 每 10 秒自动刷新
-  refreshTimer = setInterval(fetchData, 10000)
+  fetchProcesses()
+  refreshTimer = setInterval(fetchProcesses, 10000)
 })
 
 onUnmounted(() => {
@@ -82,32 +66,11 @@ onUnmounted(() => {
 
 <template>
   <div class="system-monitor-page">
-    <NCard class="monitor-card">
-      <template #header>
-        <h2>系统监控</h2>
-      </template>
+    <SystemMetrics />
 
-      <NGrid :cols="3" :x-gap="12" :y-gap="12">
-        <NGi v-for="card in summaryCards" :key="card.key">
-          <div class="metric-card">
-            <div class="metric-label">{{ card.label }}</div>
-            <NProgress
-              type="line"
-              :percentage="Math.round(summary[card.key] ?? 0)"
-              :color="card.color"
-              :height="10"
-              :border-radius="5"
-              :fill-border-radius="5"
-              indicator-placement="inside"
-              class="metric-progress"
-            />
-            <div class="metric-value">{{ Math.round(summary[card.key] ?? 0) }}%</div>
-          </div>
-        </NGi>
-      </NGrid>
-
-      <div v-if="processes.length > 0" class="processes-section">
-        <h3 class="section-title">进程列表</h3>
+    <div v-if="processes.length > 0" class="processes-section">
+      <h3 class="section-title">进程列表</h3>
+      <div class="table-wrapper">
         <NDataTable
           :columns="processColumns"
           :data="processes"
@@ -115,53 +78,36 @@ onUnmounted(() => {
           size="small"
           striped
           :bordered="false"
+          :single-line="true"
         />
       </div>
-      <div v-else class="processes-empty">
-        <p>暂无进程数据</p>
-      </div>
-    </NCard>
+    </div>
+    <div v-else class="processes-empty">
+      <p>暂无进程数据</p>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .system-monitor-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-gap);
   max-width: 100%;
 }
 
-.monitor-card h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.metric-card {
-  background: var(--surface-color);
-  border: var(--glass-border);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.metric-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.metric-value {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  text-align: right;
-}
-
 .section-title {
-  margin: 20px 0 12px;
+  margin: 0 0 var(--spacing-sm);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
+}
+
+.table-wrapper {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 .processes-empty {
