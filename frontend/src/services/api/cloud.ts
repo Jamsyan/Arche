@@ -6,7 +6,7 @@ export interface CloudJob {
   name: string
   status: string
   created_at?: string
-  orchestrator_status?: string
+  orchestrator_step?: string
 }
 
 export interface CreateCloudJobPayload {
