@@ -24,6 +24,11 @@
     "vue": "^3.5.32",
     "vue-router": "^4.6.4"
   },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
+  },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.16.1",
     "@types/node": "^24.12.2",
