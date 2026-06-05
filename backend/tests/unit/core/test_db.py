@@ -44,6 +44,18 @@ class TestDatabase:
         # 验证引擎配置正确
         assert str(engine.url) == database_url
 
+    def test_init_db_expire_on_commit_false(self):
+        """init_db 创建的 session_factory 必须设置 expire_on_commit=False。
+
+        这是关键配置，否则在 session 关闭后访问对象属性会抛出
+        DetachedInstanceError，导致编排器等后台任务崩溃。
+        """
+        database_url = "sqlite+aiosqlite:///:memory:"
+        _, session_factory = init_db(database_url)
+
+        # 验证 expire_on_commit=False
+        assert session_factory.kw.get("expire_on_commit") is False
+
     @pytest.mark.skip(reason="Global state issue in test environment")
     @pytest.mark.asyncio
     async def test_ensure_tables_not_initialized(self):
