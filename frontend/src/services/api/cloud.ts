@@ -77,7 +77,10 @@ export const getCloudInstancesApi = (
   jobId: string,
   params?: ApiListParams,
   config?: RequestConfig
-) => get<BackendPaginated<CloudInstance>>(`/cloud/jobs/${jobId}/instances`, params, config).then(normalizePaginated)
+) =>
+  get<BackendPaginated<CloudInstance>>(`/cloud/jobs/${jobId}/instances`, params, config).then(
+    normalizePaginated
+  )
 
 export const getCloudCostsApi = (
   params?: { job_id?: string; start_date?: string; end_date?: string },
