@@ -1,5 +1,5 @@
 import { get, post, type RequestConfig } from '../request'
-import type { ApiListParams, Paginated } from './types/common'
+import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
 
 export interface CrawlRecord {
   id: string
@@ -13,6 +13,13 @@ export interface CrawlerStatus {
   queue_size?: number
 }
 
+const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
+  total: raw.total || 0,
+  page: raw.page || 1,
+  page_size: raw.page_size || 20,
+  list: raw.list || raw.items || []
+})
+
 export const getCrawlerStatusApi = (config?: RequestConfig) =>
   get<CrawlerStatus>('/crawler/status', undefined, config)
 
@@ -23,7 +30,7 @@ export const stopCrawlerApi = (config?: RequestConfig) =>
   post<void>('/crawler/stop', undefined, config)
 
 export const getCrawlerRecordsApi = (params?: ApiListParams, config?: RequestConfig) =>
-  get<Paginated<CrawlRecord>>('/crawler/records', params, config)
+  get<BackendPaginated<CrawlRecord>>('/crawler/records', params, config).then(normalizePaginated)
 
 export const getCrawlerRecordApi = (recordId: string, config?: RequestConfig) =>
   get<CrawlRecord>(`/crawler/records/${recordId}`, undefined, config)
