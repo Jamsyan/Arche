@@ -134,12 +134,6 @@ export interface CloudStats {
   running_instances: number
 }
 
-<<<<<<< HEAD
-/**
- * 任务操作
- */
-=======
->>>>>>> 22fb6bc58c42ab92d21974af9ebdfc97dd0dc438
 export const getCloudStatsApi = (config?: RequestConfig) =>
   get<CloudStats>('/cloud/stats', undefined, config)
 
