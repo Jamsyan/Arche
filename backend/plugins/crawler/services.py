@@ -10,6 +10,8 @@ import time
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
+import logging
+
 from backend.core.container import ServiceContainer
 from backend.plugins.crawler.models import CrawlRecord
 from backend.plugins.crawler.pipeline import (
@@ -173,8 +175,6 @@ class CrawlerOrchestrator:
 
             _asyncio.get_running_loop().create_task(_save())
         except Exception as e:
-            import logging
-
             logging.getLogger(__name__).error(f"创建保存任务失败: {e}")
 
     async def add_seed(self, url: str) -> bool:

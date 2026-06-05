@@ -3,7 +3,6 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client", "node"],
-    /* TS 6.0+ 不再需要此选项，移除以避免误报 */
 
     /* Path mapping */
     "baseUrl": ".",

@@ -1,5 +1,6 @@
 import { del, get, post, type RequestConfig } from '../request'
 import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
+import { normalizePaginated } from './types/common'
 
 /** 训练任务 */
 export interface CloudJob {
@@ -132,13 +133,6 @@ export interface CloudStats {
   running_jobs: number
   running_instances: number
 }
-
-const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
-  total: raw.total || 0,
-  page: raw.page || 1,
-  page_size: raw.page_size || 20,
-  list: raw.list || raw.items || []
-})
 
 /**
  * 任务操作

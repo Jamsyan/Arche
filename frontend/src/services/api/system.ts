@@ -1,5 +1,6 @@
 import { get, type RequestConfig } from '../request'
-import type { ApiListParams, BackendPaginated, Paginated } from './types/common'
+import type { ApiListParams, BackendPaginated } from './types/common'
+import { normalizePaginated } from './types/common'
 
 export interface SystemSummary {
   cpu_percent: number
@@ -107,13 +108,6 @@ export interface ProcessListResponse {
   total: number
   limit: number
 }
-
-const normalizePaginated = <T>(raw: BackendPaginated<T>): Paginated<T> => ({
-  total: raw.total || 0,
-  page: raw.page || 1,
-  page_size: raw.page_size || 20,
-  list: raw.list || raw.items || []
-})
 
 export const getSystemSummaryApi = (config?: RequestConfig) =>
   get<SystemSummary>('/system/summary', undefined, config)
