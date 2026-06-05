@@ -200,10 +200,12 @@ onMounted(fetchPost)
 
       <div v-if="comments.length > 0" class="comment-list">
         <div v-for="c in comments" :key="c.id" class="comment-item">
-          <div class="comment-avatar">{{ ((c.user_id || '?')[0] || '').toUpperCase() }}</div>
+          <div class="comment-avatar">
+            {{ ((c.author_username || '?')[0] || '').toUpperCase() }}
+          </div>
           <div class="comment-body">
             <div class="comment-header">
-              <span class="comment-user">{{ c.user_id?.slice(0, 8) || '匿名' }}</span>
+              <span class="comment-user">{{ c.author_username || '匿名' }}</span>
               <span class="comment-time">{{ (c.created_at || '').slice(0, 10) }}</span>
             </div>
             <div class="comment-content">{{ c.content }}</div>

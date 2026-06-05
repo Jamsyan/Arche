@@ -44,19 +44,34 @@ async def get_posts(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     sort_by: str = Query("created_at", description="排序字段"),
+    status: str | None = Query(
+        None, description="状态筛选（仅管理员可用，公开默认 published）"
+    ),
     q: str | None = Query(None, description="搜索关键词（标题+内容）"),
     tag: str | None = Query(None, description="按标签筛选"),
 ):
-    """帖子列表（公开，支持搜索和标签筛选，按权限过滤）。"""
+    """帖子列表（支持搜索、标签和状态筛选，按权限过滤）。"""
+    from backend.core.middleware import require_user as _require_user
+
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
-    # 获取当前用户等级（未登录按最高等级处理）
     user = get_current_user(request)
     user_level = user["level"] if user else 5
+
+    # 非管理员只能看到 published 的文章
+    status_filter = status
+    if status_filter and status_filter != "published":
+        try:
+            u = _require_user(request)
+            if u.get("level", 5) > 0:
+                status_filter = "published"
+        except Exception:
+            status_filter = "published"
+
     result = await blog_service.list_posts(
         page=page,
         page_size=page_size,
-        status_filter="published",
+        status_filter=status_filter or "published",
         sort_by=sort_by,
         user_level=user_level,
         search_query=q,

@@ -6,21 +6,21 @@ export const authMockData: MockAuthData = {
       id: '1',
       username: 'user',
       nickname: '普通用户',
-      role: 'user',
+      level: 5,
       permissions: ['auth:me', 'blog:posts:read', 'blog:posts:write']
     },
     admin: {
       id: '2',
       username: 'admin',
       nickname: '管理员',
-      role: 'admin',
+      level: 0,
       permissions: ['*']
     },
     guest: {
       id: '3',
       username: 'guest',
       nickname: '访客',
-      role: 'guest',
+      level: 5,
       permissions: []
     }
   }

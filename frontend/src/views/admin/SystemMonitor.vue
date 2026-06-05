@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
-import { NCard, NGrid, NGi, NProgress, NDataTable, NTag, useMessage } from 'naive-ui'
+import { h, onMounted, onUnmounted, ref } from 'vue'
+import { NCard, NGrid, NGi, NProgress, NDataTable, NTag } from 'naive-ui'
 import {
   getSystemSummaryApi,
   getProcessesApi,
@@ -8,11 +8,10 @@ import {
   type ProcessInfo
 } from '@/services/api'
 
-const message = useMessage()
-
 const summary = ref<SystemSummary>({ cpu_percent: 0, memory_percent: 0, disk_percent: 0 })
 const processes = ref<ProcessInfo[]>([])
 const loading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const processColumns = [
   { title: 'PID', key: 'pid', width: 80 },
@@ -24,9 +23,9 @@ const processColumns = [
     render: (row: ProcessInfo) =>
       h(
         NTag,
-        { size: 'small', type: row.cpu_percent > 50 ? 'error' : 'default' },
+        { size: 'small', type: (row.cpu_percent ?? 0) > 50 ? 'error' : 'default' },
         {
-          default: () => `${row.cpu_percent.toFixed(1)}%`
+          default: () => `${(row.cpu_percent ?? 0).toFixed(1)}%`
         }
       )
   },
@@ -37,9 +36,9 @@ const processColumns = [
     render: (row: ProcessInfo) =>
       h(
         NTag,
-        { size: 'small', type: row.memory_percent > 50 ? 'error' : 'default' },
+        { size: 'small', type: (row.memory_percent ?? 0) > 50 ? 'error' : 'default' },
         {
-          default: () => `${row.memory_percent.toFixed(1)}%`
+          default: () => `${(row.memory_percent ?? 0).toFixed(1)}%`
         }
       )
   }
@@ -58,16 +57,27 @@ const fetchData = async () => {
       getSystemSummaryApi({ silent: true, skipAuthLogout: true }),
       getProcessesApi({ limit: 30 }, { silent: true, skipAuthLogout: true })
     ])
-    summary.value = summaryRes
-    processes.value = processesRes || []
+    if (summaryRes) summary.value = summaryRes
+    if (processesRes) processes.value = processesRes
   } catch {
-    message.error('获取系统监控数据失败')
+    // 静默失败，保留上次数据
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchData)
+onMounted(() => {
+  fetchData()
+  // 每 10 秒自动刷新
+  refreshTimer = setInterval(fetchData, 10000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+})
 </script>
 
 <template>
@@ -83,7 +93,7 @@ onMounted(fetchData)
             <div class="metric-label">{{ card.label }}</div>
             <NProgress
               type="line"
-              :percentage="Math.round(summary[card.key])"
+              :percentage="Math.round(summary[card.key] ?? 0)"
               :color="card.color"
               :height="10"
               :border-radius="5"
@@ -91,7 +101,7 @@ onMounted(fetchData)
               indicator-placement="inside"
               class="metric-progress"
             />
-            <div class="metric-value">{{ Math.round(summary[card.key]) }}%</div>
+            <div class="metric-value">{{ Math.round(summary[card.key] ?? 0) }}%</div>
           </div>
         </NGi>
       </NGrid>

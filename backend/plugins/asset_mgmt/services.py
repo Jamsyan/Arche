@@ -79,28 +79,6 @@ class AssetMgmtService:
                         }
                     )
 
-            # 爬虫结果
-            if asset_type is None or asset_type == "crawl_result":
-                from backend.plugins.crawler.models import CrawlRecord
-
-                query = select(CrawlRecord)
-                result = await session.execute(query)
-                for cr in result.scalars().all():
-                    assets.append(
-                        {
-                            "id": str(cr.id),
-                            "asset_type": "crawl_result",
-                            "source_id": str(cr.id),
-                            "title": cr.title or cr.url,
-                            "description": cr.url,
-                            "tags": [],
-                            "created_at": cr.crawled_at.isoformat()
-                            if cr.crawled_at
-                            else None,
-                            "source_plugin": "crawler",
-                        }
-                    )
-
             # 训练任务
             if asset_type is None or asset_type == "training_job":
                 from backend.plugins.cloud_integration.models import TrainingJob
@@ -181,7 +159,6 @@ class AssetMgmtService:
         """按类型分组统计用户资产。"""
         from backend.plugins.blog.models import BlogPost
         from backend.plugins.cloud_integration.models import TrainingJob
-        from backend.plugins.crawler.models import CrawlRecord
         from backend.plugins.oss.models import OSSFile
 
         async with self.session_factory() as session:
@@ -190,16 +167,16 @@ class AssetMgmtService:
                 select(func.count(BlogPost.id)).where(BlogPost.author_id == owner_id)
             )
 
-            # 对象存储文件
+            # 对象存储文件（count + 总字节数）
             file_result = await session.execute(
-                select(func.count(OSSFile.id), func.sum(OSSFile.size)).where(
-                    OSSFile.owner_id == owner_id
-                )
+                select(
+                    func.count(OSSFile.id),
+                    func.sum(OSSFile.size),
+                ).where(OSSFile.owner_id == owner_id)
             )
-            file_row = file_result.one()
-
-            # 爬虫结果（当前没有 owner_id，统计全部）
-            crawl_count = await session.execute(select(func.count(CrawlRecord.id)))
+            file_count, file_total_size = file_result.one()
+            file_count = file_count or 0
+            file_total_size = file_total_size or 0
 
             # 训练任务
             job_count = await session.execute(
@@ -209,10 +186,12 @@ class AssetMgmtService:
             )
 
         blog_total = blog_count.scalar() or 0
-        file_count = file_row[0] or 0
-        file_size = file_row[1] or 0
-        crawl_total = crawl_count.scalar() or 0
         job_total = job_count.scalar() or 0
+
+        # crawl_result 暂不加入统计：CrawlRecord 表缺少 owner_id 字段，无法按用户过滤
+        crawl_total = 0
+
+        total = blog_total + file_count + crawl_total + job_total
 
         return {
             "owner_id": str(owner_id),
@@ -220,10 +199,11 @@ class AssetMgmtService:
                 "blog_post": blog_total,
                 "file": {
                     "count": file_count,
-                    "total_size_bytes": file_size,
+                    "total_size_bytes": file_total_size,
                 },
                 "crawl_result": crawl_total,
                 "training_job": job_total,
             },
-            "total_assets": blog_total + file_count + crawl_total + job_total,
+            "total_assets": total,
+            "total": total,
         }

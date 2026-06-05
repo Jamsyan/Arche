@@ -120,10 +120,16 @@ const handleRegister = async () => {
           @submit="handleRegister"
         >
           <NFormItemGi label="邮箱" path="email"
-            ><NInput v-model:value="formModel.email" placeholder="请输入邮箱"
+            ><NInput
+              v-model:value="formModel.email"
+              placeholder="请输入邮箱"
+              :input-props="{ name: 'email', autocomplete: 'email' }"
           /></NFormItemGi>
           <NFormItemGi label="用户名" path="username"
-            ><NInput v-model:value="formModel.username" placeholder="请输入用户名"
+            ><NInput
+              v-model:value="formModel.username"
+              placeholder="请输入用户名"
+              :input-props="{ name: 'username', autocomplete: 'username' }"
           /></NFormItemGi>
           <NFormItemGi label="密码" path="password">
             <NInput
@@ -131,6 +137,7 @@ const handleRegister = async () => {
               type="password"
               show-password-on="click"
               placeholder="请输入密码"
+              :input-props="{ autocomplete: 'new-password' }"
             />
           </NFormItemGi>
           <NFormItemGi label="确认密码" path="confirmPassword">
@@ -139,6 +146,7 @@ const handleRegister = async () => {
               type="password"
               show-password-on="click"
               placeholder="请再次输入密码"
+              :input-props="{ autocomplete: 'new-password' }"
             />
           </NFormItemGi>
           <template #actions="{ submit }">
@@ -421,6 +429,15 @@ const handleRegister = async () => {
 
   .register-visual {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-icon {
+    animation: none !important;
+  }
+  .visual-orb {
+    animation: none !important;
   }
 }
 </style>

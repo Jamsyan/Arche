@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { NButton, NTag, NPopconfirm, useMessage } from 'naive-ui'
 import { AddOutline } from '@/icons'
 import ProTable from '@/components/ProTable.vue'
+import BlogCard from '@/components/blog/BlogCard.vue'
 import { deletePostApi, getMyPostsApi, type BlogPost, type Paginated } from '@/services/api'
 
 const message = useMessage()
@@ -18,11 +19,30 @@ interface PostRow {
   status: string
 }
 
+const toBlogPost = (row: PostRow): BlogPost => ({
+  id: row.id,
+  slug: row.id,
+  title: row.title,
+  content: '',
+  tags: [],
+  created_at: row.createdAt,
+  status: row.status
+})
+
 const columns = [
   {
     title: '标题',
     key: 'title',
-    ellipsis: true
+    width: 400,
+    render: (row: PostRow) =>
+      h('div', { class: 'posts-title-cell' }, [
+        h(BlogCard, {
+          post: toBlogPost(row),
+          layout: 'compact',
+          showExcerpt: false,
+          showMeta: false
+        })
+      ])
   },
   {
     title: '发布时间',
@@ -34,13 +54,16 @@ const columns = [
     key: 'status',
     width: 120,
     render: (row: { status: string }) => {
-      return h(
-        NTag,
-        {
-          type: row.status === '已发布' ? 'success' : 'warning'
-        },
-        { default: () => row.status }
-      )
+      const statusMap: Record<
+        string,
+        { label: string; type: 'success' | 'warning' | 'error' | 'default' }
+      > = {
+        published: { label: '已发布', type: 'success' },
+        pending: { label: '待审核', type: 'warning' },
+        rejected: { label: '已驳回', type: 'error' }
+      }
+      const s = statusMap[row.status] || { label: row.status, type: 'default' }
+      return h(NTag, { type: s.type }, { default: () => s.label })
     }
   },
   {
@@ -175,5 +198,11 @@ const handleDelete = async (row: PostRow) => {
   border-radius: var(--radius-md);
   padding: 16px;
   backdrop-filter: blur(4px);
+}
+
+.posts-title-cell :deep(.blog-card--compact) {
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 </style>

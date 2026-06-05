@@ -8,7 +8,7 @@ import prettier from 'eslint-plugin-prettier'
 export default [
   /* 忽略文件 */
   {
-    ignores: ['node_modules/**', 'dist/**', '*.config.js', '**/*.d.ts']
+    ignores: ['node_modules/**', 'dist/**', 'scripts/**', '*.config.js', '**/*.d.ts']
   },
 
   /* 基础配置 */

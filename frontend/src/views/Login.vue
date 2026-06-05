@@ -37,7 +37,11 @@
           @submit="handleLogin"
         >
           <NFormItemGi label="账号" path="identity" :span="1">
-            <NInput v-model:value="formModel.identity" placeholder="请输入用户名或邮箱" />
+            <NInput
+              v-model:value="formModel.identity"
+              placeholder="请输入用户名或邮箱"
+              :input-props="{ name: 'identity', autocomplete: 'username' }"
+            />
           </NFormItemGi>
           <NFormItemGi label="密码" path="password" :span="1">
             <NInput
@@ -45,6 +49,7 @@
               type="password"
               show-password-on="click"
               placeholder="请输入密码"
+              :input-props="{ autocomplete: 'current-password' }"
             />
           </NFormItemGi>
           <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
@@ -194,7 +199,15 @@ const setLockFeedback = (state: 'idle' | 'success' | 'error') => {
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
 onMounted(() => {
-  runTypewriter()
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+  if (mq.matches) {
+    const copy = visualCopies[0]!
+    typedTitle.value = copy.title
+    typedDesc.value = copy.desc
+    typingPhase.value = 'pause'
+  } else {
+    runTypewriter()
+  }
 })
 
 onBeforeUnmount(() => {

@@ -127,4 +127,8 @@ watch(
   justify-content: center;
   padding-top: 4px;
 }
+
+:deep(.n-data-table td) {
+  font-variant-numeric: tabular-nums;
+}
 </style>

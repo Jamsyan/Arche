@@ -7,7 +7,7 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from backend.core.container import ServiceContainer
 from backend.core.middleware import require_level, require_user
@@ -79,9 +79,11 @@ async def list_jobs(
     status: str | None = Query(None, description="状态过滤"),
 ):
     """训练任务列表（P0）。"""
+    user = require_user(request)
     container: ServiceContainer = request.app.state.container
     service = container.get("cloud_training")
     result = await service.list_jobs(
+        creator_id=uuid.UUID(user["id"]),
         page=page,
         page_size=page_size,
         status_filter=status,
@@ -131,12 +133,25 @@ async def create_job(req: CreateJobRequest, request: Request):
     return {"code": "ok", "message": "创建成功", "data": result}
 
 
+async def _verify_job_owner(service, job_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    """校验当前用户是否为训练任务的创建者。"""
+    job = await service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="训练任务不存在")
+    creator_id = uuid.UUID(job["creator_id"])
+    if creator_id != user_id:
+        raise HTTPException(status_code=403, detail="无权操作其他用户的训练任务")
+    return job
+
+
 @router.delete("/jobs/{job_id}")
 @require_level(0)
 async def delete_job(job_id: str, request: Request):
     """删除训练任务（P0）。"""
+    user = require_user(request)
     container: ServiceContainer = request.app.state.container
     service = container.get("cloud_training")
+    await _verify_job_owner(service, uuid.UUID(job_id), uuid.UUID(user["id"]))
     await service.delete_job(uuid.UUID(job_id))
     return {"code": "ok", "message": "删除成功", "data": {}}
 
@@ -415,8 +430,14 @@ async def get_dataset(dataset_id: str, request: Request):
 @require_level(0)
 async def delete_dataset(dataset_id: str, request: Request):
     """删除数据集（P0）。"""
+    user = require_user(request)
     container: ServiceContainer = request.app.state.container
     service = container.get("cloud_training")
+    dataset = await service.get_dataset(uuid.UUID(dataset_id))
+    if not dataset:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+    if uuid.UUID(dataset["created_by"]) != uuid.UUID(user["id"]):
+        raise HTTPException(status_code=403, detail="无权删除其他用户的数据集")
     await service.delete_dataset(uuid.UUID(dataset_id))
     return {"code": "ok", "message": "删除成功", "data": {}}
 

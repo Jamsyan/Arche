@@ -11,14 +11,16 @@
         </div>
       </div>
       <div class="header-right">
-        <div class="user-info" @click="showUserMenu = !showUserMenu">
+        <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '用户' }}</span>
           <PersonCircleOutline class="avatar" />
-        </div>
+        </button>
         <!-- 用户下拉菜单 -->
         <div v-if="showUserMenu" class="user-menu">
-          <div class="menu-item" @click="goToProfile"><PersonOutline /> 个人中心</div>
-          <div class="menu-item" @click="handleLogout"><LogOutOutline /> 退出登录</div>
+          <button class="menu-item" @click="goToProfile"><PersonOutline /> 个人中心</button>
+          <button class="menu-item logout-btn" @click="handleLogout">
+            <LogOutOutline /> 退出登录
+          </button>
         </div>
       </div>
     </header>
@@ -67,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   MenuOutline,
@@ -129,6 +131,22 @@ const handleLogout = async () => {
   router.push('/login')
   showUserMenu.value = false
 }
+
+// 点击外部关闭用户菜单
+const handleClickOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.header-right')) {
+    showUserMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>
@@ -170,7 +188,9 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    transform 0.3s ease;
 }
 
 .menu-toggle:hover {
@@ -194,17 +214,21 @@ const handleLogout = async () => {
   position: relative;
 }
 
-.user-info {
+.user-info-btn {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   padding: 8px 12px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
 }
 
-.user-info:hover {
+.user-info-btn:hover {
   background: rgba(239, 227, 207, 0.82);
 }
 
@@ -239,9 +263,15 @@ const handleLogout = async () => {
   gap: 12px;
   padding: 10px 16px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
   font-size: 14px;
   color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  font: inherit;
+  width: 100%;
 }
 
 .menu-item:hover {
@@ -265,6 +295,7 @@ const handleLogout = async () => {
   top: 64px;
   bottom: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .layout-sidebar.sidebar-collapsed {
@@ -287,7 +318,11 @@ const handleLogout = async () => {
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
   font-size: 14px;
   font-weight: 500;
 }

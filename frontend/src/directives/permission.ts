@@ -6,8 +6,8 @@ export const permissionDirective = {
     const permissionStore = usePermissionStore()
     const { value } = binding
 
-    // admin拥有所有权限
-    if (permissionStore.role === 'admin') {
+    // admin（level 0）拥有所有权限
+    if (permissionStore.isAdmin()) {
       return
     }
 

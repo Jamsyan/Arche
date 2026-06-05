@@ -10,7 +10,8 @@ import {
   InformationCircleOutline,
   SettingsOutline,
   ArrowBackOutline,
-  ChevronDownOutline
+  ChevronDownOutline,
+  MenuOutline
 } from '@vicons/ionicons5'
 import { useUserStore } from '@/store/modules/user'
 
@@ -19,6 +20,7 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
+const showMobileMenu = ref(false)
 const collapsedGroups = ref<Set<string>>(new Set())
 
 const navGroups = computed(() => {
@@ -48,7 +50,6 @@ const navGroups = computed(() => {
         { label: '爬虫管理', icon: InformationCircleOutline, to: '/admin/crawler' },
         { label: '资产目录', icon: AppsOutline, to: '/admin/assets' },
         { label: '帖子管理', icon: DocumentTextOutline, to: '/admin/moderation/posts' },
-        { label: '审批管理', icon: InformationCircleOutline, to: '/admin/moderation/pending' },
         { label: '插件管理', icon: AppsOutline, to: '/admin/plugins' }
       ]
     })
@@ -78,7 +79,8 @@ const isGroupCollapsed = (label: string) => collapsedGroups.value.has(label)
 
 <template>
   <div class="console-shell">
-    <aside class="console-sidebar">
+    <div v-if="showMobileMenu" class="mobile-overlay" @click="showMobileMenu = false" />
+    <aside class="console-sidebar" :class="{ 'sidebar-mobile-visible': showMobileMenu }">
       <div class="sidebar-header">
         <span class="sidebar-title">导航</span>
       </div>
@@ -108,6 +110,13 @@ const isGroupCollapsed = (label: string) => collapsedGroups.value.has(label)
       </nav>
     </aside>
     <main class="console-content">
+      <button
+        class="mobile-menu-btn"
+        aria-label="导航菜单"
+        @click="showMobileMenu = !showMobileMenu"
+      >
+        <NIcon size="20"><MenuOutline /></NIcon>
+      </button>
       <button class="back-btn" @click="goBack">
         <NIcon size="16"><ArrowBackOutline /></NIcon>
         <span>返回控制台</span>
@@ -229,12 +238,52 @@ const isGroupCollapsed = (label: string) => collapsedGroups.value.has(label)
   color: var(--primary-color);
 }
 
+.mobile-menu-btn {
+  display: none;
+  border: none;
+  background: rgba(255, 248, 236, 0.72);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  backdrop-filter: blur(2px);
+}
+
 @media (max-width: 860px) {
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .console-shell {
     grid-template-columns: 1fr;
   }
+
   .console-sidebar {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 240px;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    display: block !important;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .console-sidebar.sidebar-mobile-visible {
+    transform: translateX(0);
   }
 }
 </style>

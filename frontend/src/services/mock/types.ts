@@ -32,7 +32,7 @@ export interface MockAuthData {
       id: string
       username: string
       nickname: string
-      role: string
+      level: number
       permissions: string[]
     }
   >
