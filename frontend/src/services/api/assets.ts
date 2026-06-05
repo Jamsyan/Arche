@@ -9,9 +9,14 @@ export interface AssetItem {
   created_at?: string
 }
 
+export interface AssetFileStats {
+  count: number
+  total_size_bytes: number
+}
+
 export interface AssetStats {
   total: number
-  by_type: Record<string, number>
+  by_type: Record<string, number | AssetFileStats>
 }
 
 export interface AssetQueryParams extends ApiListParams {

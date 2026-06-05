@@ -32,9 +32,9 @@ const fetchData = async () => {
   try {
     const statsRes = await getAssetStatsApi({ silent: true, skipAuthLogout: true })
     stats.value = statsRes
-    typeEntries.value = Object.entries(statsRes.by_type || {}).map(([type, count]) => ({
+    typeEntries.value = Object.entries(statsRes.by_type || {}).map(([type, value]) => ({
       type,
-      count,
+      count: typeof value === 'object' ? value.count : value,
       label: typeLabelMap[type] || type
     }))
   } catch {

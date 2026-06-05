@@ -106,7 +106,8 @@ class TestAssetMgmtService:
         stats = await service.get_stats(owner_id=asset_seed_data)
 
         assert stats["by_type"]["blog_post"] == 1
-        assert stats["by_type"]["file"] == 1
+        assert stats["by_type"]["file"]["count"] == 1
+        assert stats["by_type"]["file"]["total_size_bytes"] > 0
         assert stats["by_type"]["crawl_result"] == 0
         assert stats["by_type"]["training_job"] == 1
         assert stats["total_assets"] == 3

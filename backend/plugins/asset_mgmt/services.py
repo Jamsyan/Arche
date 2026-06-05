@@ -167,10 +167,16 @@ class AssetMgmtService:
                 select(func.count(BlogPost.id)).where(BlogPost.author_id == owner_id)
             )
 
-            # 对象存储文件
-            file_count_result = await session.execute(
-                select(func.count(OSSFile.id)).where(OSSFile.owner_id == owner_id)
+            # 对象存储文件（count + 总字节数）
+            file_result = await session.execute(
+                select(
+                    func.count(OSSFile.id),
+                    func.sum(OSSFile.size),
+                ).where(OSSFile.owner_id == owner_id)
             )
+            file_count, file_total_size = file_result.one()
+            file_count = file_count or 0
+            file_total_size = file_total_size or 0
 
             # 训练任务
             job_count = await session.execute(
@@ -180,7 +186,6 @@ class AssetMgmtService:
             )
 
         blog_total = blog_count.scalar() or 0
-        file_count = file_count_result.scalar() or 0
         job_total = job_count.scalar() or 0
 
         # crawl_result 暂不加入统计：CrawlRecord 表缺少 owner_id 字段，无法按用户过滤
@@ -192,7 +197,10 @@ class AssetMgmtService:
             "owner_id": str(owner_id),
             "by_type": {
                 "blog_post": blog_total,
-                "file": file_count,
+                "file": {
+                    "count": file_count,
+                    "total_size_bytes": file_total_size,
+                },
                 "crawl_result": crawl_total,
                 "training_job": job_total,
             },

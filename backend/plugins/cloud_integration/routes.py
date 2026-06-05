@@ -136,6 +136,8 @@ async def create_job(req: CreateJobRequest, request: Request):
 async def _verify_job_owner(service, job_id: uuid.UUID, user_id: uuid.UUID) -> dict:
     """校验当前用户是否为训练任务的创建者。"""
     job = await service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="训练任务不存在")
     creator_id = uuid.UUID(job["creator_id"])
     if creator_id != user_id:
         raise HTTPException(status_code=403, detail="无权操作其他用户的训练任务")
@@ -432,6 +434,8 @@ async def delete_dataset(dataset_id: str, request: Request):
     container: ServiceContainer = request.app.state.container
     service = container.get("cloud_training")
     dataset = await service.get_dataset(uuid.UUID(dataset_id))
+    if not dataset:
+        raise HTTPException(status_code=404, detail="数据集不存在")
     if uuid.UUID(dataset["created_by"]) != uuid.UUID(user["id"]):
         raise HTTPException(status_code=403, detail="无权删除其他用户的数据集")
     await service.delete_dataset(uuid.UUID(dataset_id))
