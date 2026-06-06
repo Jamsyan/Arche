@@ -93,11 +93,7 @@ export const deleteOssAdminFileApi = (fileId: string, config?: RequestConfig) =>
   del<void>(`/oss/admin/files/${fileId}`, undefined, config)
 
 export const getOssAdminQuotasApi = (config?: RequestConfig) =>
-  get<{ items: OSSQuota[]; list: OSSQuota[]; total: number }>(
-    '/oss/admin/quotas',
-    undefined,
-    config
-  )
+  get<{ items: OSSQuota[]; list: OSSQuota[]; total: number }>('/oss/admin/quotas', undefined, config)
 
 export const updateOssUserQuotaApi = (
   userId: string,

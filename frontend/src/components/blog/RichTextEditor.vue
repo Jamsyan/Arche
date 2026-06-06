@@ -12,11 +12,11 @@
 import { ref, watch, onMounted, onBeforeUnmount, computed, defineComponent, h } from 'vue'
 import { useEditor, EditorContent, VueNodeViewRenderer, NodeViewWrapper } from '@tiptap/vue-3'
 import { Node, Extension, InputRule } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import TextStyle from '@tiptap/extension-text-style'
-import Color from '@tiptap/extension-color'
-import TextAlign from '@tiptap/extension-text-align'
+import { StarterKit } from '@tiptap/starter-kit'
+import { Underline } from '@tiptap/extension-underline'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
+import { TextAlign } from '@tiptap/extension-text-align'
 
 // ── Props & Emits ──
 
