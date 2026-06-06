@@ -12,6 +12,8 @@ export interface BlogPost {
   title: string
   content: string
   cover_url?: string
+  source_url?: string
+  source_name?: string
   tags: string[]
   required_level?: number
   status?: string
@@ -20,6 +22,12 @@ export interface BlogPost {
   author_username?: string
   likes?: number
   views?: number
+  paragraphs?: Paragraph[]
+}
+
+export interface Paragraph {
+  index: number
+  content: string
 }
 
 export interface BlogComment {
@@ -28,6 +36,7 @@ export interface BlogComment {
   content: string
   author_id: string
   author_username?: string
+  paragraph_index?: number
   created_at?: string
 }
 
@@ -68,6 +77,11 @@ export interface BlogListParams extends ApiListParams {
   status?: string
 }
 
+export interface LikeStatus {
+  liked: boolean
+  count: number
+}
+
 export const getBlogPostsApi = (params?: BlogListParams, config?: RequestConfig) =>
   get<BackendPaginated<BlogPost>>('/blog/posts', params, config).then(normalizePaginated)
 
@@ -103,6 +117,29 @@ export const createPostCommentApi = (
   payload: CreateCommentPayload,
   config?: RequestConfig
 ) => post<BlogComment>(`/blog/posts/${postId}/comments`, payload, config)
+
+export const getParagraphCommentsApi = (
+  postId: string,
+  paragraphIndex: number,
+  params?: ApiListParams,
+  config?: RequestConfig
+) =>
+  get<BackendPaginated<BlogComment>>(
+    `/blog/posts/${postId}/paragraph-comments/${paragraphIndex}`,
+    params,
+    config
+  ).then(normalizePaginated)
+
+export const createParagraphCommentApi = (
+  postId: string,
+  paragraphIndex: number,
+  payload: CreateCommentPayload,
+  config?: RequestConfig
+) =>
+  post<BlogComment>(`/blog/posts/${postId}/paragraph-comments/${paragraphIndex}`, payload, config)
+
+export const getLikeStatusApi = (postId: string, config?: RequestConfig) =>
+  get<LikeStatus>(`/blog/posts/${postId}/like-status`, undefined, config)
 
 export const likePostApi = (postId: string, config?: RequestConfig) =>
   post<void>(`/blog/posts/${postId}/like`, undefined, config)

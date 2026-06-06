@@ -276,6 +276,7 @@ class TestBlogServicePostCRUD:
         mock_post = MagicMock()
         mock_post.required_level = 0
         mock_post.views = 0
+        mock_post.status = "published"
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
         with pytest.raises(Exception) as excinfo:
@@ -289,6 +290,9 @@ class TestBlogServicePostCRUD:
         mock_post = MagicMock()
         mock_post.required_level = 5
         mock_post.views = 0
+        mock_post.status = "published"
+        mock_post.author_id = uuid.uuid4()
+        mock_post.content = "Test content paragraph one.\n\nTest content paragraph two."
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
         # list_posts 内部还有 author 和 likes 查询

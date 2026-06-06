@@ -234,8 +234,21 @@ class BlogService:
                 "page_size": page_size,
             }
 
-    async def get_post_by_slug(self, slug: str, user_level: int | None = None) -> dict:
-        """根据 slug 获取帖子详情（公开）。"""
+    async def get_post_by_slug(
+        self,
+        slug: str,
+        user_level: int | None = None,
+        user_id: uuid.UUID | None = None,
+    ) -> dict:
+        """根据 slug 获取帖子详情。
+
+        权限控制：
+        - published 帖子：公开可见（按 required_level 过滤）
+        - 非 published 帖子：仅作者本人和 P0 可见
+        - 浏览量：仅 published 帖子，且不计作者本人和审核人员的访问
+        """
+        from backend.plugins.auth.models import User
+
         async with self.session_factory() as session:
             result = await session.execute(
                 select(BlogPost).where(BlogPost.slug == slug)
@@ -244,7 +257,7 @@ class BlogService:
             if not post:
                 raise AppError("帖子不存在", code="post_not_found", status_code=404)
 
-            # 权限检查
+            # required_level 权限检查
             if user_level is not None and not can_user_see_post(
                 post.required_level, user_level
             ):
@@ -252,14 +265,44 @@ class BlogService:
                     "无权查看此帖子", code="permission_denied", status_code=403
                 )
 
-            # 增加浏览量
-            post.views += 1
-            await session.commit()
-            await session.refresh(post)
+            # 状态检查：非 published 只允许作者和 P0 查看
+            is_author = user_id is not None and post.author_id == user_id
+            is_admin = user_level is not None and user_level == 0
+            if post.status != "published" and not is_author and not is_admin:
+                raise AppError("帖子不存在", code="post_not_found", status_code=404)
 
-            post_dict = self._post_to_dict(post)
+            # 浏览量：仅 published 帖子，不计作者本人和审核人员
+            should_count_view = (
+                post.status == "published"
+                and not is_author
+                and not is_admin
+            )
+            if should_count_view:
+                post.views += 1
+                await session.commit()
+                await session.refresh(post)
+
+            # 查询作者用户名
+            author_result = await session.execute(
+                select(User.username).where(User.id == post.author_id)
+            )
+            author_username = author_result.scalar_one_or_none()
+
+            post_dict = self._post_to_dict(post, author_username=author_username)
             post_dict["tags"] = await self.get_post_tags(post.id)
+            post_dict["paragraphs"] = self._split_paragraphs(post.content)
             return post_dict
+
+    @staticmethod
+    def _split_paragraphs(content: str) -> list[dict]:
+        """将正文按双换行分割为段落列表。"""
+        paragraphs = []
+        raw = re.split(r"\n\n+", content.strip())
+        for i, p in enumerate(raw, start=1):
+            stripped = p.strip()
+            if stripped:
+                paragraphs.append({"index": i, "content": stripped})
+        return paragraphs
 
     async def get_post_by_id(self, post_id: uuid.UUID) -> BlogPost:
         """根据 ID 获取帖子模型对象。"""
@@ -273,19 +316,38 @@ class BlogService:
             return post
 
     async def get_post_detail_by_id(
-        self, post_id: uuid.UUID, user_level: int | None = None
+        self,
+        post_id: uuid.UUID,
+        user_level: int | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> dict:
         """根据 ID 获取帖子详情（含标签，按权限过滤）。"""
+        from backend.plugins.auth.models import User
+
         post = await self.get_post_by_id(post_id)
 
-        # 权限检查
+        # required_level 权限检查
         if user_level is not None and not can_user_see_post(
             post.required_level, user_level
         ):
             raise AppError("无权查看此帖子", code="permission_denied", status_code=403)
 
-        post_dict = self._post_to_dict(post)
+        # 状态检查
+        is_author = user_id is not None and post.author_id == user_id
+        is_admin = user_level is not None and user_level == 0
+        if post.status != "published" and not is_author and not is_admin:
+            raise AppError("帖子不存在", code="post_not_found", status_code=404)
+
+        # 查询作者用户名
+        async with self.session_factory() as session:
+            author_result = await session.execute(
+                select(User.username).where(User.id == post.author_id)
+            )
+            author_username = author_result.scalar_one_or_none()
+
+        post_dict = self._post_to_dict(post, author_username=author_username)
         post_dict["tags"] = await self.get_post_tags(post.id)
+        post_dict["paragraphs"] = self._split_paragraphs(post.content)
         return post_dict
 
     async def create_post(
@@ -576,7 +638,112 @@ class BlogService:
 
             return self._comment_to_dict(comment)
 
+    # --- 段落评论 ---
+
+    async def get_paragraph_comments(
+        self,
+        post_id: uuid.UUID,
+        paragraph_index: int,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """获取段落评论列表。"""
+        from backend.plugins.auth.models import User
+
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            count_result = await session.execute(
+                select(func.count()).where(
+                    BlogComment.post_id == post_id,
+                    BlogComment.paragraph_index == paragraph_index,
+                )
+            )
+            total = count_result.scalar_one()
+
+            result = await session.execute(
+                select(BlogComment)
+                .where(
+                    BlogComment.post_id == post_id,
+                    BlogComment.paragraph_index == paragraph_index,
+                )
+                .order_by(BlogComment.created_at.asc())
+                .offset(offset)
+                .limit(page_size)
+            )
+            comments = result.scalars().all()
+
+            if comments:
+                author_ids = [c.author_id for c in comments]
+                author_result = await session.execute(
+                    select(User.id, User.username).where(User.id.in_(author_ids))
+                )
+                author_map = {row.id: row.username for row in author_result.all()}
+            else:
+                author_map = {}
+
+            return {
+                "items": [
+                    self._comment_to_dict(
+                        c, author_username=author_map.get(c.author_id)
+                    )
+                    for c in comments
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def create_paragraph_comment(
+        self,
+        post_id: uuid.UUID,
+        paragraph_index: int,
+        author_id: uuid.UUID,
+        content: str,
+    ) -> dict:
+        """对某段落发表评论。"""
+        await self.get_post_by_id(post_id)
+
+        async with self.session_factory() as session:
+            comment = BlogComment(
+                post_id=post_id,
+                author_id=author_id,
+                content=content,
+                paragraph_index=paragraph_index,
+            )
+            session.add(comment)
+            await session.commit()
+            await session.refresh(comment)
+
+            return self._comment_to_dict(comment)
+
     # --- 点赞 ---
+
+    async def get_like_status(
+        self,
+        post_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict:
+        """获取点赞状态（是否已点赞 + 点赞数）。"""
+        await self.get_post_by_id(post_id)
+
+        async with self.session_factory() as session:
+            # 检查是否已点赞
+            result = await session.execute(
+                select(BlogLike).where(
+                    BlogLike.post_id == post_id,
+                    BlogLike.user_id == user_id,
+                )
+            )
+            liked = result.scalar_one_or_none() is not None
+
+            # 获取点赞总数
+            count_result = await session.execute(
+                select(func.count()).where(BlogLike.post_id == post_id)
+            )
+            count = count_result.scalar_one()
+
+            return {"liked": liked, "count": count}
 
     async def toggle_like(
         self,
@@ -1355,6 +1522,8 @@ class BlogService:
             "slug": post.slug,
             "content": post.content,
             "cover_url": post.cover_url,
+            "source_url": post.source_url,
+            "source_name": post.source_name,
             "status": post.status,
             "quality_score": post.quality_score,
             "views": post.views,
@@ -1373,6 +1542,7 @@ class BlogService:
             "author_username": author_username or str(comment.author_id)[:8],
             "content": comment.content,
             "parent_id": str(comment.parent_id) if comment.parent_id else None,
+            "paragraph_index": comment.paragraph_index,
             "created_at": comment.created_at.isoformat()
             if comment.created_at
             else None,

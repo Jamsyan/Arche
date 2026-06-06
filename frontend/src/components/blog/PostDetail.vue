@@ -1,19 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import TagList from './TagList.vue'
-import { getCoverGradient } from '@/utils/cover'
-import type { BlogPost } from '@/services/api'
+import type { BlogPost, Paragraph } from '@/services/api'
 
 const props = defineProps<{
   post: BlogPost
 }>()
 
-const authorName = computed(() => props.post.author_username || '匿名')
-const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
+const emit = defineEmits<{
+  paragraphClick: [paragraph: Paragraph]
+}>()
 
-// 渲染内容为 HTML
-const renderedContent = computed(() => {
-  let html = props.post.content || ''
+// 有段落列表则用段落，否则 fallback 成整段
+const paragraphs = computed(() => {
+  if (props.post.paragraphs && props.post.paragraphs.length > 0) {
+    return props.post.paragraphs
+  }
+  // fallback：整篇内容作为一段
+  return props.post.content ? [{ index: 1, content: props.post.content }] : []
+})
+
+function renderContent(text: string): string {
+  let html = text
 
   // 1. 处理视频嵌入 [title](url)
   html = html.replace(
@@ -37,180 +44,44 @@ const renderedContent = computed(() => {
         }
       }
       if (embedUrl) {
-        return `</p><div class="media-block video-block"><iframe src="${embedUrl}" frameborder="0" allowfullscreen></iframe></div><p>`
+        return `<div class="media-block video-block"><iframe src="${embedUrl}" frameborder="0" allowfullscreen></iframe></div>`
       }
-      // 不是视频链接，保持原样
       return _match
     }
   )
 
   // 2. 处理图片 [#N]
   html = html.replace(/\[#(\d+)\]/g, (_match, num) => {
-    return `</p><div class="media-block image-block"><img src="https://picsum.photos/seed/${props.post.id}_${num}/800/450" alt="图片 #${num}" loading="lazy" /></div><p>`
+    return `<div class="media-block image-block"><img src="https://picsum.photos/seed/${props.post.id}_${num}/800/450" alt="图片 #${num}" loading="lazy" /></div>`
   })
 
-  // 3. 处理纯文本中的换行为段落
-  // 双换行为段落分隔，单换行为 <br>
-  html = html.replace(/\n\n/g, '</p><p>')
+  // 3. 段落内换行转 <br>
   html = html.replace(/\n/g, '<br>')
 
-  return `<p>${html}</p>`
-})
+  return html
+}
+
+function handleParagraphClick(para: Paragraph) {
+  emit('paragraphClick', para)
+}
 </script>
 
 <template>
   <article class="post-detail">
-    <!-- 封面 -->
-    <div v-if="post.cover_url" class="post-cover">
-      <img :src="post.cover_url" :alt="post.title" />
+    <div
+      v-for="para in paragraphs"
+      :key="para.index"
+      class="content-paragraph"
+      @click="handleParagraphClick(para)"
+    >
+      <span class="paragraph-index">{{ para.index }}</span>
+      <span class="paragraph-text" v-html="renderContent(para.content)" />
     </div>
-    <!-- 没有封面时用默认渐变色 -->
-    <div v-else class="post-cover-fallback" :style="{ background: getCoverGradient(post) }">
-      <span class="cover-fallback-title">{{ post.title?.charAt(0) || 'P' }}</span>
-    </div>
-
-    <!-- 文章头部 -->
-    <header class="post-header">
-      <div class="header-accent" />
-      <div class="post-eyebrow">BLOG</div>
-      <h1 class="post-title">{{ post.title }}</h1>
-      <div class="post-meta">
-        <span class="meta-author">{{ authorName }}</span>
-        <span class="meta-dot">·</span>
-        <span class="meta-date">{{ dateStr }}</span>
-        <span v-if="post.views !== undefined" class="meta-dot">·</span>
-        <span v-if="post.views !== undefined" class="meta-views">{{ post.views }} 阅读</span>
-      </div>
-      <TagList v-if="post.tags && post.tags.length > 0" :tags="post.tags" class="post-tags" />
-    </header>
-
-    <!-- 分隔线 -->
-    <div class="content-divider" />
-
-    <!-- 正文 -->
-    <div class="post-content" v-html="renderedContent" />
   </article>
 </template>
 
 <style scoped>
 .post-detail {
-  max-width: 720px;
-  margin: 0 auto;
-  animation: post-enter 0.6s var(--ease-out-smooth) both;
-}
-
-@keyframes post-enter {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── 封面 ── */
-.post-cover {
-  width: 100%;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  margin-bottom: var(--spacing-lg);
-}
-
-.post-cover img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.post-cover-fallback {
-  width: 100%;
-  aspect-ratio: 2/1;
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--spacing-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cover-fallback-title {
-  font-size: 48px;
-  font-weight: var(--font-weight-bold);
-  color: rgba(255, 255, 255, 0.6);
-}
-
-/* ── 文章头部 ── */
-.post-header {
-  position: relative;
-  padding-top: var(--spacing-xl);
-}
-
-.header-accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 48px;
-  height: 3px;
-  background: var(--primary-color);
-  border-radius: 2px;
-}
-
-.post-eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  color: var(--text-tertiary);
-  margin-bottom: var(--spacing-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.post-title {
-  margin: 0 0 var(--spacing-md);
-  font-size: 28px;
-  font-weight: var(--font-weight-bold);
-  line-height: 1.35;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.post-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--text-tertiary);
-  margin-bottom: var(--spacing-md);
-}
-
-.meta-author {
-  color: var(--text-secondary);
-  font-weight: var(--font-weight-medium);
-}
-
-.meta-dot {
-  color: var(--divider-color);
-  user-select: none;
-}
-
-.post-tags {
-  margin-bottom: 0;
-}
-
-/* ── 分隔线 ── */
-.content-divider {
-  height: 1px;
-  margin: var(--spacing-xl) 0;
-  background: linear-gradient(
-    90deg,
-    var(--primary-color) 0%,
-    var(--divider-color) 30%,
-    transparent 100%
-  );
-  opacity: 0.5;
-}
-
-/* ── 正文 ── */
-.post-content {
   font-family: var(--font-serif);
   font-size: 16.5px;
   line-height: 2;
@@ -218,24 +89,63 @@ const renderedContent = computed(() => {
   word-break: break-word;
 }
 
-.post-content :deep(p) {
+/* ── 段落 ── */
+.content-paragraph {
+  position: relative;
+  padding: 4px 0 4px 32px;
+  margin: 0 0 0.6em;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+
+.content-paragraph:hover {
+  background: var(--surface-hover-color);
+}
+
+/* 段落编号 */
+.paragraph-index {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 26px;
+  text-align: right;
+  padding-right: 6px;
+  font-family: var(--font-mono, var(--font-sans));
+  font-size: 11px;
+  color: var(--text-quaternary);
+  user-select: none;
+  opacity: 0.45;
+  transition: opacity var(--transition-fast);
+}
+
+.content-paragraph:hover .paragraph-index {
+  opacity: 0.85;
+}
+
+/* 段落文本 */
+.paragraph-text {
+  display: block;
+}
+
+.paragraph-text :deep(p) {
   margin: 0 0 1em;
 }
 
-.post-content :deep(p:last-child) {
+.paragraph-text :deep(p:last-child) {
   margin-bottom: 0;
 }
 
-.post-content :deep(.media-block) {
+.paragraph-text :deep(.media-block) {
   margin: 0;
   text-align: center;
 }
 
-.post-content :deep(.image-block) {
+.paragraph-text :deep(.image-block) {
   margin: 1.5em 0;
 }
 
-.post-content :deep(.image-block img) {
+.paragraph-text :deep(.image-block img) {
   max-width: 100%;
   width: 100%;
   max-width: 720px;
@@ -244,14 +154,14 @@ const renderedContent = computed(() => {
   margin: 0 auto;
 }
 
-.post-content :deep(.video-block) {
+.paragraph-text :deep(.video-block) {
   position: relative;
   width: 100%;
-  padding-bottom: 56.25%; /* 16:9 */
+  padding-bottom: 56.25%;
   margin: 1.5em 0;
 }
 
-.post-content :deep(.video-block iframe) {
+.paragraph-text :deep(.video-block iframe) {
   position: absolute;
   top: 0;
   left: 0;

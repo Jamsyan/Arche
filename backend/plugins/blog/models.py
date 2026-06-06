@@ -29,6 +29,8 @@ class BlogPost(Base):
     quality_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     views: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     required_level: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
+    source_name: Mapped[str | None] = mapped_column(String(256), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -48,6 +50,7 @@ class BlogComment(Base):
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+    paragraph_index: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

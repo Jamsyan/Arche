@@ -87,20 +87,24 @@ async def get_post_by_id(post_id: str, request: Request):
     blog_service = container.get("blog")
     user = get_current_user(request)
     user_level = user["level"] if user else None
+    user_id = uuid.UUID(user["id"]) if user else None
     result = await blog_service.get_post_detail_by_id(
-        uuid.UUID(post_id), user_level=user_level
+        uuid.UUID(post_id), user_level=user_level, user_id=user_id
     )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 
 @router.get("/posts/{slug}")
 async def get_post(slug: str, request: Request):
-    """帖子详情（按权限过滤）。"""
+    """帖子详情（按权限过滤 + 状态控制）。"""
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
     user = get_current_user(request)
     user_level = user["level"] if user else None
-    result = await blog_service.get_post_by_slug(slug, user_level=user_level)
+    user_id = uuid.UUID(user["id"]) if user else None
+    result = await blog_service.get_post_by_slug(
+        slug, user_level=user_level, user_id=user_id
+    )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 
@@ -224,7 +228,63 @@ async def create_comment(post_id: str, req: CreateCommentRequest, request: Reque
     return {"code": "ok", "message": "评论成功", "data": result}
 
 
-# --- 需登录：点赞（幂等） ---
+# --- 段落评论（公开读，登录写） ---
+@router.get("/posts/{post_id}/paragraph-comments/{paragraph_index}")
+async def get_paragraph_comments(
+    post_id: str,
+    paragraph_index: int,
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+):
+    """段落评论列表（公开）。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_paragraph_comments(
+        post_id=uuid.UUID(post_id),
+        paragraph_index=paragraph_index,
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.post("/posts/{post_id}/paragraph-comments/{paragraph_index}")
+async def create_paragraph_comment(
+    post_id: str, paragraph_index: int, req: CreateCommentRequest, request: Request
+):
+    """段落评论（需登录）。"""
+    user = require_user(request)
+    author_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.create_paragraph_comment(
+        post_id=uuid.UUID(post_id),
+        paragraph_index=paragraph_index,
+        author_id=author_id,
+        content=req.content,
+    )
+    return {"code": "ok", "message": "评论成功", "data": result}
+
+
+# --- 需登录：点赞 ---
+@router.get("/posts/{post_id}/like-status")
+async def get_like_status(post_id: str, request: Request):
+    """获取点赞状态（需登录）。"""
+    user = get_current_user(request)
+    if not user:
+        return {"code": "ok", "data": {"liked": False, "count": 0}}
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_like_status(
+        post_id=uuid.UUID(post_id),
+        user_id=uuid.UUID(user["id"]),
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
 @router.post("/posts/{post_id}/like")
 async def toggle_like(post_id: str, request: Request):
     """点赞（需登录，幂等）。"""

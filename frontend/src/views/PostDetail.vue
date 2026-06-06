@@ -5,18 +5,26 @@ import { useMessage } from 'naive-ui'
 import {
   getPostBySlugApi,
   getPostCommentsApi,
+  getParagraphCommentsApi,
   createPostCommentApi,
+  createParagraphCommentApi,
   likePostApi,
   addFavoriteApi,
   removeFavoriteApi,
   getFavoriteStatusApi,
+  getLikeStatusApi,
   type BlogPost,
-  type BlogComment
+  type BlogComment,
+  type Paragraph
 } from '@/services/api'
 import { useUserStore } from '@/store/modules/user'
 import PostDetail from '@/components/blog/PostDetail.vue'
+import AuthorBar from '@/components/blog/AuthorBar.vue'
+import FloatingActions from '@/components/blog/FloatingActions.vue'
+import ParagraphCommentPanel from '@/components/blog/ParagraphCommentPanel.vue'
 import LikeButton from '@/components/blog/LikeButton.vue'
 import FavoriteButton from '@/components/blog/FavoriteButton.vue'
+import ShareButton from '@/components/blog/ShareButton.vue'
 import CommentForm from '@/components/blog/CommentForm.vue'
 import CommentList from '@/components/blog/CommentList.vue'
 
@@ -28,31 +36,50 @@ const post = ref<BlogPost | null>(null)
 const comments = ref<BlogComment[]>([])
 const liked = ref(false)
 const favorited = ref(false)
+const likeCount = ref(0)
 const posting = ref(false)
 const loading = ref(true)
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const commentsCount = computed(() => comments.value.length)
+const isPostPublished = computed(() => post.value?.status === 'published')
+const canInteract = computed(() => isLoggedIn.value && isPostPublished.value)
+
+// --- 段落评论面板状态 ---
+const paragraphPanel = ref({
+  visible: false,
+  paragraph: null as Paragraph | null,
+  comments: [] as BlogComment[],
+  loading: false,
+  posting: false
+})
 
 const fetchPost = async () => {
   loading.value = true
   try {
     const detail = await getPostBySlugApi(String(route.params.slug || ''))
     post.value = detail
+
     const [commentsRes] = await Promise.all([
       getPostCommentsApi(detail.id, { page: 1, page_size: 50 }, { silent: true })
     ])
     comments.value = commentsRes.list || []
+
+    // 并行获取登录态相关数据
     if (isLoggedIn.value) {
-      try {
-        const favStatus = await getFavoriteStatusApi(detail.id, {
+      const [favStatus, likeStatus] = await Promise.all([
+        getFavoriteStatusApi(detail.id, {
           silent: true,
           skipAuthLogout: true
-        })
-        favorited.value = favStatus.favorited
-      } catch {
-        // 静默
-      }
+        }),
+        getLikeStatusApi(detail.id, {
+          silent: true,
+          skipAuthLogout: true
+        }).catch(() => ({ liked: false, count: 0 }))
+      ])
+      favorited.value = favStatus.favorited
+      liked.value = likeStatus.liked
+      likeCount.value = likeStatus.count
     }
   } catch (err) {
     console.error('[PostDetail] 加载帖子失败:', err)
@@ -62,17 +89,22 @@ const fetchPost = async () => {
   }
 }
 
+// --- 点赞 ---
 const toggleLike = async () => {
   if (!post.value || !isLoggedIn.value) return
   try {
     await likePostApi(post.value.id, { silent: true })
     liked.value = !liked.value
-    post.value.likes = (post.value.likes || 0) + (liked.value ? 1 : -1)
+    likeCount.value += liked.value ? 1 : -1
+    if (post.value.likes !== undefined) {
+      post.value.likes += liked.value ? 1 : -1
+    }
   } catch {
     message.error('操作失败')
   }
 }
 
+// --- 收藏 ---
 const toggleFavorite = async () => {
   if (!post.value || !isLoggedIn.value) return
   try {
@@ -90,6 +122,20 @@ const toggleFavorite = async () => {
   }
 }
 
+// --- 分享 ---
+const handleShare = () => {
+  const url = window.location.href
+  navigator.clipboard
+    .writeText(url)
+    .then(() => {
+      message.success('链接已复制到剪贴板')
+    })
+    .catch(() => {
+      message.error('复制失败')
+    })
+}
+
+// --- 全局评论 ---
 const submitComment = async (content: string) => {
   if (!post.value) return
   posting.value = true
@@ -107,6 +153,61 @@ const submitComment = async (content: string) => {
   } finally {
     posting.value = false
   }
+}
+
+// --- 段落评论 ---
+const openParagraphComment = async (paragraph: Paragraph) => {
+  if (!post.value) return
+
+  paragraphPanel.value.visible = false
+  paragraphPanel.value.paragraph = paragraph
+  paragraphPanel.value.comments = []
+  paragraphPanel.value.loading = true
+
+  try {
+    const res = await getParagraphCommentsApi(
+      post.value.id,
+      paragraph.index,
+      { page: 1, page_size: 50 },
+      { silent: true }
+    )
+    paragraphPanel.value.comments = res.list || []
+  } catch {
+    // 静默
+  } finally {
+    paragraphPanel.value.loading = false
+    paragraphPanel.value.visible = true
+  }
+}
+
+const submitParagraphComment = async (content: string) => {
+  if (!post.value || !paragraphPanel.value.paragraph) return
+  paragraphPanel.value.posting = true
+  try {
+    await createParagraphCommentApi(
+      post.value.id,
+      paragraphPanel.value.paragraph.index,
+      { content },
+      { silent: true }
+    )
+    message.success('评论成功')
+    // 重新加载段落评论
+    const res = await getParagraphCommentsApi(
+      post.value.id,
+      paragraphPanel.value.paragraph.index,
+      { page: 1, page_size: 50 },
+      { silent: true }
+    )
+    paragraphPanel.value.comments = res.list || []
+  } catch {
+    message.error('评论失败')
+  } finally {
+    paragraphPanel.value.posting = false
+  }
+}
+
+const closeParagraphPanel = () => {
+  paragraphPanel.value.visible = false
 }
 
 onMounted(fetchPost)
@@ -129,28 +230,62 @@ onMounted(fetchPost)
 
   <!-- 内容 -->
   <div v-else class="post-detail-page">
-    <!-- 文章内容 -->
-    <PostDetail :post="post" />
+    <!-- BLOG eybrow + 状态 -->
+    <div class="page-eyebrow">
+      BLOG
+      <span v-if="!isPostPublished" class="status-badge" :class="`status-${post.status}`">
+        {{ post.status === 'pending' ? '审核中' : post.status }}
+      </span>
+    </div>
 
-    <!-- 操作栏 -->
-    <div class="section-card actions-card">
-      <div class="action-buttons">
-        <LikeButton
-          :count="post.likes || 0"
-          :active="liked"
-          :disabled="!isLoggedIn"
-          @toggle="toggleLike"
-        />
-        <div class="action-sep" />
-        <FavoriteButton :active="favorited" :disabled="!isLoggedIn" @toggle="toggleFavorite" />
+    <!-- 文章标题 -->
+    <h1 class="page-title">{{ post.title }}</h1>
+
+    <!-- 分隔线 -->
+    <div class="title-divider" />
+
+    <!-- 作者信息行 -->
+    <AuthorBar
+      :post-id="post.id"
+      :author-username="post.author_username"
+      :source-url="post.source_url"
+      :source-name="post.source_name"
+    />
+
+    <!-- 正文区域（含左侧浮动操作栏） -->
+    <div class="content-wrapper">
+      <FloatingActions
+        :liked="liked"
+        :favorited="favorited"
+        :like-count="likeCount"
+        :disabled="!canInteract"
+        @toggle-like="toggleLike"
+        @toggle-favorite="toggleFavorite"
+        @share="handleShare"
+      />
+
+      <div class="content-main">
+        <PostDetail :post="post" @paragraph-click="openParagraphComment" />
       </div>
     </div>
 
-    <!-- 评论区 -->
-    <div class="section-card comments-card">
+    <!-- 正文底部操作栏 -->
+    <div class="bottom-actions">
+      <LikeButton
+        :count="likeCount"
+        :active="liked"
+        :disabled="!canInteract"
+        @toggle="toggleLike"
+      />
+      <FavoriteButton :active="favorited" :disabled="!canInteract" @toggle="toggleFavorite" />
+      <ShareButton :disabled="!isPostPublished" />
+    </div>
+
+    <!-- 全局评论区 -->
+    <div class="global-comments">
       <div class="comments-header">
         <h3 class="comments-title">评论</h3>
-        <span class="comments-badge">{{ commentsCount }}</span>
+        <span v-if="commentsCount > 0" class="comments-badge">{{ commentsCount }}</span>
       </div>
 
       <CommentForm v-if="isLoggedIn" :loading="posting" @submit="submitComment" />
@@ -164,66 +299,106 @@ onMounted(fetchPost)
       <CommentList :comments="comments" />
     </div>
   </div>
+
+  <!-- 段落评论浮窗 -->
+  <ParagraphCommentPanel
+    :visible="paragraphPanel.visible"
+    :paragraph="paragraphPanel.paragraph"
+    :comments="paragraphPanel.comments"
+    :loading="paragraphPanel.loading"
+    :posting="paragraphPanel.posting"
+    :is-logged-in="isLoggedIn"
+    @close="closeParagraphPanel"
+    @submit-comment="submitParagraphComment"
+  />
 </template>
 
 <style scoped>
 /* ── 页面布局 ── */
 .post-detail-page {
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
   padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-4xl);
 }
 
-/* ── 通用卡片 ── */
-.section-card {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  animation: section-enter 0.5s var(--ease-out-smooth) both;
-}
-
-.section-card:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.section-card:nth-child(3) {
-  animation-delay: 0.2s;
-}
-
-@keyframes section-enter {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── 操作栏 ── */
-.actions-card {
-  padding: var(--spacing-md) var(--spacing-lg);
-  margin: var(--spacing-lg) 0;
-  display: flex;
-  align-items: center;
-}
-
-.action-buttons {
+/* ── BLOG eybrow ── */
+.page-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
 }
 
-.action-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--divider-color);
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
-/* ── 评论区 ── */
-.comments-card {
-  padding: var(--spacing-lg);
+.status-badge.status-pending {
+  background: var(--warning-light-color, rgba(212, 160, 23, 0.12));
+  color: var(--accent-yellow, #d4a017);
+}
+
+/* ── 标题 ── */
+.page-title {
+  margin: 0 0 var(--spacing-md);
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.35;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* ── 分隔线 ── */
+.title-divider {
+  height: 1px;
+  margin: 0 0 var(--spacing-sm);
+  background: linear-gradient(
+    90deg,
+    var(--primary-color) 0%,
+    var(--divider-color) 30%,
+    transparent 100%
+  );
+  opacity: 0.5;
+}
+
+/* ── 正文区域 ── */
+.content-wrapper {
+  position: relative;
+  display: flow-root;
+  margin-bottom: var(--spacing-lg);
+}
+
+.content-main {
+  /* 给左侧浮动栏留空间 */
+  min-height: 300px;
+}
+
+/* ── 底部操作栏 ── */
+.bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) 0;
+  border-top: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--divider-color);
+  margin-bottom: var(--spacing-xl);
+}
+
+/* ── 全局评论 ── */
+.global-comments {
+  padding-top: var(--spacing-md);
 }
 
 .comments-header {

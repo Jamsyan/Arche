@@ -5,12 +5,14 @@
         <NNotificationProvider>
           <NLoadingBarProvider>
             <RouterView v-slot="{ Component, route: r }">
-              <component
-                :is="layoutMap[(r.meta.layout as string) || 'guest'] || GuestLayout"
-                :key="r.fullPath"
-              >
-                <component :is="Component" :key="r.fullPath" />
-              </component>
+              <Transition :name="appStore.transitionName" mode="out-in">
+                <component
+                  :is="layoutMap[(r.meta.layout as string) || 'guest'] || GuestLayout"
+                  :key="r.fullPath"
+                >
+                  <component :is="Component" :key="r.fullPath" />
+                </component>
+              </Transition>
             </RouterView>
           </NLoadingBarProvider>
         </NNotificationProvider>
