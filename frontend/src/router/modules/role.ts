@@ -8,7 +8,7 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/Users.vue'),
     meta: {
       title: '用户管理',
-      layout: 'guest',
+      layout: 'admin',
       console: true,
       requiresAuth: true,
       level: 0,
@@ -21,7 +21,7 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/SystemMonitor.vue'),
     meta: {
       title: '系统监控',
-      layout: 'guest',
+      layout: 'admin',
       console: true,
       requiresAuth: true,
       level: 0,
@@ -34,7 +34,7 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/ResourceAdmin.vue'),
     meta: {
       title: '资源管理',
-      layout: 'guest',
+      layout: 'admin',
       console: true,
       requiresAuth: true,
       level: 0,
@@ -47,7 +47,7 @@ const children: RouteRecordRaw[] = [
     component: () => import('@/views/admin/ModerationPosts.vue'),
     meta: {
       title: '帖子管理',
-      layout: 'guest',
+      layout: 'admin',
       console: true,
       requiresAuth: true,
       level: 0,
@@ -61,7 +61,7 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/admin/Admin.vue'),
-    meta: { title: '管理后台', layout: 'guest', console: true, requiresAuth: true, level: 0 },
+    meta: { title: '管理后台', layout: 'admin', console: true, requiresAuth: true, level: 0 },
     redirect: '/admin/moderation/posts',
     children
   }

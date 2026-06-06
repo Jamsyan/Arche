@@ -193,6 +193,7 @@ const handlePageChange = (p: number) => {
         @update:page-size="
           (v: number) => {
             pageSize = v
+            page = 1
             fetchPosts(true)
           }
         "

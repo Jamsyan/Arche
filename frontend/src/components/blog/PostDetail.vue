@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
-import { HeartOutline } from '@vicons/ionicons5'
+import { HeartOutline, BookmarkOutline } from '@vicons/ionicons5'
 import ArDivider from '@/components/ui/ArDivider.vue'
 import TagList from './TagList.vue'
 import type { BlogPost } from '@/services/api'
@@ -48,7 +48,7 @@ const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
       </button>
       <button class="action-btn" @click="emit('favorite')">
         <NIcon size="18">
-          <HeartOutline />
+          <BookmarkOutline />
         </NIcon>
         <span>收藏</span>
       </button>
