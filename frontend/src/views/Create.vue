@@ -234,13 +234,23 @@
             <PostEditor
               ref="editorRef"
               :post="isCreatingNew ? null : editingPost"
+              :cover-url="coverUrl"
               :loading="saving"
               hide-footer
-              @save="handleSaveComplete"
               @cancel="exitEdit"
             />
           </div>
-          <AssetSidebar :files="postFiles" @insert="handleInsertRef" @upload="handleAssetUpload" />
+          <div class="sidebar-inner">
+            <div class="sidebar-section">
+              <h3 class="sidebar-section-title">封面</h3>
+              <CoverUploader v-model:cover-url="coverUrl" @cover-file="handleCoverFile" />
+            </div>
+            <AssetSidebar
+              :staged-files="stagedFiles"
+              @insert="handleInsertRef"
+              @upload="handleAssetUpload"
+            />
+          </div>
         </div>
       </main>
     </div>
@@ -265,9 +275,18 @@ import ArTag from '@/components/ui/ArTag.vue'
 import ArWheelPicker from '@/components/ui/ArWheelPicker.vue'
 import PostEditor from '@/components/blog/PostEditor.vue'
 import AssetSidebar from '@/components/blog/AssetSidebar.vue'
-import { getMyPostsApi, uploadPostFileApi, type BlogPost } from '@/services/api'
-import { getMyOssFilesApi, getOssFileUrl, uploadOssFileApi } from '@/services/api/oss'
+import CoverUploader from '@/components/blog/CoverUploader.vue'
+import {
+  getMyPostsApi,
+  uploadPostFileApi,
+  createPostApi,
+  updatePostApi,
+  type BlogPost,
+  type CreatePostPayload
+} from '@/services/api'
+import { uploadOssFileApi } from '@/services/api/oss'
 import { useUserStore } from '@/store/modules/user'
+import { useLocalFiles } from '@/composables/useLocalFiles'
 
 type PostTab = 'all' | 'published' | 'draft'
 
@@ -288,6 +307,9 @@ const editorTags = ref<string[]>([])
 const accessLevels = [0, 1, 2, 3, 4, 5] as const
 const editorAccess = ref<number>(userStore.level ?? 5)
 
+const coverUrl = ref('')
+const coverFile = ref<File | null>(null) // 用户通过 CoverUploader 选择的本地文件
+const { stagedFiles, stageFiles, getReferencedFiles, clearStaged } = useLocalFiles()
 const statsPost = ref<BlogPost | null>(null)
 const showStatsModal = ref(false)
 const hoveredPost = ref<BlogPost | null>(null)
@@ -343,8 +365,10 @@ const handleNewPost = () => {
   editingPost.value = null
   editorTags.value = []
   editorAccess.value = userStore.level ?? 5
+  coverUrl.value = ''
+  coverFile.value = null
+  clearStaged()
   isEditorOpen.value = true
-  loadPostFiles()
 }
 
 const handleUploadFile = () => {
@@ -403,27 +427,8 @@ const handleEditPost = (post: BlogPost) => {
   editingPost.value = post
   editorTags.value = [...(post.tags || [])]
   editorAccess.value = (post.required_level as number) ?? 5
+  coverUrl.value = post.cover_url || ''
   isEditorOpen.value = true
-  loadPostFiles()
-}
-
-const postFiles = ref<Array<{ id: string; index: number; url: string; name: string }>>([])
-
-const loadPostFiles = async () => {
-  try {
-    const res = await getMyOssFilesApi(
-      { limit: 50, offset: 0 },
-      { silent: true, skipAuthLogout: true }
-    )
-    postFiles.value = (res.list || []).map((f, i) => ({
-      id: f.id,
-      index: i + 1,
-      url: getOssFileUrl(f.id),
-      name: f.path.split('/').pop() || f.id
-    }))
-  } catch {
-    postFiles.value = []
-  }
 }
 
 const handleInsertRef = (refStr: string) => {
@@ -432,13 +437,12 @@ const handleInsertRef = (refStr: string) => {
   }
 }
 
-const handleAssetUpload = async (file: File) => {
-  try {
-    await uploadOssFileApi(file, false)
-    await loadPostFiles()
-  } catch (e: any) {
-    console.error('上传失败', e)
-  }
+const handleAssetUpload = (files: File[]) => {
+  stageFiles(files)
+}
+
+const handleCoverFile = (file: File) => {
+  coverFile.value = file
 }
 
 const exitEdit = () => {
@@ -446,6 +450,9 @@ const exitEdit = () => {
   isCreatingNew.value = false
   editingPost.value = null
   editorTags.value = []
+  coverUrl.value = ''
+  coverFile.value = null
+  clearStaged()
 }
 
 const switchEditPost = (post: BlogPost) => {
@@ -455,19 +462,68 @@ const switchEditPost = (post: BlogPost) => {
   editorAccess.value = (post.required_level as number) ?? 5
 }
 
-const saveCurrent = () => {
-  editorRef.value?.updateMeta({ tags: editorTags.value, requiredLevel: editorAccess.value })
-  editorRef.value?.handleSave()
-}
+const saveCurrent = async () => {
+  if (!editorRef.value) return
+  const title = editorRef.value.title.trim()
+  const content = editorRef.value.content.trim()
+  if (!title || !content) return
 
-const handleSaveComplete = async () => {
   saving.value = true
   try {
+    // 1. 上传所有被正文引用的暂存文件
+    const refFiles = getReferencedFiles(content)
+    const refMap = new Map<number, string>() // index → OSS URL
+    for (const sf of refFiles) {
+      const resp = await uploadOssFileApi(sf.file, false)
+      const respData = resp as unknown as { data?: { id: string } }
+      const fileId = respData?.data?.id
+      if (fileId) {
+        refMap.set(sf.index, `/api/oss/files/${fileId}`)
+      }
+    }
+
+    // 2. 上传封面（如果是本地 blob）
+    let finalCoverUrl = coverUrl.value
+    if (coverFile.value && coverUrl.value.startsWith('blob:')) {
+      const resp = await uploadOssFileApi(coverFile.value, false)
+      const respData = resp as unknown as { data?: { id: string } }
+      const fileId = respData?.data?.id
+      if (fileId) {
+        finalCoverUrl = `/api/oss/files/${fileId}`
+      }
+    }
+
+    // 3. 替换正文中的 [#N] 为实际 OSS URL
+    let finalContent = content
+    for (const [index, ossUrl] of refMap) {
+      finalContent = finalContent.replace(new RegExp(`\\[#${index}\\]`, 'g'), `![图片](${ossUrl})`)
+    }
+
+    // 4. 发送保存请求
+    const isEdit = !!editingPost.value
+    const payload: CreatePostPayload = {
+      title,
+      content: finalContent,
+      cover_url: finalCoverUrl || undefined,
+      tags: editorTags.value,
+      required_level: editorAccess.value
+    }
+
+    if (isEdit) {
+      await updatePostApi(editingPost.value!.id, payload)
+      message.success('保存成功')
+    } else {
+      await createPostApi(payload)
+      message.success('发布成功，帖子已提交审核')
+    }
+
     await fetchData()
+    exitEdit()
+  } catch {
+    message.error('保存失败，请重试')
   } finally {
     saving.value = false
   }
-  exitEdit()
 }
 
 // ── Tag helpers ──
@@ -1029,6 +1085,27 @@ onMounted(fetchData)
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.sidebar-section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 @media (max-width: 768px) {

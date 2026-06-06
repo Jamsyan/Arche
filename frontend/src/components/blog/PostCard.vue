@@ -35,7 +35,11 @@ const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
 
 const coverStyle = computed(() => {
   if (props.post.cover_url) {
-    return { backgroundImage: `url(${props.post.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    return {
+      backgroundImage: `url(${props.post.cover_url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center'
+    }
   }
   return { background: getCoverGradient(props.post) }
 })

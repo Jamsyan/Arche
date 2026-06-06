@@ -1,186 +1,196 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getMyOssFilesApi, getOssFileUrl } from '@/services/api'
-import { $message } from '@/utils/message'
+import type { StagedFile } from '@/composables/useLocalFiles'
 import type { OSSFile } from '@/services/api'
 
 const props = withDefaults(
   defineProps<{
-    files?: Array<{ id: string; index: number; url: string; name: string }>
-    quotaUsed?: number
-    quotaTotal?: number
+    stagedFiles?: StagedFile[]
   }>(),
   {
-    files: () => [],
-    quotaUsed: 0,
-    quotaTotal: 0
+    stagedFiles: () => []
   }
 )
 
 const emit = defineEmits<{
   insert: [refStr: string]
-  upload: [file: File]
+  upload: [files: File[]]
 }>()
 
 // ── 状态 ──
 const ossFiles = ref<OSSFile[]>([])
 const loading = ref(false)
-const error = ref('')
-const uploading = ref(false)
 
-// ── 构建 id → index 映射 ──
-const fileIndexMap = computed(() => {
-  const map = new Map<string, number>()
-  for (const f of props.files) {
-    map.set(f.id, f.index)
-  }
-  return map
-})
-
-// ── 缩略图 URL ──
-function getThumbUrl(file: OSSFile): string {
-  return getOssFileUrl(file.id)
+// ── 合并展示：暂存文件优先 ──
+interface DisplayFile {
+  id: string
+  index: number
+  url: string
+  name: string
+  isStaged: boolean // 暂存文件可拖拽
 }
 
-// ── 获取文件列表 ──
+const displayFiles = ref<DisplayFile[]>([])
+
+function buildDisplayList() {
+  const items: DisplayFile[] = []
+
+  // 暂存文件
+  let stagedIdx = 1
+  for (const sf of props.stagedFiles) {
+    items.push({
+      id: sf.id,
+      index: sf.index,
+      url: sf.blobUrl,
+      name: sf.name,
+      isStaged: true
+    })
+    stagedIdx++
+  }
+
+  // OSS 已有文件
+  for (const ofs of ossFiles.value) {
+    const idx = stagedIdx++
+    items.push({
+      id: ofs.id,
+      index: idx,
+      url: getOssFileUrl(ofs.id),
+      name: ofs.path || ofs.id,
+      isStaged: false
+    })
+  }
+
+  displayFiles.value = items
+}
+
+// ── 获取 OSS 文件列表 ──
 async function fetchFiles() {
   loading.value = true
-  error.value = ''
   try {
-    const result = await getMyOssFilesApi({ limit: 50, offset: 0 })
-    ossFiles.value = result.list
-  } catch (e) {
-    error.value = '加载素材失败'
-    console.error('获取 OSS 文件列表失败:', e)
+    const result = await getMyOssFilesApi({ limit: 50, offset: 0 }, { silent: true })
+    ossFiles.value = result.list || []
+  } catch {
+    ossFiles.value = []
   } finally {
     loading.value = false
+    buildDisplayList()
   }
 }
 
-// ── 点击资源 ──
-function handleFileClick(file: OSSFile) {
-  const idx = fileIndexMap.value.get(file.id)
-  if (idx !== undefined) {
-    emit('insert', `#${idx}`)
-  } else {
-    // 如果不在已引用列表中，计算下一个可用索引
-    const maxIdx = props.files.reduce((max, f) => Math.max(max, f.index), 0)
-    emit('insert', `#${maxIdx + 1}`)
+// ── 监听暂存文件变化 ──
+import { watch } from 'vue'
+watch(() => props.stagedFiles, buildDisplayList, { deep: true })
+
+// ── 点击插入 ──
+function handleFileClick(df: DisplayFile) {
+  emit('insert', `#${df.index}`)
+}
+
+// ── 拖拽开始 ──
+function handleDragStart(e: DragEvent, df: DisplayFile) {
+  if (!df.isStaged) return // 仅暂存文件可拖拽到封面
+  e.dataTransfer?.setData('text/plain', df.url)
+  e.dataTransfer?.setData('application/x-index', String(df.index))
+  e.dataTransfer!.effectAllowed = 'copy'
+  if (e.target instanceof HTMLElement) {
+    e.target.style.opacity = '0.5'
   }
 }
 
-// ── 上传 ──
+function handleDragEnd(e: DragEvent) {
+  if (e.target instanceof HTMLElement) {
+    e.target.style.opacity = '1'
+  }
+}
+
+// ── 多选上传 ──
 function handleUploadClick() {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/*'
+  input.multiple = true
   input.onchange = () => {
-    const file = input.files?.[0]
-    if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      $message.error('文件大小不能超过 10MB')
-      return
+    const files = input.files
+    if (!files || files.length === 0) return
+    // 大小过滤
+    const valid: File[] = []
+    for (const f of Array.from(files)) {
+      if (f.size > 10 * 1024 * 1024) {
+        continue // 跳过超大的，不阻塞流程
+      }
+      valid.push(f)
     }
-    emit('upload', file)
-    // 上传后刷新列表
-    fetchFiles()
+    if (valid.length === 0) return
+    emit('upload', valid)
   }
   input.click()
 }
-
-// ── 格式化字节 ──
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const k = 1024
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  const idx = Math.min(i, units.length - 1)
-  return `${(bytes / Math.pow(k, idx)).toFixed(1)} ${units[idx]}`
-}
-
-// ── 配额进度 ──
-const quotaPercent = computed(() => {
-  if (props.quotaTotal <= 0) return 0
-  return Math.min((props.quotaUsed / props.quotaTotal) * 100, 100)
-})
 
 onMounted(fetchFiles)
 </script>
 
 <template>
   <aside class="asset-sidebar">
-    <!-- 标题 -->
     <div class="sidebar-header">
       <h3 class="sidebar-title">帖子素材</h3>
     </div>
 
     <!-- 上传按钮 -->
-    <button
-      class="upload-btn"
-      :disabled="uploading"
-      @click="handleUploadClick"
-    >
-      <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="upload-btn" @click="handleUploadClick">
+      <svg
+        class="upload-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="17 8 12 3 7 8" />
         <line x1="12" y1="3" x2="12" y2="15" />
       </svg>
-      <span>{{ uploading ? '上传中...' : '上传' }}</span>
+      <span>添加素材</span>
     </button>
 
     <!-- 加载中 -->
-    <div v-if="loading" class="sidebar-loading">
+    <div v-if="loading" class="sidebar-status">
       <div class="loading-spinner" />
       <span>加载中...</span>
     </div>
 
-    <!-- 错误提示 -->
-    <div v-else-if="error" class="sidebar-error">
-      <span>{{ error }}</span>
-      <button class="retry-btn" @click="fetchFiles">重试</button>
-    </div>
-
     <!-- 空状态 -->
-    <div v-else-if="ossFiles.length === 0" class="sidebar-empty">
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <div v-else-if="displayFiles.length === 0" class="sidebar-status sidebar-empty">
+      <svg
+        class="empty-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
         <circle cx="8.5" cy="8.5" r="1.5" />
         <polyline points="21 15 16 10 5 21" />
       </svg>
-      <span>暂无素材</span>
+      <span>暂无素材，点击上方添加</span>
     </div>
 
     <!-- 文件网格 -->
     <div v-else class="file-grid">
       <button
-        v-for="(file, idx) in ossFiles"
-        :key="file.id"
+        v-for="df in displayFiles"
+        :key="df.id"
+        :draggable="df.isStaged"
         class="file-item"
-        :title="`#${fileIndexMap.get(file.id) ?? idx + 1} - ${file.path || file.id}`"
-        @click="handleFileClick(file)"
+        :class="{ 'is-staged': df.isStaged }"
+        :title="`#${df.index} - ${df.name}${df.isStaged ? ' (暂存)' : ''}`"
+        @click="handleFileClick(df)"
+        @dragstart="handleDragStart($event, df)"
+        @dragend="handleDragEnd"
       >
-        <img
-          :src="getThumbUrl(file)"
-          :alt="file.path || '素材'"
-          class="file-thumb"
-          loading="lazy"
-        />
-        <span class="file-badge">#{{ fileIndexMap.get(file.id) ?? idx + 1 }}</span>
+        <img :src="df.url" :alt="df.name" class="file-thumb" loading="lazy" />
+        <span class="file-badge">#{{ df.index }}</span>
+        <span v-if="df.isStaged" class="file-staged-tag">暂存</span>
       </button>
-    </div>
-
-    <!-- 配额 -->
-    <div class="quota-bar">
-      <div class="quota-info">
-        <span class="quota-label">配额使用</span>
-        <span class="quota-value">
-          {{ formatBytes(quotaUsed) }}
-          <template v-if="quotaTotal > 0"> / {{ formatBytes(quotaTotal) }}</template>
-        </span>
-      </div>
-      <div v-if="quotaTotal > 0" class="quota-track">
-        <div class="quota-fill" :style="{ width: quotaPercent + '%' }" />
-      </div>
     </div>
   </aside>
 </template>
@@ -192,15 +202,11 @@ onMounted(fetchFiles)
   flex-direction: column;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
-  border-left: 1px solid var(--border-color);
-  background: var(--surface-color);
-  border-radius: var(--radius-md);
   font-family: var(--font-sans);
   height: 100%;
   overflow-y: auto;
 }
 
-/* ── 标题 ── */
 .sidebar-header {
   padding-bottom: var(--spacing-sm);
   border-bottom: 1px solid var(--border-color);
@@ -234,17 +240,12 @@ onMounted(fetchFiles)
     transform var(--transition-fast);
 }
 
-.upload-btn:hover:not(:disabled) {
+.upload-btn:hover {
   background: var(--primary-hover-color);
 }
 
-.upload-btn:active:not(:disabled) {
+.upload-btn:active {
   transform: scale(0.97);
-}
-
-.upload-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .upload-icon {
@@ -252,8 +253,8 @@ onMounted(fetchFiles)
   height: 16px;
 }
 
-/* ── 加载中 ── */
-.sidebar-loading {
+/* ── 状态 ── */
+.sidebar-status {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -261,6 +262,12 @@ onMounted(fetchFiles)
   padding: var(--spacing-xl) 0;
   color: var(--text-tertiary);
   font-size: 13px;
+}
+
+.sidebar-empty .empty-icon {
+  width: 32px;
+  height: 32px;
+  opacity: 0.5;
 }
 
 .loading-spinner {
@@ -276,50 +283,6 @@ onMounted(fetchFiles)
   to {
     transform: rotate(360deg);
   }
-}
-
-/* ── 错误提示 ── */
-.sidebar-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-lg) 0;
-  color: var(--error-color);
-  font-size: 13px;
-}
-
-.retry-btn {
-  padding: 4px 12px;
-  background: transparent;
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
-
-.retry-btn:hover {
-  background: var(--primary-light-color);
-}
-
-/* ── 空状态 ── */
-.sidebar-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xl) 0;
-  color: var(--text-tertiary);
-  font-size: 13px;
-}
-
-.empty-icon {
-  width: 32px;
-  height: 32px;
-  opacity: 0.5;
 }
 
 /* ── 文件网格 ── */
@@ -356,6 +319,11 @@ onMounted(fetchFiles)
   transform: translateY(0);
 }
 
+.file-item.is-staged {
+  border-style: dashed;
+  border-color: var(--accent-color, #667eea);
+}
+
 .file-thumb {
   width: 100%;
   height: 100%;
@@ -377,42 +345,17 @@ onMounted(fetchFiles)
   pointer-events: none;
 }
 
-/* ── 配额 ── */
-.quota-bar {
-  padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--border-color);
-}
-
-.quota-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.quota-label {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.quota-value {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.quota-track {
-  width: 100%;
-  height: 4px;
-  background: var(--surface-inset-color);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.quota-fill {
-  height: 100%;
-  background: var(--primary-color);
-  border-radius: 2px;
-  transition: width var(--transition-normal);
+.file-staged-tag {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-color, #667eea);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 3px;
+  line-height: 1.3;
+  pointer-events: none;
 }
 </style>

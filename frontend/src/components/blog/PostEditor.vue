@@ -4,7 +4,6 @@ import ArInput from '@/components/ui/ArInput.vue'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
 import RichTextEditor from './RichTextEditor.vue'
-import CoverUploader from './CoverUploader.vue'
 import type { BlogPost, CreatePostPayload, UpdatePostPayload } from '@/services/api'
 
 const props = withDefaults(
@@ -12,24 +11,26 @@ const props = withDefaults(
     post?: BlogPost | null
     loading?: boolean
     hideFooter?: boolean
+    coverUrl?: string
   }>(),
   {
     post: null,
     loading: false,
-    hideFooter: false
+    hideFooter: false,
+    coverUrl: ''
   }
 )
 
 const emit = defineEmits<{
   save: [payload: CreatePostPayload | UpdatePostPayload]
   cancel: []
+  'update:coverUrl': [value: string]
 }>()
 
 const isEdit = computed(() => !!props.post)
 
 const title = ref(props.post?.title || '')
 const content = ref(props.post?.content || '')
-const coverUrl = ref(props.post?.cover_url || '')
 const tagInput = ref('')
 const tags = ref<string[]>(props.post?.tags || [])
 const requiredLevel = ref<number>(props.post?.required_level ?? 5)
@@ -61,14 +62,14 @@ function handleSave() {
     ? {
         title: title.value.trim(),
         content: content.value.trim(),
-        cover_url: coverUrl.value || undefined
+        cover_url: props.coverUrl || undefined
       }
     : {
         title: title.value.trim(),
         content: content.value.trim(),
         tags: tags.value,
         required_level: requiredLevel.value,
-        cover_url: coverUrl.value || undefined
+        cover_url: props.coverUrl || undefined
       }
   emit('save', payload)
 }
@@ -93,7 +94,6 @@ defineExpose({
   requiredLevel,
   title,
   content,
-  coverUrl,
   updateMeta
 })
 </script>
@@ -110,12 +110,6 @@ defineExpose({
         :maxlength="120"
         show-count
       />
-    </div>
-
-    <!-- 封面 -->
-    <div class="editor-field">
-      <label class="field-label">封面</label>
-      <CoverUploader v-model:cover-url="coverUrl" />
     </div>
 
     <!-- 内容 -->

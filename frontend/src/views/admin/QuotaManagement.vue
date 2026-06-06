@@ -3,11 +3,7 @@ import { h, onMounted, ref } from 'vue'
 import { NDataTable, NInput, NProgress, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { ArButton } from '@/components/ui'
-import {
-  getOssAdminQuotasApi,
-  updateOssUserQuotaApi,
-  type OSSQuota
-} from '@/services/api'
+import { getOssAdminQuotasApi, updateOssUserQuotaApi, type OSSQuota } from '@/services/api'
 
 const message = useMessage()
 const quotas = ref<OSSQuota[]>([])
@@ -179,9 +175,7 @@ onMounted(() => {
   <div class="quota-management-page">
     <div class="page-header">
       <h2 class="page-title">OSS 存储配额管理</h2>
-      <ArButton size="sm" type="secondary" @click="fetchQuotas" :loading="loading">
-        刷新
-      </ArButton>
+      <ArButton size="sm" type="secondary" @click="fetchQuotas" :loading="loading"> 刷新 </ArButton>
     </div>
 
     <div class="table-wrapper">
