@@ -2,14 +2,11 @@
 /**
  * ArWheelPicker — 横向滚轮选择器
  *
- * iOS 风格的水平滚轮选择器，支持：
- * - 滚轮逐项切换 + 平滑动画
- * - 拖拽释放后惯性动量减速
- * - 循环滚动（复制渲染，视觉无限）
- * - 实时选中（滚到哪选到哪）
- * - 3D 圆柱透视（中间大、两边小、渐隐）
- * - 鼠标拖拽 + 滚轮 + 点击选中
- * - 自动吸附到最近项
+ * 物理引擎驱动的 iOS 风格滚轮选择器：
+ * - 连续速度模型，非离散跳转
+ * - 摩擦力减速 + 惯性动量
+ * - CSS translateX 控制位置，RAF 驱动
+ * - 3 份拷贝 + 边界复位实现无限循环
  */
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -28,27 +25,25 @@ const emit = defineEmits<{
 
 const viewportRef = ref<HTMLElement | null>(null)
 
+// 每项宽度 = 36px + 4px gap
+const ITEM_STEP = 40
+
 // 3 份复制实现视觉循环滚动
 const displayOptions = computed(() => [...props.options, ...props.options, ...props.options])
 
-// ── 拖拽状态 ──
-let isDragging = false
-let dragStartX = 0
-let dragStartScroll = 0
-let dragLastX = 0
-let dragVelocity = 0
+// ── 物理引擎状态 ──
+let offsetX = 0
+let velocity = 0
+let physicsRaf: number | null = null
 
-// ── 动量状态（仅拖拽释放后） ──
-let momentum = 0
-let momentumRaf: number | null = null
-
-const FRICTION = 0.9
-const VELOCITY_THRESHOLD = 0.5
-let transformTick = false
+// 物理常量
+const FRICTION = 0.88 // 每帧速度衰减
+const VELOCITY_THRESHOLD = 0.3 // 停止阈值
+const WHEEL_IMPULSE = 18 // 滚轮每 tick 施加的速度
+const DRAG_VELOCITY_SCALE = 1.2 // 拖拽释放后速度倍率
+const DRAG_VELOCITY_THRESHOLD = 2 // 拖拽触发惯性的最小速度
 
 // ── 内部变更守卫 ──
-// 当组件内部（滚动动画中）emit 值时设为 true，
-// 防止 watch 回调又调 scrollTo 形成回路
 let internalChange = false
 let changeTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -57,71 +52,177 @@ const markInternal = () => {
   if (changeTimer) clearTimeout(changeTimer)
   changeTimer = setTimeout(() => {
     internalChange = false
-  }, 500)
+  }, 100)
 }
 
-/** 滚动到指定选项（总是定位到中间那份拷贝） */
-const scrollTo = (value: string, behavior: 'auto' | 'smooth' | 'instant' = 'smooth') => {
+// ── 工具函数 ──
+
+const getTrack = (): HTMLElement | null =>
+  (viewportRef.value?.querySelector('.ar-wheel-picker__track') as HTMLElement) ?? null
+
+const applyOffset = () => {
+  const track = getTrack()
+  if (track) track.style.transform = `translateX(${offsetX}px)`
+}
+
+/** 当前居中项在 3 份拷贝数组中的索引 */
+const getVirtualIndex = (): number => {
   const el = viewportRef.value
-  if (!el) return
-  const items = [...el.querySelectorAll<HTMLElement>(`[data-value="${value}"]`)]
-  if (items.length === 0) return
-  // 选中间那份拷贝，确保视觉上居中
-  const target = items[Math.floor(items.length / 2)]
-  target.scrollIntoView({ behavior, inline: 'center', block: 'nearest' })
+  if (!el) return props.options.length
+  return Math.round((el.offsetWidth / 2 - offsetX - 18) / ITEM_STEP)
 }
 
-/** 吸附到最近选项（动量结束后调用） */
+/** 居中指定索引所需的 offset */
+const getOffsetForIndex = (vi: number): number => {
+  const el = viewportRef.value
+  if (!el) return 0
+  return el.offsetWidth / 2 - (vi * ITEM_STEP + 18)
+}
+
+/** 边界复位：进入第 1 份或第 3 份拷贝时立即跳回中间份 */
+const checkBoundary = () => {
+  const vi = getVirtualIndex()
+  const len = props.options.length
+  if (vi < len) {
+    offsetX -= len * ITEM_STEP
+    applyOffset()
+  } else if (vi >= len * 2) {
+    offsetX += len * ITEM_STEP
+    applyOffset()
+  }
+}
+
+/** 发射当前居中项 */
+const emitCurrentValue = () => {
+  if (internalChange) return
+  const vi = getVirtualIndex()
+  const len = props.options.length
+  const idx = ((vi % len) + len) % len
+  const val = props.options[idx]
+  if (val && val !== props.modelValue) {
+    markInternal()
+    emit('update:modelValue', val)
+  }
+}
+
+/** 吸附到最近的网格位置 */
 const snapToClosest = () => {
-  const el = viewportRef.value
-  if (!el) return
-  const rect = el.getBoundingClientRect()
-  const centerX = rect.left + rect.width / 2
-  let closest: HTMLElement | null = null
-  let closestDist = Infinity
-  for (const item of el.querySelectorAll<HTMLElement>('[data-value]')) {
-    const r = item.getBoundingClientRect()
-    const dist = Math.abs(r.left + r.width / 2 - centerX)
-    if (dist < closestDist) {
-      closestDist = dist
-      closest = item
-    }
-  }
-  if (closest) {
-    const val = closest.dataset.value
-    if (val && val !== props.modelValue) {
-      markInternal()
-      emit('update:modelValue', val)
-    }
-    scrollTo(val ?? props.modelValue, 'smooth')
+  const vi = getVirtualIndex()
+  offsetX = getOffsetForIndex(vi)
+  applyOffset()
+  checkBoundary()
+  updateTransforms()
+  emitCurrentValue()
+}
+
+// ── 物理引擎主循环 ──
+
+const stopPhysics = () => {
+  if (physicsRaf !== null) {
+    cancelAnimationFrame(physicsRaf)
+    physicsRaf = null
   }
 }
 
-/** 动量惯性循环（仅在拖拽释放后调用） */
-const applyMomentum = () => {
-  if (momentumRaf) cancelAnimationFrame(momentumRaf)
+const startPhysics = () => {
+  if (physicsRaf) return
   const step = () => {
-    if (Math.abs(momentum) < VELOCITY_THRESHOLD) {
-      momentum = 0
+    const nearZero = Math.abs(velocity) < VELOCITY_THRESHOLD
+    if (nearZero && isAtGrid()) {
+      velocity = 0
+      physicsRaf = null
       snapToClosest()
       return
     }
-    if (viewportRef.value) viewportRef.value.scrollLeft += momentum
-    momentum *= FRICTION
-    momentumRaf = requestAnimationFrame(step)
+
+    offsetX += velocity
+    velocity *= FRICTION
+    // 防止微小速度震荡
+    if (Math.abs(velocity) < VELOCITY_THRESHOLD && !nearZero) {
+      velocity = 0
+    }
+
+    applyOffset()
+    checkBoundary()
+    updateTransforms()
+    physicsRaf = requestAnimationFrame(step)
   }
   step()
 }
 
-/** 更新 3D 透视变换（根据距中心距离缩放 + 渐隐） */
+const isAtGrid = (): boolean => {
+  const vi = getVirtualIndex()
+  const snapOffset = getOffsetForIndex(vi)
+  return Math.abs(offsetX - snapOffset) < 0.5
+}
+
+// ── 滚轮事件 ──
+const onWheel = (e: WheelEvent) => {
+  e.preventDefault()
+  velocity += Math.sign(e.deltaY) * WHEEL_IMPULSE
+  startPhysics()
+}
+
+// ── 拖拽 ──
+let isDragging = false
+let dragStartX = 0
+let dragStartOffset = 0
+let dragLastX = 0
+let dragVelocity = 0
+
+const onDragStart = (e: MouseEvent) => {
+  isDragging = true
+  dragStartX = e.clientX
+  dragStartOffset = offsetX
+  dragLastX = e.clientX
+  dragVelocity = 0
+  stopPhysics()
+  document.addEventListener('mousemove', onDragMove)
+  document.addEventListener('mouseup', onDragEnd)
+}
+
+const onDragMove = (e: MouseEvent) => {
+  if (!isDragging) return
+  const dx = e.clientX - dragLastX
+  dragVelocity = dx
+  dragLastX = e.clientX
+  offsetX = dragStartOffset + (e.clientX - dragStartX)
+  applyOffset()
+  updateTransforms()
+}
+
+const onDragEnd = () => {
+  document.removeEventListener('mousemove', onDragMove)
+  document.removeEventListener('mouseup', onDragEnd)
+  if (!isDragging) return
+  isDragging = false
+  if (Math.abs(dragVelocity) > DRAG_VELOCITY_THRESHOLD) {
+    velocity = -dragVelocity * DRAG_VELOCITY_SCALE
+    startPhysics()
+  } else {
+    snapToClosest()
+  }
+}
+
+// ── 点击选中（传实际索引确保正确方向） ──
+const onItemClick = (value: string, vi: number) => {
+  if (value === props.modelValue) return
+  stopPhysics()
+  offsetX = getOffsetForIndex(vi)
+  markInternal()
+  emit('update:modelValue', value)
+  applyOffset()
+  checkBoundary()
+  updateTransforms()
+}
+
+// ── 3D 透视变换 ──
 const updateTransforms = () => {
   const el = viewportRef.value
   if (!el) return
   const rect = el.getBoundingClientRect()
   const centerX = rect.left + rect.width / 2
   const items = el.querySelectorAll<HTMLElement>('.ar-wheel-picker__item')
-  let closest: HTMLElement | null = null
-  let closestDist = Infinity
 
   items.forEach((item) => {
     const r = item.getBoundingClientRect()
@@ -133,111 +234,41 @@ const updateTransforms = () => {
     const opacity = 1 - t * 0.55
     item.style.transform = `scale(${Math.max(scale, 0.72)})`
     item.style.opacity = String(Math.max(opacity, 0.45))
-    if (dist < closestDist) {
-      closestDist = dist
-      closest = item
-    }
   })
-
-  // 实时选中：非内部变更期间，最近项直接高亮
-  if (closest && !internalChange) {
-    const val = closest.dataset.value
-    if (val && val !== props.modelValue) {
-      markInternal()
-      emit('update:modelValue', val)
-    }
-  }
-}
-
-// ── 事件处理 ──
-
-const onWheel = (e: WheelEvent) => {
-  e.preventDefault()
-  const idx = props.options.indexOf(props.modelValue)
-  if (idx === -1) return
-  const dir = e.deltaY > 0 ? 1 : -1
-  const len = props.options.length
-  const next = (((idx + dir) % len) + len) % len
-  const target = props.options[next]
-  // 立即 emit + 标记内部变更，阻止动画过程中的 updateTransforms 覆盖
-  if (target !== props.modelValue) {
-    markInternal()
-    emit('update:modelValue', target)
-  }
-  scrollTo(target, 'smooth')
-}
-
-const onScroll = () => {
-  if (!transformTick) {
-    requestAnimationFrame(() => {
-      updateTransforms()
-      transformTick = false
-    })
-    transformTick = true
-  }
-}
-
-const onDragStart = (e: MouseEvent) => {
-  isDragging = true
-  dragStartX = e.clientX
-  dragStartScroll = viewportRef.value?.scrollLeft ?? 0
-  dragLastX = e.clientX
-  dragVelocity = 0
-}
-
-const onDragMove = (e: MouseEvent) => {
-  if (!isDragging) return
-  const dx = e.clientX - dragLastX
-  dragVelocity = dx
-  dragLastX = e.clientX
-  if (viewportRef.value) {
-    viewportRef.value.scrollLeft = dragStartScroll - (e.clientX - dragStartX)
-  }
-}
-
-const onDragEnd = () => {
-  if (!isDragging) return
-  isDragging = false
-  if (Math.abs(dragVelocity) > 1) {
-    momentum = -dragVelocity * 1.5
-    applyMomentum()
-  } else {
-    snapToClosest()
-  }
-}
-
-const onItemClick = (value: string) => {
-  if (value === props.modelValue) return
-  markInternal()
-  emit('update:modelValue', value)
-  scrollTo(value, 'smooth')
 }
 
 // ── 生命周期 ──
 
-/** 确保挂载后滚动到当前选中项 */
-const ensureScrollToValue = () => {
-  const el = viewportRef.value
-  if (!el) return
-  requestAnimationFrame(() => {
-    scrollTo(props.modelValue, 'instant')
-    requestAnimationFrame(() => updateTransforms())
-  })
+const initToValue = (value: string) => {
+  const len = props.options.length
+  const idx = props.options.indexOf(value)
+  if (idx === -1) return
+  const vi = len + idx
+  offsetX = getOffsetForIndex(vi)
+  applyOffset()
+  requestAnimationFrame(() => updateTransforms())
 }
 
 watch(viewportRef, (el) => {
-  if (el) ensureScrollToValue()
+  if (el) initToValue(props.modelValue)
 })
 
 onMounted(() => {
-  if (viewportRef.value) ensureScrollToValue()
+  if (viewportRef.value) initToValue(props.modelValue)
 })
 
 watch(
   () => props.modelValue,
   (val) => {
     if (internalChange) return
-    scrollTo(val, 'smooth')
+    const len = props.options.length
+    const idx = props.options.indexOf(val)
+    if (idx === -1) return
+    const vi = len + idx
+    offsetX = getOffsetForIndex(vi)
+    applyOffset()
+    checkBoundary()
+    updateTransforms()
   }
 )
 </script>
@@ -248,11 +279,7 @@ watch(
       ref="viewportRef"
       class="ar-wheel-picker__viewport"
       @wheel.prevent="onWheel"
-      @scroll="onScroll"
       @mousedown="onDragStart"
-      @mousemove="onDragMove"
-      @mouseup="onDragEnd"
-      @mouseleave="onDragEnd"
     >
       <div class="ar-wheel-picker__track">
         <div
@@ -261,7 +288,7 @@ watch(
           class="ar-wheel-picker__item"
           :class="{ active: opt === modelValue }"
           :data-value="opt"
-          @click="onItemClick(opt)"
+          @click="onItemClick(opt, i)"
         >
           <slot name="item" :option="opt" :active="opt === modelValue">
             {{ opt }}
@@ -281,15 +308,10 @@ watch(
 
 .ar-wheel-picker__viewport {
   height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
+  overflow: hidden;
   cursor: grab;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ar-wheel-picker__viewport::-webkit-scrollbar {
-  display: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ar-wheel-picker__viewport:active {
@@ -300,8 +322,8 @@ watch(
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 calc(50% - 18px);
   gap: 4px;
+  will-change: transform;
 }
 
 .ar-wheel-picker__item {
