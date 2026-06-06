@@ -4,13 +4,14 @@
       <NDialogProvider>
         <NNotificationProvider>
           <NLoadingBarProvider>
-            <component :is="layoutComponent">
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </component>
+            <RouterView v-slot="{ Component, route: r }">
+              <component
+                :is="layoutMap[(r.meta.layout as string) || 'guest'] || GuestLayout"
+                :key="r.fullPath"
+              >
+                <component :is="Component" :key="r.fullPath" />
+              </component>
+            </RouterView>
           </NLoadingBarProvider>
         </NNotificationProvider>
       </NDialogProvider>
@@ -19,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed } from 'vue'
 import {
   NConfigProvider,
   NMessageProvider,
@@ -29,13 +30,11 @@ import {
   darkTheme,
   type GlobalThemeOverrides
 } from 'naive-ui'
-import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store/modules/app'
 import GuestLayout from '@/layouts/GuestLayout.vue'
 import UserLayout from '@/layouts/UserLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 
-const route = useRoute()
 const appStore = useAppStore()
 
 const themeOverrides: GlobalThemeOverrides = {
@@ -71,18 +70,6 @@ const layoutMap: Record<string, typeof GuestLayout> = {
   user: UserLayout,
   admin: AdminLayout
 }
-
-// 计算当前应该使用的布局
-const currentLayout = computed(() => {
-  return (route.meta.layout as string) || 'guest'
-})
-
-// 使用 shallowRef 避免深层响应
-const layoutComponent = shallowRef(layoutMap[currentLayout.value] || GuestLayout)
-
-watch(currentLayout, (layout) => {
-  layoutComponent.value = layoutMap[layout] || GuestLayout
-})
 
 // 主题切换
 const theme = computed(() => {

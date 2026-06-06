@@ -54,7 +54,8 @@ const fetchPost = async () => {
         // 静默
       }
     }
-  } catch {
+  } catch (err) {
+    console.error('[PostDetail] 加载帖子失败:', err)
     message.error('加载帖子失败')
   } finally {
     loading.value = false
@@ -118,8 +119,16 @@ onMounted(fetchPost)
     <p class="loading-text">加载中……</p>
   </div>
 
+  <!-- 加载失败 -->
+  <div v-else-if="!post" class="error-state">
+    <div class="error-icon">⚠</div>
+    <p class="error-text">帖子加载失败</p>
+    <p class="error-hint">请检查网络连接或确认帖子是否存在</p>
+    <button class="error-retry-btn" @click="fetchPost">重新加载</button>
+  </div>
+
   <!-- 内容 -->
-  <div v-else-if="post" class="post-detail-page">
+  <div v-else class="post-detail-page">
     <!-- 文章内容 -->
     <PostDetail :post="post" />
 
@@ -281,5 +290,54 @@ onMounted(fetchPost)
 .loading-text {
   font-size: 14px;
   color: var(--text-tertiary);
+}
+
+/* ── 错误态 ── */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--spacing-sm);
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 36px;
+  margin-bottom: var(--spacing-sm);
+  opacity: 0.6;
+}
+
+.error-text {
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.error-hint {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.error-retry-btn {
+  margin-top: var(--spacing-md);
+  padding: 8px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.error-retry-btn:hover {
+  background: var(--surface-hover-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 </style>
