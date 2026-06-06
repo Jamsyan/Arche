@@ -9,10 +9,12 @@ const props = withDefaults(
   defineProps<{
     post?: BlogPost | null
     loading?: boolean
+    hideFooter?: boolean
   }>(),
   {
     post: null,
-    loading: false
+    loading: false,
+    hideFooter: false
   }
 )
 
@@ -70,7 +72,24 @@ function handleCancel() {
   emit('cancel')
 }
 
-defineExpose({ handleSave, handleCancel })
+function updateMeta(meta: { tags?: string[]; accessLevel?: string }) {
+  if (meta.tags) tags.value = meta.tags
+  if (meta.accessLevel) accessLevel.value = meta.accessLevel
+}
+
+defineExpose({
+  handleSave,
+  handleCancel,
+  tags,
+  tagInput,
+  addTag,
+  removeTag,
+  handleTagKeydown,
+  accessLevel,
+  title,
+  content,
+  updateMeta
+})
 </script>
 
 <template>
@@ -100,7 +119,7 @@ defineExpose({ handleSave, handleCancel })
     </div>
 
     <!-- 标签 -->
-    <div class="editor-field">
+    <div v-if="!hideFooter" class="editor-field">
       <label class="field-label">标签</label>
       <div class="tag-input-row">
         <ArInput
@@ -127,7 +146,7 @@ defineExpose({ handleSave, handleCancel })
     </div>
 
     <!-- 访问级别（仅新建模式） -->
-    <div v-if="!isEdit" class="editor-field">
+    <div v-if="!isEdit && !hideFooter" class="editor-field">
       <label class="field-label">访问级别</label>
       <select v-model="accessLevel" class="field-select">
         <option value="public">公开</option>
@@ -136,7 +155,7 @@ defineExpose({ handleSave, handleCancel })
     </div>
 
     <!-- 操作按钮 -->
-    <div class="editor-actions">
+    <div v-if="!hideFooter" class="editor-actions">
       <ArButton type="ghost" @click="handleCancel">取消</ArButton>
       <ArButton type="primary" :loading="loading" :disabled="!canSubmit" @click="handleSave">
         {{ isEdit ? '保存修改' : '发布' }}

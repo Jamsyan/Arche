@@ -163,7 +163,11 @@
             :class="{ active: !isCreatingNew && p.id === editingPost?.id }"
             @click="switchEditPost(p)"
           >
-            <span class="sidebar-item-title">{{ p.title || '无标题' }}</span>
+            <div class="sidebar-item-title">{{ p.title || '无标题' }}</div>
+            <div class="sidebar-item-meta">
+              <span class="sidebar-item-status" :class="p.status || 'draft'"></span>
+              <span>{{ p.created_at?.slice(0, 10) || '' }}</span>
+            </div>
           </button>
         </div>
       </aside>
@@ -174,19 +178,36 @@
             <template v-if="isCreatingNew">
               <span class="topbar-label">新建文章</span>
             </template>
-            <ArTag v-else :color="getStatus(editingPost!).color" type="light" size="sm">
+            <ArTag v-else :color="getStatus(editingPost!).color" type="light">
               {{ getStatus(editingPost!).label }}
             </ArTag>
+            <button class="access-badge" :class="editorAccess" @click="toggleEditorAccess">
+              {{ editorAccess === 'public' ? '公开' : '私密' }}
+            </button>
+          </div>
+          <div class="edit-topbar-tags">
+            <div class="topbar-tag-list">
+              <ArTag
+                v-for="(tag, i) in editorTags"
+                :key="i"
+                color="primary"
+                type="light"
+                closable
+                @close="removeEditorTag(tag)"
+              >
+                {{ tag }}
+              </ArTag>
+            </div>
+            <input
+              v-model="tagInputValue"
+              class="tag-input-inline"
+              placeholder="标签"
+              @keydown="handleTagKeydown"
+            />
           </div>
           <div class="edit-topbar-actions">
-            <ArButton type="ghost" size="sm" @click="exitEdit">取消</ArButton>
-            <ArButton
-              type="primary"
-              size="sm"
-              :loading="saving"
-              :disabled="saving"
-              @click="saveCurrent"
-            >
+            <ArButton type="ghost" @click="exitEdit">取消</ArButton>
+            <ArButton type="primary" :loading="saving" :disabled="saving" @click="saveCurrent">
               {{ isCreatingNew ? '发布' : '保存' }}
             </ArButton>
           </div>
@@ -196,6 +217,7 @@
             ref="editorRef"
             :post="isCreatingNew ? null : editingPost"
             :loading="saving"
+            hide-footer
             @save="handleSaveComplete"
             @cancel="exitEdit"
           />
@@ -233,6 +255,9 @@ const activeTab = ref<PostTab>('all')
 const isEditorOpen = ref(false)
 const isCreatingNew = ref(false)
 const editingPost = ref<BlogPost | null>(null)
+const tagInputValue = ref('')
+const editorTags = ref<string[]>([])
+const editorAccess = ref<'public' | 'private'>('public')
 const statsPost = ref<BlogPost | null>(null)
 const showStatsModal = ref(false)
 const hoveredPost = ref<BlogPost | null>(null)
@@ -286,6 +311,8 @@ const tabs: { key: PostTab; label: string }[] = [
 const handleNewPost = () => {
   isCreatingNew.value = true
   editingPost.value = null
+  editorTags.value = []
+  editorAccess.value = 'public'
   isEditorOpen.value = true
 }
 const handleOpenPost = (post: BlogPost) => router.push(`/blog/${post.slug}`)
@@ -308,6 +335,8 @@ const handleCloseStats = () => {
 const handleEditPost = (post: BlogPost) => {
   isCreatingNew.value = false
   editingPost.value = post
+  editorTags.value = [...(post.tags || [])]
+  editorAccess.value = (post.access_level as 'public' | 'private') || 'public'
   isEditorOpen.value = true
 }
 
@@ -315,14 +344,18 @@ const exitEdit = () => {
   isEditorOpen.value = false
   isCreatingNew.value = false
   editingPost.value = null
+  editorTags.value = []
 }
 
 const switchEditPost = (post: BlogPost) => {
   isCreatingNew.value = false
   editingPost.value = post
+  editorTags.value = [...(post.tags || [])]
+  editorAccess.value = (post.access_level as 'public' | 'private') || 'public'
 }
 
 const saveCurrent = () => {
+  editorRef.value?.updateMeta({ tags: editorTags.value, accessLevel: editorAccess.value })
   editorRef.value?.handleSave()
 }
 
@@ -334,6 +367,30 @@ const handleSaveComplete = async () => {
     saving.value = false
   }
   exitEdit()
+}
+
+// ── Tag helpers ──
+const addEditorTag = () => {
+  const t = tagInputValue.value.trim()
+  if (t && !editorTags.value.includes(t)) {
+    editorTags.value.push(t)
+  }
+  tagInputValue.value = ''
+}
+
+const removeEditorTag = (tag: string) => {
+  editorTags.value = editorTags.value.filter((t) => t !== tag)
+}
+
+const handleTagKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault()
+    addEditorTag()
+  }
+}
+
+const toggleEditorAccess = () => {
+  editorAccess.value = editorAccess.value === 'public' ? 'private' : 'public'
 }
 
 const fetchData = async () => {
@@ -727,17 +784,18 @@ onMounted(fetchData)
   display: block;
   width: 100%;
   border: 0;
+  border-left: 3px solid transparent;
   background: transparent;
-  padding: 10px 16px;
+  padding: 12px 16px;
   text-align: left;
   cursor: pointer;
   transition: all var(--transition-fast);
   font-family: var(--font-sans);
-  border-left: 3px solid transparent;
 }
 
 .sidebar-item:hover {
-  background: var(--surface-strong-color);
+  background: var(--surface-hover-color);
+  border-left-color: var(--border-color);
 }
 
 .sidebar-item.active {
@@ -746,18 +804,46 @@ onMounted(fetchData)
 }
 
 .sidebar-item-title {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-weight: var(--font-weight-medium);
 }
 
 .sidebar-item.active .sidebar-item-title {
   color: var(--primary-color);
-  font-weight: var(--font-weight-medium);
+}
+
+.sidebar-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.sidebar-item-status {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.sidebar-item-status.published {
+  background: var(--success-color);
+}
+
+.sidebar-item-status.draft {
+  background: var(--accent-yellow);
+}
+
+.sidebar-item-status.pending {
+  background: var(--accent-orange, #e8a817);
 }
 
 .edit-main {
@@ -770,17 +856,82 @@ onMounted(fetchData)
 .edit-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
+  gap: 14px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--surface-color);
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.edit-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.access-badge {
+  border: 0;
+  border-radius: var(--radius-full);
+  padding: 3px 12px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-weight: var(--font-weight-semibold);
+}
+
+.access-badge.public {
+  background: color-mix(in srgb, var(--success-color) 12%, transparent);
+  color: var(--success-color);
+}
+
+.access-badge.private {
+  background: color-mix(in srgb, var(--accent-yellow) 14%, transparent);
+  color: var(--accent-yellow);
+}
+
+.access-badge:hover {
+  filter: brightness(1.1);
+}
+
+.edit-topbar-tags {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.topbar-tag-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag-input-inline {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 4px 0;
+  min-width: 70px;
+  flex: 1;
+}
+
+.tag-input-inline::placeholder {
+  color: var(--text-tertiary);
 }
 
 .edit-topbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .edit-editor {
