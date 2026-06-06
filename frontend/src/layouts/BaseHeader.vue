@@ -29,18 +29,27 @@
         <RouterLink v-if="isLoggedIn" to="/scheduler" class="nav-item">调度器</RouterLink>
         <RouterLink to="/github" class="nav-item">GitHub</RouterLink>
       </nav>
-      <div class="search-wrap">
-        <NIcon class="search-leading-icon" size="17" aria-hidden="true">
-          <SearchOutline />
-        </NIcon>
-        <input
-          v-model.trim="searchKeyword"
-          class="search-input"
-          type="search"
-          placeholder="搜索"
-          aria-label="搜索文章"
-          @keydown.enter="goSearch"
-        />
+      <div class="search-section">
+        <div class="search-wrap">
+          <NIcon class="search-leading-icon" size="17" aria-hidden="true">
+            <SearchOutline />
+          </NIcon>
+          <input
+            v-model.trim="searchKeyword"
+            class="search-input"
+            type="search"
+            placeholder="搜索"
+            aria-label="搜索文章"
+            @keydown.enter="goSearch"
+          />
+        </div>
+      </div>
+      <div class="header-actions">
+        <RouterLink v-if="isLoggedIn" to="/console" class="nav-item">控制台</RouterLink>
+        <template v-else>
+          <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
+          <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
+        </template>
       </div>
     </div>
 
@@ -54,26 +63,19 @@
       </div>
     </div>
 
-    <!-- Header Right -->
+    <!-- Header Right — 用户菜单 -->
     <div class="header-right">
-      <div v-if="layoutMode === 'guest' && isLoggedIn" class="header-right-inner">
-        <RouterLink to="/console" class="nav-item console-btn">控制台</RouterLink>
-        <div class="user-menu-wrap">
-          <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
-            {{ userInitial }}
-          </button>
-          <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
-            <RouterLink to="/profile" class="dropdown-item">个人中心</RouterLink>
-            <div class="dropdown-divider"></div>
-            <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
-          </div>
+      <div v-if="isLoggedIn && layoutMode === 'guest'" class="user-menu-wrap">
+        <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
+          {{ userInitial }}
+        </button>
+        <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
+          <RouterLink to="/profile" class="dropdown-item">个人中心</RouterLink>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
         </div>
       </div>
-      <template v-else-if="layoutMode === 'guest'">
-        <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
-        <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
-      </template>
-      <div v-else class="user-menu-wrap">
+      <div v-else-if="layoutMode !== 'guest'" class="user-menu-wrap">
         <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '用户' }}</span>
           <NIcon size="24" class="avatar-icon"><PersonCircleOutline /></NIcon>
@@ -213,10 +215,19 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.header-right-inner {
+/* ── Guest Mode: Nav Menu ── */
+.nav-menu {
   display: flex;
+  gap: var(--spacing-xs);
   align-items: center;
-  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+/* ── Guest Mode: Nav Menu ── */
+.nav-menu {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+  flex-shrink: 0;
 }
 
 /* ── Menu Toggle ── */
@@ -238,11 +249,20 @@ onBeforeUnmount(() => {
   background: var(--surface-strong-color);
 }
 
-/* ── Guest Mode: Nav Menu ── */
-.nav-menu {
+/* ── Search Section (centered flex) ── */
+.search-section {
+  flex: 1;
   display: flex;
-  gap: var(--spacing-xs);
+  justify-content: center;
+  min-width: 0;
+}
+
+/* ── Header Actions (right side) ── */
+.header-actions {
+  display: flex;
   align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
 }
 
 .nav-item {
@@ -277,11 +297,12 @@ onBeforeUnmount(() => {
 /* ── Guest Mode: Search ── */
 .search-wrap {
   position: relative;
-  margin-left: auto;
+  width: 100%;
+  max-width: 480px;
 }
 
 .search-input {
-  width: 200px;
+  width: 100%;
   height: 36px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
@@ -451,8 +472,8 @@ onBeforeUnmount(() => {
     font-size: 13px;
   }
 
-  .search-input {
-    width: 140px;
+  .search-wrap {
+    max-width: 300px;
   }
 }
 </style>
