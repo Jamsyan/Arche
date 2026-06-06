@@ -69,6 +69,8 @@ function handleSave() {
 function handleCancel() {
   emit('cancel')
 }
+
+defineExpose({ handleSave, handleCancel })
 </script>
 
 <template>

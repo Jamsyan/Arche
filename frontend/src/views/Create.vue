@@ -1,133 +1,208 @@
 <template>
-  <div class="create-page">
-    <!-- Page Header -->
-    <div class="page-header">
-      <div class="page-header-text">
-        <h1>创作</h1>
-        <p class="page-desc">写文章、管理内容，记录你的所思所想</p>
-      </div>
-      <ArButton type="primary" size="lg" @click="handleNewPost">
-        <template #icon>
-          <NIcon size="18"><CreateOutline /></NIcon>
-        </template>
-        写文章
-      </ArButton>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-      <div v-for="card in statCards" :key="card.label" class="stat-card">
-        <div class="stat-icon" :style="{ background: card.color + '14', color: card.color }">
-          <NIcon :size="20"><component :is="card.icon" /></NIcon>
+  <Transition name="mode" mode="out-in">
+    <!-- Browse mode -->
+    <div v-if="!isEditorOpen" key="browse" class="create-page">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>创作</h1>
+          <p class="page-desc">写文章、管理内容，记录你的所思所想</p>
         </div>
-        <div class="stat-body">
-          <span class="stat-value">{{ card.value }}</span>
-          <span class="stat-label">{{ card.label }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Post List -->
-    <div class="post-section">
-      <!-- Tabs -->
-      <div class="tab-bar">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
-        </button>
-        <span class="tab-count">{{ filteredPosts.length }}</span>
+        <ArButton type="primary" size="lg" @click="handleNewPost">
+          <template #icon>
+            <NIcon size="18"><CreateOutline /></NIcon>
+          </template>
+          写文章
+        </ArButton>
       </div>
 
-      <!-- List -->
-      <div class="post-list">
-        <div v-if="loading" class="empty-state">加载中…</div>
-        <div v-else-if="filteredPosts.length === 0" class="empty-state">
-          <p v-if="activeTab === 'all'">还没有文章，开始你的第一篇创作吧</p>
-          <p v-else-if="activeTab === 'published'">还没有已发布的文章</p>
-          <p v-else>草稿箱是空的</p>
+      <div class="stats-grid">
+        <div v-for="card in statCards" :key="card.label" class="stat-card">
+          <div class="stat-icon" :style="{ background: card.color + '14', color: card.color }">
+            <NIcon :size="20"><component :is="card.icon" /></NIcon>
+          </div>
+          <div class="stat-body">
+            <span class="stat-value">{{ card.value }}</span>
+            <span class="stat-label">{{ card.label }}</span>
+          </div>
         </div>
-        <div v-else class="post-items">
-          <div v-for="post in filteredPosts" :key="post.id" class="post-row">
-            <div class="post-info" @click="handleOpenPost(post)">
-              <span class="post-title">{{ post.title || '无标题' }}</span>
-              <div class="post-meta">
-                <ArTag :color="getStatus(post).color" type="light" size="sm">
-                  {{ getStatus(post).label }}
-                </ArTag>
-                <span class="post-date">{{ post.created_at?.slice(0, 10) || '—' }}</span>
-                <span class="post-views">{{ post.views || 0 }} 次阅读</span>
+      </div>
+
+      <div class="post-section">
+        <div class="tab-bar">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            class="tab-btn"
+            :class="{ active: activeTab === tab.key }"
+            @click="activeTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
+          <span class="tab-count">{{ filteredPosts.length }}</span>
+        </div>
+
+        <div class="post-list">
+          <div v-if="loading" class="empty-state">加载中…</div>
+          <div v-else-if="filteredPosts.length === 0" class="empty-state">
+            <p v-if="activeTab === 'all'">还没有文章，开始你的第一篇创作吧</p>
+            <p v-else-if="activeTab === 'published'">还没有已发布的文章</p>
+            <p v-else>草稿箱是空的</p>
+          </div>
+          <div v-else class="post-items">
+            <div v-for="post in filteredPosts" :key="post.id" class="post-row">
+              <div class="post-info" @click="handleOpenPost(post)">
+                <span class="post-title">{{ post.title || '无标题' }}</span>
+                <div class="post-meta">
+                  <ArTag :color="getStatus(post).color" type="light" size="sm">
+                    {{ getStatus(post).label }}
+                  </ArTag>
+                  <span class="post-date">{{ post.created_at?.slice(0, 10) || '—' }}</span>
+                </div>
+              </div>
+              <div class="post-actions">
+                <div
+                  class="action-btn-wrap"
+                  @mouseenter="hoveredPost = post"
+                  @mouseleave="hoveredPost = null"
+                >
+                  <button
+                    class="action-btn"
+                    title="数据"
+                    @click="handleViewStats(post)"
+                    @mouseenter="hoveredPost = post"
+                  >
+                    <NIcon size="16"><EyeOutline /></NIcon>
+                  </button>
+                  <Transition name="tip">
+                    <div
+                      v-if="hoveredPost?.id === post.id && (!statsPost || statsPost.id !== post.id)"
+                      class="stats-tip"
+                      @mouseenter="hoveredPost = post"
+                    >
+                      <div class="tip-row">
+                        <span class="tip-label">阅读</span>
+                        <span class="tip-value">{{ post.views || 0 }}</span>
+                      </div>
+                      <div class="tip-row">
+                        <span class="tip-label">点赞</span>
+                        <span class="tip-value">{{ post.likes || 0 }}</span>
+                      </div>
+                    </div>
+                  </Transition>
+                </div>
+                <button class="action-btn" title="编辑" @click="handleEditPost(post)">
+                  <NIcon size="16"><CreateOutline /></NIcon>
+                </button>
               </div>
             </div>
-            <div class="post-actions">
-              <button class="action-btn" title="数据" @click="handleViewStats(post)">
-                <NIcon size="16"><EyeOutline /></NIcon>
-              </button>
-              <button class="action-btn" title="编辑" @click="handleEditPost(post)">
-                <NIcon size="16"><CreateOutline /></NIcon>
-              </button>
-            </div>
           </div>
         </div>
       </div>
+
+      <NModal
+        :show="showStatsModal"
+        :on-update:show="(val) => !val && handleCloseStats()"
+        :mask-closable="true"
+        preset="card"
+        class="stats-modal"
+        :style="{ maxWidth: '420px' }"
+        :title="statsPost?.title || '文章数据'"
+        :bordered="false"
+        :segmented="false"
+      >
+        <div v-if="statsPost" class="stats-detail">
+          <div class="stats-detail-row">
+            <div class="stats-detail-item">
+              <NIcon size="18" color="var(--text-tertiary)"><EyeOutline /></NIcon>
+              <div class="stats-detail-body">
+                <span class="stats-detail-value">{{ statsPost.views || 0 }}</span>
+                <span class="stats-detail-label">阅读量</span>
+              </div>
+            </div>
+            <div class="stats-detail-item">
+              <NIcon size="18" color="var(--text-tertiary)"><HeartOutline /></NIcon>
+              <div class="stats-detail-body">
+                <span class="stats-detail-value">{{ statsPost.likes || 0 }}</span>
+                <span class="stats-detail-label">点赞</span>
+              </div>
+            </div>
+          </div>
+          <div class="stats-detail-row">
+            <div class="stats-detail-item">
+              <NIcon size="18" color="var(--text-tertiary)"><BookmarkOutline /></NIcon>
+              <div class="stats-detail-body">
+                <span class="stats-detail-value">{{
+                  Math.round((statsPost.likes || 0) * 0.65)
+                }}</span>
+                <span class="stats-detail-label">收藏</span>
+              </div>
+            </div>
+            <div class="stats-detail-item">
+              <NIcon size="18" color="var(--text-tertiary)"><TimeOutline /></NIcon>
+              <div class="stats-detail-body">
+                <span class="stats-detail-value">{{
+                  statsPost.created_at?.slice(0, 10) || '—'
+                }}</span>
+                <span class="stats-detail-label">发布时间</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </NModal>
     </div>
 
-    <!-- Stats Modal -->
-    <NModal
-      :show="showStatsModal"
-      :on-update:show="(val: boolean) => !val && handleCloseStats()"
-      :mask-closable="true"
-      preset="card"
-      class="stats-modal"
-      :style="{ maxWidth: '420px' }"
-      :title="statsPost?.title || '文章数据'"
-      :bordered="false"
-      :segmented="false"
-    >
-      <div v-if="statsPost" class="stats-detail">
-        <div class="stats-detail-row">
-          <div class="stats-detail-item">
-            <NIcon size="18" color="var(--text-tertiary)"><EyeOutline /></NIcon>
-            <div class="stats-detail-body">
-              <span class="stats-detail-value">{{ statsPost.views || 0 }}</span>
-              <span class="stats-detail-label">阅读量</span>
-            </div>
+    <!-- Edit mode -->
+    <div v-else key="edit" class="edit-layout">
+      <aside class="edit-sidebar">
+        <button class="sidebar-back" @click="exitEdit">← 返回</button>
+        <div class="sidebar-items">
+          <button
+            v-for="p in filteredPosts"
+            :key="p.id"
+            class="sidebar-item"
+            :class="{ active: !isCreatingNew && p.id === editingPost?.id }"
+            @click="switchEditPost(p)"
+          >
+            <span class="sidebar-item-title">{{ p.title || '无标题' }}</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="edit-main">
+        <div class="edit-topbar">
+          <div class="edit-topbar-left">
+            <template v-if="isCreatingNew">
+              <span class="topbar-label">新建文章</span>
+            </template>
+            <ArTag v-else :color="getStatus(editingPost!).color" type="light" size="sm">
+              {{ getStatus(editingPost!).label }}
+            </ArTag>
           </div>
-          <div class="stats-detail-item">
-            <NIcon size="18" color="var(--text-tertiary)"><HeartOutline /></NIcon>
-            <div class="stats-detail-body">
-              <span class="stats-detail-value">{{ statsPost.likes || 0 }}</span>
-              <span class="stats-detail-label">点赞</span>
-            </div>
+          <div class="edit-topbar-actions">
+            <ArButton type="ghost" size="sm" @click="exitEdit">取消</ArButton>
+            <ArButton
+              type="primary"
+              size="sm"
+              :loading="saving"
+              :disabled="saving"
+              @click="saveCurrent"
+            >
+              {{ isCreatingNew ? '发布' : '保存' }}
+            </ArButton>
           </div>
         </div>
-        <div class="stats-detail-row">
-          <div class="stats-detail-item">
-            <NIcon size="18" color="var(--text-tertiary)"><BookmarkOutline /></NIcon>
-            <div class="stats-detail-body">
-              <span class="stats-detail-value">{{
-                Math.round((statsPost.likes || 0) * 0.65)
-              }}</span>
-              <span class="stats-detail-label">收藏</span>
-            </div>
-          </div>
-          <div class="stats-detail-item">
-            <NIcon size="18" color="var(--text-tertiary)"><TimeOutline /></NIcon>
-            <div class="stats-detail-body">
-              <span class="stats-detail-value">{{
-                statsPost.created_at?.slice(0, 10) || '—'
-              }}</span>
-              <span class="stats-detail-label">发布时间</span>
-            </div>
-          </div>
+        <div class="edit-editor">
+          <PostEditor
+            ref="editorRef"
+            :post="isCreatingNew ? null : editingPost"
+            :loading="saving"
+            @save="handleSaveComplete"
+            @cancel="exitEdit"
+          />
         </div>
-      </div>
-    </NModal>
-  </div>
+      </main>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -144,16 +219,23 @@ import {
 } from '@vicons/ionicons5'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
+import PostEditor from '@/components/blog/PostEditor.vue'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
 
 type PostTab = 'all' | 'published' | 'draft'
 
 const router = useRouter()
+const editorRef = ref<InstanceType<typeof PostEditor> | null>(null)
 const loading = ref(false)
+const saving = ref(false)
 const posts = ref<BlogPost[]>([])
 const activeTab = ref<PostTab>('all')
+const isEditorOpen = ref(false)
+const isCreatingNew = ref(false)
+const editingPost = ref<BlogPost | null>(null)
 const statsPost = ref<BlogPost | null>(null)
 const showStatsModal = ref(false)
+const hoveredPost = ref<BlogPost | null>(null)
 
 const statusMap: Record<string, { label: string; color: 'green' | 'yellow' | 'blue' | 'default' }> =
   {
@@ -167,7 +249,6 @@ const getStatus = (post: BlogPost) => {
   return statusMap[s] || { label: s, color: 'default' as const }
 }
 
-// ── Stats ──
 const totalPosts = computed(() => posts.value.length)
 const draftCount = computed(
   () => posts.value.filter((p) => (p.status || 'draft') === 'draft').length
@@ -187,7 +268,6 @@ const statCards = computed(() => [
   { label: '总阅读', value: totalViews.value, icon: HeartOutline, color: 'var(--accent-color)' }
 ])
 
-// ── Filtered list ──
 const filteredPosts = computed(() => {
   if (activeTab.value === 'all') return posts.value
   return posts.value.filter((p) => {
@@ -202,20 +282,60 @@ const tabs: { key: PostTab; label: string }[] = [
   { key: 'draft', label: '草稿' }
 ]
 
-// ── Actions ──
-const handleNewPost = () => router.push('/posts/new')
-const handleEditPost = (post: BlogPost) => router.push(`/posts/${post.id}/edit`)
+// Browse actions
+const handleNewPost = () => {
+  isCreatingNew.value = true
+  editingPost.value = null
+  isEditorOpen.value = true
+}
 const handleOpenPost = (post: BlogPost) => router.push(`/blog/${post.slug}`)
+
 const handleViewStats = (post: BlogPost) => {
+  if (statsPost.value?.id === post.id) {
+    handleCloseStats()
+    return
+  }
   statsPost.value = post
   showStatsModal.value = true
 }
+
 const handleCloseStats = () => {
   showStatsModal.value = false
   statsPost.value = null
 }
 
-// ── Data ──
+// Edit actions
+const handleEditPost = (post: BlogPost) => {
+  isCreatingNew.value = false
+  editingPost.value = post
+  isEditorOpen.value = true
+}
+
+const exitEdit = () => {
+  isEditorOpen.value = false
+  isCreatingNew.value = false
+  editingPost.value = null
+}
+
+const switchEditPost = (post: BlogPost) => {
+  isCreatingNew.value = false
+  editingPost.value = post
+}
+
+const saveCurrent = () => {
+  editorRef.value?.handleSave()
+}
+
+const handleSaveComplete = async () => {
+  saving.value = true
+  try {
+    await fetchData()
+  } finally {
+    saving.value = false
+  }
+  exitEdit()
+}
+
 const fetchData = async () => {
   loading.value = true
   try {
@@ -242,7 +362,6 @@ onMounted(fetchData)
   gap: var(--spacing-lg);
 }
 
-/* ── Page Header ── */
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -262,7 +381,6 @@ onMounted(fetchData)
   color: var(--text-tertiary);
 }
 
-/* ── Stats Cards ── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -307,7 +425,6 @@ onMounted(fetchData)
   color: var(--text-tertiary);
 }
 
-/* ── Post Section ── */
 .post-section {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -315,7 +432,6 @@ onMounted(fetchData)
   overflow: hidden;
 }
 
-/* ── Tabs ── */
 .tab-bar {
   display: flex;
   align-items: center;
@@ -354,7 +470,6 @@ onMounted(fetchData)
   color: var(--text-tertiary);
 }
 
-/* ── Post List ── */
 .post-items {
   padding: 0;
 }
@@ -400,8 +515,7 @@ onMounted(fetchData)
   margin-top: 4px;
 }
 
-.post-date,
-.post-views {
+.post-date {
   font-size: 12px;
   color: var(--text-tertiary);
 }
@@ -411,6 +525,10 @@ onMounted(fetchData)
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.action-btn-wrap {
+  position: relative;
 }
 
 .action-btn {
@@ -432,7 +550,52 @@ onMounted(fetchData)
   color: var(--text-primary);
 }
 
-/* ── States ── */
+.stats-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+  z-index: 50;
+  min-width: 100px;
+}
+
+.tip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.tip-label {
+  color: var(--text-tertiary);
+}
+
+.tip-value {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tip-enter-active,
+.tip-leave-active {
+  transition: all 0.15s ease;
+}
+
+.tip-enter-from,
+.tip-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
 .empty-state {
   text-align: center;
   padding: 48px 0;
@@ -444,7 +607,6 @@ onMounted(fetchData)
   margin: 0;
 }
 
-/* ── Stats Modal ── */
 .stats-modal :deep(.n-card-header) {
   padding: var(--spacing-lg) var(--spacing-lg) 0;
 }
@@ -496,7 +658,137 @@ onMounted(fetchData)
   color: var(--text-tertiary);
 }
 
-/* ── Responsive ── */
+/* Edit mode */
+.mode-enter-active,
+.mode-leave-active {
+  transition: all 0.22s ease;
+}
+
+.mode-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.mode-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.topbar-label {
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.edit-layout {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 56px - var(--content-padding) * 2);
+  margin: calc(-1 * var(--content-padding));
+  background: var(--surface-color);
+  overflow: hidden;
+}
+
+.edit-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-inset-color);
+}
+
+.sidebar-back {
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-weight: var(--font-weight-medium);
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.sidebar-back:hover {
+  background: var(--surface-strong-color);
+}
+
+.sidebar-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.sidebar-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  border-left: 3px solid transparent;
+}
+
+.sidebar-item:hover {
+  background: var(--surface-strong-color);
+}
+
+.sidebar-item.active {
+  background: var(--primary-light-color);
+  border-left-color: var(--primary-color);
+}
+
+.sidebar-item-title {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sidebar-item.active .sidebar-item-title {
+  color: var(--primary-color);
+  font-weight: var(--font-weight-medium);
+}
+
+.edit-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.edit-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-color);
+  flex-shrink: 0;
+}
+
+.edit-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-editor {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -504,6 +796,10 @@ onMounted(fetchData)
 
   .page-header {
     flex-direction: column;
+  }
+
+  .edit-sidebar {
+    width: 160px;
   }
 }
 </style>
