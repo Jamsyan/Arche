@@ -30,7 +30,6 @@ import {
 import { useAppStore } from '@/store/modules/app'
 import GuestLayout from '@/layouts/GuestLayout.vue'
 import UserLayout from '@/layouts/UserLayout.vue'
-import AdminLayout from '@/layouts/AdminLayout.vue'
 
 const appStore = useAppStore()
 
@@ -64,8 +63,7 @@ const themeOverrides: GlobalThemeOverrides = {
 
 const layoutMap: Record<string, typeof GuestLayout> = {
   guest: GuestLayout,
-  user: UserLayout,
-  admin: AdminLayout
+  user: UserLayout
 }
 
 // 主题切换

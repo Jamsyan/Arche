@@ -76,7 +76,8 @@ export const staticRoutes: RouteRecordRaw[] = [
       title: '控制台',
       layout: 'guest',
       requiresAuth: true,
-      console: true
+      console: true,
+      level: 0 // 仅管理员
     }
   },
   {
@@ -93,7 +94,6 @@ export const staticRoutes: RouteRecordRaw[] = [
       title: '个人中心',
       layout: 'guest',
       requiresAuth: true,
-      console: true,
       permission: API_PERMISSION.AUTH_ME
     }
   },
@@ -105,7 +105,6 @@ export const staticRoutes: RouteRecordRaw[] = [
       title: '我的文章',
       layout: 'guest',
       requiresAuth: true,
-      console: true,
       permission: API_PERMISSION.BLOG_POSTS_READ
     }
   },
@@ -117,7 +116,6 @@ export const staticRoutes: RouteRecordRaw[] = [
       title: '新建文章',
       layout: 'guest',
       requiresAuth: true,
-      console: true,
       permission: API_PERMISSION.BLOG_POSTS_WRITE
     }
   },
@@ -129,7 +127,6 @@ export const staticRoutes: RouteRecordRaw[] = [
       title: '编辑文章',
       layout: 'guest',
       requiresAuth: true,
-      console: true,
       permission: API_PERMISSION.BLOG_POSTS_WRITE
     }
   },
@@ -141,7 +138,6 @@ export const staticRoutes: RouteRecordRaw[] = [
       title: '创作者看板',
       layout: 'guest',
       requiresAuth: true,
-      console: true,
       permission: API_PERMISSION.BLOG_POSTS_READ
     }
   },
@@ -156,6 +152,106 @@ export const staticRoutes: RouteRecordRaw[] = [
     name: 'NotFound',
     component: NotFound,
     meta: { title: '页面未找到', layout: 'guest', requiresAuth: false }
+  },
+  // ====== 管理后台 - 概览页 ======
+  {
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: () => import('@/views/admin/UsersOverview.vue'),
+    meta: { title: '用户管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
+  },
+  {
+    path: '/admin/content',
+    name: 'AdminContent',
+    component: () => import('@/views/admin/ContentOverview.vue'),
+    meta: { title: '内容管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
+  },
+  {
+    path: '/admin/ops',
+    name: 'AdminOps',
+    component: () => import('@/views/admin/OpsOverview.vue'),
+    meta: { title: '运维管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
+  },
+  // ====== 管理后台 - 子页面 ======
+  // ——— 用户管理子页面 ———
+  {
+    path: '/admin/users/list',
+    name: 'AdminUsersList',
+    component: () => import('@/views/admin/Users.vue'),
+    meta: {
+      title: '用户列表',
+      layout: 'guest',
+      console: true,
+      requiresAuth: true,
+      level: 0,
+      permission: 'auth:users:list'
+    }
+  },
+  // ——— 内容管理子页面 ———
+  {
+    path: '/admin/content/moderation',
+    name: 'AdminContentModeration',
+    component: () => import('@/views/admin/ModerationPosts.vue'),
+    meta: {
+      title: '帖子审核',
+      layout: 'guest',
+      console: true,
+      requiresAuth: true,
+      level: 0,
+      permission: 'blog:posts:moderate'
+    }
+  },
+  // ——— 运维管理子页面 ———
+  {
+    path: '/admin/ops/system',
+    name: 'AdminOpsSystem',
+    component: () => import('@/views/admin/SystemMonitor.vue'),
+    meta: {
+      title: '系统监控',
+      layout: 'guest',
+      console: true,
+      requiresAuth: true,
+      level: 0,
+      permission: 'system:read'
+    }
+  },
+  {
+    path: '/admin/ops/storage',
+    name: 'AdminOpsStorage',
+    component: () => import('@/views/admin/QuotaManagement.vue'),
+    meta: { title: 'OSS 存储管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
+  },
+  {
+    path: '/admin/ops/config',
+    name: 'AdminOpsConfig',
+    component: () => import('@/views/admin/ResourceAdmin.vue'),
+    meta: {
+      title: '运行时配置',
+      layout: 'guest',
+      console: true,
+      requiresAuth: true,
+      level: 0,
+      permission: 'assets:read'
+    }
+  },
+  // ====== 托管任务 ======
+  {
+    path: '/tasks',
+    name: 'Tasks',
+    component: () => import('@/views/Tasks.vue'),
+    meta: { title: '托管任务', layout: 'guest', requiresAuth: true }
+  },
+  {
+    path: '/tasks/crawler',
+    name: 'TasksCrawler',
+    component: () => import('@/views/Tasks.vue'),
+    meta: { title: '爬虫管理', layout: 'guest', requiresAuth: true }
+  },
+  {
+    path: '/tasks/cloud',
+    name: 'TasksCloud',
+    component: () => import('@/views/Tasks.vue'),
+    meta: { title: '云训练管理', layout: 'guest', requiresAuth: true }
   },
   {
     path: '/:pathMatch(.*)*',

@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NIcon } from 'naive-ui'
 import {
   AppsOutline,
-  DocumentTextOutline,
-  CreateOutline,
   PersonOutline,
-  InformationCircleOutline,
+  DocumentTextOutline,
   SettingsOutline,
   ArrowBackOutline,
-  ChevronDownOutline,
-  MenuOutline
+  MenuOutline,
+  AddOutline,
+  CloseOutline
 } from '@vicons/ionicons5'
 import { useUserStore } from '@/store/modules/user'
 
@@ -21,42 +20,46 @@ const userStore = useUserStore()
 
 const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
 const showMobileMenu = ref(false)
-const collapsedGroups = ref<Set<string>>(new Set())
 
-const navGroups = computed(() => {
-  const groups = [
-    {
-      label: '',
-      items: [{ label: '控制台首页', icon: AppsOutline, to: '/console' }]
-    },
-    {
-      label: '创作',
-      items: [
-        { label: '我的文章', icon: DocumentTextOutline, to: '/posts' },
-        { label: '写文章', icon: CreateOutline, to: '/posts/new' },
-        { label: '创作者看板', icon: InformationCircleOutline, to: '/creator' }
-      ]
-    }
-  ]
+// 管理组菜单
+const adminGroups = [
+  { label: '用户管理', icon: PersonOutline, to: '/admin/users' },
+  { label: '内容管理', icon: DocumentTextOutline, to: '/admin/content' },
+  { label: '运维管理', icon: SettingsOutline, to: '/admin/ops' }
+]
 
-  if (isAdmin.value) {
-    groups.push({
-      label: '管理',
-      items: [
-        { label: '用户管理', icon: PersonOutline, to: '/admin/users' },
-        { label: '系统监控', icon: SettingsOutline, to: '/admin/system' },
-        { label: 'OSS 存储', icon: DocumentTextOutline, to: '/admin/oss' },
-        { label: '配置管理', icon: SettingsOutline, to: '/admin/config' },
-        { label: '爬虫管理', icon: InformationCircleOutline, to: '/admin/crawler' },
-        { label: '资产目录', icon: AppsOutline, to: '/admin/assets' },
-        { label: '帖子管理', icon: DocumentTextOutline, to: '/admin/moderation/posts' },
-        { label: '插件管理', icon: AppsOutline, to: '/admin/plugins' }
-      ]
-    })
+// 快捷方式
+const SHORTCUTS_KEY = 'console_shortcuts'
+const shortcuts = ref<Array<{ label: string; to: string; icon?: string }>>([])
+
+const loadShortcuts = () => {
+  try {
+    const data = localStorage.getItem(SHORTCUTS_KEY)
+    shortcuts.value = data ? JSON.parse(data) : []
+  } catch {
+    shortcuts.value = []
   }
+}
 
-  return groups
-})
+const saveShortcuts = () => {
+  localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(shortcuts.value))
+}
+
+const addShortcut = () => {
+  const label = prompt('请输入快捷方式名称：')
+  if (!label) return
+  const to = prompt('请输入路由路径：')
+  if (!to) return
+  // 防重复
+  if (shortcuts.value.some((s) => s.to === to)) return
+  shortcuts.value.push({ label, to })
+  saveShortcuts()
+}
+
+const removeShortcut = (index: number) => {
+  shortcuts.value.splice(index, 1)
+  saveShortcuts()
+}
 
 const isActive = (path: string) => route.path === path
 
@@ -64,49 +67,73 @@ const goBack = () => {
   router.push('/console')
 }
 
-const toggleGroup = (label: string) => {
-  const next = new Set(collapsedGroups.value)
-  if (next.has(label)) {
-    next.delete(label)
-  } else {
-    next.add(label)
-  }
-  collapsedGroups.value = next
-}
+// 初始化加载
+loadShortcuts()
 
-const isGroupCollapsed = (label: string) => collapsedGroups.value.has(label)
+// 路径变化时重新加载（跨页面时可更新状态）
+watch(() => route.path, loadShortcuts)
 </script>
 
 <template>
   <div class="console-shell">
     <div v-if="showMobileMenu" class="mobile-overlay" @click="showMobileMenu = false" />
     <aside class="console-sidebar" :class="{ 'sidebar-mobile-visible': showMobileMenu }">
-      <div class="sidebar-header">
-        <span class="sidebar-title">导航</span>
-      </div>
       <nav class="sidebar-nav">
-        <template v-for="group in navGroups" :key="group.label">
-          <div
-            v-if="group.label"
-            class="group-label"
-            :class="{ collapsed: isGroupCollapsed(group.label) }"
-            @click="toggleGroup(group.label)"
-          >
-            <span>{{ group.label }}</span>
-            <NIcon size="14" class="group-chevron"><ChevronDownOutline /></NIcon>
-          </div>
+        <!-- 控制台首页 -->
+        <button
+          class="nav-btn"
+          :class="{ active: isActive('/console') }"
+          @click="router.push('/console')"
+        >
+          <NIcon size="18"><AppsOutline /></NIcon>
+          <span>控制台首页</span>
+        </button>
+
+        <div class="section-divider"></div>
+
+        <!-- 管理组（仅管理员） -->
+        <template v-if="isAdmin">
           <button
-            v-for="item in group.items"
-            :key="item.to"
-            v-show="group.label ? !isGroupCollapsed(group.label) : true"
+            v-for="group in adminGroups"
+            :key="group.to"
             class="nav-btn"
-            :class="{ active: isActive(item.to) }"
-            @click="router.push(item.to)"
+            :class="{ active: isActive(group.to) }"
+            @click="router.push(group.to)"
           >
-            <NIcon size="18"><component :is="item.icon" /></NIcon>
-            <span>{{ item.label }}</span>
+            <NIcon size="18"><component :is="group.icon" /></NIcon>
+            <span>{{ group.label }}</span>
           </button>
+
+          <div class="section-divider"></div>
         </template>
+
+        <!-- 快捷访问组 -->
+        <div class="shortcuts-header">
+          <span class="shortcuts-title">快捷访问</span>
+        </div>
+        <template v-if="shortcuts.length > 0">
+          <div v-for="(shortcut, index) in shortcuts" :key="shortcut.to" class="shortcut-item">
+            <button
+              class="nav-btn shortcut-btn"
+              :class="{ active: isActive(shortcut.to) }"
+              @click="router.push(shortcut.to)"
+            >
+              <NIcon size="18"><AppsOutline /></NIcon>
+              <span>{{ shortcut.label }}</span>
+            </button>
+            <button
+              class="shortcut-remove"
+              @click.stop="removeShortcut(index)"
+              title="移除快捷方式"
+            >
+              <NIcon size="14"><CloseOutline /></NIcon>
+            </button>
+          </div>
+        </template>
+        <button class="nav-btn add-shortcut-btn" @click="addShortcut">
+          <NIcon size="18"><AddOutline /></NIcon>
+          <span>添加快捷方式</span>
+        </button>
       </nav>
     </aside>
     <main class="console-content">
@@ -141,50 +168,10 @@ const isGroupCollapsed = (label: string) => collapsedGroups.value.has(label)
   padding: 12px;
 }
 
-.sidebar-header {
-  padding: 4px 8px 10px;
-  border-bottom: 1px solid rgba(130, 95, 65, 0.1);
-  margin-bottom: 6px;
-}
-
-.sidebar-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  letter-spacing: 0.08em;
-}
-
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.group-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  padding: 10px 10px 4px;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.2s;
-}
-
-.group-label:hover {
-  color: var(--text-secondary);
-}
-
-.group-chevron {
-  transition: transform 0.2s ease;
-  color: var(--text-quaternary);
-}
-
-.group-label.collapsed .group-chevron {
-  transform: rotate(-90deg);
 }
 
 .nav-btn {
@@ -212,6 +199,73 @@ const isGroupCollapsed = (label: string) => collapsedGroups.value.has(label)
   background: rgba(154, 90, 47, 0.12);
   color: var(--primary-color);
   font-weight: 600;
+}
+
+/* 分隔线 */
+.section-divider {
+  height: 1px;
+  background: rgba(130, 95, 65, 0.12);
+  margin: 8px 8px;
+}
+
+/* 快捷访问组标签 */
+.shortcuts-header {
+  padding: 4px 8px 10px;
+  border-bottom: 1px solid rgba(130, 95, 65, 0.1);
+  margin-bottom: 6px;
+  margin-top: 4px;
+}
+
+.shortcuts-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+}
+
+/* 快捷方式项容器 */
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.shortcut-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 快捷方式删除按钮 */
+.shortcut-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-quaternary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.shortcut-remove:hover {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.08);
+}
+
+/* 添加快捷方式按钮 */
+.add-shortcut-btn {
+  border: 1px dashed rgba(130, 95, 65, 0.2);
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.add-shortcut-btn:hover {
+  border-color: var(--primary-color);
+  opacity: 1;
 }
 
 .console-content {
