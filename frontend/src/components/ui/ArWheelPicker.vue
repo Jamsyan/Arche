@@ -25,8 +25,8 @@ const emit = defineEmits<{
 
 const viewportRef = ref<HTMLElement | null>(null)
 
-// 每项宽度 = 36px + 4px gap
-const ITEM_STEP = 40
+// 每项宽度 = 36px + 6px gap
+const ITEM_STEP = 42
 
 // 3 份复制实现视觉循环滚动
 const displayOptions = computed(() => [...props.options, ...props.options, ...props.options])
@@ -36,23 +36,23 @@ let offsetX = 0
 let velocity = 0
 let physicsRaf: number | null = null
 
-// 物理常量
-const FRICTION = 0.88 // 每帧速度衰减
-const VELOCITY_THRESHOLD = 0.3 // 停止阈值
-const WHEEL_IMPULSE = 18 // 滚轮每 tick 施加的速度
+// 物理常量（滚轮 1 tick 精确移动 1 项 = 42px）
+const FRICTION = 0.88
+const VELOCITY_THRESHOLD = 0.3
+const WHEEL_IMPULSE = 5 // 单 tick 速度 = 42px * (1 - 0.88)
 const DRAG_VELOCITY_SCALE = 1.2 // 拖拽释放后速度倍率
 const DRAG_VELOCITY_THRESHOLD = 2 // 拖拽触发惯性的最小速度
 
 // ── 内部变更守卫 ──
+// 防止 watch 回写 offsetX 与物理循环冲突
+// 每次 emit 后锁定一帧（~16ms），下一帧自动释放
 let internalChange = false
-let changeTimer: ReturnType<typeof setTimeout> | null = null
 
 const markInternal = () => {
   internalChange = true
-  if (changeTimer) clearTimeout(changeTimer)
-  changeTimer = setTimeout(() => {
+  requestAnimationFrame(() => {
     internalChange = false
-  }, 100)
+  })
 }
 
 // ── 工具函数 ──
@@ -127,8 +127,8 @@ const stopPhysics = () => {
 const startPhysics = () => {
   if (physicsRaf) return
   const step = () => {
-    const nearZero = Math.abs(velocity) < VELOCITY_THRESHOLD
-    if (nearZero && isAtGrid()) {
+    // 速度归零 → 立即吸附到最近的网格位置
+    if (Math.abs(velocity) < VELOCITY_THRESHOLD) {
       velocity = 0
       physicsRaf = null
       snapToClosest()
@@ -137,10 +137,9 @@ const startPhysics = () => {
 
     offsetX += velocity
     velocity *= FRICTION
-    // 防止微小速度震荡
-    if (Math.abs(velocity) < VELOCITY_THRESHOLD && !nearZero) {
-      velocity = 0
-    }
+
+    // 每帧实时选中居中项（guard 下一帧释放，不阻塞连续滚动）
+    emitCurrentValue()
 
     applyOffset()
     checkBoundary()
@@ -148,12 +147,6 @@ const startPhysics = () => {
     physicsRaf = requestAnimationFrame(step)
   }
   step()
-}
-
-const isAtGrid = (): boolean => {
-  const vi = getVirtualIndex()
-  const snapOffset = getOffsetForIndex(vi)
-  return Math.abs(offsetX - snapOffset) < 0.5
 }
 
 // ── 滚轮事件 ──
@@ -234,6 +227,13 @@ const updateTransforms = () => {
     const opacity = 1 - t * 0.55
     item.style.transform = `scale(${Math.max(scale, 0.72)})`
     item.style.opacity = String(Math.max(opacity, 0.45))
+    // 3D 圆柱阴影：越靠近边缘阴影越深，模拟曲面曲率
+    if (t > 0.01) {
+      const blur = 2 + t * 8
+      item.style.boxShadow = `0 ${Math.ceil(blur * 0.4)}px ${Math.ceil(blur)}px rgba(0,0,0,${0.06 + t * 0.18})`
+    } else {
+      item.style.boxShadow = ''
+    }
   })
 }
 
@@ -302,11 +302,12 @@ watch(
 <style scoped>
 .ar-wheel-picker {
   position: relative;
-  width: 170px;
-  height: 36px;
+  width: 190px;
+  height: 40px;
 }
 
 .ar-wheel-picker__viewport {
+  position: relative;
   height: 100%;
   overflow: hidden;
   cursor: grab;
@@ -318,16 +319,37 @@ watch(
   cursor: grabbing;
 }
 
+/* 边缘渐变遮罩：模拟圆柱曲面的光线衰减，产生纵深 */
+.ar-wheel-picker__viewport::before,
+.ar-wheel-picker__viewport::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  z-index: 2;
+  pointer-events: none;
+}
+.ar-wheel-picker__viewport::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg-color), transparent);
+}
+.ar-wheel-picker__viewport::after {
+  right: 0;
+  background: linear-gradient(to left, var(--bg-color), transparent);
+}
+
 .ar-wheel-picker__track {
   display: flex;
   align-items: center;
   height: 100%;
-  gap: 4px;
+  gap: 6px;
   will-change: transform;
 }
 
 .ar-wheel-picker__item {
   flex-shrink: 0;
+  box-sizing: border-box;
   width: 36px;
   height: 36px;
   border-radius: 50%;
