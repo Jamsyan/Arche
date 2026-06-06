@@ -2,6 +2,7 @@
 
 从请求头提取 Bearer token，解析后注入 request.state.user。
 对公开路由（/api/auth/register, /api/auth/login）跳过认证。
+同时自动刷新在线会话的 last_seen_at（隐式心跳）。
 """
 
 from __future__ import annotations
@@ -36,6 +37,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.secret_key = secret_key
 
+    def _refresh_session(self, request: Request, user_id: str) -> None:
+        """刷新用户的会话时间（隐式心跳）。"""
+        try:
+            container = request.app.state.container
+            if container.is_available("session_tracker"):
+                tracker = container.get("session_tracker")
+                tracker.refresh(user_id)
+        except Exception:
+            pass
+
     async def _handle_mock_token(
         self, request: Request, call_next, token: str
     ) -> Response:
@@ -68,7 +79,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             },
         }
 
-        request.state.user = mock_users.get(role, mock_users["user"])
+        user = mock_users.get(role, mock_users["user"])
+        request.state.user = user
+        self._refresh_session(request, user["id"])
         return await call_next(request)
 
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -98,6 +111,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     }
                 except Exception:
                     pass  # token 无效，当作匿名用户
+                else:
+                    self._refresh_session(request, payload["sub"])
             return await call_next(request)
 
         # 提取 Authorization header
@@ -140,5 +155,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "level": payload["level"],
             "blog_quality_level": payload.get("blog_quality_level", 0),
         }
+
+        # 刷新在线会话（隐式心跳）
+        self._refresh_session(request, payload["sub"])
 
         return await call_next(request)

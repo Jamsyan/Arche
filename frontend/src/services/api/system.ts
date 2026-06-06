@@ -1,4 +1,4 @@
-import { get, type RequestConfig } from '../request'
+import { get, post, type RequestConfig } from '../request'
 import type { ApiListParams, BackendPaginated } from './types/common'
 import { normalizePaginated } from './types/common'
 
@@ -130,3 +130,71 @@ export const getSystemHistoryApi = (params?: ApiListParams, config?: RequestConf
 
 export const getProcessesApi = (params?: ProcessQueryParams, config?: RequestConfig) =>
   get<ProcessListResponse>('/system/processes', params, config).then((r) => r.items || [])
+
+// ── Dashboard 聚合 API ──
+
+export interface DashboardOnlineStats {
+  online_count: number
+  peak_online: number
+  peak_time: number
+  timeout_seconds: number
+}
+
+export interface DashboardRequestStats {
+  current_qps: number
+  p99_latency_ms: number
+  p50_latency_ms: number
+  today_requests: number
+  total_requests: number
+  total_errors: number
+  error_rate: number
+}
+
+export interface DashboardBlogStats {
+  total_posts: number
+  published_posts: number
+  pending_posts: number
+  total_views: number
+  total_comments: number
+  total_likes: number
+  today_posts: number
+}
+
+export interface DashboardSystemSummary {
+  cpu_percent: number
+  memory_percent: number
+  disk_percent: number
+  memory_used_gb: number
+  memory_total_gb: number
+  disk_used_gb: number
+  disk_total_gb: number
+  uptime: number
+  process_count: number
+  net_sent: number
+  net_recv: number
+}
+
+export interface QpsHistoryPoint {
+  ts: number
+  count: number
+  qps: number
+}
+
+export interface DashboardData {
+  system?: DashboardSystemSummary
+  online?: DashboardOnlineStats
+  requests?: DashboardRequestStats
+  qps_history?: QpsHistoryPoint[]
+  blog?: DashboardBlogStats
+}
+
+export const getDashboardApi = (config?: RequestConfig) =>
+  get<DashboardData>('/system/dashboard', undefined, config)
+
+// ── 在线/离线 API ──
+
+export const reportOnlineApi = (config?: RequestConfig) =>
+  post<void>('/system/online', undefined, config)
+
+export const reportOfflineApi = (config?: RequestConfig) =>
+  post<void>('/system/offline', undefined, config)

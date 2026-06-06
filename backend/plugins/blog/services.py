@@ -1368,6 +1368,70 @@ class BlogService:
                 "page_size": page_size,
             }
 
+    # ── Dashboard 统计 ──
+
+    async def get_stats(self) -> dict:
+        """获取博客相关统计（用于控制台 Dashboard）。"""
+        async with self.session_factory() as session:
+            # 帖子总数
+            total_posts_result = await session.execute(
+                select(func.count()).select_from(BlogPost)
+            )
+            total_posts = total_posts_result.scalar_one()
+
+            # 发布的帖子总数
+            published_result = await session.execute(
+                select(func.count()).select_from(BlogPost).where(BlogPost.status == "published")
+            )
+            published_posts = published_result.scalar_one()
+
+            # 待审核帖子数
+            pending_result = await session.execute(
+                select(func.count()).select_from(BlogPost).where(BlogPost.status == "pending")
+            )
+            pending_posts = pending_result.scalar_one()
+
+            # 总浏览量
+            views_result = await session.execute(
+                select(func.coalesce(func.sum(BlogPost.views), 0))
+            )
+            total_views = views_result.scalar_one()
+
+            # 总评论数
+            comments_result = await session.execute(
+                select(func.count()).select_from(BlogComment)
+            )
+            total_comments = comments_result.scalar_one()
+
+            # 总点赞数
+            likes_result = await session.execute(
+                select(func.count()).select_from(BlogLike)
+            )
+            total_likes = likes_result.scalar_one()
+
+            # 今日新增帖子
+            from datetime import datetime, timezone
+
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            today_posts_result = await session.execute(
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.created_at >= today_start)
+            )
+            today_posts = today_posts_result.scalar_one()
+
+        return {
+            "total_posts": total_posts,
+            "published_posts": published_posts,
+            "pending_posts": pending_posts,
+            "total_views": total_views,
+            "total_comments": total_comments,
+            "total_likes": total_likes,
+            "today_posts": today_posts,
+        }
+
     # --- 举报 ---
 
     async def create_report(

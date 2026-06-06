@@ -69,18 +69,6 @@ export const staticRoutes: RouteRecordRaw[] = [
     meta: { title: 'GitHub', layout: 'guest', requiresAuth: false }
   },
   {
-    path: '/console',
-    name: 'Console',
-    component: () => import('@/views/user/Console.vue'),
-    meta: {
-      title: '控制台',
-      layout: 'guest',
-      requiresAuth: true,
-      console: true,
-      level: 0 // 仅管理员
-    }
-  },
-  {
     path: '/blog/:slug',
     name: 'PostDetail',
     component: PostDetail,
@@ -153,92 +141,74 @@ export const staticRoutes: RouteRecordRaw[] = [
     component: NotFound,
     meta: { title: '页面未找到', layout: 'guest', requiresAuth: false }
   },
-  // ====== 管理后台 - 概览页 ======
+  // ====== 控制台 & 管理后台（嵌套路由，侧边栏不销毁） ======
   {
-    path: '/admin/users',
-    name: 'AdminUsers',
-    component: () => import('@/views/admin/UsersOverview.vue'),
-    meta: { title: '用户管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
-  },
-  {
-    path: '/admin/content',
-    name: 'AdminContent',
-    component: () => import('@/views/admin/ContentOverview.vue'),
-    meta: { title: '内容管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
-  },
-  {
-    path: '/admin/ops',
-    name: 'AdminOps',
-    component: () => import('@/views/admin/OpsOverview.vue'),
-    meta: { title: '运维管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
-  },
-  // ====== 管理后台 - 子页面 ======
-  // ——— 用户管理子页面 ———
-  {
-    path: '/admin/users/list',
-    name: 'AdminUsersList',
-    component: () => import('@/views/admin/Users.vue'),
-    meta: {
-      title: '用户列表',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: 'auth:users:list'
-    }
-  },
-  {
-    path: '/admin/users/assets',
-    name: 'AdminUsersAssets',
-    component: () => import('@/views/admin/AssetsOverview.vue'),
-    meta: { title: '资产管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
-  },
-  // ——— 内容管理子页面 ———
-  {
-    path: '/admin/content/moderation',
-    name: 'AdminContentModeration',
-    component: () => import('@/views/admin/ModerationPosts.vue'),
-    meta: {
-      title: '帖子审核',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: 'blog:posts:moderate'
-    }
-  },
-  // ——— 运维管理子页面 ———
-  {
-    path: '/admin/ops/system',
-    name: 'AdminOpsSystem',
-    component: () => import('@/views/admin/SystemMonitor.vue'),
-    meta: {
-      title: '系统监控',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: 'system:read'
-    }
-  },
-  {
-    path: '/admin/ops/storage',
-    name: 'AdminOpsStorage',
-    component: () => import('@/views/admin/QuotaManagement.vue'),
-    meta: { title: 'OSS 存储管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
-  },
-  {
-    path: '/admin/ops/config',
-    name: 'AdminOpsConfig',
-    component: () => import('@/views/admin/ResourceAdmin.vue'),
-    meta: {
-      title: '运行时配置',
-      layout: 'guest',
-      console: true,
-      requiresAuth: true,
-      level: 0,
-      permission: 'assets:read'
-    }
+    path: '/console',
+    component: () => import('@/layouts/ConsoleLayout.vue'),
+    meta: { layout: 'guest', requiresAuth: true, level: 0 },
+    children: [
+      {
+        path: '',
+        name: 'Console',
+        component: () => import('@/views/user/Console.vue'),
+        meta: { title: '控制台首页' }
+      },
+      {
+        path: '/admin/users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/UsersOverview.vue'),
+        meta: { title: '用户管理' }
+      },
+      {
+        path: '/admin/content',
+        name: 'AdminContent',
+        component: () => import('@/views/admin/ContentOverview.vue'),
+        meta: { title: '内容管理' }
+      },
+      {
+        path: '/admin/ops',
+        name: 'AdminOps',
+        component: () => import('@/views/admin/OpsOverview.vue'),
+        meta: { title: '运维管理' }
+      },
+      // 子页面
+      {
+        path: '/admin/users/list',
+        name: 'AdminUsersList',
+        component: () => import('@/views/admin/Users.vue'),
+        meta: { title: '用户列表', permission: 'auth:users:list' }
+      },
+      {
+        path: '/admin/users/assets',
+        name: 'AdminUsersAssets',
+        component: () => import('@/views/admin/AssetsOverview.vue'),
+        meta: { title: '资产管理' }
+      },
+      {
+        path: '/admin/content/moderation',
+        name: 'AdminContentModeration',
+        component: () => import('@/views/admin/ModerationPosts.vue'),
+        meta: { title: '帖子审核', permission: 'blog:posts:moderate' }
+      },
+      {
+        path: '/admin/ops/system',
+        name: 'AdminOpsSystem',
+        component: () => import('@/views/admin/SystemMonitor.vue'),
+        meta: { title: '系统监控', permission: 'system:read' }
+      },
+      {
+        path: '/admin/ops/storage',
+        name: 'AdminOpsStorage',
+        component: () => import('@/views/admin/QuotaManagement.vue'),
+        meta: { title: 'OSS 存储管理' }
+      },
+      {
+        path: '/admin/ops/config',
+        name: 'AdminOpsConfig',
+        component: () => import('@/views/admin/ResourceAdmin.vue'),
+        meta: { title: '运行时配置', permission: 'assets:read' }
+      }
+    ]
   },
   // ====== 托管任务 ======
   {

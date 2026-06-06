@@ -35,6 +35,10 @@ class SystemMonitorPlugin(BasePlugin):
 
     def register_services(self, container: "ServiceContainer") -> None:
         container.register("system_monitor", lambda c: SystemMonitorService(c))
+        # 注册 API 请求统计追踪器
+        from backend.plugins.system_monitor.stats import RequestStatsTracker
+
+        container.register("request_stats", lambda c: RequestStatsTracker(c))
 
     def on_startup(self) -> None:
         """启动系统监控采集任务。"""

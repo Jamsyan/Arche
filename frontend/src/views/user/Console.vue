@@ -2,121 +2,207 @@
   <div class="console-dashboard">
     <div class="page-header">
       <h1 class="page-title">控制台</h1>
-      <p class="page-desc">总览站点核心数据</p>
+      <p class="page-desc">站点运行状态概览</p>
     </div>
 
-    <!-- 指标卡片 -->
-    <div class="metric-grid">
-      <div v-for="m in metrics" :key="m.label" class="metric-card">
-        <div class="metric-icon" :class="m.colorClass">
-          <NIcon size="22"><component :is="m.icon" /></NIcon>
-        </div>
-        <div class="metric-body">
-          <span class="metric-value">{{ m.value }}</span>
-          <span class="metric-label">{{ m.label }}</span>
-          <span class="metric-change" :class="m.changeDir">{{ m.change }}</span>
-        </div>
-      </div>
-    </div>
+    <div class="dashboard-layout">
+      <!-- ===== 左栏（主内容，可滚动） ===== -->
+      <div class="left-column">
+        <!-- 通知/静默区 -->
+        <div class="notice-area">
+          <!-- 有通知时 -->
+          <transition-group
+            v-if="notifications.length > 0"
+            name="notice-slide"
+            tag="div"
+            class="notice-list"
+          >
+            <div v-for="n in notifications" :key="n.id" class="notice-card" :class="n.type">
+              <span class="notice-icon">{{ n.icon }}</span>
+              <div class="notice-body">
+                <span class="notice-title">{{ n.title }}</span>
+                <span class="notice-desc">{{ n.desc }}</span>
+              </div>
+              <span class="notice-time">{{ n.time }}</span>
+            </div>
+          </transition-group>
 
-    <!-- 增长趋势图 -->
-    <div class="chart-section">
-      <div class="chart-header">
-        <h2 class="section-title">内容增长趋势</h2>
-        <div class="chart-tabs">
-          <button
-            :class="['chart-tab', { active: chartRange === '7d' }]"
-            @click="chartRange = '7d'"
-          >
-            近7天
-          </button>
-          <button
-            :class="['chart-tab', { active: chartRange === '30d' }]"
-            @click="chartRange = '30d'"
-          >
-            近30天
-          </button>
-        </div>
-      </div>
-      <div class="chart-body">
-        <svg viewBox="0 0 600 200" class="trend-chart">
-          <!-- 网格线 -->
-          <line
-            v-for="i in 4"
-            :key="'g' + i"
-            x1="40"
-            :y1="i * 40"
-            x2="580"
-            :y2="i * 40"
-            stroke="var(--border-color)"
-            stroke-width="0.5"
-          />
-          <!-- Y轴标签 -->
-          <text
-            v-for="(label, i) in yLabels"
-            :key="'yl' + i"
-            x="35"
-            :y="200 - i * 40 + 4"
-            text-anchor="end"
-            class="chart-label"
-          >
-            {{ label }}
-          </text>
-          <!-- 折线 -->
-          <path
-            :d="chartPath"
-            fill="none"
-            stroke="var(--primary-color)"
-            stroke-width="2.5"
-            stroke-linejoin="round"
-            stroke-linecap="round"
-          />
-          <!-- 数据点 -->
-          <circle
-            v-for="(pt, i) in chartPoints"
-            :key="'pt' + i"
-            :cx="pt.x"
-            :cy="pt.y"
-            r="3.5"
-            fill="var(--primary-color)"
-            stroke="#fff"
-            stroke-width="1.5"
-          />
-          <!-- X轴标签 -->
-          <text
-            v-for="(label, i) in chartXLabels"
-            :key="'xl' + i"
-            :x="chartXPositions[i]"
-            y="192"
-            text-anchor="middle"
-            class="chart-label"
-          >
-            {{ label }}
-          </text>
-        </svg>
-      </div>
-    </div>
-
-    <!-- 系统状态 + 增长率 -->
-    <div class="bottom-section">
-      <div class="system-panel">
-        <h2 class="section-title">系统状态</h2>
-        <div v-for="sys in systemMetrics" :key="sys.label" class="sys-row">
-          <span class="sys-label">{{ sys.label }}</span>
-          <div class="sys-bar-track">
-            <div
-              class="sys-bar-fill"
-              :style="{ width: sys.percent + '%', background: sys.color }"
-            ></div>
+          <!-- 无通知时——静默概览区 -->
+          <div v-else class="silent-area">
+            <div class="silent-item">
+              <span class="silent-value">{{ dashboard.online?.online_count ?? '--' }}</span>
+              <span class="silent-label">在线用户</span>
+            </div>
+            <div class="silent-divider" />
+            <div class="silent-item">
+              <span class="silent-value">{{ dashboard.requests?.current_qps ?? '--' }}</span>
+              <span class="silent-label">QPS</span>
+            </div>
+            <div class="silent-divider" />
+            <div class="silent-item">
+              <span class="silent-value">{{ formatNumber(dashboard.blog?.total_views ?? 0) }}</span>
+              <span class="silent-label">总浏览量</span>
+            </div>
+            <div class="silent-divider" />
+            <div class="silent-item">
+              <span class="silent-value">{{ formatNumber(dashboard.blog?.total_posts ?? 0) }}</span>
+              <span class="silent-label">帖子总量</span>
+            </div>
           </div>
-          <span class="sys-percent">{{ sys.percent }}%</span>
+        </div>
+
+        <!-- 曝光率增长趋势（贝塞尔曲线） -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h2 class="card-title">曝光率增长趋势</h2>
+            <div class="chart-tabs">
+              <button
+                :class="['chart-tab', { active: chartRange === '7d' }]"
+                @click="chartRange = '7d'"
+              >
+                近7天
+              </button>
+              <button
+                :class="['chart-tab', { active: chartRange === '30d' }]"
+                @click="chartRange = '30d'"
+              >
+                近30天
+              </button>
+            </div>
+          </div>
+          <div class="chart-body">
+            <svg viewBox="0 0 600 240" class="trend-chart">
+              <!-- 网格线 -->
+              <line
+                v-for="i in 4"
+                :key="'g' + i"
+                x1="45"
+                :y1="i * 48"
+                x2="580"
+                :y2="i * 48"
+                stroke="var(--border-color)"
+                stroke-width="0.5"
+              />
+              <!-- Y 轴标签 -->
+              <text
+                v-for="(label, i) in yLabels"
+                :key="'yl' + i"
+                x="40"
+                :y="240 - i * 48 + 4"
+                text-anchor="end"
+                class="chart-label"
+              >
+                {{ label }}
+              </text>
+              <!-- 贝塞尔曲线 -->
+              <path
+                v-if="bezierPath"
+                :d="bezierPath"
+                fill="none"
+                stroke="var(--primary-color)"
+                stroke-width="2.5"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+              />
+              <!-- 填充区域 -->
+              <path v-if="fillPath" :d="fillPath" fill="url(#gradient)" opacity="0.15" />
+              <!-- 渐变定义 -->
+              <defs>
+                <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--primary-color)" />
+                  <stop offset="100%" stop-color="var(--primary-color)" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <!-- 数据点 -->
+              <circle
+                v-for="(pt, i) in chartPoints"
+                :key="'pt' + i"
+                :cx="pt.x"
+                :cy="pt.y"
+                r="3.5"
+                fill="var(--primary-color)"
+                stroke="#fff"
+                stroke-width="1.5"
+              />
+              <!-- X 轴标签 -->
+              <text
+                v-for="(label, i) in chartXLabels"
+                :key="'xl' + i"
+                :x="chartXPositions[i]"
+                y="232"
+                text-anchor="middle"
+                class="chart-label"
+              >
+                {{ label }}
+              </text>
+            </svg>
+          </div>
         </div>
       </div>
-      <div class="growth-panel">
-        <h2 class="section-title">增长率对比</h2>
-        <div v-for="g in growthRates" :key="g.label" class="growth-row">
-          <span class="growth-label">{{ g.label }}</span>
-          <span class="growth-value" :class="g.dir">{{ g.value }}</span>
+
+      <!-- ===== 右栏（固定信息面板） ===== -->
+      <div class="right-column">
+        <!-- 系统运行状态 -->
+        <div class="system-panel">
+          <h2 class="card-title">系统运行状态</h2>
+          <div class="sys-stats">
+            <div class="sys-stat-row">
+              <span class="sys-stat-label">运行时间</span>
+              <span class="sys-stat-value">{{ formatUptime(dashboard.system?.uptime) }}</span>
+            </div>
+            <div class="sys-stat-row">
+              <span class="sys-stat-label">进程数</span>
+              <span class="sys-stat-value">{{ dashboard.system?.process_count ?? '--' }}</span>
+            </div>
+          </div>
+          <div v-for="s in systemBars" :key="s.label" class="sys-bar-row">
+            <span class="sys-bar-label">{{ s.label }}</span>
+            <div class="sys-bar-track">
+              <div class="sys-bar-fill" :style="{ width: s.percent + '%', background: s.color }" />
+            </div>
+            <span class="sys-bar-pct">{{ s.percent }}%</span>
+          </div>
+        </div>
+
+        <!-- 吞吐量趋势（QPS） -->
+        <div class="qps-panel">
+          <div class="qps-header">
+            <h2 class="card-title">吞吐量趋势</h2>
+            <div class="qps-meta">
+              <span class="qps-meta-item"
+                >P99 {{ dashboard.requests?.p99_latency_ms ?? '--' }}ms</span
+              >
+              <span class="qps-meta-item"
+                >P50 {{ dashboard.requests?.p50_latency_ms ?? '--' }}ms</span
+              >
+            </div>
+          </div>
+          <svg viewBox="0 0 300 120" class="qps-chart">
+            <line
+              v-for="i in 2"
+              :key="'qg' + i"
+              x1="35"
+              :y1="i * 45"
+              x2="285"
+              :y2="i * 45"
+              stroke="var(--border-color)"
+              stroke-width="0.5"
+            />
+            <rect
+              v-for="(pt, i) in qpsBars"
+              :key="'qb' + i"
+              :x="pt.x"
+              :y="pt.y"
+              :width="pt.w"
+              :height="pt.h"
+              fill="var(--primary-color)"
+              rx="2"
+              opacity="0.7"
+            />
+            <text x="30" y="14" text-anchor="end" class="chart-label">
+              {{ qpsYMax }}
+            </text>
+          </svg>
         </div>
       </div>
     </div>
@@ -124,47 +210,124 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { NIcon } from 'naive-ui'
-import { PulseOutline, DocumentTextOutline, PeopleOutline, ServerOutline } from '@vicons/ionicons5'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { getDashboardApi, type DashboardData } from '@/services/api/system'
 
-// ── 指标卡片 ──
-const metrics = [
-  {
-    label: '网站留存',
-    value: '76.3%',
-    change: '+2.1% 较昨日',
-    changeDir: 'up',
-    icon: PulseOutline,
-    colorClass: 'icon-warm'
-  },
-  {
-    label: '帖子总量',
-    value: '12,456',
-    change: '+89 今日新增',
-    changeDir: 'up',
-    icon: DocumentTextOutline,
-    colorClass: 'icon-blue'
-  },
-  {
-    label: '当前在线',
-    value: '23',
-    change: '峰值 156',
-    changeDir: 'up',
-    icon: PeopleOutline,
-    colorClass: 'icon-green'
-  },
-  {
-    label: 'API 请求',
-    value: '1,234/min',
-    change: '12.4k 今日总计',
-    changeDir: 'up',
-    icon: ServerOutline,
-    colorClass: 'icon-purple'
+// ── Dashboard 数据 ──
+const dashboard = ref<DashboardData>({})
+const loading = ref(true)
+
+// ── 通知 ──
+interface Notification {
+  id: string
+  type: 'warning' | 'danger' | 'info'
+  icon: string
+  title: string
+  desc: string
+  time: string
+}
+
+const notifications = ref<Notification[]>([])
+
+function buildNotifications(data: DashboardData): Notification[] {
+  const list: Notification[] = []
+  const now = new Date()
+
+  // 待审核帖子
+  const pending = data.blog?.pending_posts ?? 0
+  if (pending > 0) {
+    list.push({
+      id: 'pending-posts',
+      type: 'warning',
+      icon: '\u{1F4DD}',
+      title: `待审核帖子 ${pending} 篇`,
+      desc: '内容审核队列有待处理项目',
+      time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    })
   }
-]
 
-// ── 折线图 ──
+  // CPU 高负载
+  if (data.system && (data.system.cpu_percent ?? 0) > 80) {
+    list.push({
+      id: 'cpu-warning',
+      type: 'danger',
+      icon: '\u{1F534}',
+      title: `CPU 负载 ${data.system.cpu_percent}%`,
+      desc: '系统 CPU 使用率超过 80%',
+      time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    })
+  }
+
+  // 磁盘告警
+  if (data.system && (data.system.disk_percent ?? 0) > 85) {
+    list.push({
+      id: 'disk-warning',
+      type: 'danger',
+      icon: '\u{1F4BE}',
+      title: `磁盘使用率 ${data.system.disk_percent}%`,
+      desc: '磁盘即将写满',
+      time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    })
+  }
+
+  return list
+}
+
+// ── 加载数据 ──
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchDashboard() {
+  try {
+    const data = await getDashboardApi()
+    dashboard.value = data
+    notifications.value = buildNotifications(data)
+  } catch {
+    // silent failure
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchDashboard()
+  pollTimer = setInterval(fetchDashboard, 10000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
+
+// ── 工具函数 ──
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
+  return String(n)
+}
+
+function formatUptime(seconds?: number): string {
+  if (!seconds) return '--'
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const parts: string[] = []
+  if (d > 0) parts.push(`${d}d`)
+  if (h > 0) parts.push(`${h}h`)
+  parts.push(`${m}m`)
+  return parts.join(' ')
+}
+
+// ── 系统状态条 ──
+const systemBars = computed(() => {
+  const s = dashboard.value.system
+  if (!s) return []
+  return [
+    { label: 'CPU', percent: s.cpu_percent ?? 0, color: '#9a5a2f' },
+    { label: '内存', percent: s.memory_percent ?? 0, color: '#4f7a57' },
+    { label: '磁盘', percent: s.disk_percent ?? 0, color: '#1890ff' }
+  ]
+})
+
+// ── 增长趋势（曝光量曲线） ──
 const chartRange = ref<'7d' | '30d'>('7d')
 
 const chartData7d = [120, 135, 110, 150, 165, 145, 189]
@@ -179,11 +342,11 @@ const chartLabels = computed(() =>
   chartRange.value === '7d' ? chartLabels7d : Array.from({ length: 30 }, (_, i) => `${i + 1}日`)
 )
 
-const padding = { top: 10, bottom: 25, left: 45, right: 10 }
+const padding = { top: 10, bottom: 30, left: 50, right: 10 }
 const chartW = 600
-const chartH = 200
+const chartH = 240
 
-const yMax = computed(() => Math.max(...chartData.value) * 1.2)
+const yMax = computed(() => Math.max(...chartData.value, 1) * 1.2)
 const yLabels = computed(() => {
   const step = Math.ceil(yMax.value / 4 / 10) * 10
   return [0, step, step * 2, step * 3, step * 4].reverse()
@@ -198,29 +361,60 @@ const chartPoints = computed(() =>
   }))
 )
 
-const chartPath = computed(() => {
-  if (chartPoints.value.length === 0) return ''
-  return chartPoints.value.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-})
-
 const chartXPositions = computed(() => chartPoints.value.map((p) => p.x))
-
 const chartXLabels = computed(() => chartLabels.value)
 
-// ── 系统状态 ──
-const systemMetrics = [
-  { label: 'CPU', percent: 73, color: '#9a5a2f' },
-  { label: '内存', percent: 45, color: '#4f7a57' },
-  { label: '磁盘', percent: 67, color: '#1890ff' },
-  { label: 'OSS', percent: 58, color: '#b98529' }
-]
+// 贝塞尔平滑曲线路径
+function bezierSmooth(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return ''
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
 
-// ── 增长率对比 ──
-const growthRates = [
-  { label: '较昨日', value: '+2.1%', dir: 'up' },
-  { label: '较上周', value: '+8.7%', dir: 'up' },
-  { label: '较上月', value: '+15.3%', dir: 'up' }
-]
+  let d = `M ${points[0].x} ${points[0].y}`
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i]
+    const p1 = points[i + 1]
+    const segLen = (p1.x - p0.x) / 3
+    d += ` C ${p0.x + segLen} ${p0.y}, ${p1.x - segLen} ${p1.y}, ${p1.x} ${p1.y}`
+  }
+  return d
+}
+
+const bezierPath = computed(() => bezierSmooth(chartPoints.value))
+
+const fillPath = computed(() => {
+  if (!bezierPath.value || chartPoints.value.length === 0) return ''
+  const last = chartPoints.value[chartPoints.value.length - 1]
+  const first = chartPoints.value[0]
+  return `${bezierPath.value} L ${last.x} ${chartH - padding.bottom} L ${first.x} ${chartH - padding.bottom} Z`
+})
+
+// ── QPS 柱状图 ──
+const qpsBars = computed(() => {
+  const history = dashboard.value.qps_history ?? []
+  if (history.length === 0) return []
+
+  const qpsValues = history.map((h) => h.qps)
+  const maxQps = Math.max(...qpsValues, 1)
+  const barW = Math.max(4, Math.min(12, 270 / qpsValues.length))
+  const gap = 2
+  const chartHeight = 90
+
+  return qpsValues.map((qps, i) => {
+    const h = (qps / maxQps) * chartHeight
+    return {
+      x: 35 + i * (barW + gap),
+      y: chartHeight - h + 20,
+      w: barW,
+      h
+    }
+  })
+})
+
+const qpsYMax = computed(() => {
+  const values = dashboard.value.qps_history ?? []
+  if (values.length === 0) return 0
+  return Math.ceil(Math.max(...values.map((h) => h.qps)))
+})
 </script>
 
 <style scoped>
@@ -229,7 +423,7 @@ const growthRates = [
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .page-title {
@@ -245,102 +439,169 @@ const growthRates = [
   margin: 0;
 }
 
-/* ── 指标卡片 ── */
-.metric-grid {
+/* ── 左右分栏 ── */
+.dashboard-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: 1fr 280px;
   gap: 16px;
-  margin-bottom: 20px;
+  align-items: start;
 }
 
-.metric-card {
+.left-column {
   display: flex;
-  gap: 14px;
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+}
+
+/* ── 通知/静默区 ── */
+.notice-area {
+  min-height: 60px;
+}
+
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   border-radius: var(--radius-md);
-  padding: 20px;
-  align-items: center;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
 }
 
-.metric-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.notice-card.warning {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.notice-card.danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.notice-card.info {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.notice-icon {
+  font-size: 20px;
   flex-shrink: 0;
 }
 
-.icon-warm {
-  background: rgba(154, 90, 47, 0.1);
-  color: var(--primary-color);
-}
-.icon-blue {
-  background: rgba(24, 144, 255, 0.1);
-  color: #1890ff;
-}
-.icon-green {
-  background: rgba(79, 122, 87, 0.1);
-  color: var(--success-color);
-}
-.icon-purple {
-  background: rgba(114, 46, 209, 0.1);
-  color: #722ed1;
-}
-
-.metric-body {
+.notice-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 
-.metric-value {
+.notice-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notice-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.notice-time {
+  font-size: 11px;
+  color: var(--text-quaternary);
+  flex-shrink: 0;
+}
+
+.notice-slide-enter-active,
+.notice-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.notice-slide-enter-from {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+.notice-slide-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+/* 静默区 */
+.silent-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 16px 20px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.silent-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.silent-value {
   font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
-.metric-label {
+.silent-label {
   font-size: 12px;
   color: var(--text-tertiary);
 }
 
-.metric-change {
-  font-size: 11px;
-  font-weight: 500;
+.silent-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-color);
 }
 
-.metric-change.up {
-  color: var(--success-color);
-}
-.metric-change.down {
-  color: var(--error-color);
-}
-
-/* ── 图表区域 ── */
-.chart-section {
+/* ── 卡片通用 ── */
+.chart-card,
+.system-panel,
+.qps-panel {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 20px;
-  margin-bottom: 20px;
 }
 
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── 图表 ── */
 .chart-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
 }
 
 .chart-tabs {
@@ -385,96 +646,110 @@ const growthRates = [
   font-family: inherit;
 }
 
-/* ── 底部双栏 ── */
-.bottom-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* ── 系统状态 ── */
+.system-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sys-stats {
+  display: flex;
   gap: 16px;
 }
 
-.system-panel,
-.growth-panel {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 20px;
+.sys-stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-/* 系统状态 */
-.sys-row {
+.sys-stat-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.sys-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sys-bar-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
 }
 
-.sys-label {
-  width: 40px;
-  font-size: 13px;
+.sys-bar-label {
+  width: 36px;
+  font-size: 12px;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .sys-bar-track {
   flex: 1;
-  height: 8px;
+  height: 6px;
   background: var(--bg-color);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .sys-bar-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
+  border-radius: 3px;
+  transition: width 0.5s ease;
 }
 
-.sys-percent {
-  width: 36px;
-  font-size: 12px;
+.sys-bar-pct {
+  width: 32px;
+  font-size: 11px;
   color: var(--text-secondary);
   text-align: right;
   flex-shrink: 0;
 }
 
-/* 增长率 */
-.growth-row {
+/* ── QPS ── */
+.qps-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qps-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--divider-color);
 }
 
-.growth-row:last-child {
-  border-bottom: none;
+.qps-meta {
+  display: flex;
+  gap: 8px;
 }
 
-.growth-label {
-  font-size: 13px;
-  color: var(--text-secondary);
+.qps-meta-item {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 2px 6px;
+  background: var(--bg-color);
+  border-radius: var(--radius-sm);
 }
 
-.growth-value {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.growth-value.up {
-  color: var(--success-color);
-}
-.growth-value.down {
-  color: var(--error-color);
+.qps-chart {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* ── 响应式 ── */
-@media (max-width: 768px) {
-  .bottom-section {
+@media (max-width: 900px) {
+  .dashboard-layout {
     grid-template-columns: 1fr;
   }
 
-  .metric-grid {
-    grid-template-columns: 1fr 1fr;
+  .right-column {
+    position: static;
   }
 }
 </style>

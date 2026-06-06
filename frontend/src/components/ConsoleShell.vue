@@ -7,7 +7,6 @@ import {
   PersonOutline,
   DocumentTextOutline,
   SettingsOutline,
-  ArrowBackOutline,
   MenuOutline,
   AddOutline,
   CloseOutline
@@ -62,10 +61,6 @@ const removeShortcut = (index: number) => {
 }
 
 const isActive = (path: string) => route.path === path
-
-const goBack = () => {
-  router.push('/console')
-}
 
 // 初始化加载
 loadShortcuts()
@@ -144,10 +139,6 @@ watch(() => route.path, loadShortcuts)
       >
         <NIcon size="20"><MenuOutline /></NIcon>
       </button>
-      <button class="back-btn" @click="goBack">
-        <NIcon size="16"><ArrowBackOutline /></NIcon>
-        <span>返回控制台</span>
-      </button>
       <slot />
     </main>
   </div>
@@ -158,10 +149,12 @@ watch(() => route.path, loadShortcuts)
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .console-sidebar {
+  position: sticky;
+  top: 16px;
   background: rgba(255, 248, 236, 0.72);
   border: 1px solid rgba(130, 95, 65, 0.14);
   border-radius: var(--radius-md);
@@ -270,26 +263,6 @@ watch(() => route.path, loadShortcuts)
 
 .console-content {
   min-width: 0;
-}
-
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  margin-bottom: 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: rgba(154, 90, 47, 0.06);
-  color: var(--text-tertiary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.back-btn:hover {
-  background: rgba(154, 90, 47, 0.12);
-  color: var(--primary-color);
 }
 
 .mobile-menu-btn {

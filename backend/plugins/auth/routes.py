@@ -54,6 +54,12 @@ async def login(req: LoginRequest, request: Request):
         identity=req.identity,
         password=req.password,
     )
+
+    # 标记用户在线
+    if container.is_available("session_tracker"):
+        tracker = container.get("session_tracker")
+        tracker.user_online(result["user"]["id"], result["user"]["username"])
+
     return {"code": "ok", "message": "登录成功", "data": result}
 
 
@@ -65,6 +71,16 @@ async def logout(request: Request):
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     await auth_service.logout(token)
+
+    # 标记用户离线
+    if container.is_available("session_tracker"):
+        from backend.core.middleware import get_current_user
+
+        user = get_current_user(request)
+        if user:
+            tracker = container.get("session_tracker")
+            tracker.user_offline(user["id"])
+
     return {"code": "ok", "message": "登出成功", "data": {}}
 
 
