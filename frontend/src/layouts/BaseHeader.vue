@@ -44,13 +44,6 @@
           />
         </div>
       </div>
-      <div class="header-actions">
-        <RouterLink v-if="isLoggedIn" to="/console" class="nav-item">控制台</RouterLink>
-        <template v-else>
-          <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
-          <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
-        </template>
-      </div>
     </div>
 
     <!-- Header Center — user/admin 模式下的面包屑 -->
@@ -63,11 +56,12 @@
       </div>
     </div>
 
-    <!-- Header Right — 用户菜单 -->
+    <!-- Header Right — 头像 / 控制台 / 登录 -->
     <div class="header-right">
+      <!-- 用户头像（guest 已登录时在控制台旁边） -->
       <div v-if="isLoggedIn && layoutMode === 'guest'" class="user-menu-wrap">
         <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
-          {{ userInitial }}
+          <NIcon size="20"><PersonCircleOutline /></NIcon>
         </button>
         <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
           <RouterLink to="/profile" class="dropdown-item">个人中心</RouterLink>
@@ -75,7 +69,14 @@
           <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
         </div>
       </div>
-      <div v-else-if="layoutMode !== 'guest'" class="user-menu-wrap">
+      <div v-if="layoutMode === 'guest'" class="header-actions">
+        <RouterLink v-if="isLoggedIn" to="/console" class="nav-item">控制台</RouterLink>
+        <template v-else>
+          <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
+          <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
+        </template>
+      </div>
+      <div v-else class="user-menu-wrap">
         <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '用户' }}</span>
           <NIcon size="24" class="avatar-icon"><PersonCircleOutline /></NIcon>
@@ -122,9 +123,6 @@ const showUserMenu = ref(false)
 const repoUrl = 'https://github.com/jamnodesmith/Arche'
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
-const userInitial = computed(
-  () => (userStore.userInfo?.nickname || userStore.userInfo?.username || '我')[0]
-)
 
 const breadcrumb = computed(() => {
   const path = route.path

@@ -18,7 +18,9 @@
 
       <!-- Main content -->
       <main class="layout-content" :class="{ 'sidebar-empty': !hasSidebar }">
-        <slot />
+        <Transition :name="appStore.transitionName" mode="out-in">
+          <slot :key="route.fullPath" />
+        </Transition>
       </main>
     </div>
 
@@ -28,6 +30,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store/modules/app'
 import type { Component } from 'vue'
 import BaseHeader from './BaseHeader.vue'
@@ -54,6 +57,7 @@ const props = withDefaults(
   }
 )
 
+const route = useRoute()
 const appStore = useAppStore()
 
 const sidebarMode = computed<'thin' | 'normal' | 'grouped'>(() => {

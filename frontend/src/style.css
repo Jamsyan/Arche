@@ -48,22 +48,15 @@ body {
   background: rgba(26, 24, 23, 0.32);
 }
 
-/* 路由切换动画 — 强化版 */
+/* ── 叠化转场（dissolve） ── */
 .fade-transform-enter-active,
 .fade-transform-leave-active {
-  transition:
-    opacity 0.3s var(--ease-out-smooth),
-    transform 0.3s var(--ease-out-smooth);
+  transition: opacity 0.18s ease;
 }
 
-.fade-transform-enter-from {
-  opacity: 0;
-  transform: translateY(12px) scale(0.98);
-}
-
+.fade-transform-enter-from,
 .fade-transform-leave-to {
   opacity: 0;
-  transform: translateY(-8px) scale(0.98);
 }
 
 /* Stagger 列表进入动画 */
