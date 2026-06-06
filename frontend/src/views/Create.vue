@@ -181,9 +181,11 @@
             <ArTag v-else :color="getStatus(editingPost!).color" type="light">
               {{ getStatus(editingPost!).label }}
             </ArTag>
-            <button class="access-badge" :class="editorAccess" @click="toggleEditorAccess">
-              {{ editorAccess === 'public' ? '公开' : '私密' }}
-            </button>
+            <ArWheelPicker
+              :options="[...accessLevels]"
+              v-model="editorAccess"
+              title="帖子可见权限：滚轮切换 · 数字越小权限越高"
+            />
           </div>
           <div class="edit-topbar-tags">
             <div class="topbar-tag-list">
@@ -241,6 +243,7 @@ import {
 } from '@vicons/ionicons5'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
+import ArWheelPicker from '@/components/ui/ArWheelPicker.vue'
 import PostEditor from '@/components/blog/PostEditor.vue'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
 
@@ -257,7 +260,9 @@ const isCreatingNew = ref(false)
 const editingPost = ref<BlogPost | null>(null)
 const tagInputValue = ref('')
 const editorTags = ref<string[]>([])
-const editorAccess = ref<'public' | 'private'>('public')
+const accessLevels = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5'] as const
+const editorAccess = ref<string>('A5')
+
 const statsPost = ref<BlogPost | null>(null)
 const showStatsModal = ref(false)
 const hoveredPost = ref<BlogPost | null>(null)
@@ -312,7 +317,7 @@ const handleNewPost = () => {
   isCreatingNew.value = true
   editingPost.value = null
   editorTags.value = []
-  editorAccess.value = 'public'
+  editorAccess.value = 'A5'
   isEditorOpen.value = true
 }
 const handleOpenPost = (post: BlogPost) => router.push(`/blog/${post.slug}`)
@@ -336,7 +341,7 @@ const handleEditPost = (post: BlogPost) => {
   isCreatingNew.value = false
   editingPost.value = post
   editorTags.value = [...(post.tags || [])]
-  editorAccess.value = (post.access_level as 'public' | 'private') || 'public'
+  editorAccess.value = (post.access_level as string) || 'A5'
   isEditorOpen.value = true
 }
 
@@ -351,7 +356,7 @@ const switchEditPost = (post: BlogPost) => {
   isCreatingNew.value = false
   editingPost.value = post
   editorTags.value = [...(post.tags || [])]
-  editorAccess.value = (post.access_level as 'public' | 'private') || 'public'
+  editorAccess.value = (post.access_level as string) || 'A5'
 }
 
 const saveCurrent = () => {
@@ -387,10 +392,6 @@ const handleTagKeydown = (e: KeyboardEvent) => {
     e.preventDefault()
     addEditorTag()
   }
-}
-
-const toggleEditorAccess = () => {
-  editorAccess.value = editorAccess.value === 'public' ? 'private' : 'public'
 }
 
 const fetchData = async () => {
@@ -871,31 +872,6 @@ onMounted(fetchData)
   flex-shrink: 0;
 }
 
-.access-badge {
-  border: 0;
-  border-radius: var(--radius-full);
-  padding: 3px 12px;
-  font-size: 12px;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  font-weight: var(--font-weight-semibold);
-}
-
-.access-badge.public {
-  background: color-mix(in srgb, var(--success-color) 12%, transparent);
-  color: var(--success-color);
-}
-
-.access-badge.private {
-  background: color-mix(in srgb, var(--accent-yellow) 14%, transparent);
-  color: var(--accent-yellow);
-}
-
-.access-badge:hover {
-  filter: brightness(1.1);
-}
-
 .edit-topbar-tags {
   flex: 1;
   display: flex;
@@ -913,6 +889,7 @@ onMounted(fetchData)
 
 .tag-input-inline {
   border: none;
+  border-bottom: 1px solid var(--border-color);
   outline: none;
   background: transparent;
   color: var(--text-primary);
@@ -921,6 +898,11 @@ onMounted(fetchData)
   padding: 4px 0;
   min-width: 70px;
   flex: 1;
+  transition: border-color var(--transition-fast);
+}
+
+.tag-input-inline:focus {
+  border-bottom-color: var(--primary-color);
 }
 
 .tag-input-inline::placeholder {
