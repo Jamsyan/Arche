@@ -60,12 +60,14 @@ function handleSubmit(content: string) {
       <div ref="panelRef" class="paragraph-panel">
         <!-- 头部 -->
         <div class="panel-header">
-          <h3 class="panel-title">段落评论 <span class="panel-index">#{{ paragraph.index }}</span></h3>
+          <h3 class="panel-title">
+            段落评论 <span class="panel-index">#{{ paragraph.index }}</span>
+          </h3>
           <button class="panel-close" @click="emit('close')" aria-label="关闭">&times;</button>
         </div>
 
         <!-- 段落原文引用 -->
-        <div class="paragraph-quote">{{ paragraph.content }}</div>
+        <div class="paragraph-quote" v-html="paragraph.content" />
 
         <!-- 评论列表 -->
         <div class="panel-comments">

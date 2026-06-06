@@ -22,19 +22,19 @@ const paragraphs = computed(() => {
 function renderContent(text: string): string {
   let html = text
 
-  // 1. 处理视频嵌入 [title](url)
+  // 1. 处理视频嵌入 — 直接匹配 TipTap 输出的 <a> 标签
   html = html.replace(
-    /\[([^\]]*)\]\((https?:\/\/(?:www\.)?(?:bilibili\.com|youtube\.com)[^)]+)\)/g,
-    (_match, title, url) => {
+    /<a\s+[^>]*href="((?:https?:\/\/)?(?:www\.)?(?:bilibili\.com|b23\.tv|youtube\.com)[^"]+)"[^>]*>.+?<\/a>/g,
+    (_match, url) => {
       let embedUrl = ''
-      if (url.includes('bilibili.com')) {
+      if (url.includes('bilibili.com') || url.includes('b23.tv')) {
         const bvMatch = url.match(/BV[\w]+/)
         if (bvMatch) {
-          embedUrl = `https://player.bilibili.com/player.html?bvid=${bvMatch[0]}&autoplay=0`
+          embedUrl = `https://player.bilibili.com/player.html?isOutside=true&bvid=${bvMatch[0]}&autoplay=0&danmaku=0&high_quality=1&no_related=1`
         } else {
-          const avMatch = url.match(/video\/(\d+)/)
+          const avMatch = url.match(/video\/(?:av|AV)?(\d+)/)
           if (avMatch) {
-            embedUrl = `https://player.bilibili.com/player.html?aid=${avMatch[1]}&autoplay=0`
+            embedUrl = `https://player.bilibili.com/player.html?isOutside=true&aid=${avMatch[1]}&autoplay=0&danmaku=0&high_quality=1&no_related=1`
           }
         }
       } else if (url.includes('youtube.com')) {
@@ -46,6 +46,7 @@ function renderContent(text: string): string {
       if (embedUrl) {
         return `<div class="media-block video-block"><iframe src="${embedUrl}" frameborder="0" allowfullscreen></iframe></div>`
       }
+      // 不是视频链接，保留原样
       return _match
     }
   )
@@ -75,7 +76,7 @@ function handleParagraphClick(para: Paragraph) {
       @click="handleParagraphClick(para)"
     >
       <span class="paragraph-index">{{ para.index }}</span>
-      <span class="paragraph-text" v-html="renderContent(para.content)" />
+      <div class="paragraph-text" v-html="renderContent(para.content)" />
     </div>
   </article>
 </template>
@@ -157,8 +158,11 @@ function handleParagraphClick(para: Paragraph) {
 .paragraph-text :deep(.video-block) {
   position: relative;
   width: 100%;
-  padding-bottom: 56.25%;
+  aspect-ratio: 16 / 9;
   margin: 1.5em 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
 }
 
 .paragraph-text :deep(.video-block iframe) {
@@ -167,6 +171,6 @@ function handleParagraphClick(para: Paragraph) {
   left: 0;
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-md);
+  border: none;
 }
 </style>
