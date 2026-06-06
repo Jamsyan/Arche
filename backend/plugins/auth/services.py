@@ -331,3 +331,79 @@ class AuthService:
             await session.commit()
             await session.refresh(user)
             return self._user_to_dict(user)
+
+    # ── 用户统计 ──
+
+    async def get_user_stats(self) -> dict:
+        """获取用户相关统计（用于用户管理 Dashboard）。"""
+        from datetime import datetime, timezone
+
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            # 总用户数
+            total_result = await session.execute(select(func.count(User.id)))
+            total_users = total_result.scalar_one()
+
+            # 活跃用户数
+            active_result = await session.execute(
+                select(func.count(User.id)).where(User.is_active.is_(True))
+            )
+            active_users = active_result.scalar_one()
+
+            # 禁用用户数
+            disabled_result = await session.execute(
+                select(func.count(User.id)).where(User.is_active.is_(False))
+            )
+            disabled_users = disabled_result.scalar_one()
+
+            # 今日新增
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            today_result = await session.execute(
+                select(func.count(User.id)).where(User.created_at >= today_start)
+            )
+            today_new = today_result.scalar_one()
+
+            # 各等级用户数
+            level_query = (
+                select(User.level, func.count(User.id).label("count"))
+                .group_by(User.level)
+                .order_by(User.level)
+            )
+            level_result = await session.execute(level_query)
+            by_level = {row.level: row.count for row in level_result.all()}
+
+            # 每日新增趋势（最近 30 天）
+            from datetime import timedelta
+
+            start_date = today_start - timedelta(days=29)
+
+            daily_query = (
+                select(
+                    func.date(User.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(User.created_at >= start_date)
+                .group_by(func.date(User.created_at))
+                .order_by(func.date(User.created_at))
+            )
+            daily_result = await session.execute(daily_query)
+            daily_map = {row.date: row.count for row in daily_result.all()}
+
+            trend = []
+            for i in range(30):
+                date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+                trend.append(
+                    {"date": date, "count": int(daily_map.get(date, 0))}
+                )
+
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "disabled_users": disabled_users,
+            "today_new": today_new,
+            "by_level": by_level,
+            "daily_trend": trend,
+        }

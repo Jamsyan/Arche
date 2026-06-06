@@ -90,3 +90,17 @@ export const getUserInfoApi = (config?: RequestConfig) =>
     }
     return raw.avatar ? { ...base, avatar: raw.avatar as string } : base
   })
+
+// ── 用户管理统计（P0） ──
+
+export interface UserStats {
+  total_users: number
+  active_users: number
+  disabled_users: number
+  today_new: number
+  by_level: Record<string, number>
+  daily_trend: { date: string; count: number }[]
+}
+
+export const getUserStatsApi = (config?: RequestConfig) =>
+  get<UserStats>('/auth/stats', undefined, config)

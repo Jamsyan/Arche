@@ -19,7 +19,7 @@
       <!-- Main content -->
       <main class="layout-content" :class="{ 'sidebar-empty': !hasSidebar }">
         <Transition :name="appStore.transitionName" mode="out-in">
-          <slot :key="route.fullPath" />
+          <slot :key="route.matched[0]?.path === '/console' ? '/console' : route.fullPath" />
         </Transition>
       </main>
     </div>

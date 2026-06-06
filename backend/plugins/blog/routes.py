@@ -607,3 +607,19 @@ async def remove_tag_from_post(post_id: str, tag_name: str, request: Request):
         user_id=user_id,
     )
     return {"code": "ok", "message": "移除成功", "data": {}}
+
+
+# ── 统计端点（P0） ──
+
+
+@router.get("/stats/daily-trend")
+@require_level(0)
+async def get_daily_trend(
+    request: Request,
+    days: int = 7,
+):
+    """每日曝光量趋势（P0）。返回最近 N 天的浏览量、帖子新增量。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_daily_trend(days=days)
+    return {"code": "ok", "message": "获取成功", "data": result}

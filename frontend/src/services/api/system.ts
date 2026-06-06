@@ -180,12 +180,26 @@ export interface QpsHistoryPoint {
   qps: number
 }
 
+export interface DailyTrendPoint {
+  date: string
+  views: number
+  posts: number
+  comments: number
+}
+
+export interface DailyTrend {
+  days: number
+  trend: DailyTrendPoint[]
+}
+
 export interface DashboardData {
   system?: DashboardSystemSummary
   online?: DashboardOnlineStats
   requests?: DashboardRequestStats
   qps_history?: QpsHistoryPoint[]
   blog?: DashboardBlogStats
+  trend_7d?: DailyTrend
+  trend_30d?: DailyTrend
 }
 
 export const getDashboardApi = (config?: RequestConfig) =>
@@ -198,3 +212,18 @@ export const reportOnlineApi = (config?: RequestConfig) =>
 
 export const reportOfflineApi = (config?: RequestConfig) =>
   post<void>('/system/offline', undefined, config)
+
+// ── 标准化通知 API ──
+
+export interface NotificationItem {
+  id: string
+  type: 'warning' | 'danger' | 'info'
+  icon: string
+  title: string
+  desc: string
+  route: string
+  count: number
+}
+
+export const getNotificationsApi = (config?: RequestConfig) =>
+  get<NotificationItem[]>('/system/notifications', undefined, config)

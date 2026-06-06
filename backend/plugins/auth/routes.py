@@ -205,3 +205,13 @@ async def admin_create_user(req: CreateUserRequest, request: Request):
         level=req.level if req.level is not None else 5,
     )
     return {"code": "ok", "message": "创建成功", "data": result}
+
+
+@router.get("/stats")
+@require_level(0)
+async def get_user_stats(request: Request):
+    """用户统计概览（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    result = await auth_service.get_user_stats()
+    return {"code": "ok", "message": "获取成功", "data": result}

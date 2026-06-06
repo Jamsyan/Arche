@@ -9,21 +9,36 @@
       <!-- ===== 左栏（主内容，可滚动） ===== -->
       <div class="left-column">
         <!-- 通知/静默区 -->
-        <div class="notice-area">
+        <div class="notice-area" @wheel.prevent="onNoticeWheel">
           <!-- 有通知时 -->
           <transition-group
-            v-if="notifications.length > 0"
+            v-if="displayedNotifications.length > 0"
             name="notice-slide"
             tag="div"
             class="notice-list"
           >
-            <div v-for="n in notifications" :key="n.id" class="notice-card" :class="n.type">
+            <div
+              v-for="n in displayedNotifications"
+              :key="n.id"
+              class="notice-card"
+              :class="[n.type, { clickable: !!n.route }]"
+              @click="n.route && router.push(n.route)"
+            >
               <span class="notice-icon">{{ n.icon }}</span>
               <div class="notice-body">
-                <span class="notice-title">{{ n.title }}</span>
+                <span class="notice-title">
+                  {{ n.title }}
+                  <span v-if="n.count > 1" class="notice-badge">{{ n.count }}</span>
+                </span>
                 <span class="notice-desc">{{ n.desc }}</span>
               </div>
               <span class="notice-time">{{ n.time }}</span>
+              <div class="notice-actions" @click.stop>
+                <button class="notice-btn" title="添加到待办" @click="addTodo(n)">📋</button>
+                <button class="notice-btn" title="忽略此通知" @click="dismissNotification(n)">
+                  ✕
+                </button>
+              </div>
             </div>
           </transition-group>
 
@@ -72,23 +87,23 @@
           </div>
           <div class="chart-body">
             <svg viewBox="0 0 600 240" class="trend-chart">
-              <!-- 网格线 -->
+              <!-- 网格线（5 条，等间距） -->
               <line
-                v-for="i in 4"
+                v-for="i in 5"
                 :key="'g' + i"
                 x1="45"
-                :y1="i * 48"
+                :y1="gridY(i)"
                 x2="580"
-                :y2="i * 48"
+                :y2="gridY(i)"
                 stroke="var(--border-color)"
                 stroke-width="0.5"
               />
-              <!-- Y 轴标签 -->
+              <!-- Y 轴标签（百分比） -->
               <text
                 v-for="(label, i) in yLabels"
                 :key="'yl' + i"
                 x="40"
-                :y="240 - i * 48 + 4"
+                :y="gridY(i) + 4"
                 text-anchor="end"
                 class="chart-label"
               >
@@ -113,18 +128,7 @@
                   <stop offset="100%" stop-color="var(--primary-color)" stop-opacity="0" />
                 </linearGradient>
               </defs>
-              <!-- 数据点 -->
-              <circle
-                v-for="(pt, i) in chartPoints"
-                :key="'pt' + i"
-                :cx="pt.x"
-                :cy="pt.y"
-                r="3.5"
-                fill="var(--primary-color)"
-                stroke="#fff"
-                stroke-width="1.5"
-              />
-              <!-- X 轴标签 -->
+              <!-- X 轴标签（仅显示稀疏的标签） -->
               <text
                 v-for="(label, i) in chartXLabels"
                 :key="'xl' + i"
@@ -211,76 +215,64 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { getDashboardApi, type DashboardData } from '@/services/api/system'
+import { useRouter } from 'vue-router'
+import {
+  getDashboardApi,
+  getNotificationsApi,
+  type DashboardData,
+  type NotificationItem
+} from '@/services/api/system'
+
+const router = useRouter()
 
 // ── Dashboard 数据 ──
 const dashboard = ref<DashboardData>({})
 const loading = ref(true)
 
-// ── 通知 ──
-interface Notification {
-  id: string
-  type: 'warning' | 'danger' | 'info'
-  icon: string
-  title: string
-  desc: string
-  time: string
+// ── 通知（标准化 API） ──
+const notifications = ref<(NotificationItem & { time: string })[]>([])
+const dismissedIds = ref<Set<string>>(new Set())
+
+function timeStr() {
+  return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
-const notifications = ref<Notification[]>([])
+// 已展示的通知（过滤掉被忽略的）
+const displayedNotifications = computed(() =>
+  notifications.value.filter((n) => !dismissedIds.value.has(n.id))
+)
 
-function buildNotifications(data: DashboardData): Notification[] {
-  const list: Notification[] = []
-  const now = new Date()
-
-  // 待审核帖子
-  const pending = data.blog?.pending_posts ?? 0
-  if (pending > 0) {
-    list.push({
-      id: 'pending-posts',
-      type: 'warning',
-      icon: '\u{1F4DD}',
-      title: `待审核帖子 ${pending} 篇`,
-      desc: '内容审核队列有待处理项目',
-      time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    })
-  }
-
-  // CPU 高负载
-  if (data.system && (data.system.cpu_percent ?? 0) > 80) {
-    list.push({
-      id: 'cpu-warning',
-      type: 'danger',
-      icon: '\u{1F534}',
-      title: `CPU 负载 ${data.system.cpu_percent}%`,
-      desc: '系统 CPU 使用率超过 80%',
-      time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    })
-  }
-
-  // 磁盘告警
-  if (data.system && (data.system.disk_percent ?? 0) > 85) {
-    list.push({
-      id: 'disk-warning',
-      type: 'danger',
-      icon: '\u{1F4BE}',
-      title: `磁盘使用率 ${data.system.disk_percent}%`,
-      desc: '磁盘即将写满',
-      time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    })
-  }
-
-  return list
+function dismissNotification(n: NotificationItem) {
+  dismissedIds.value.add(n.id)
 }
 
-// ── 加载数据 ──
+function addTodo(n: NotificationItem) {
+  const todos = JSON.parse(localStorage.getItem('console_todos') || '[]')
+  todos.push({
+    id: n.id + '-' + Date.now(),
+    title: n.title,
+    desc: n.desc,
+    route: n.route,
+    createdAt: new Date().toISOString()
+  })
+  localStorage.setItem('console_todos', JSON.stringify(todos))
+}
+
+function onNoticeWheel(e: WheelEvent) {
+  if (displayedNotifications.value.length > 0 && e.deltaY > 0) {
+    const first = displayedNotifications.value[0]
+    if (first) dismissNotification(first)
+  }
+}
+
+// ── 加载数据（5 秒轮询） ──
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 async function fetchDashboard() {
   try {
-    const data = await getDashboardApi()
-    dashboard.value = data
-    notifications.value = buildNotifications(data)
+    const [dashData, notifData] = await Promise.all([getDashboardApi(), getNotificationsApi()])
+    dashboard.value = dashData
+    notifications.value = (notifData ?? []).map((n) => ({ ...n, time: timeStr() }))
   } catch {
     // silent failure
   } finally {
@@ -290,7 +282,7 @@ async function fetchDashboard() {
 
 onMounted(() => {
   fetchDashboard()
-  pollTimer = setInterval(fetchDashboard, 10000)
+  pollTimer = setInterval(fetchDashboard, 5000)
 })
 
 onUnmounted(() => {
@@ -327,53 +319,75 @@ const systemBars = computed(() => {
   ]
 })
 
-// ── 增长趋势（曝光量曲线） ──
+// ── 增长趋势（曝光量曲线，百分比 Y 轴，真实数据） ──
 const chartRange = ref<'7d' | '30d'>('7d')
 
-const chartData7d = [120, 135, 110, 150, 165, 145, 189]
-const chartData30d = [
-  120, 135, 110, 150, 165, 145, 189, 200, 180, 210, 195, 220, 240, 225, 250, 235, 260, 245, 270,
-  255, 280, 265, 290, 275, 300, 285, 310, 295, 320, 305
-]
-const chartLabels7d = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const chartData = computed(() => {
+  const trend = chartRange.value === '7d' ? dashboard.value.trend_7d : dashboard.value.trend_30d
+  if (!trend || trend.trend.length === 0) return [0] // 无数据时显示平线
+  return trend.trend.map((t) => t.views)
+})
 
-const chartData = computed(() => (chartRange.value === '7d' ? chartData7d : chartData30d))
-const chartLabels = computed(() =>
-  chartRange.value === '7d' ? chartLabels7d : Array.from({ length: 30 }, (_, i) => `${i + 1}日`)
-)
+const chartLabels = computed(() => {
+  const trend = chartRange.value === '7d' ? dashboard.value.trend_7d : dashboard.value.trend_30d
+  if (!trend || trend.trend.length === 0) return []
+  if (chartRange.value === '7d') {
+    return trend.trend.map((t) => {
+      const d = new Date(t.date)
+      const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+      return weekdays[d.getDay()]
+    })
+  }
+  // 30 天只显示 1日, 5日, 10日, 15日, 20日, 25日, 30日
+  return trend.trend.map((t, i) => {
+    const day = i + 1
+    return day % 5 === 1 || day === 1 || day === trend.trend.length ? `${day}日` : ''
+  })
+})
 
 const padding = { top: 10, bottom: 30, left: 50, right: 10 }
 const chartW = 600
 const chartH = 240
+const chartAreaH = chartH - padding.top - padding.bottom // 200
 
-const yMax = computed(() => Math.max(...chartData.value, 1) * 1.2)
-const yLabels = computed(() => {
-  const step = Math.ceil(yMax.value / 4 / 10) * 10
-  return [0, step, step * 2, step * 3, step * 4].reverse()
+// Y 轴：0% ~ 100%，5 等分
+const yLabels = ['100%', '80%', '60%', '40%', '20%', '0%']
+
+// 将数据值映射到 0~1 的相对值（用于计算百分比 Y 位置）
+const normalizedData = computed(() => {
+  const max = Math.max(...chartData.value, 1)
+  return chartData.value.map((v) => v / max)
 })
 
+const gridY = (i: number) => padding.top + (chartAreaH / 5) * i
+// i=0 → y=10 (top, 100%), i=5 → y=210 (bottom, 0%)
+
 const chartPoints = computed(() =>
-  chartData.value.map((v, i) => ({
+  normalizedData.value.map((ratio, i) => ({
     x:
       padding.left +
-      (i / Math.max(chartData.value.length - 1, 1)) * (chartW - padding.left - padding.right),
-    y: chartH - padding.bottom - (v / yMax.value) * (chartH - padding.top - padding.bottom)
+      (i / Math.max(normalizedData.value.length - 1, 1)) * (chartW - padding.left - padding.right),
+    y: padding.top + chartAreaH * (1 - ratio) // ratio=1 → y=10 (top), ratio=0 → y=210 (bottom)
   }))
 )
 
 const chartXPositions = computed(() => chartPoints.value.map((p) => p.x))
+
 const chartXLabels = computed(() => chartLabels.value)
 
-// 贝塞尔平滑曲线路径
+// 贝塞尔平滑曲线路径（点数越多曲度越大，保证"够润"）
 function bezierSmooth(points: { x: number; y: number }[]): string {
   if (points.length === 0) return ''
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+
+  // 根据点数调整张力：点越多 segLen 占比越大，曲线越"润"
+  const tension = points.length > 10 ? 2 : 3
 
   let d = `M ${points[0].x} ${points[0].y}`
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[i]
     const p1 = points[i + 1]
-    const segLen = (p1.x - p0.x) / 3
+    const segLen = (p1.x - p0.x) / tension
     d += ` C ${p0.x + segLen} ${p0.y}, ${p1.x - segLen} ${p1.y}, ${p1.x} ${p1.y}`
   }
   return d
@@ -476,11 +490,21 @@ const qpsYMax = computed(() => {
 .notice-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 10px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--surface-color);
+  cursor: default;
+  transition: box-shadow 0.15s ease;
+}
+
+.notice-card.clickable {
+  cursor: pointer;
+}
+
+.notice-card.clickable:hover {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
 
 .notice-card.warning {
@@ -499,7 +523,7 @@ const qpsYMax = computed(() => {
 }
 
 .notice-icon {
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
@@ -512,22 +536,67 @@ const qpsYMax = computed(() => {
 }
 
 .notice-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notice-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .notice-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
 }
 
 .notice-time {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-quaternary);
   flex-shrink: 0;
 }
 
+.notice-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.notice-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-quaternary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.notice-btn:hover {
+  background: rgba(130, 95, 65, 0.1);
+  color: var(--text-secondary);
+}
+
+/* 通知进出动画 */
 .notice-slide-enter-active,
 .notice-slide-leave-active {
   transition: all 0.3s ease;

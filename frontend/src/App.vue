@@ -6,7 +6,10 @@
           <NLoadingBarProvider>
             <RouterView v-slot="{ Component, route: r }">
               <component :is="layoutMap[(r.meta.layout as string) || 'guest'] || GuestLayout">
-                <component :is="Component" :key="r.fullPath" />
+                <component
+                  :is="Component"
+                  :key="r.matched[0]?.path === '/console' ? '/console' : r.fullPath"
+                />
               </component>
             </RouterView>
           </NLoadingBarProvider>

@@ -1432,6 +1432,72 @@ class BlogService:
             "today_posts": today_posts,
         }
 
+    # ── 每日曝光量趋势 ──
+
+    async def get_daily_trend(self, days: int = 7) -> dict:
+        """获取最近 N 天的每日浏览量、帖子新增量趋势。"""
+        from datetime import datetime, timedelta, timezone
+
+        end_date = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        start_date = end_date - timedelta(days=days - 1)
+
+        async with self.session_factory() as session:
+            # 每日新增帖子数
+            posts_query = (
+                select(
+                    func.date(BlogPost.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(BlogPost.created_at >= start_date)
+                .group_by(func.date(BlogPost.created_at))
+                .order_by(func.date(BlogPost.created_at))
+            )
+            posts_result = await session.execute(posts_query)
+            posts_by_date = {row.date: row.count for row in posts_result.all()}
+
+            # 每日浏览量（按帖子 created_at 聚合，取 sum of views）
+            views_query = (
+                select(
+                    func.date(BlogPost.created_at).label("date"),
+                    func.coalesce(func.sum(BlogPost.views), 0).label("total_views"),
+                )
+                .where(BlogPost.created_at >= start_date)
+                .group_by(func.date(BlogPost.created_at))
+                .order_by(func.date(BlogPost.created_at))
+            )
+            views_result = await session.execute(views_query)
+            views_by_date = {row.date: row.total_views for row in views_result.all()}
+
+            # 每日新增评论数
+            comments_query = (
+                select(
+                    func.date(BlogComment.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(BlogComment.created_at >= start_date)
+                .group_by(func.date(BlogComment.created_at))
+                .order_by(func.date(BlogComment.created_at))
+            )
+            comments_result = await session.execute(comments_query)
+            comments_by_date = {row.date: row.count for row in comments_result.all()}
+
+            # 组装时间序列
+            trend = []
+            for i in range(days):
+                date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+                trend.append(
+                    {
+                        "date": date,
+                        "views": int(views_by_date.get(date, 0)),
+                        "posts": int(posts_by_date.get(date, 0)),
+                        "comments": int(comments_by_date.get(date, 0)),
+                    }
+                )
+
+        return {"days": days, "trend": trend}
+
     # --- 举报 ---
 
     async def create_report(
