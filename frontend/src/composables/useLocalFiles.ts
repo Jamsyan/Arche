@@ -4,7 +4,7 @@
  * 核心逻辑：用户在点击"保存"之前，所有上传的素材只停留在浏览器内存中，
  * 不发送到服务器。保存时再由外层统一上传。
  */
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 
 export interface StagedFile {
   /** 临时 ID（用于前端 key） */
@@ -19,16 +19,23 @@ export interface StagedFile {
   name: string
 }
 
-let _nextId = 1
-let _nextIndex = 1
-
 export function useLocalFiles() {
+  let _nextId = 1
+  let _nextIndex = 1
   const stagedFiles = ref<StagedFile[]>([])
 
-  /** 添加文件到暂存区 */
+  /** 文件特征 key：name + size + lastModified 近似视为同一文件 */
+  function _fileKey(f: File): string {
+    return `${f.name}_${f.size}_${f.lastModified}`
+  }
+
+  /** 添加文件到暂存区（自动去重） */
   function stageFiles(files: FileList | File[]): StagedFile[] {
+    const existingKeys = new Set(stagedFiles.value.map((sf) => _fileKey(sf.file)))
     const added: StagedFile[] = []
     for (const file of Array.from(files)) {
+      if (existingKeys.has(_fileKey(file))) continue
+      existingKeys.add(_fileKey(file))
       const sf: StagedFile = {
         id: `sf_${Date.now()}_${_nextId++}`,
         index: _nextIndex++,
@@ -64,6 +71,11 @@ export function useLocalFiles() {
     stagedFiles.value = []
     _nextIndex = 1
   }
+
+  /** 组件卸载时自动释放 blob URL，防止内存泄漏 */
+  onUnmounted(() => {
+    stagedFiles.value.forEach((f) => URL.revokeObjectURL(f.blobUrl))
+  })
 
   return { stagedFiles, stageFiles, getByIndex, getReferencedFiles, clearStaged }
 }
