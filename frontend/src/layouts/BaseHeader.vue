@@ -25,7 +25,6 @@
         <RouterLink to="/explore" class="nav-item">探索</RouterLink>
         <RouterLink v-if="isLoggedIn" to="/create" class="nav-item">创作</RouterLink>
         <RouterLink v-if="isLoggedIn" to="/assets" class="nav-item">素材库</RouterLink>
-        <RouterLink v-if="isLoggedIn" to="/scheduler" class="nav-item">调度器</RouterLink>
         <RouterLink v-if="isLoggedIn" to="/tasks" class="nav-item">托管任务</RouterLink>
         <RouterLink to="/github" class="nav-item">GitHub</RouterLink>
       </nav>
@@ -56,41 +55,66 @@
       </div>
     </div>
 
-    <!-- Header Right — 头像 / 控制台 / 登录 -->
+    <!-- Header Right — 整体组切换（mode="out-in" 避免双元素并发导致的 reflow 跳变） -->
     <div class="header-right">
-      <!-- 登录后头像（仅 guest 模式，rAF 驱动从右边缘滑入） -->
-      <div v-if="isLoggedIn && layoutMode === 'guest'" ref="avatarRef" class="user-menu-wrap">
-        <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
-          <NIcon size="20"><PersonCircleOutline /></NIcon>
-        </button>
-        <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
-          <RouterLink v-if="!isAdmin" to="/profile" class="dropdown-item">个人中心</RouterLink>
-          <RouterLink v-if="isAdmin" to="/console" class="dropdown-item">控制台</RouterLink>
-          <div class="dropdown-divider"></div>
-          <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
+      <Transition name="group-swap" mode="out-in">
+        <div v-if="layoutMode === 'guest' && !isLoggedIn" key="logged-out" class="logged-out-group">
+          <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
+          <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
         </div>
-      </div>
-
-      <!-- 加入我们 / 登录（未登录时显示，带动画淡出） -->
-      <div
-        v-if="layoutMode === 'guest' && (!isLoggedIn || justLoggedIn)"
-        ref="loginActionsRef"
-        class="header-actions"
-        :class="{ 'fade-out': justLoggedIn }"
-      >
-        <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
-        <RouterLink to="/login" class="nav-item login-btn">登录</RouterLink>
-      </div>
-
-      <!-- 控制台按钮（管理员登录后出现，rAF 驱动淡入） -->
-      <RouterLink
-        v-if="isLoggedIn && layoutMode === 'guest' && isAdmin"
-        ref="consoleBtnRef"
-        to="/console"
-        class="nav-item console-btn"
-      >
-        控制台
-      </RouterLink>
+        <div
+          v-else-if="isLoggedIn && layoutMode === 'guest'"
+          key="logged-in"
+          class="logged-in-group"
+        >
+          <div class="user-menu-wrap">
+            <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
+              <NIcon size="20"><PersonCircleOutline /></NIcon>
+            </button>
+            <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
+              <!-- 用户信息头 -->
+              <div class="dropdown-header">
+                <NIcon size="28" class="dropdown-avatar"><PersonCircleOutline /></NIcon>
+                <div class="dropdown-user-info">
+                  <span class="dropdown-username">{{
+                    userStore.userInfo?.username || '用户'
+                  }}</span>
+                  <span class="dropdown-email">{{ userStore.userInfo?.email || '' }}</span>
+                </div>
+              </div>
+              <div class="dropdown-stats">
+                <div class="stat-cell">
+                  <span class="stat-num">--</span>
+                  <span class="stat-label">帖子</span>
+                </div>
+                <div class="stat-cell">
+                  <span class="stat-num">--</span>
+                  <span class="stat-label">收藏</span>
+                </div>
+                <div class="stat-cell">
+                  <span class="stat-num">--</span>
+                  <span class="stat-label">积分</span>
+                </div>
+              </div>
+              <div class="dropdown-divider"></div>
+              <RouterLink to="/profile" class="dropdown-item">
+                <NIcon size="16"><PersonOutline /></NIcon>
+                <span>个人中心</span>
+              </RouterLink>
+              <RouterLink v-if="isAdmin" to="/console" class="dropdown-item">
+                <NIcon size="16"><SettingsOutline /></NIcon>
+                <span>控制台</span>
+              </RouterLink>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item logout-item" @click="handleLogout">
+                <NIcon size="16"><LogOutOutline /></NIcon>
+                <span>退出登录</span>
+              </button>
+            </div>
+          </div>
+          <RouterLink v-if="isAdmin" to="/console" class="nav-item console-btn">控制台</RouterLink>
+        </div>
+      </Transition>
 
       <!-- 其他布局模式下的用户菜单 -->
       <div v-if="layoutMode !== 'guest'" class="user-menu-wrap">
@@ -114,10 +138,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NIcon } from 'naive-ui'
-import { SearchOutline, MenuOutline, PersonCircleOutline } from '@vicons/ionicons5'
+import {
+  SearchOutline,
+  MenuOutline,
+  PersonCircleOutline,
+  PersonOutline,
+  SettingsOutline,
+  LogOutOutline
+} from '@vicons/ionicons5'
 import SiteLogo from '@/components/SiteLogo.vue'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
@@ -141,147 +172,6 @@ const repoUrl = 'https://github.com/jamnodesmith/Arche'
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
-
-// 模板引用
-const avatarRef = ref<HTMLElement | null>(null)
-const loginActionsRef = ref<HTMLElement | null>(null)
-const consoleBtnRef = ref<HTMLElement | null>(null)
-
-// 控制"加入我们/登录"的淡出
-const justLoggedIn = ref(false)
-
-// ── 动画工具：requestAnimationFrame 驱动的线性插值 ──
-const easeInOutQuad = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t)
-
-const animateRb = (
-  el: HTMLElement,
-  from: { translateX: number; opacity: number },
-  to: { translateX: number; opacity: number },
-  duration: number,
-  delay: number = 0
-): Promise<void> => {
-  const startTime = performance.now() + delay
-
-  return new Promise<void>((resolve) => {
-    const tick = (now: number) => {
-      if (now < startTime) {
-        requestAnimationFrame(tick)
-        return
-      }
-      const elapsed = now - startTime
-      const raw = Math.min(Math.max(elapsed / duration, 0), 1)
-      const progress = easeInOutQuad(raw)
-
-      const x = from.translateX + (to.translateX - from.translateX) * progress
-      const opacity = from.opacity + (to.opacity - from.opacity) * progress
-
-      el.style.transform = `translateX(${x}px)`
-      el.style.opacity = String(opacity)
-      el.style.willChange = 'transform, opacity'
-
-      if (raw < 1) {
-        requestAnimationFrame(tick)
-      } else {
-        el.style.transform = ''
-        el.style.opacity = ''
-        el.style.willChange = ''
-        resolve()
-      }
-    }
-    requestAnimationFrame(tick)
-  })
-}
-
-// ── 执行整套登录动画 ──
-const playLoginAnimation = async () => {
-  const avatarEl = avatarRef.value
-  const loginEl = loginActionsRef.value
-  const consoleEl = consoleBtnRef.value
-
-  if (!avatarEl) return
-
-  // 等 DOM 布局完成
-  await nextTick()
-
-  // 计算头像的自然位置到视口右边沿的距离
-  const rect = avatarEl.getBoundingClientRect()
-  const viewportWidth = window.innerWidth
-  // header-right 的内边距 / gap / 到右边沿的距离
-  const rightPadding = viewportWidth - rect.right
-  // 起始偏移：头像当前位置 + 到右边缘的距离（让头像从右边缘外进来）
-  const travelDistance = rightPadding + rect.width + 8
-
-  // 并行动画
-  const promises: Promise<void>[] = []
-
-  // ① 头像从右边缘滑入
-  avatarEl.style.opacity = '0'
-  avatarEl.style.transform = `translateX(${travelDistance}px)`
-  avatarEl.style.willChange = 'transform, opacity'
-  // 强制重排让初始状态生效
-  avatarEl.offsetHeight
-  promises.push(
-    animateRb(
-      avatarEl,
-      { translateX: travelDistance, opacity: 0 },
-      { translateX: 0, opacity: 1 },
-      500
-    )
-  )
-
-  // ② 加入我们/登录 淡出
-  if (loginEl) {
-    loginEl.style.willChange = 'transform, opacity'
-    promises.push(
-      animateRb(loginEl, { translateX: 0, opacity: 1 }, { translateX: -15, opacity: 0 }, 350)
-    )
-  }
-
-  // ③ 控制台按钮淡入
-  if (consoleEl) {
-    consoleEl.style.opacity = '0'
-    consoleEl.style.transform = 'translateX(8px)'
-    consoleEl.style.willChange = 'transform, opacity'
-    consoleEl.offsetHeight
-    promises.push(
-      animateRb(consoleEl, { translateX: 8, opacity: 0 }, { translateX: 0, opacity: 1 }, 400, 120)
-    )
-  }
-
-  await Promise.all(promises)
-
-  // 动画完成，清理 will-change
-  if (avatarEl) {
-    avatarEl.style.willChange = ''
-  }
-  if (loginEl) {
-    loginEl.style.transform = ''
-    loginEl.style.opacity = ''
-    loginEl.style.willChange = ''
-  }
-  if (consoleEl) {
-    consoleEl.style.transform = ''
-    consoleEl.style.opacity = ''
-    consoleEl.style.willChange = ''
-  }
-
-  // 移除登录按钮
-  justLoggedIn.value = false
-}
-
-// ── 监听登录状态变化 ──
-watch(
-  () => userStore.isLoggedIn,
-  (newVal, oldVal) => {
-    if (newVal && !oldVal) {
-      justLoggedIn.value = true
-      // 等 Vue 渲染出新 DOM（avatar、console-btn 出现在 DOM 中）
-      nextTick(() => {
-        playLoginAnimation()
-      })
-    }
-  }
-)
 
 const breadcrumb = computed(() => {
   const path = route.path
@@ -407,14 +297,7 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-/* ── Header Actions (right side) ── */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  flex-shrink: 0;
-}
-
+/* ── Nav Item ── */
 .nav-item {
   color: var(--text-secondary);
   text-decoration: none;
@@ -442,6 +325,20 @@ onBeforeUnmount(() => {
 .login-btn:hover {
   background: var(--primary-hover-color);
   color: #fff;
+}
+
+/* ── 登录后组（头像 + 控制台） ── */
+.logged-in-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* ── 未登录组（加入我们 + 登录） ── */
+.logged-out-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 /* ── Guest Mode: Search ── */
@@ -555,7 +452,8 @@ onBeforeUnmount(() => {
 .user-dropdown {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   min-width: 150px;
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -595,6 +493,73 @@ onBeforeUnmount(() => {
   margin: 4px 0;
 }
 
+/* ── Dropdown Header ── */
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.dropdown-avatar {
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.dropdown-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dropdown-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dropdown-email {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Dropdown Stats ── */
+.dropdown-stats {
+  display: flex;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.stat-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.stat-num {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* ── Dropdown items with icons ── */
+.dropdown-item {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Responsive ── */
 @media (max-width: 992px) {
   .base-header--guest .header-center {
@@ -615,23 +580,6 @@ onBeforeUnmount(() => {
   }
 }
 
-/* ── 加入我们 / 登录 淡出（rAF 尚未接管前防止闪烁） ── */
-.header-actions.fade-out {
-  animation: fadeOutLeft 0.35s ease forwards;
-  pointer-events: none;
-}
-
-@keyframes fadeOutLeft {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-15px);
-  }
-}
-
 /* ── 控制台按钮基础样式 ── */
 .console-btn {
   color: var(--text-secondary);
@@ -647,5 +595,28 @@ onBeforeUnmount(() => {
 .console-btn:hover {
   background: var(--primary-light-color);
   color: var(--primary-color);
+}
+
+/* ════════════════════════════════════════
+   登录转场动画
+   单 <Transition mode="out-in"> 先离场后入场
+   ════════════════════════════════════════ */
+
+/* ── 旧组（加入我们 + 登录）离场：向左淡出 ── */
+.group-swap-leave-active {
+  transition: all 0.3s ease;
+}
+.group-swap-leave-to {
+  opacity: 0;
+  transform: translateX(-15px);
+}
+
+/* ── 新组（头像 + 控制台）入场：从右侧滑入 ── */
+.group-swap-enter-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.group-swap-enter-from {
+  opacity: 0;
+  transform: translateX(25px);
 }
 </style>

@@ -187,6 +187,12 @@ export const staticRoutes: RouteRecordRaw[] = [
       permission: 'auth:users:list'
     }
   },
+  {
+    path: '/admin/users/assets',
+    name: 'AdminUsersAssets',
+    component: () => import('@/views/admin/AssetsOverview.vue'),
+    meta: { title: '资产管理', layout: 'guest', console: true, requiresAuth: true, level: 0 }
+  },
   // ——— 内容管理子页面 ———
   {
     path: '/admin/content/moderation',
