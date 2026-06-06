@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # === 常量 ===
-DEFAULT_P1_QUOTA_BYTES = 1 * 1024**3  # 1GB 默认配额
-DEFAULT_MAX_FILE_SIZE = 50 * 1024**2  # 50MB 单文件上限
+DEFAULT_QUOTA_BYTES = 500 * 1024**2  # 500MB 默认配额（对应 P5 普通用户）
+DEFAULT_MAX_FILE_SIZE = 10 * 1024**2  # 10MB 单文件上限
 CHUNK_SIZE = 64 * 1024  # 64KB 分块
 ALLOWED_MIME_TYPES = {
     "image/png",
@@ -28,23 +28,20 @@ ALLOWED_MIME_TYPES = {
     "image/jpg",
     "image/gif",
     "image/webp",
-    "image/svg+xml",
-    "application/pdf",
-    "text/plain",
-    "text/markdown",
-    "text/csv",
-    "application/json",
-    "application/xml",
-    "application/zip",
-    "application/gzip",
-    "application/x-tar",
-    "application/octet-stream",
-    "text/x-python",
-    "text/x-java-source",
-    "text/javascript",
-    "text/css",
-    "text/html",
 }
+
+
+def _get_default_quota_for_level(user_level: int) -> int:
+    """根据用户等级返回默认配额字节数。"""
+    level_quotas = {
+        0: 0,  # P0 管理员：不限（0 表示不限制）
+        1: 5 * 1024**3,  # P1: 5GB
+        2: 5 * 1024**3,  # P2: 5GB
+        3: 2 * 1024**3,  # P3: 2GB
+        4: 1 * 1024**3,  # P4: 1GB
+        5: 500 * 1024**2,  # P5: 500MB
+    }
+    return level_quotas.get(user_level, 500 * 1024**2)
 
 
 class StorageError(AppError):
@@ -123,18 +120,21 @@ class StorageService:
 
     # --- 配额 ---
 
-    async def _get_quota_bytes(self, user_id: uuid.UUID) -> int:
+    async def _get_quota_bytes(self, user_id: uuid.UUID, user_level: int = 5) -> int:
         from backend.plugins.oss.models import UserOSSQuota
 
-        config = self.container.get("config")
-        default = int(config.get("DEFAULT_P1_QUOTA_BYTES", str(DEFAULT_P1_QUOTA_BYTES)))
+        # P0 管理员不限
+        if user_level == 0:
+            return -1
 
         async with self.session_factory() as session:
             result = await session.execute(
                 select(UserOSSQuota).where(UserOSSQuota.user_id == user_id)
             )
             record = result.scalar_one_or_none()
-            return record.quota_bytes if record else default
+            if record:
+                return record.quota_bytes
+            return _get_default_quota_for_level(user_level)
 
     async def _get_used_bytes(self, user_id: uuid.UUID) -> int:
         from backend.plugins.oss.models import OSSFile
@@ -145,8 +145,11 @@ class StorageService:
             )
             return result.scalar() or 0
 
-    async def _check_quota(self, user_id: uuid.UUID, additional_bytes: int) -> None:
-        quota = await self._get_quota_bytes(user_id)
+    async def _check_quota(self, user_id: uuid.UUID, additional_bytes: int, user_level: int = 5) -> None:
+        quota = await self._get_quota_bytes(user_id, user_level=user_level)
+        # -1 表示不限
+        if quota == -1:
+            return
         used = await self._get_used_bytes(user_id)
         if used + additional_bytes > quota:
             raise AppError(
@@ -233,8 +236,8 @@ class StorageService:
 
         key = _key("p1" if user_level == 1 else "users", str(owner_id), filename)
 
-        if user_level == 1:
-            await self._check_quota(owner_id, CHUNK_SIZE)
+        # 上传前先做一次配额检查
+        await self._check_quota(owner_id, CHUNK_SIZE, user_level=user_level)
 
         total_bytes = 0
 
@@ -251,8 +254,9 @@ class StorageService:
                         code="file_too_large",
                         status_code=413,
                     )
-                if user_level == 1:
-                    quota = await self._get_quota_bytes(owner_id)
+                # 所有用户执行配额检查
+                quota = await self._get_quota_bytes(owner_id, user_level=user_level)
+                if quota != -1:  # -1 表示不限
                     used = await self._get_used_bytes(owner_id)
                     if used + total_bytes > quota:
                         raise AppError(
@@ -544,7 +548,7 @@ class StorageService:
             else:
                 record = UserOSSQuota(
                     user_id=user_id,
-                    quota_bytes=quota_bytes or DEFAULT_P1_QUOTA_BYTES,
+                    quota_bytes=quota_bytes or DEFAULT_QUOTA_BYTES,
                     speed_multiplier=speed_multiplier or 1.0,
                 )
                 session.add(record)

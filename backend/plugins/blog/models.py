@@ -24,6 +24,7 @@ class BlogPost(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     slug: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    cover_url: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     quality_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     views: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -130,4 +131,27 @@ class BlogFavorite(Base):
 
     __table_args__ = (
         UniqueConstraint("post_id", "user_id", name="uq_blog_favorites_post_user"),
+    )
+
+
+class PostFile(Base):
+    """帖子关联文件表：记录帖子临时上传的文件及其引用状态。"""
+
+    __tablename__ = "blog_post_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    post_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    oss_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    file_index: Mapped[int] = mapped_column(Integer, nullable=False)  # #N 编号
+    # temp: 临时上传，persisted: 已持久化（被引用），orphaned: 未被引用待清理
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="temp")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )

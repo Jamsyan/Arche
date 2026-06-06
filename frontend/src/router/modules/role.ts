@@ -53,6 +53,18 @@ const children: RouteRecordRaw[] = [
       level: 0,
       permission: API_PERMISSION.BLOG_POSTS_MODERATE
     }
+  },
+  {
+    path: 'quotas',
+    name: 'AdminQuotas',
+    component: () => import('@/views/admin/QuotaManagement.vue'),
+    meta: {
+      title: '配额管理',
+      layout: 'admin',
+      console: true,
+      requiresAuth: true,
+      level: 0
+    }
   }
 ]
 

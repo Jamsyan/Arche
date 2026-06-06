@@ -20,6 +20,7 @@ from .models import (
     BlogTag,
     BlogPostTag,
     BlogFavorite,
+    PostFile,
 )
 
 MAX_TAGS_PER_POST = 50
@@ -318,6 +319,15 @@ class BlogService:
                 status_code=400,
             )
 
+        # 校验正文引用
+        errors = await self.validate_content(content, author_id)
+        if errors:
+            raise AppError(
+                "、".join(errors),
+                code="content_validation_error",
+                status_code=400,
+            )
+
         slug_base = re.sub(r"[^\w一-鿿-]", "-", title.lower().strip())
         slug_base = re.sub(r"-+", "-", slug_base).strip("-") or "post"
 
@@ -350,6 +360,10 @@ class BlogService:
             )
             session.add(post)
             await session.flush()  # 获取 post.id
+
+            # 扫描文件引用（新建时 post.id 已通过 flush 获取）
+            if content:
+                await self.scan_and_clean_post_files(post.id, content)
 
             # 处理标签（同一 session）
             if tags:
@@ -419,7 +433,17 @@ class BlogService:
                 # 重新生成 slug
                 post.slug = await self.generate_slug(title, exclude_slug=post.slug)
             if content is not None:
+                # 校验正文引用
+                errors = await self.validate_content(content, post.author_id)
+                if errors:
+                    raise AppError(
+                        "、".join(errors),
+                        code="content_validation_error",
+                        status_code=400,
+                    )
                 post.content = content
+                # 扫描文件引用
+                await self.scan_and_clean_post_files(post.id, content)
             # 编辑后重新进入审核
             post.status = "pending"
 
@@ -1210,6 +1234,103 @@ class BlogService:
 
             return self._report_to_dict(report)
 
+    # --- 帖子文件生命周期管理 ---
+
+    async def scan_and_clean_post_files(
+        self, post_id: uuid.UUID, content: str
+    ) -> list[int]:
+        """
+        扫描正文中的 [#N] 引用，清理未引用的文件。
+        返回被引用的文件索引列表。
+        """
+        # 1. 提取所有 [#N] 引用
+        refs = set()
+        for match in re.finditer(r'\[#(\d+)\]', content):
+            refs.add(int(match.group(1)))
+
+        async with self.session_factory() as session:
+            # 2. 查询该帖子的所有临时文件
+            result = await session.execute(
+                select(PostFile).where(
+                    PostFile.post_id == post_id,
+                    PostFile.status == "temp"
+                )
+            )
+            post_files = result.scalars().all()
+
+            referenced_indices = []
+            orphaned_ids = []
+
+            for pf in post_files:
+                if pf.file_index in refs:
+                    pf.status = "persisted"
+                    referenced_indices.append(pf.file_index)
+                else:
+                    orphaned_ids.append(pf.id)
+
+            # 3. 删除未引用的文件记录（实际 OSS 文件保留，由定时任务清理）
+            if orphaned_ids:
+                await session.execute(
+                    delete(PostFile).where(PostFile.id.in_(orphaned_ids))
+                )
+
+            await session.commit()
+
+        return sorted(refs)
+
+    async def validate_post_file_refs(
+        self, content: str, owner_id: uuid.UUID
+    ) -> list[str]:
+        """
+        校验正文中所有 [#N] 引用是否都已上传。
+        返回错误信息列表（为空则校验通过）。
+        """
+        refs = set()
+        for match in re.finditer(r'\[#(\d+)\]', content):
+            refs.add(int(match.group(1)))
+
+        if not refs:
+            return []
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(PostFile.file_index).where(
+                    PostFile.owner_id == owner_id,
+                    PostFile.file_index.in_(list(refs)),
+                    PostFile.status.in_(["temp", "persisted"]),
+                )
+            )
+            existing = {row[0] for row in result.all()}
+
+        missing = refs - existing
+        if missing:
+            return [f"图片 #'{idx}' 未上传，请先上传或移除引用" for idx in sorted(missing)]
+        return []
+
+    async def validate_content(
+        self, content: str, owner_id: uuid.UUID
+    ) -> list[str]:
+        """全面校验正文内容。"""
+        errors = []
+        # 检查文件引用
+        file_errors = await self.validate_post_file_refs(content, owner_id)
+        errors.extend(file_errors)
+        # 检查视频链接（检测 bilibili/youtube 链接格式）
+        for match in re.finditer(r'\[([^\]]*)\]\((https?://[^)]+)\)', content):
+            url = match.group(2)
+            if 'bilibili.com' in url or 'youtube.com' in url:
+                if not self._validate_video_url(url):
+                    errors.append(f"视频链接 '{url}' 格式无效")
+        return errors
+
+    def _validate_video_url(self, url: str) -> bool:
+        """验证视频分享链接的基本格式。"""
+        if 'bilibili.com' in url:
+            return bool(re.search(r'(BV[\w]+|video/[\w]+)', url))
+        if 'youtube.com' in url:
+            return bool(re.search(r'(watch\?v=|embed/|shorts/)', url))
+        return True
+
     # --- 数据转换 ---
 
     def _tag_to_dict(self, tag: BlogTag) -> dict:
@@ -1233,6 +1354,7 @@ class BlogService:
             "title": post.title,
             "slug": post.slug,
             "content": post.content,
+            "cover_url": post.cover_url,
             "status": post.status,
             "quality_score": post.quality_score,
             "views": post.views,

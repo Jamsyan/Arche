@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import TagList from './TagList.vue'
+import { getCoverGradient } from '@/utils/cover'
 import type { BlogPost } from '@/services/api'
 
 const props = defineProps<{
@@ -10,13 +11,64 @@ const props = defineProps<{
 const authorName = computed(() => props.post.author_username || '匿名')
 const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
 
-const trimmedContent = computed(() => props.post.content?.trimStart() || '')
-const firstChar = computed(() => trimmedContent.value.charAt(0) || '')
-const restContent = computed(() => trimmedContent.value.slice(1) || '')
+// 渲染内容为 HTML
+const renderedContent = computed(() => {
+  let html = props.post.content || ''
+
+  // 1. 处理视频嵌入 [title](url)
+  html = html.replace(
+    /\[([^\]]*)\]\((https?:\/\/(?:www\.)?(?:bilibili\.com|youtube\.com)[^)]+)\)/g,
+    (_match, title, url) => {
+      let embedUrl = ''
+      if (url.includes('bilibili.com')) {
+        const bvMatch = url.match(/BV[\w]+/)
+        if (bvMatch) {
+          embedUrl = `https://player.bilibili.com/player.html?bvid=${bvMatch[0]}&autoplay=0`
+        } else {
+          const avMatch = url.match(/video\/(\d+)/)
+          if (avMatch) {
+            embedUrl = `https://player.bilibili.com/player.html?aid=${avMatch[1]}&autoplay=0`
+          }
+        }
+      } else if (url.includes('youtube.com')) {
+        const vMatch = url.match(/(?:watch\?v=|embed\/|shorts\/)([\w-]+)/)
+        if (vMatch) {
+          embedUrl = `https://www.youtube.com/embed/${vMatch[1]}`
+        }
+      }
+      if (embedUrl) {
+        return `</p><div class="media-block video-block"><iframe src="${embedUrl}" frameborder="0" allowfullscreen></iframe></div><p>`
+      }
+      // 不是视频链接，保持原样
+      return _match
+    }
+  )
+
+  // 2. 处理图片 [#N]
+  html = html.replace(/\[#(\d+)\]/g, (_match, num) => {
+    return `</p><div class="media-block image-block"><img src="https://picsum.photos/seed/${props.post.id}_${num}/800/450" alt="图片 #${num}" loading="lazy" /></div><p>`
+  })
+
+  // 3. 处理纯文本中的换行为段落
+  // 双换行为段落分隔，单换行为 <br>
+  html = html.replace(/\n\n/g, '</p><p>')
+  html = html.replace(/\n/g, '<br>')
+
+  return `<p>${html}</p>`
+})
 </script>
 
 <template>
   <article class="post-detail">
+    <!-- 封面 -->
+    <div v-if="post.cover_url" class="post-cover">
+      <img :src="post.cover_url" :alt="post.title" />
+    </div>
+    <!-- 没有封面时用默认渐变色 -->
+    <div v-else class="post-cover-fallback" :style="{ background: getCoverGradient(post) }">
+      <span class="cover-fallback-title">{{ post.title?.charAt(0) || 'P' }}</span>
+    </div>
+
     <!-- 文章头部 -->
     <header class="post-header">
       <div class="header-accent" />
@@ -36,10 +88,7 @@ const restContent = computed(() => trimmedContent.value.slice(1) || '')
     <div class="content-divider" />
 
     <!-- 正文 -->
-    <div class="post-content">
-      <span class="drop-cap">{{ firstChar }}</span
-      >{{ restContent }}
-    </div>
+    <div class="post-content" v-html="renderedContent" />
   </article>
 </template>
 
@@ -59,6 +108,36 @@ const restContent = computed(() => trimmedContent.value.slice(1) || '')
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ── 封面 ── */
+.post-cover {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--spacing-lg);
+}
+
+.post-cover img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.post-cover-fallback {
+  width: 100%;
+  aspect-ratio: 2/1;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-fallback-title {
+  font-size: 48px;
+  font-weight: var(--font-weight-bold);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* ── 文章头部 ── */
@@ -136,19 +215,48 @@ const restContent = computed(() => trimmedContent.value.slice(1) || '')
   font-size: 16.5px;
   line-height: 2;
   color: var(--text-primary);
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
-.drop-cap {
-  float: left;
-  font-size: 58px;
-  line-height: 0.85;
-  font-weight: var(--font-weight-bold);
-  color: var(--primary-color);
-  margin-right: 12px;
-  margin-top: 4px;
-  font-family: var(--font-serif);
-  letter-spacing: -0.03em;
+.post-content :deep(p) {
+  margin: 0 0 1em;
+}
+
+.post-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.post-content :deep(.media-block) {
+  margin: 0;
+  text-align: center;
+}
+
+.post-content :deep(.image-block) {
+  margin: 1.5em 0;
+}
+
+.post-content :deep(.image-block img) {
+  max-width: 100%;
+  width: 100%;
+  max-width: 720px;
+  border-radius: var(--radius-md);
+  display: block;
+  margin: 0 auto;
+}
+
+.post-content :deep(.video-block) {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 */
+  margin: 1.5em 0;
+}
+
+.post-content :deep(.video-block iframe) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
 }
 </style>

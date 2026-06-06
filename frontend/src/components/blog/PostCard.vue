@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import { HeartOutline, BookmarkOutline, ChatbubbleOutline } from '@vicons/ionicons5'
 import ArTag from '@/components/ui/ArTag.vue'
+import { getCoverGradient } from '@/utils/cover'
 import type { BlogPost } from '@/services/api'
 
 type Layout = 'grid' | 'list' | 'compact'
@@ -30,10 +31,18 @@ const emit = defineEmits<{
 const TAG_COLORS = ['red', 'blue', 'yellow', 'green', 'default'] as const
 
 const authorName = computed(() => props.post.author_username || '匿名')
-const coverUrl = computed(
-  () => `https://picsum.photos/seed/${encodeURIComponent(props.post.slug || props.post.id)}/400/300`
-)
 const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
+
+const coverStyle = computed(() => {
+  if (props.post.cover_url) {
+    return {
+      backgroundImage: `url(${props.post.cover_url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center'
+    }
+  }
+  return { background: getCoverGradient(props.post) }
+})
 const excerpt = computed(() => props.post.content?.slice(0, 150) || '')
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 
@@ -52,17 +61,14 @@ function handleClick() {
     @click="handleClick"
   >
     <!-- Grid 封面 -->
-    <div v-if="showCover && layout === 'grid'" class="card-cover">
-      <img :src="coverUrl" :alt="post.title" class="cover-image" loading="lazy" />
+    <div v-if="showCover && layout === 'grid'" class="card-cover" :style="coverStyle">
       <div class="cover-overlay">
         <span class="cover-count">{{ post.views || 0 }} 阅读</span>
       </div>
     </div>
 
     <!-- List 封面（左侧小图） -->
-    <div v-if="showCover && layout === 'list'" class="list-cover">
-      <img :src="coverUrl" :alt="post.title" class="list-cover-image" loading="lazy" />
-    </div>
+    <div v-if="showCover && layout === 'list'" class="list-cover" :style="coverStyle" />
 
     <!-- 正文 -->
     <div class="card-body">
@@ -219,13 +225,6 @@ function handleClick() {
   background: var(--surface-inset-color);
 }
 
-.cover-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 .cover-overlay {
   position: absolute;
   inset: 0;
@@ -248,13 +247,6 @@ function handleClick() {
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--surface-inset-color);
-}
-
-.list-cover-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
 /* ── 标题 ── */

@@ -11,6 +11,7 @@ export interface BlogPost {
   slug: string
   title: string
   content: string
+  cover_url?: string
   tags: string[]
   required_level?: number
   status?: string
@@ -41,11 +42,13 @@ export interface CreatePostPayload {
   content: string
   tags?: string[]
   required_level?: number
+  cover_url?: string
 }
 
 export interface UpdatePostPayload {
   title?: string
   content?: string
+  cover_url?: string
 }
 
 export interface CreateCommentPayload {
@@ -152,3 +155,12 @@ export const batchApproveApi = (payload: BatchActionPayload, config?: RequestCon
 
 export const batchRejectApi = (payload: BatchActionPayload, config?: RequestConfig) =>
   post<void>('/blog/moderation/batch-reject', payload, config)
+
+export const uploadPostFileApi = (file: File, config?: RequestConfig) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return post<BlogPost>('/blog/upload-file', formData, {
+    ...config,
+    headers: { ...config?.headers, 'Content-Type': 'multipart/form-data' }
+  })
+}

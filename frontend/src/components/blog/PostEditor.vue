@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import ArInput from '@/components/ui/ArInput.vue'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
+import RichTextEditor from './RichTextEditor.vue'
+import CoverUploader from './CoverUploader.vue'
 import type { BlogPost, CreatePostPayload, UpdatePostPayload } from '@/services/api'
 
 const props = withDefaults(
@@ -27,6 +29,7 @@ const isEdit = computed(() => !!props.post)
 
 const title = ref(props.post?.title || '')
 const content = ref(props.post?.content || '')
+const coverUrl = ref(props.post?.cover_url || '')
 const tagInput = ref('')
 const tags = ref<string[]>(props.post?.tags || [])
 const requiredLevel = ref<number>(props.post?.required_level ?? 5)
@@ -57,13 +60,15 @@ function handleSave() {
   const payload: CreatePostPayload | UpdatePostPayload = isEdit.value
     ? {
         title: title.value.trim(),
-        content: content.value.trim()
+        content: content.value.trim(),
+        cover_url: coverUrl.value || undefined
       }
     : {
         title: title.value.trim(),
         content: content.value.trim(),
         tags: tags.value,
-        required_level: requiredLevel.value
+        required_level: requiredLevel.value,
+        cover_url: coverUrl.value || undefined
       }
   emit('save', payload)
 }
@@ -88,6 +93,7 @@ defineExpose({
   requiredLevel,
   title,
   content,
+  coverUrl,
   updateMeta
 })
 </script>
@@ -106,16 +112,16 @@ defineExpose({
       />
     </div>
 
+    <!-- 封面 -->
+    <div class="editor-field">
+      <label class="field-label">封面</label>
+      <CoverUploader v-model:cover-url="coverUrl" />
+    </div>
+
     <!-- 内容 -->
     <div class="editor-field">
       <label class="field-label">正文</label>
-      <ArInput
-        v-model:value="content"
-        type="textarea"
-        :rows="14"
-        :autosize="{ minRows: 12, maxRows: 36 }"
-        placeholder="开始写下你的想法……"
-      />
+      <RichTextEditor v-model="content" placeholder="开始写下你的想法……" />
     </div>
 
     <!-- 标签 -->

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/oss", tags=["oss"])
 
 
 @router.post("/upload")
-@require_level(1)
+@require_level(5)
 async def upload_file(
     request: Request,
     file: UploadFile = File(...),

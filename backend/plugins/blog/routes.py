@@ -437,6 +437,25 @@ async def import_post(
     return {"code": "ok", "message": "导入成功，等待审核", "data": result}
 
 
+@router.post("/upload-file")
+async def upload_post_file(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """上传 TXT/MD 文件创建帖子（需登录）。"""
+    user = require_user(request)
+    author_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.import_post(
+        file=file,
+        author_id=author_id,
+        user_level=user["level"],
+    )
+    return {"code": "ok", "message": "导入成功，等待审核", "data": result}
+
+
 # --- 标签 ---
 
 

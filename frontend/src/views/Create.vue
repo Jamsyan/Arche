@@ -7,12 +7,27 @@
           <h1>创作</h1>
           <p class="page-desc">写文章、管理内容，记录你的所思所想</p>
         </div>
-        <ArButton type="primary" size="lg" @click="handleNewPost">
-          <template #icon>
-            <NIcon size="18"><CreateOutline /></NIcon>
-          </template>
-          写文章
-        </ArButton>
+        <div class="page-header-actions">
+          <ArButton type="primary" size="lg" @click="handleNewPost">
+            <template #icon>
+              <NIcon size="18"><CreateOutline /></NIcon>
+            </template>
+            写文章
+          </ArButton>
+          <ArButton type="secondary" size="lg" @click="handleUploadFile">
+            <template #icon>
+              <NIcon size="18"><CloudUploadOutline /></NIcon>
+            </template>
+            上传文件
+          </ArButton>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".txt,.md"
+            style="display: none"
+            @change="handleFileSelected"
+          />
+        </div>
       </div>
 
       <div class="stats-grid">
@@ -214,15 +229,18 @@
             </ArButton>
           </div>
         </div>
-        <div class="edit-editor">
-          <PostEditor
-            ref="editorRef"
-            :post="isCreatingNew ? null : editingPost"
-            :loading="saving"
-            hide-footer
-            @save="handleSaveComplete"
-            @cancel="exitEdit"
-          />
+        <div class="edit-body">
+          <div class="edit-editor">
+            <PostEditor
+              ref="editorRef"
+              :post="isCreatingNew ? null : editingPost"
+              :loading="saving"
+              hide-footer
+              @save="handleSaveComplete"
+              @cancel="exitEdit"
+            />
+          </div>
+          <AssetSidebar :files="postFiles" @insert="handleInsertRef" @upload="handleAssetUpload" />
         </div>
       </main>
     </div>
@@ -230,29 +248,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NModal, NIcon } from 'naive-ui'
+import { NModal, NIcon, useMessage } from 'naive-ui'
 import {
   CreateOutline,
   DocumentTextOutline,
   EyeOutline,
   HeartOutline,
   BookmarkOutline,
-  TimeOutline
+  TimeOutline,
+  CloudUploadOutline
 } from '@vicons/ionicons5'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
 import ArWheelPicker from '@/components/ui/ArWheelPicker.vue'
 import PostEditor from '@/components/blog/PostEditor.vue'
-import { getMyPostsApi, type BlogPost } from '@/services/api'
+import AssetSidebar from '@/components/blog/AssetSidebar.vue'
+import { getMyPostsApi, uploadPostFileApi, type BlogPost } from '@/services/api'
+import { getMyOssFilesApi, getOssFileUrl, uploadOssFileApi } from '@/services/api/oss'
 import { useUserStore } from '@/store/modules/user'
 
 type PostTab = 'all' | 'published' | 'draft'
 
 const router = useRouter()
 const userStore = useUserStore()
+const message = useMessage()
 const editorRef = ref<InstanceType<typeof PostEditor> | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 const loading = ref(false)
 const saving = ref(false)
 const posts = ref<BlogPost[]>([])
@@ -321,7 +344,43 @@ const handleNewPost = () => {
   editorTags.value = []
   editorAccess.value = userStore.level ?? 5
   isEditorOpen.value = true
+  loadPostFiles()
 }
+
+const handleUploadFile = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileSelected = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  try {
+    const result = await uploadPostFileApi(file, { silent: true })
+    // 上传成功后，打开编辑器并填充内容
+    isCreatingNew.value = true
+    editingPost.value = null
+    editorTags.value = []
+    editorAccess.value = userStore.level ?? 5
+    isEditorOpen.value = true
+    // 填充内容到编辑器
+    // 由于 PostEditor 通过 ref 暴露了 title 和 content
+    await nextTick()
+    if (editorRef.value && result) {
+      // result 是后端返回的 BlogPost 对象
+      editorRef.value.title = (result as any).title || ''
+      editorRef.value.content = (result as any).content || ''
+    }
+    message.success('文件导入成功')
+  } catch {
+    message.error('文件导入失败，请重试')
+  } finally {
+    // 重置文件输入
+    input.value = ''
+  }
+}
+
 const handleOpenPost = (post: BlogPost) => router.push(`/blog/${post.slug}`)
 
 const handleViewStats = (post: BlogPost) => {
@@ -345,6 +404,41 @@ const handleEditPost = (post: BlogPost) => {
   editorTags.value = [...(post.tags || [])]
   editorAccess.value = (post.required_level as number) ?? 5
   isEditorOpen.value = true
+  loadPostFiles()
+}
+
+const postFiles = ref<Array<{ id: string; index: number; url: string; name: string }>>([])
+
+const loadPostFiles = async () => {
+  try {
+    const res = await getMyOssFilesApi(
+      { limit: 50, offset: 0 },
+      { silent: true, skipAuthLogout: true }
+    )
+    postFiles.value = (res.list || []).map((f, i) => ({
+      id: f.id,
+      index: i + 1,
+      url: getOssFileUrl(f.id),
+      name: f.path.split('/').pop() || f.id
+    }))
+  } catch {
+    postFiles.value = []
+  }
+}
+
+const handleInsertRef = (refStr: string) => {
+  if (editorRef.value) {
+    editorRef.value.content += refStr
+  }
+}
+
+const handleAssetUpload = async (file: File) => {
+  try {
+    await uploadOssFileApi(file, false)
+    await loadPostFiles()
+  } catch (e: any) {
+    console.error('上传失败', e)
+  }
 }
 
 const exitEdit = () => {
@@ -439,6 +533,12 @@ onMounted(fetchData)
   margin: 0;
   font-size: 14px;
   color: var(--text-tertiary);
+}
+
+.page-header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
 }
 
 .stats-grid {
@@ -922,6 +1022,13 @@ onMounted(fetchData)
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-lg);
+}
+
+.edit-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
