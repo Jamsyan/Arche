@@ -27,7 +27,7 @@ class BlogPost(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     quality_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     views: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    access_level: Mapped[str] = mapped_column(String(8), nullable=False, default="A5")
+    required_level: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

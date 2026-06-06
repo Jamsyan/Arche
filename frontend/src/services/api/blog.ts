@@ -12,7 +12,7 @@ export interface BlogPost {
   title: string
   content: string
   tags: string[]
-  access_level?: string
+  required_level?: number
   status?: string
   created_at?: string
   updated_at?: string
@@ -40,7 +40,7 @@ export interface CreatePostPayload {
   title: string
   content: string
   tags?: string[]
-  access_level?: string
+  required_level?: number
 }
 
 export interface UpdatePostPayload {

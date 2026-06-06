@@ -29,7 +29,7 @@ const title = ref(props.post?.title || '')
 const content = ref(props.post?.content || '')
 const tagInput = ref('')
 const tags = ref<string[]>(props.post?.tags || [])
-const accessLevel = ref(props.post?.access_level || 'public')
+const requiredLevel = ref<number>(props.post?.required_level ?? 5)
 
 const canSubmit = computed(() => title.value.trim().length > 0 && content.value.trim().length > 0)
 
@@ -63,7 +63,7 @@ function handleSave() {
         title: title.value.trim(),
         content: content.value.trim(),
         tags: tags.value,
-        access_level: accessLevel.value
+        required_level: requiredLevel.value
       }
   emit('save', payload)
 }
@@ -72,9 +72,9 @@ function handleCancel() {
   emit('cancel')
 }
 
-function updateMeta(meta: { tags?: string[]; accessLevel?: string }) {
+function updateMeta(meta: { tags?: string[]; requiredLevel?: number }) {
   if (meta.tags) tags.value = meta.tags
-  if (meta.accessLevel) accessLevel.value = meta.accessLevel
+  if (meta.requiredLevel !== undefined) requiredLevel.value = meta.requiredLevel
 }
 
 defineExpose({
@@ -85,7 +85,7 @@ defineExpose({
   addTag,
   removeTag,
   handleTagKeydown,
-  accessLevel,
+  requiredLevel,
   title,
   content,
   updateMeta
@@ -145,12 +145,16 @@ defineExpose({
       </div>
     </div>
 
-    <!-- 访问级别（仅新建模式） -->
+    <!-- 可见等级（仅新建模式） -->
     <div v-if="!isEdit && !hideFooter" class="editor-field">
-      <label class="field-label">访问级别</label>
-      <select v-model="accessLevel" class="field-select">
-        <option value="public">公开</option>
-        <option value="private">私密</option>
+      <label class="field-label">可见等级（P0=管理员 · P5=所有人）</label>
+      <select v-model.number="requiredLevel" class="field-select">
+        <option :value="0">P0 - 仅管理员</option>
+        <option :value="1">P1</option>
+        <option :value="2">P2</option>
+        <option :value="3">P3</option>
+        <option :value="4">P4</option>
+        <option :value="5">P5 - 所有人</option>
       </select>
     </div>
 

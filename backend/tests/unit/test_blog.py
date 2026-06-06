@@ -12,9 +12,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 
 from backend.plugins.blog.services import (
-    get_max_visible_p_level,
     can_user_see_post,
-    get_access_level_filter,
     BlogService,
     MAX_TAGS_PER_POST,
 )
@@ -97,41 +95,21 @@ def blog_container():
 
 
 class TestAccessLevelFunctions:
-    """权限等级工具函数测试。"""
+    """权限等级工具函数测试（已简化：直接比较整数）。"""
 
-    def test_get_max_visible_p_level(self):
-        assert get_max_visible_p_level("A0") == 0
-        assert get_max_visible_p_level("A1") == 1
-        assert get_max_visible_p_level("A5") == 5
-        assert get_max_visible_p_level("A9") == 5  # A5及以上都是5
+    def test_can_user_see_post_admin(self):
+        assert can_user_see_post(0, 0) is True  # P0看需要P0的帖子
+        assert can_user_see_post(0, 1) is False  # P1不能看需要P0的帖子
 
-    def test_get_max_visible_p_level_case_insensitive(self):
-        assert get_max_visible_p_level("a0") == 0
-        assert get_max_visible_p_level("A0") == 0
+    def test_can_user_see_post_normal(self):
+        assert can_user_see_post(2, 2) is True  # P2看需要P2的帖子
+        assert can_user_see_post(2, 3) is False  # P3不能看需要P2的帖子
+        assert can_user_see_post(2, 0) is True  # P0能看需要P2的帖子
 
-    def test_get_max_visible_p_level_default(self):
-        assert get_max_visible_p_level("B0") == 5
-        assert get_max_visible_p_level("INVALID") == 5
-
-    def test_can_user_see_post(self):
-        assert can_user_see_post("A0", 0) is True
-        assert can_user_see_post("A0", 1) is False
-        assert can_user_see_post("A2", 2) is True
-        assert can_user_see_post("A2", 3) is False
-        assert can_user_see_post("A5", 5) is True
-
-    def test_get_access_level_filter(self):
-        p0_filter = get_access_level_filter(0)
-        assert "A0" in p0_filter
-        assert "A5" in p0_filter
-
-        p2_filter = get_access_level_filter(2)
-        assert "A0" not in p2_filter
-        assert "A2" in p2_filter
-
-        p5_filter = get_access_level_filter(5)
-        assert "A4" not in p5_filter
-        assert "A5" in p5_filter
+    def test_can_user_see_post_public(self):
+        assert can_user_see_post(5, 5) is True  # P5看公开帖子
+        assert can_user_see_post(5, 0) is True  # P0也能看公开帖子
+        assert can_user_see_post(5, 5) is True  # 访客看公开帖子
 
 
 # =============================================================================
@@ -296,7 +274,7 @@ class TestBlogServicePostCRUD:
         service = BlogService(blog_container)
 
         mock_post = MagicMock()
-        mock_post.access_level = "A0"
+        mock_post.required_level = 0
         mock_post.views = 0
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
@@ -309,7 +287,7 @@ class TestBlogServicePostCRUD:
         service = BlogService(blog_container)
 
         mock_post = MagicMock()
-        mock_post.access_level = "A5"
+        mock_post.required_level = 5
         mock_post.views = 0
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
@@ -343,7 +321,7 @@ class TestBlogServicePostCRUD:
                 author_id=uuid.uuid4(),
                 title="Test Post",
                 content="Test content",
-                access_level="A0",
+                required_level=0,
                 user_level=2,
             )
         assert "无权设置" in str(excinfo.value)

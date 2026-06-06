@@ -19,7 +19,7 @@ class CreatePostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256, description="标题")
     content: str = Field(..., min_length=1, description="正文内容")
     tags: list[str] = Field(default_factory=list, description="标签列表")
-    access_level: str = Field(default="A5", description="阅读权限等级（A0-A9）")
+    required_level: int = Field(default=5, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）")
 
 
 class UpdatePostRequest(BaseModel):
@@ -118,7 +118,7 @@ async def create_post(req: CreatePostRequest, request: Request):
         title=req.title,
         content=req.content,
         tags=req.tags,
-        access_level=req.access_level,
+        required_level=req.required_level,
         user_level=user["level"],
     )
     return {"code": "ok", "message": "发帖成功，等待审核", "data": result}
@@ -416,7 +416,7 @@ async def create_report(req: CreateReportRequest, request: Request):
 async def import_post(
     request: Request,
     file: UploadFile = File(...),
-    access_level: str = Form(default="A5"),
+    required_level: int = Form(default=5),
     tags: str = Form(default=""),
 ):
     """从文件导入帖子（需登录）。"""
@@ -431,7 +431,7 @@ async def import_post(
         file=file,
         author_id=author_id,
         user_level=user["level"],
-        access_level=access_level,
+        required_level=required_level,
         tags=tag_list,
     )
     return {"code": "ok", "message": "导入成功，等待审核", "data": result}

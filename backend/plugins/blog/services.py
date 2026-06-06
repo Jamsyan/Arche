@@ -24,38 +24,10 @@ from .models import (
 
 MAX_TAGS_PER_POST = 50
 
-# A 等级 → 最大可见用户 P 等级（数字越小权限越高）
-# A0=仅限 P0, A1=P0~P1, A2=P0~P2, A3=P0~P3, A4=P0~P4, A5+=所有人
-ACCESS_LEVEL_MAP = {
-    "A0": 0,
-    "A1": 1,
-    "A2": 2,
-    "A3": 3,
-    "A4": 4,
-    "A5": 5,
-    "A6": 5,
-    "A7": 5,
-    "A8": 5,
-    "A9": 5,
-}
 
-
-def get_max_visible_p_level(access_level: str) -> int:
-    """获取帖子 A 等级对应的最大可见 P 等级。"""
-    return ACCESS_LEVEL_MAP.get(access_level.upper(), 5)
-
-
-def can_user_see_post(access_level: str, user_level: int) -> bool:
-    """判断用户是否有权限查看帖子。"""
-    max_p = get_max_visible_p_level(access_level)
-    return user_level <= max_p
-
-
-def get_access_level_filter(user_level: int) -> list[str]:
-    """根据用户等级生成 SQL 过滤条件（access_level 列表）。"""
-    # 用户能看到所有 access_level 对应的 max_visible_p >= user_level 的帖子
-    allowed = [al for al, max_p in ACCESS_LEVEL_MAP.items() if max_p >= user_level]
-    return allowed
+def can_user_see_post(required_level: int, user_level: int) -> bool:
+    """判断用户是否有权限查看帖子（用户等级 <= 帖子要求等级则可看）。"""
+    return user_level <= required_level
 
 
 class BlogService:
@@ -140,13 +112,10 @@ class BlogService:
                 query = query.where(BlogPost.id.in_(tag_posts))
                 count_query = count_query.where(BlogPost.id.in_(tag_posts))
 
-            # 权限过滤
+            # 权限过滤：用户只能看到 required_level >= user_level 的帖子
             if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
-                query = query.where(BlogPost.access_level.in_(allowed_levels))
-                count_query = count_query.where(
-                    BlogPost.access_level.in_(allowed_levels)
-                )
+                query = query.where(BlogPost.required_level >= user_level)
+                count_query = count_query.where(BlogPost.required_level >= user_level)
 
             # 总数
             total_result = await session.execute(count_query)
@@ -276,7 +245,7 @@ class BlogService:
 
             # 权限检查
             if user_level is not None and not can_user_see_post(
-                post.access_level, user_level
+                post.required_level, user_level
             ):
                 raise AppError(
                     "无权查看此帖子", code="permission_denied", status_code=403
@@ -310,7 +279,7 @@ class BlogService:
 
         # 权限检查
         if user_level is not None and not can_user_see_post(
-            post.access_level, user_level
+            post.required_level, user_level
         ):
             raise AppError("无权查看此帖子", code="permission_denied", status_code=403)
 
@@ -324,22 +293,17 @@ class BlogService:
         title: str,
         content: str,
         tags: list[str] | None = None,
-        access_level: str = "A5",
+        required_level: int = 5,
         user_level: int = 5,
     ) -> dict:
         """创建帖子，默认进入审核队列（status=pending）。"""
         from backend.plugins.auth.models import User
         from backend.plugins.blog.sensitive_words import get_filter
 
-        # 权限等级验证
-        al_num = (
-            int(access_level.upper().lstrip("A"))
-            if access_level.upper().startswith("A")
-            else 5
-        )
-        if al_num < user_level:
+        # 权限等级验证：用户不能设置高于自身等级的可见门槛
+        if required_level < user_level:
             raise AppError(
-                f"无权设置 {access_level.upper()} 权限，最高可设置 A{user_level}",
+                f"无权设置 P{required_level} 权限，最高可设置 P{user_level}",
                 code="access_level_too_high",
                 status_code=403,
             )
@@ -382,7 +346,7 @@ class BlogService:
                 slug=slug,
                 content=content,
                 status="pending",
-                access_level=access_level.upper(),
+                required_level=required_level,
             )
             session.add(post)
             await session.flush()  # 获取 post.id
@@ -829,9 +793,8 @@ class BlogService:
                 )
             )
             if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
                 count_query = count_query.where(
-                    BlogPost.access_level.in_(allowed_levels)
+                    BlogPost.required_level >= user_level
                 )
             total = (await session.execute(count_query)).scalar_one()
 
@@ -847,8 +810,7 @@ class BlogService:
                 .limit(page_size)
             )
             if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
-                query = query.where(BlogPost.access_level.in_(allowed_levels))
+                query = query.where(BlogPost.required_level >= user_level)
             result = await session.execute(query)
             posts = result.scalars().all()
 
@@ -975,7 +937,7 @@ class BlogService:
         file: UploadFile,
         author_id: uuid.UUID,
         user_level: int = 5,
-        access_level: str = "A5",
+        required_level: int = 5,
         tags: list[str] | None = None,
     ) -> dict:
         """从文件导入帖子。"""
@@ -1010,7 +972,7 @@ class BlogService:
             title=title,
             content=body,
             tags=tags,
-            access_level=access_level,
+            required_level=required_level,
             user_level=user_level,
         )
 
@@ -1275,7 +1237,7 @@ class BlogService:
             "quality_score": post.quality_score,
             "views": post.views,
             "likes": likes_count,
-            "access_level": post.access_level,
+            "required_level": post.required_level,
             "created_at": post.created_at.isoformat() if post.created_at else None,
         }
 

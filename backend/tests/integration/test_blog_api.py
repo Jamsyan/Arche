@@ -44,7 +44,7 @@ class TestBlogAPI:
         )
 
     async def test_create_post_requires_auth(self, client):
-        payload = {"title": "t", "content": "c", "tags": [], "access_level": "A5"}
+        payload = {"title": "t", "content": "c", "tags": [], "required_level": 5}
         response = await client.post("/api/blog/posts", json=payload)
         assert response.status_code == 401
 

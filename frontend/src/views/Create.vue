@@ -184,7 +184,7 @@
             <ArWheelPicker
               :options="[...accessLevels]"
               v-model="editorAccess"
-              title="帖子可见权限：滚轮切换 · 数字越小权限越高"
+              title="帖子可见权限：P0=仅管理员 · P5=所有人可见"
             />
           </div>
           <div class="edit-topbar-tags">
@@ -246,10 +246,12 @@ import ArTag from '@/components/ui/ArTag.vue'
 import ArWheelPicker from '@/components/ui/ArWheelPicker.vue'
 import PostEditor from '@/components/blog/PostEditor.vue'
 import { getMyPostsApi, type BlogPost } from '@/services/api'
+import { useUserStore } from '@/store/modules/user'
 
 type PostTab = 'all' | 'published' | 'draft'
 
 const router = useRouter()
+const userStore = useUserStore()
 const editorRef = ref<InstanceType<typeof PostEditor> | null>(null)
 const loading = ref(false)
 const saving = ref(false)
@@ -260,8 +262,8 @@ const isCreatingNew = ref(false)
 const editingPost = ref<BlogPost | null>(null)
 const tagInputValue = ref('')
 const editorTags = ref<string[]>([])
-const accessLevels = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5'] as const
-const editorAccess = ref<string>('A5')
+const accessLevels = [0, 1, 2, 3, 4, 5] as const
+const editorAccess = ref<number>(userStore.level ?? 5)
 
 const statsPost = ref<BlogPost | null>(null)
 const showStatsModal = ref(false)
@@ -317,7 +319,7 @@ const handleNewPost = () => {
   isCreatingNew.value = true
   editingPost.value = null
   editorTags.value = []
-  editorAccess.value = 'A5'
+  editorAccess.value = userStore.level ?? 5
   isEditorOpen.value = true
 }
 const handleOpenPost = (post: BlogPost) => router.push(`/blog/${post.slug}`)
@@ -341,7 +343,7 @@ const handleEditPost = (post: BlogPost) => {
   isCreatingNew.value = false
   editingPost.value = post
   editorTags.value = [...(post.tags || [])]
-  editorAccess.value = (post.access_level as string) || 'A5'
+  editorAccess.value = (post.required_level as number) ?? 5
   isEditorOpen.value = true
 }
 
@@ -356,11 +358,11 @@ const switchEditPost = (post: BlogPost) => {
   isCreatingNew.value = false
   editingPost.value = post
   editorTags.value = [...(post.tags || [])]
-  editorAccess.value = (post.access_level as string) || 'A5'
+  editorAccess.value = (post.required_level as number) ?? 5
 }
 
 const saveCurrent = () => {
-  editorRef.value?.updateMeta({ tags: editorTags.value, accessLevel: editorAccess.value })
+  editorRef.value?.updateMeta({ tags: editorTags.value, requiredLevel: editorAccess.value })
   editorRef.value?.handleSave()
 }
 

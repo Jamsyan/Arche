@@ -19,7 +19,6 @@ import LikeButton from '@/components/blog/LikeButton.vue'
 import FavoriteButton from '@/components/blog/FavoriteButton.vue'
 import CommentForm from '@/components/blog/CommentForm.vue'
 import CommentList from '@/components/blog/CommentList.vue'
-import ArDivider from '@/components/ui/ArDivider.vue'
 
 const route = useRoute()
 const message = useMessage()
@@ -30,10 +29,13 @@ const comments = ref<BlogComment[]>([])
 const liked = ref(false)
 const favorited = ref(false)
 const posting = ref(false)
+const loading = ref(true)
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
+const commentsCount = computed(() => comments.value.length)
 
 const fetchPost = async () => {
+  loading.value = true
   try {
     const detail = await getPostBySlugApi(String(route.params.slug || ''))
     post.value = detail
@@ -54,6 +56,8 @@ const fetchPost = async () => {
     }
   } catch {
     message.error('加载帖子失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -108,9 +112,16 @@ onMounted(fetchPost)
 </script>
 
 <template>
-  <div v-if="post" class="post-detail-page">
-    <!-- 帖子内容 -->
-    <PostDetail :post="post" @like="toggleLike" @favorite="toggleFavorite" />
+  <!-- 加载态 -->
+  <div v-if="loading" class="loading-state">
+    <div class="ink-loading" />
+    <p class="loading-text">加载中……</p>
+  </div>
+
+  <!-- 内容 -->
+  <div v-else-if="post" class="post-detail-page">
+    <!-- 文章内容 -->
+    <PostDetail :post="post" />
 
     <!-- 操作栏 -->
     <div class="section-card actions-card">
@@ -121,66 +132,154 @@ onMounted(fetchPost)
           :disabled="!isLoggedIn"
           @toggle="toggleLike"
         />
+        <div class="action-sep" />
         <FavoriteButton :active="favorited" :disabled="!isLoggedIn" @toggle="toggleFavorite" />
       </div>
     </div>
 
     <!-- 评论区 -->
     <div class="section-card comments-card">
-      <h3 class="comments-title">评论</h3>
+      <div class="comments-header">
+        <h3 class="comments-title">评论</h3>
+        <span class="comments-badge">{{ commentsCount }}</span>
+      </div>
 
       <CommentForm v-if="isLoggedIn" :loading="posting" @submit="submitComment" />
-      <div v-else class="login-hint">登录后即可发表评论</div>
+      <div v-else class="login-hint">
+        <span class="login-hint-icon">⟡</span>
+        登录后即可发表评论
+      </div>
 
-      <ArDivider />
+      <div class="comments-divider" />
 
       <CommentList :comments="comments" />
     </div>
   </div>
-  <div v-else class="loading-state">
-    <p>加载中……</p>
-  </div>
 </template>
 
 <style scoped>
+/* ── 页面布局 ── */
 .post-detail-page {
   max-width: 760px;
   margin: 0 auto;
+  padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-4xl);
 }
+
+/* ── 通用卡片 ── */
 .section-card {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+  animation: section-enter 0.5s var(--ease-out-smooth) both;
 }
+
+.section-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.section-card:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+@keyframes section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 操作栏 ── */
 .actions-card {
   padding: var(--spacing-md) var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
   display: flex;
   align-items: center;
 }
+
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
+
+.action-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--divider-color);
+}
+
+/* ── 评论区 ── */
 .comments-card {
   padding: var(--spacing-lg);
 }
+
+.comments-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
 .comments-title {
-  margin: 0 0 var(--spacing-md);
+  margin: 0;
   font-size: 16px;
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
+
+.comments-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--primary-light-color);
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.comments-divider {
+  height: 1px;
+  margin: var(--spacing-md) 0;
+  background: var(--divider-color);
+}
+
 .login-hint {
   text-align: center;
-  padding: var(--spacing-md) 0;
+  padding: var(--spacing-lg) 0;
   font-size: 13px;
   color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
 }
+
+.login-hint-icon {
+  font-size: 16px;
+  opacity: 0.5;
+}
+
+/* ── 加载态 ── */
 .loading-state {
-  text-align: center;
-  padding: 60px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--spacing-md);
+}
+
+.loading-text {
+  font-size: 14px;
   color: var(--text-tertiary);
 }
 </style>

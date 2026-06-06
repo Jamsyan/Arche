@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NIcon } from 'naive-ui'
-import { HeartOutline, BookmarkOutline } from '@vicons/ionicons5'
-import ArDivider from '@/components/ui/ArDivider.vue'
 import TagList from './TagList.vue'
 import type { BlogPost } from '@/services/api'
 
@@ -10,48 +7,38 @@ const props = defineProps<{
   post: BlogPost
 }>()
 
-const emit = defineEmits<{
-  like: []
-  favorite: []
-}>()
-
 const authorName = computed(() => props.post.author_username || '匿名')
 const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
+
+const trimmedContent = computed(() => props.post.content?.trimStart() || '')
+const firstChar = computed(() => trimmedContent.value.charAt(0) || '')
+const restContent = computed(() => trimmedContent.value.slice(1) || '')
 </script>
 
 <template>
   <article class="post-detail">
-    <h1 class="post-title">{{ post.title }}</h1>
+    <!-- 文章头部 -->
+    <header class="post-header">
+      <div class="header-accent" />
+      <div class="post-eyebrow">BLOG</div>
+      <h1 class="post-title">{{ post.title }}</h1>
+      <div class="post-meta">
+        <span class="meta-author">{{ authorName }}</span>
+        <span class="meta-dot">·</span>
+        <span class="meta-date">{{ dateStr }}</span>
+        <span v-if="post.views !== undefined" class="meta-dot">·</span>
+        <span v-if="post.views !== undefined" class="meta-views">{{ post.views }} 阅读</span>
+      </div>
+      <TagList v-if="post.tags && post.tags.length > 0" :tags="post.tags" class="post-tags" />
+    </header>
 
-    <div class="post-meta">
-      <span class="meta-author">{{ authorName }}</span>
-      <span class="meta-dot">·</span>
-      <span class="meta-date">{{ dateStr }}</span>
-      <span v-if="post.views !== undefined" class="meta-dot">·</span>
-      <span v-if="post.views !== undefined" class="meta-views">{{ post.views }} 阅读</span>
-    </div>
+    <!-- 分隔线 -->
+    <div class="content-divider" />
 
-    <TagList v-if="post.tags && post.tags.length > 0" :tags="post.tags" class="post-tags" />
-
-    <ArDivider />
-
-    <div class="post-content">{{ post.content }}</div>
-
-    <ArDivider />
-
-    <div class="post-actions">
-      <button class="action-btn" @click="emit('like')">
-        <NIcon size="18">
-          <HeartOutline />
-        </NIcon>
-        <span>{{ post.likes || 0 }}</span>
-      </button>
-      <button class="action-btn" @click="emit('favorite')">
-        <NIcon size="18">
-          <BookmarkOutline />
-        </NIcon>
-        <span>收藏</span>
-      </button>
+    <!-- 正文 -->
+    <div class="post-content">
+      <span class="drop-cap">{{ firstChar }}</span
+      >{{ restContent }}
     </div>
   </article>
 </template>
@@ -60,14 +47,49 @@ const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
 .post-detail {
   max-width: 720px;
   margin: 0 auto;
-  font-family: var(--font-sans);
+  animation: post-enter 0.6s var(--ease-out-smooth) both;
+}
+
+@keyframes post-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 文章头部 ── */
+.post-header {
+  position: relative;
+  padding-top: var(--spacing-xl);
+}
+
+.header-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 2px;
+}
+
+.post-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .post-title {
   margin: 0 0 var(--spacing-md);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: var(--font-weight-bold);
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }
@@ -92,49 +114,41 @@ const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
 }
 
 .post-tags {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 0;
 }
 
+/* ── 分隔线 ── */
+.content-divider {
+  height: 1px;
+  margin: var(--spacing-xl) 0;
+  background: linear-gradient(
+    90deg,
+    var(--primary-color) 0%,
+    var(--divider-color) 30%,
+    transparent 100%
+  );
+  opacity: 0.5;
+}
+
+/* ── 正文 ── */
 .post-content {
-  font-size: 15px;
-  line-height: 1.9;
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 2;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.post-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  background: var(--surface-color);
-  color: var(--text-secondary);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  cursor: pointer;
-  transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast),
-    color var(--transition-fast);
-  touch-action: manipulation;
-}
-
-.action-btn:hover {
-  background: var(--primary-light-color);
-  border-color: var(--primary-color);
+.drop-cap {
+  float: left;
+  font-size: 58px;
+  line-height: 0.85;
+  font-weight: var(--font-weight-bold);
   color: var(--primary-color);
-}
-
-.action-btn:active {
-  transform: scale(0.96);
+  margin-right: 12px;
+  margin-top: 4px;
+  font-family: var(--font-serif);
+  letter-spacing: -0.03em;
 }
 </style>

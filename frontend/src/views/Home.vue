@@ -21,20 +21,8 @@ const HOT_ROTATE_INTERVAL_MS = 12000
 
 let hotTimer: ReturnType<typeof setInterval> | null = null
 
-const getAccessLevelNumber = (accessLevel?: string) => {
-  if (!accessLevel) {
-    return 5
-  }
-  const normalized = accessLevel.trim().toUpperCase()
-  if (!normalized.startsWith('A')) {
-    return 5
-  }
-  const parsed = Number(normalized.slice(1))
-  return Number.isFinite(parsed) ? parsed : 5
-}
-
 const filterByAccess = (list: BlogPost[]) =>
-  userStore.token ? list : list.filter((item) => getAccessLevelNumber(item.access_level) <= 5)
+  userStore.token ? list : list.filter((item) => (item.required_level ?? 5) >= 5)
 
 const fetchPosts = async () => {
   loading.value = true
