@@ -2,21 +2,10 @@ name: Build
 
 on:
   workflow_call:
-    inputs:
-      image_tag:
-        description: "Image tag to build (e.g., 0.1.3, latest)"
-        required: true
-        type: string
     outputs:
-      success:
-        description: "Whether the build succeeded"
-        value: ${{ jobs.summary.outputs.success }}
-      backend_image:
-        description: "Full path of backend image"
-        value: ${{ jobs.summary.outputs.backend_image }}
-      frontend_image:
-        description: "Full path of frontend image"
-        value: ${{ jobs.summary.outputs.frontend_image }}
+      image_tag:
+        description: "Built image tag (empty if skipped)"
+        value: ${{ jobs.version.outputs.image_tag }}
 
 env:
   REGISTRY: crpi-furbxf8d6ydk7jxx.cn-shanghai.personal.cr.aliyuncs.com
@@ -24,20 +13,88 @@ env:
   IMAGE_REPO: arche
 
 jobs:
-  # ── 1. 验证登录凭证（失败即阻断后续构建） ──
-  login:
+  # ── 1. 版本路由 ──
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.route.outputs.image_tag }}
     steps:
-      - name: Login to Aliyun Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
-          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+          fetch-depth: 0
+
+      - name: Determine version tag
+        id: route
+        run: |
+          REF="${{ github.ref }}"
+          EVENT="${{ github.event_name }}"
+          TAG=""
+
+          echo "Trigger: $EVENT"
+          echo "Ref: $REF"
+
+          # tag push (v*) → 用 tag 版本（手动发版）
+          if [[ "$REF" == refs/tags/v* ]]; then
+            TAG="${REF#refs/tags/v}"
+            echo "Manual tag push → build: $TAG"
+
+          # push 到 master → 按 git diff 算版本
+          elif [[ "$EVENT" == "push" && "$REF" == refs/heads/master ]]; then
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+            if [ -n "$LAST_TAG" ]; then
+              # 计算源码总行数（避免除零）
+              TOTAL=$(git ls-files | grep -E '\.(py|ts|vue|js|css)$' | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+              [ -z "$TOTAL" ] && TOTAL=1
+              [ "$TOTAL" -eq 0 ] && TOTAL=1
+
+              # 计算变更量
+              STATS=$(git diff --shortstat "$LAST_TAG"...HEAD 2>/dev/null)
+              INSERTIONS=$(echo "$STATS" | sed -n 's/.* \([0-9]*\) insertion.*/\1/p')
+              DELETIONS=$(echo "$STATS" | sed -n 's/.* \([0-9]*\) deletion.*/\1/p')
+              [ -z "$INSERTIONS" ] && INSERTIONS=0
+              [ -z "$DELETIONS" ] && DELETIONS=0
+              CHANGE_PERCENT=$(( (INSERTIONS + DELETIONS) * 100 / TOTAL ))
+
+              # 检查提交信息关键词
+              LOG=$(git log "$LAST_TAG"...HEAD --format="%s" 2>/dev/null || echo "")
+
+              # 确定版本位
+              if [ "$CHANGE_PERCENT" -gt 30 ] || echo "$LOG" | grep -qiE '^(refactor|breaking)'; then
+                BUMP="major"
+              elif [ "$CHANGE_PERCENT" -gt 5 ] || echo "$LOG" | grep -qiE '^feat'; then
+                BUMP="minor"
+              else
+                BUMP="patch"
+              fi
+
+              # 解析版本并递增
+              VERSION="${LAST_TAG#v}"
+              MAJOR=$(echo "$VERSION" | cut -d. -f1)
+              MINOR=$(echo "$VERSION" | cut -d. -f2)
+              PATCH=$(echo "$VERSION" | cut -d. -f3)
+
+              case "$BUMP" in
+                major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+                minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+                patch) PATCH=$((PATCH + 1)) ;;
+              esac
+              TAG="${MAJOR}.${MINOR}.${PATCH}"
+              echo "Push → bump ${BUMP} (${CHANGE_PERCENT}% changed): ${LAST_TAG#v} → $TAG"
+            else
+              TAG="0.0.1"
+              echo "First build → $TAG"
+            fi
+          else
+            echo "No build condition met → skip"
+          fi
+
+          echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
   # ── 2. 并行构建 ──
   build-backend:
-    needs: login
+    needs: version
+    if: needs.version.outputs.image_tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,13 +116,14 @@ jobs:
           file: Dockerfile.backend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:backend-${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:backend-${{ needs.version.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:backend-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   build-frontend:
-    needs: login
+    needs: version
+    if: needs.version.outputs.image_tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,80 +145,7 @@ jobs:
           file: Dockerfile.frontend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:frontend-${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:frontend-${{ needs.version.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:frontend-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ── 3. 测试（有则跑，无则跳过） ──
-  test:
-    needs: [build-backend, build-frontend]
-    if: always() && !cancelled()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --frozen
-
-      - name: Check if backend tests exist
-        id: check
-        run: |
-          if find backend/ -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            echo "has_tests=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_tests=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Run tests
-        if: steps.check.outputs.has_tests == 'true'
-        run: uv run pytest
-
-  # ── 4. 回调结果 ──
-  summary:
-    needs: [login, build-backend, build-frontend, test]
-    if: always() && !cancelled()
-    runs-on: ubuntu-latest
-    outputs:
-      success: ${{ steps.result.outputs.success }}
-      backend_image: ${{ steps.result.outputs.backend_image }}
-      frontend_image: ${{ steps.result.outputs.frontend_image }}
-    steps:
-      - name: Collect results
-        id: result
-        run: |
-          LOGIN_OK="${{ needs.login.result }}"
-          BE_OK="${{ needs.build-backend.result }}"
-          FE_OK="${{ needs.build-frontend.result }}"
-          TEST_OK="${{ needs.test.result }}"
-
-          # 测试 skipped 也算成功
-          TEST_PASSED="true"
-          if [ "$TEST_OK" = "failure" ] || [ "$TEST_OK" = "cancelled" ]; then
-            TEST_PASSED="false"
-          fi
-
-          SUCCESS="true"
-          if [ "$LOGIN_OK" != "success" ] || [ "$BE_OK" != "success" ] || [ "$FE_OK" != "success" ] || [ "$TEST_PASSED" != "true" ]; then
-            SUCCESS="false"
-          fi
-
-          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:backend-${{ inputs.image_tag }}"
-          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}:frontend-${{ inputs.image_tag }}"
-
-          echo "success=${SUCCESS}" >> $GITHUB_OUTPUT
-          echo "backend_image=${BACKEND_IMAGE}" >> $GITHUB_OUTPUT
-          echo "frontend_image=${FRONTEND_IMAGE}" >> $GITHUB_OUTPUT
-
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Tag: \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Login: $LOGIN_OK" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend: $BE_OK" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: $FE_OK" >> $GITHUB_STEP_SUMMARY
-          echo "- Test: $TEST_OK" >> $GITHUB_STEP_SUMMARY
-          echo "- Success: $SUCCESS" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,20 @@
+[
+  { "name": "type: bug",        "color": "d73a4a", "description": "Bug 报告" },
+  { "name": "type: feature",    "color": "a2eeef", "description": "新功能" },
+  { "name": "type: enhancement","color": "a2eeef", "description": "现有功能增强" },
+  { "name": "type: refactor",   "color": "fbca04", "description": "代码重构" },
+  { "name": "type: docs",       "color": "7057ff", "description": "文档变更" },
+  { "name": "type: chore",      "color": "bfdadc", "description": "杂项" },
+
+  { "name": "area: backend",    "color": "000000", "description": "后端相关" },
+  { "name": "area: frontend",   "color": "1d76db", "description": "前端相关" },
+  { "name": "area: ci/cd",      "color": "5319e7", "description": "CI/CD 相关" },
+
+  { "name": "priority: high",   "color": "e11d21", "description": "高优先级" },
+  { "name": "priority: medium", "color": "eb6420", "description": "中优先级" },
+  { "name": "priority: low",    "color": "009800", "description": "低优先级" },
+
+  { "name": "good first issue", "color": "7057ff", "description": "新手友好" },
+  { "name": "help wanted",      "color": "008672", "description": "需要帮助" },
+  { "name": "question",         "color": "d876e3", "description": "疑问/讨论" }
+]

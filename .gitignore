@@ -46,6 +46,9 @@ htmlcov/
 storage/
 data/
 
+# uv lock (committed for CI reproducibility)
+# uv.lock
+
 # SSL certificates
 /ssl/
 .claude/settings.local.json

@@ -71,7 +71,7 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  # ── 前端测试（有测试文件时运行） ──
+  # ── 前端测试 ──
   frontend-test:
     runs-on: ubuntu-latest
     steps:
@@ -123,109 +123,68 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
 
-  # ── 门控 + 分支判断 ──
-  gate:
-    needs: [backend-lint, backend-test, frontend-check, frontend-test, security-scan]
-    if: always() && !cancelled()
-    runs-on: ubuntu-latest
-    outputs:
-      should_build: ${{ steps.route.outputs.should_build }}
-      image_tag: ${{ steps.route.outputs.image_tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check results
-        run: |
-          FAILED=0
-          BL="${{ needs.backend-lint.result }}"
-          BT="${{ needs.backend-test.result }}"
-          FC="${{ needs.frontend-check.result }}"
-          FT="${{ needs.frontend-test.result }}"
-          SS="${{ needs.security-scan.result }}"
-
-          echo "Results: lint=$BL test=$BT fe-check=$FC fe-test=$FT security=$SS"
-
-          if [ "$BL" != "success" ]; then FAILED=1; fi
-          if [ "$BT" != "success" ]; then FAILED=1; fi
-          if [ "$FC" != "success" ]; then FAILED=1; fi
-          if [ "$FT" != "success" ] && [ "$FT" != "skipped" ]; then FAILED=1; fi
-          if [ "$SS" != "success" ]; then FAILED=1; fi
-
-          if [ "$FAILED" -eq 1 ]; then
-            echo "CI failed! Build will be skipped."
-            exit 1
-          fi
-
-      - name: Route by branch/tag
-        id: route
-        run: |
-          REF="${{ github.ref }}"
-          EVENT="${{ github.event_name }}"
-
-          echo "Trigger: $EVENT"
-          echo "Ref: $REF"
-
-          # tag push (v*) → 用 tag 版本直接构建
-          if [[ "$REF" == refs/tags/v* ]]; then
-            TAG="${REF#refs/tags/v}"
-            echo "Tag push → build: $TAG"
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
-
-          # push 到 master → 自增 patch 版本后构建
-          elif [[ "$EVENT" == "push" && "$REF" == refs/heads/master ]]; then
-            LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-            if [ -n "$LATEST" ]; then
-              VERSION="${LATEST#v}"
-              MAJOR=$(echo "$VERSION" | cut -d. -f1)
-              MINOR=$(echo "$VERSION" | cut -d. -f2)
-              PATCH=$(echo "$VERSION" | cut -d. -f3)
-              TAG="${MAJOR}.${MINOR}.$((PATCH + 1))"
-            else
-              TAG="0.0.1"
-            fi
-            echo "Push to master → build: $TAG"
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
-
-          # pull_request 或其他 → 不构建
-          else
-            echo "No build condition met → skip"
-            echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "image_tag=" >> $GITHUB_OUTPUT
-          fi
-
-  # ── 构建 ──
+  # ── 构建（版本路由在 build.yml 内部处理） ──
   build:
-    needs: gate
-    if: needs.gate.outputs.should_build == 'true'
+    needs: [backend-lint, backend-test, frontend-check, frontend-test, security-scan]
     uses: ./.github/workflows/build.yml
-    with:
-      image_tag: ${{ needs.gate.outputs.image_tag }}
     secrets: inherit
 
-  # ── 落地版本号（仅 push 到 master：构建成功后把自增 tag 推回仓库） ──
-  tag-release:
-    needs: [gate, build]
-    if: needs.gate.outputs.should_build == 'true' && github.ref == 'refs/heads/master'
+  # ── 发布（创建 Tag + GitHub Release + 上传部署包） ──
+  release:
+    needs: [build]
+    if: needs.build.outputs.image_tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Create and push version tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ needs.gate.outputs.image_tag }}
-          git push origin v${{ needs.gate.outputs.image_tag }}
 
-  # ── 部署（构建成功就执行，无需额外判断） ──
+      - name: Create deployment bundle
+        run: |
+          TAG="${{ needs.build.outputs.image_tag }}"
+          BUNDLE="arche-v${TAG}"
+          mkdir -p "${BUNDLE}"
+
+          # 收集部署所需文件
+          [ -f docker-compose.yml ] && cp docker-compose.yml "${BUNDLE}/"
+          [ -d nginx ]            && cp -r nginx "${BUNDLE}/"
+          [ -f .env.example ]     && cp .env.example "${BUNDLE}/"
+          [ -d scripts ]          && cp -r scripts "${BUNDLE}/"
+
+          # 写入部署说明
+          cat > "${BUNDLE}/README.txt" <<-EOM
+        Arche v${TAG} 部署包
+        ====================
+        镜像版本: backend-${TAG}, frontend-${TAG}
+        部署方式: docker-compose up -d
+        EOM
+
+          zip -r "arche-v${TAG}.zip" "${BUNDLE}/"
+          echo "Created: arche-v${TAG}.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.image_tag }}
+          name: v${{ needs.build.outputs.image_tag }}
+          body: |
+            镜像标签：`backend-${{ needs.build.outputs.image_tag }}` / `frontend-${{ needs.build.outputs.image_tag }}`
+
+            ### 部署
+            ```bash
+            docker-compose pull
+            docker-compose up -d
+            ```
+          files: arche-v${{ needs.build.outputs.image_tag }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 部署 ──
   deploy:
-    needs: [gate, build]
+    needs: [build]
+    if: needs.build.outputs.image_tag != ''
     uses: ./.github/workflows/deploy.yml
     with:
-      image_tag: ${{ needs.gate.outputs.image_tag }}
+      image_tag: ${{ needs.build.outputs.image_tag }}
     secrets: inherit
