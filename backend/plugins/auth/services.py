@@ -207,6 +207,10 @@ class AuthService:
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
             "is_active": user.is_active,
+            "deletion_status": user.deletion_status,
+            "deletion_reason": user.deletion_reason,
+            "deletion_expires_at": user.deletion_expires_at.isoformat() if user.deletion_expires_at else None,
+            "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
@@ -292,6 +296,34 @@ class AuthService:
     async def enable_user(self, user_id: uuid.UUID) -> dict:
         """启用用户。"""
         return await self.update_user(user_id, is_active=True)
+
+    async def soft_delete_user(
+        self,
+        user_id: uuid.UUID,
+        reason: str,
+        expires_in_days: int,
+    ) -> dict:
+        """软删除用户：标记删除状态、原因和过期时间，同时禁用账号。"""
+        from datetime import datetime, timedelta, timezone
+
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                raise AppError("用户不存在", code="user_not_found", status_code=404)
+
+            now = datetime.now(timezone.utc)
+            user.is_active = False
+            user.deletion_status = "deleted_by_admin" if reason == "violation" else "user_requested_deletion"
+            user.deletion_reason = reason
+            user.deletion_expires_at = now + timedelta(days=expires_in_days)
+            user.deleted_at = now
+
+            await session.commit()
+            await session.refresh(user)
+            return self._user_to_dict(user)
 
     # --- 管理员创建用户 ---
     async def admin_create_user(

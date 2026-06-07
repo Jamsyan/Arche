@@ -10,6 +10,12 @@ export interface AdminUser {
   permissions: string[]
   is_active?: boolean
   level?: number
+  /** active | deleted_by_admin | user_requested_deletion */
+  deletion_status?: string
+  /** violation | user_request */
+  deletion_reason?: string
+  deletion_expires_at?: string
+  deleted_at?: string
   created_at?: string
 }
 
@@ -27,6 +33,21 @@ export interface CreateAdminUserPayload {
   username: string
   password: string
   level?: number
+}
+
+export interface SoftDeletePayload {
+  reason: 'violation' | 'user_request'
+  expires_in_days: 30 | 60 | 90
+}
+
+export interface HotPost {
+  id: string
+  title: string
+  author_username: string
+  views: number
+  likes: number
+  comments: number
+  created_at: string
 }
 
 export const getUsersApi = (params?: UsersQueryParams, config?: RequestConfig) =>
@@ -49,3 +70,12 @@ export const enableUserApi = (userId: string, config?: RequestConfig) =>
 
 export const createAdminUserApi = (payload: CreateAdminUserPayload, config?: RequestConfig) =>
   post<AdminUser>('/auth/admin/users', payload, config)
+
+export const softDeleteUserApi = (
+  userId: string,
+  payload: SoftDeletePayload,
+  config?: RequestConfig
+) => post<AdminUser>(`/auth/users/${userId}/soft-delete`, payload, config)
+
+export const getHotPostsApi = (limit?: number, config?: RequestConfig) =>
+  get<HotPost[]>('/blog/admin/hot-posts', { limit }, config)

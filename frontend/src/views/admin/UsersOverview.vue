@@ -103,14 +103,18 @@
         </div>
       </div>
       <div class="chart-card">
-        <h2 class="card-title">用户等级分布</h2>
-        <div v-if="levelBars.length > 0" class="level-list">
-          <div v-for="l in levelBars" :key="l.level" class="level-row">
-            <span class="level-label">P{{ l.level }}</span>
-            <div class="level-bar-track">
-              <div class="level-bar-fill" :style="{ width: l.pct + '%', background: l.color }" />
+        <h2 class="card-title">内容话题热度排行</h2>
+        <div v-if="hotPosts.length > 0" class="hot-list">
+          <div v-for="(post, i) in hotPosts" :key="post.id" class="hot-row">
+            <span class="hot-rank" :class="{ 'hot-rank--top': i < 3 }">{{ i + 1 }}</span>
+            <div class="hot-info">
+              <span class="hot-title" :title="post.title">{{ post.title }}</span>
+              <span class="hot-meta">{{ post.author_username }} · {{ post.views }} 次浏览</span>
             </div>
-            <span class="level-count">{{ l.count }}</span>
+            <div class="hot-stats">
+              <span class="hot-stat">{{ post.likes }} 👍</span>
+              <span class="hot-stat">{{ post.comments }} 💬</span>
+            </div>
           </div>
         </div>
         <div v-else class="empty-hint">暂无数据</div>
@@ -225,13 +229,62 @@
         </div>
       </template>
     </NModal>
+
+    <!-- 软删除弹窗 -->
+    <NModal v-model:show="showSoftDeleteModal" title="删除用户" preset="card" style="width: 420px">
+      <div class="modal-hint">
+        即将对用户「<strong>{{ softDeleteUser?.username }}</strong
+        >」执行删号操作。 此操作为软删除，账号将被立即禁用，数据将在过期后永久清理。
+      </div>
+      <div class="form-section">
+        <label class="form-label">删号原因</label>
+        <div class="radio-group">
+          <button
+            class="radio-btn"
+            :class="{ 'radio-btn--active': softDeleteReason === 'violation' }"
+            @click="softDeleteReason = 'violation'"
+          >
+            违规删号
+          </button>
+          <button
+            class="radio-btn"
+            :class="{ 'radio-btn--active': softDeleteReason === 'user_request' }"
+            @click="softDeleteReason = 'user_request'"
+          >
+            用户主动注销
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">过期清理时间</label>
+        <div class="radio-group">
+          <button
+            v-for="d in [30, 60, 90]"
+            :key="d"
+            class="radio-btn"
+            :class="{ 'radio-btn--active': softDeleteExpires === d }"
+            @click="softDeleteExpires = d"
+          >
+            {{ d }} 天
+          </button>
+        </div>
+      </div>
+      <template #footer>
+        <div style="display: flex; gap: 8px; justify-content: flex-end">
+          <ArButton @click="showSoftDeleteModal = false">取消</ArButton>
+          <ArButton type="primary" @click="handleSoftDeleteConfirm" :loading="softDeleting"
+            >确认删号</ArButton
+          >
+        </div>
+      </template>
+    </NModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, h, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { NModal, NForm, NFormItem, NSelect, NPopconfirm, NInputNumber } from 'naive-ui'
+import { NModal, NForm, NFormItem, NSelect, NInputNumber } from 'naive-ui'
 import { ArTag, ArTable, ArButton } from '@/components/ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getUserStatsApi, type UserStats } from '@/services/api/auth'
@@ -241,8 +294,10 @@ import {
   enableUserApi,
   updateUserApi,
   createAdminUserApi,
-  deleteUserApi,
+  softDeleteUserApi,
+  getHotPostsApi,
   type AdminUser,
+  type HotPost,
   type Paginated
 } from '@/services/api'
 
@@ -277,6 +332,24 @@ const pageSize = ref(10)
 const showLevelModal = ref(false)
 const editingUser = ref<AdminUser | null>(null)
 const levelEditValue = ref(5)
+
+// ── 软删除弹窗 ──
+const showSoftDeleteModal = ref(false)
+const softDeleteUser = ref<AdminUser | null>(null)
+const softDeleteReason = ref<'violation' | 'user_request'>('violation')
+const softDeleteExpires = ref<30 | 60 | 90>(30)
+const softDeleting = ref(false)
+
+// ── 内容话题热度排行 ──
+const hotPosts = ref<HotPost[]>([])
+
+async function fetchHotPosts() {
+  try {
+    hotPosts.value = await getHotPostsApi(10)
+  } catch {
+    /* silent */
+  }
+}
 
 // ── 封禁弹窗 ──
 const showBanModal = ref(false)
@@ -339,6 +412,14 @@ const columns: ArTableColumn[] = [
     width: 100,
     render: (row) => {
       const active = row.is_active !== false
+      const deletionStatus = row.deletion_status
+      // 待注销状态优先显示
+      if (deletionStatus === 'user_requested_deletion') {
+        return h(ArTag, { color: 'warning', size: 'sm' }, { default: () => '待注销' })
+      }
+      if (deletionStatus === 'deleted_by_admin') {
+        return h(ArTag, { color: 'red', size: 'sm' }, { default: () => '已删号' })
+      }
       return h(
         ArTag,
         {
@@ -376,7 +457,7 @@ const columns: ArTableColumn[] = [
       const isActive = row.is_active !== false
       const btns = [
         { label: '下线', onClick: () => handleForceLogout(row), disabled: !isActive },
-        { label: '删号', onClick: () => handleDeleteUser(row), confirm: true },
+        { label: '删号', onClick: () => openSoftDeleteModal(row) },
         { label: '查看资产', onClick: () => handleViewAssets(row) },
         { label: '行为分析', onClick: () => message.info('行为分析页面开发中') },
         { label: '审计日志', onClick: () => message.info('审计日志页面开发中') }
@@ -384,33 +465,13 @@ const columns: ArTableColumn[] = [
       return h(
         'div',
         { class: 'action-cell' },
-        btns.map((b) => {
-          if (b.confirm) {
-            return h(
-              NPopconfirm,
-              {
-                title: '确认删除',
-                content: `确定永久删除用户「${row.username}」吗？`,
-                positiveText: '确认删除',
-                negativeText: '取消',
-                onPositiveClick: b.onClick
-              },
-              {
-                trigger: () =>
-                  h(
-                    ArButton,
-                    { size: 'sm', type: 'ghost', disabled: b.disabled },
-                    { default: () => b.label }
-                  )
-              }
-            )
-          }
-          return h(
+        btns.map((b) =>
+          h(
             ArButton,
             { size: 'sm', type: 'ghost', disabled: b.disabled, onClick: b.onClick },
             { default: () => b.label }
           )
-        })
+        )
       )
     }
   }
@@ -506,13 +567,31 @@ function handleViewAssets(row: AdminUser) {
   message.info(`即将跳转至「${row.username}」的资产详情页面`)
 }
 
-async function handleDeleteUser(row: AdminUser) {
+function openSoftDeleteModal(row: AdminUser) {
+  softDeleteUser.value = row
+  softDeleteReason.value = 'violation'
+  softDeleteExpires.value = 30
+  showSoftDeleteModal.value = true
+}
+
+async function handleSoftDeleteConfirm() {
+  if (!softDeleteUser.value) return
+  softDeleting.value = true
   try {
-    await deleteUserApi(row.id)
-    message.success(`用户「${row.username}」已删除`)
+    await softDeleteUserApi(softDeleteUser.value.id, {
+      reason: softDeleteReason.value,
+      expires_in_days: softDeleteExpires.value
+    })
+    message.success(
+      `用户「${softDeleteUser.value.username}」已标记删除，将在 ${softDeleteExpires.value} 天后永久清理`
+    )
+    showSoftDeleteModal.value = false
+    softDeleteUser.value = null
     loadUsers(page.value)
   } catch {
-    message.error('删除失败')
+    message.error('删号失败')
+  } finally {
+    softDeleting.value = false
   }
 }
 
@@ -622,22 +701,9 @@ const fillPath = computed(() => {
   return `${bezierPath.value} L ${last.x} ${chartH - padding.bottom} L ${first.x} ${chartH - padding.bottom} Z`
 })
 
-// ── 等级分布 ──
-const levelColors = ['#9a5a2f', '#4f7a57', '#1890ff', '#722ed1', '#b98529', '#d97706']
-const levelBars = computed(() => {
-  const byLevel = stats.value.by_level ?? {}
-  const entries = Object.entries(byLevel).map(([level, count]) => ({ level: Number(level), count }))
-  entries.sort((a, b) => a.level - b.level)
-  const maxCount = Math.max(...entries.map((e) => e.count), 1)
-  return entries.map((e, i) => ({
-    ...e,
-    pct: (e.count / maxCount) * 100,
-    color: levelColors[i % levelColors.length]
-  }))
-})
-
 onMounted(() => {
   fetchStats()
+  fetchHotPosts()
   loadUsers()
 })
 </script>
@@ -797,6 +863,101 @@ onMounted(() => {
   color: var(--text-tertiary);
   font-size: 13px;
   padding: 40px 0;
+}
+
+/* ── 内容话题热度排行 ── */
+.hot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+.hot-row:hover {
+  background: var(--surface-inset-color);
+}
+.hot-rank {
+  width: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-align: center;
+  flex-shrink: 0;
+}
+.hot-rank--top {
+  color: var(--primary-color);
+}
+.hot-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hot-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hot-meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.hot-stats {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.hot-stat {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* ── 弹窗表单 ── */
+.form-section {
+  margin-bottom: 16px;
+}
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.radio-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.radio-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.radio-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+.radio-btn--active {
+  border-color: var(--primary-color);
+  background: var(--primary-light-color);
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 /* ── 用户列表 ── */

@@ -1628,6 +1628,63 @@ class BlogService:
             return bool(re.search(r'(watch\?v=|embed/|shorts/)', url))
         return True
 
+    # ── 内容话题热度排行（P0 管理用）──
+
+    async def get_hot_posts(self, limit: int = 10) -> list[dict]:
+        """按浏览量降序获取热门帖子（含点赞数和评论数）。"""
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            query = (
+                select(BlogPost)
+                .where(BlogPost.status == "published")
+                .order_by(BlogPost.views.desc())
+                .limit(limit)
+            )
+            result = await session.execute(query)
+            posts = result.scalars().all()
+
+            if not posts:
+                return []
+
+            post_ids = [p.id for p in posts]
+
+            # 作者信息
+            author_ids = [p.author_id for p in posts]
+            author_result = await session.execute(
+                select(User.id, User.username).where(User.id.in_(author_ids))
+            )
+            author_map = {row.id: row.username for row in author_result.all()}
+
+            # 点赞数
+            likes_result = await session.execute(
+                select(BlogLike.post_id, func.count(BlogLike.id))
+                .where(BlogLike.post_id.in_(post_ids))
+                .group_by(BlogLike.post_id)
+            )
+            likes_map = {row.post_id: row.count for row in likes_result.all()}
+
+            # 评论数
+            comments_result = await session.execute(
+                select(BlogComment.post_id, func.count(BlogComment.id))
+                .where(BlogComment.post_id.in_(post_ids))
+                .group_by(BlogComment.post_id)
+            )
+            comments_map = {row.post_id: row.count for row in comments_result.all()}
+
+            return [
+                {
+                    "id": str(p.id),
+                    "title": p.title,
+                    "author_username": author_map.get(p.author_id, "未知"),
+                    "views": p.views,
+                    "likes": likes_map.get(p.id, 0),
+                    "comments": comments_map.get(p.id, 0),
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                }
+                for p in posts
+            ]
+
     # --- 数据转换 ---
 
     def _tag_to_dict(self, tag: BlogTag) -> dict:

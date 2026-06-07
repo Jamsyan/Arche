@@ -623,3 +623,16 @@ async def get_daily_trend(
     blog_service = container.get("blog")
     result = await blog_service.get_daily_trend(days=days)
     return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.get("/admin/hot-posts")
+@require_level(0)
+async def get_hot_posts(
+    request: Request,
+    limit: int = Query(10, ge=5, le=50),
+):
+    """内容话题热度排行（P0）。按浏览量降序，含点赞数和评论数。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_hot_posts(limit=limit)
+    return {"code": "ok", "message": "获取成功", "data": result}

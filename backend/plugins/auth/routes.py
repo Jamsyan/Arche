@@ -185,11 +185,31 @@ async def enable_user(user_id: str, request: Request):
     return {"code": "ok", "message": "用户已启用", "data": result}
 
 
+@router.post("/users/{user_id}/soft-delete")
+@require_level(0)
+async def soft_delete_user(user_id: str, req: SoftDeleteUserRequest, request: Request):
+    """软删除用户（P0）：标记删除状态、原因和过期时间。"""
+
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    result = await auth_service.soft_delete_user(
+        uuid.UUID(user_id),
+        reason=req.reason,
+        expires_in_days=req.expires_in_days,
+    )
+    return {"code": "ok", "message": "用户已标记删除", "data": result}
+
+
 class CreateUserRequest(BaseModel):
     email: str = Field(..., min_length=1, max_length=128, description="邮箱")
     username: str = Field(..., min_length=3, max_length=64, description="用户名")
     password: str = Field(..., min_length=6, max_length=128, description="密码")
     level: int | None = Field(None, ge=0, le=10, description="用户等级（默认 5）")
+
+
+class SoftDeleteUserRequest(BaseModel):
+    reason: str = Field(..., pattern=r"^(violation|user_request)$", description="删号原因: violation(违规) / user_request(用户主动注销)")
+    expires_in_days: int = Field(..., ge=30, le=90, description="永久清理过期天数: 30/60/90")
 
 
 @router.post("/admin/users")
