@@ -8,7 +8,8 @@
  * 实现：
  * - 透视投影算法（位置 + 缩放各用独立因子）
  * - CSS filter blur 实现"失焦"效果
- * - 5 份拷贝 + 提前边界复位实现平滑无限循环
+ * - 5 份拷贝渲染 → 视觉无限延伸
+ * - 远处卡片 opacity < 1% → 边界 jump 完全不可见
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -29,25 +30,21 @@ const sceneRef = ref<HTMLElement | null>(null)
 
 // ── 常量 ──
 const CARD_W = 280
-// 透视参数：位置因子大 → 散布快，缩放因子小 → 衰减慢
-const POS_FACTOR = 0.47 // 位置透视因子（n=1 时偏移 ~180px）
-const SCALE_FACTOR = 0.18 // 缩放透视因子（n=1 时 scale ~0.85）
+const POS_FACTOR = 0.47
+const SCALE_FACTOR = 0.18
 const MAX_SPREAD = 560
-
-// 5 份拷贝 → 更大缓冲空间，边界复位更平滑
 const COPIES = 5
+const MID = Math.floor(COPIES / 2)
+
 const displayPosts = computed(() => {
   if (props.posts.length === 0) return []
   const result: BlogPost[] = []
-  for (let c = 0; c < COPIES; c++) {
-    result.push(...props.posts)
-  }
+  for (let c = 0; c < COPIES; c++) result.push(...props.posts)
   return result
 })
 const N = computed(() => props.posts.length)
 
-// ── 弹簧驱动索引（从正中间份开始） ──
-const MID = Math.floor(COPIES / 2)
+// ── 弹簧驱动索引 ──
 const targetIdx = ref(MID * N.value)
 const { value: animatedIdx, jump } = useSpring(targetIdx, {
   stiffness: 160,
@@ -55,15 +52,16 @@ const { value: animatedIdx, jump } = useSpring(targetIdx, {
   precision: 0.3
 })
 
+// ── 当前指示点 (取模到真实索引) ──
+const activeDot = computed(() => {
+  return ((Math.round(animatedIdx.value) % N.value) + N.value) % N.value
+})
+
 // ── 场景尺寸 ──
 const sceneW = ref(800)
 const sceneH = computed(() => Math.max(240, (CARD_W * 3) / 4 + 40))
 
-// ── 所有卡片的堆叠变换 ──
-// 位置：position = sign * maxSpread * (1 - 1/(1 + |n| * posFactor))
-// 缩放：scale = 1 / (1 + |n| * scaleFactor)
-// 模糊：blur 从 n±0.5 开始递增，B1/C1 微模糊
-// 阴影：三层 box-shadow 模拟"卡片放在地板上的感觉"
+// ── 卡片堆叠变换（5 份拷贝 × N = 线性距离，远端 opacity < 1%） ──
 const cardStates = computed(() => {
   const cw = CARD_W
   return displayPosts.value.map((_, i) => {
@@ -71,24 +69,12 @@ const cardStates = computed(() => {
     const abs = Math.abs(n)
     const sign = Math.sign(n) || 1
 
-    // ── 位置（近大远小非线性） ──
     const t = 1 - 1 / (1 + abs * POS_FACTOR)
     const xOffset = sign * t * MAX_SPREAD
-
-    // ── 缩放 ──
     const scale = 1 / (1 + abs * SCALE_FACTOR)
-
-    // ── 透明度（二次曲线：B1/C1 完全 opaque，远处快速趋零） ──
-    // 保证边界跳转时远处卡片 opacity ≈ 0，跳变不可见
-    const opacity = 1 / (1 + Math.pow(Math.max(0, abs - 0.8), 2) * 1.8)
-
-    // ── 模糊（远处彻底模糊，配合低 opacity 淹没跳变） ──
-    const blurAmt = abs <= 0.5 ? 0 : Math.min(8, (abs - 0.5) * 2.2)
-
-    // ── 居中 ──
+    const opacity = 1 / (1 + Math.pow(Math.max(0, abs - 0.5), 2) * 0.5)
+    const blurAmt = abs <= 0.5 ? 0 : Math.min(4, (abs - 0.5) * 1.5)
     const transformX = xOffset - cw / 2
-
-    // ── 地板阴影：三层 shadow 随距离衰减，产生"卡片放在地上的感觉" ──
     const si = Math.max(0, 1 - abs * 0.25)
     const shadow = [
       `0 ${(1.5 * scale).toFixed(1)}px ${(4 * scale).toFixed(1)}px rgba(26,24,23,${(0.05 * si).toFixed(3)})`,
@@ -131,6 +117,7 @@ function handleCardClick(post: BlogPost, i: number) {
     openPost(post)
   } else if (Math.abs(diff) === 1) {
     targetIdx.value = i
+    resetTimer()
   }
 }
 
@@ -147,19 +134,19 @@ function goPrev() {
 }
 
 function goTo(cardIdx: number) {
-  targetIdx.value = cardIdx
+  const current = Math.round(animatedIdx.value)
+  const currentCopy = Math.floor(current / N.value)
+  targetIdx.value = currentCopy * N.value + cardIdx
   resetTimer()
 }
 
-// ── 边界复位（无缝跳转，无弹簧反弹） ──
-// 用 jump() 同时跳过 current + target，不反转弹簧方向
-// 关键：Math.round() 确保跳转到整数位置，避免小数累计偏移
+// ── 边界复位（远端 opacity < 1%，跳变不可见） ──
 watch(animatedIdx, (pos) => {
   const len = N.value
   if (len <= 1) return
-  if (pos < len * 1.8) {
+  if (pos < len * 1.5) {
     jump(Math.round(pos) + len)
-  } else if (pos >= len * 3.2) {
+  } else if (pos >= len * (COPIES - 1.5)) {
     jump(Math.round(pos) - len)
   }
 })
@@ -277,10 +264,10 @@ onBeforeUnmount(() => {
         v-for="(_, index) in posts"
         :key="index"
         class="dot"
-        :class="{ active: Math.round(animatedIdx) % N === index }"
+        :class="{ active: activeDot === index }"
         :aria-label="`切换到第 ${index + 1} 张`"
         type="button"
-        @click="goTo(MID * N + index)"
+        @click="goTo(index)"
       >
         <span class="dot-fill" />
       </button>
@@ -330,11 +317,6 @@ onBeforeUnmount(() => {
   will-change: transform, opacity, filter;
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
-  transition: filter 0.3s ease;
-}
-
-.carousel-card:hover {
-  filter: brightness(1.05);
 }
 
 .carousel-card:focus-visible {
@@ -363,7 +345,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* ── 文字叠覆 ── */
 .card-overlay {
   position: absolute;
   inset: 0;
@@ -404,7 +385,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 60px;
+  width: 40px;
   z-index: 100;
   pointer-events: none;
 }
@@ -504,7 +485,7 @@ onBeforeUnmount(() => {
   }
   .mask-left,
   .mask-right {
-    width: 30px;
+    width: 20px;
   }
 }
 </style>
