@@ -10,7 +10,7 @@ import {
   isFloat,
   isChinese,
   hasSpecialChar,
-  validatePasswordStrength,
+  validatePasswordStrength
 } from '../validate'
 
 describe('isPhone', () => {

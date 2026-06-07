@@ -6,7 +6,7 @@ import {
   lowercaseFirst,
   truncate,
   maskPhone,
-  maskEmail,
+  maskEmail
 } from '../string'
 
 describe('camelToKebab', () => {

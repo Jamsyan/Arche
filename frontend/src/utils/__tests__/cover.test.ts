@@ -11,7 +11,7 @@ describe('getCoverGradient', () => {
 
   it('不同输入可能返回不同渐变色', () => {
     const result1 = getCoverGradient({ title: 'Post A' })
-    const result2 = getCoverGradient({ title: 'Post B' })
+    void getCoverGradient({ title: 'Post B' })
     // 理论上可能碰撞，但大多数情况下应不同
     expect(typeof result1).toBe('string')
     expect(result1).toContain('linear-gradient')

@@ -6,7 +6,6 @@ import uuid
 
 from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
 from backend.core.models import HasSID
