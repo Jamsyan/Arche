@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
-import { NCard, NGrid, NGi, NDataTable, NAlert } from 'naive-ui'
 import { getMyPostsApi, getPostCommentsApi, type BlogPost } from '@/services/api'
+import ArTable from '@/components/ui/ArTable.vue'
+import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 
 interface MetricRow {
   key: string
@@ -18,15 +19,21 @@ const totalPosts = ref(0)
 const totalComments = ref(0)
 const totalLikes = ref(0)
 
-const columns = [
+const columns: ArTableColumn[] = [
   { title: '标题', key: 'title' },
   { title: '状态', key: 'status' },
   {
     title: '评论数',
     key: 'comments',
+    sortable: true,
     sorter: (a: MetricRow, b: MetricRow) => a.comments - b.comments
   },
-  { title: '点赞', key: 'likes', sorter: (a: MetricRow, b: MetricRow) => a.likes - b.likes },
+  {
+    title: '点赞',
+    key: 'likes',
+    sortable: true,
+    sorter: (a: MetricRow, b: MetricRow) => a.likes - b.likes
+  },
   { title: '创建时间', key: 'createdAt' }
 ]
 
@@ -90,28 +97,24 @@ onMounted(fetchData)
       <h2>创作者看板</h2>
     </div>
 
-    <NAlert type="info" style="margin-bottom: 12px">
-      TODO：后端补充 analytics 接口后，将聚合逻辑替换为 `/blog/analytics/*`。
-    </NAlert>
+    <div class="alert-note">
+      TODO：后端补充 analytics 接口后，将聚合逻辑替换为 /blog/analytics/*。
+    </div>
 
-    <NGrid :cols="3" :x-gap="12">
-      <NGi v-for="card in statCards" :key="card.label">
-        <div class="section-card stat-card">
-          <div class="stat-label">{{ card.label }}</div>
-          <div class="stat-value">{{ card.value }}</div>
-        </div>
-      </NGi>
-    </NGrid>
+    <div class="stats-grid">
+      <div v-for="card in statCards" :key="card.label" class="section-card stat-card">
+        <div class="stat-label">{{ card.label }}</div>
+        <div class="stat-value">{{ card.value }}</div>
+      </div>
+    </div>
 
-    <div class="section-card" style="margin-top: 12px; padding: 0">
-      <NCard
-        :loading="loading"
-        title="内容表现排行（近 50 篇）"
-        :bordered="false"
-        style="background: transparent"
-      >
-        <NDataTable :columns="columns" :data="rows" />
-      </NCard>
+    <div class="section-card table-card">
+      <div class="card-header">
+        <span class="card-header-title">内容表现排行（近 50 篇）</span>
+      </div>
+      <div class="table-wrap" :class="{ 'is-loading': loading }">
+        <ArTable :columns="columns" :data="rows" :loading="loading" />
+      </div>
     </div>
   </div>
 </template>
@@ -122,19 +125,37 @@ onMounted(fetchData)
 }
 
 .page-heading {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .page-heading h2 {
   margin: 0;
   font-size: 24px;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
 
+.alert-note {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--primary-light-color);
+  border-left: 3px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: var(--spacing-md);
+}
+
 .section-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   backdrop-filter: blur(4px);
 }
@@ -143,7 +164,7 @@ onMounted(fetchData)
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
+  padding: var(--spacing-lg);
 }
 
 .stat-label {
@@ -154,7 +175,31 @@ onMounted(fetchData)
 
 .stat-value {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
+}
+
+.table-card {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-lg);
+}
+
+.card-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.card-header-title {
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.table-wrap {
+  min-height: 100px;
+}
+
+.table-wrap.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 </style>

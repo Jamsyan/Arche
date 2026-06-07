@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import logging
 import logging.config
+import time
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from .config import config_manager as config_manager
@@ -188,6 +189,25 @@ def create_app() -> FastAPI:
     )
     setup_cors(app, [o.strip() for o in cors_origins.split(",")])
     register_error_handlers(app)
+
+    # 添加 API 请求统计中间件
+    @app.middleware("http")
+    async def record_request_stats(request: Request, call_next):
+        start = time.time()
+        response = await call_next(request)
+        duration_ms = round((time.time() - start) * 1000, 2)
+
+        try:
+            if container.is_available("request_stats"):
+                stats = container.get("request_stats")
+                stats.record_request(
+                    path=request.url.path,
+                    duration_ms=duration_ms,
+                    status_code=response.status_code,
+                )
+        except Exception:
+            pass
+        return response
 
     # 8. Startup / Shutdown hooks
     @app.on_event("startup")

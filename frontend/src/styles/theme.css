@@ -1,152 +1,240 @@
-/* 全局设计系统 - 温润书卷米白风格 */
+/* =============================================================
+   东方现代主义 × 墨色体系 — 设计系统
+   宣纸为底，墨色为文，朱砂为骨
+   ============================================================= */
+
 :root {
-  /* 主色调 - 茶棕琥珀 */
-  --primary-color: #9a5a2f;
-  --primary-hover-color: #b8743d;
-  --primary-pressed-color: #6f3f22;
-  --primary-light-color: rgba(154, 90, 47, 0.14);
-  --accent-color: #c89b3c;
+  /* =========================================================
+     色彩系统 — 墨色五层
+     ========================================================= */
 
-  /* 成功/警告/错误色 */
-  --success-color: #4f7a57;
-  --warning-color: #b98529;
-  --error-color: #b34c3f;
+  /* 基底 — 宣纸白 / 浅墨灰 */
+  --bg-color: #f5f0e8;
+  --bg-inset-color: #ede5d8;
+  --surface-color: rgba(245, 240, 232, 0.88);
+  --surface-strong-color: rgba(237, 229, 216, 0.94);
+  --surface-inset-color: rgba(224, 214, 200, 0.72);
 
-  /* 中性色 - 墨褐文字 */
-  --text-primary: rgba(47, 38, 29, 0.92);
-  --text-secondary: rgba(47, 38, 29, 0.72);
-  --text-tertiary: rgba(47, 38, 29, 0.54);
-  --text-disabled: rgba(47, 38, 29, 0.34);
+  /* 文字墨色 — 焦、浓、重、淡 */
+  --text-primary: rgba(26, 24, 23, 0.92);
+  --text-secondary: rgba(26, 24, 23, 0.72);
+  --text-tertiary: rgba(26, 24, 23, 0.54);
+  --text-disabled: rgba(26, 24, 23, 0.34);
 
-  --border-color: rgba(130, 95, 65, 0.2);
-  --divider-color: rgba(47, 38, 29, 0.09);
-  --surface-color: rgba(255, 250, 241, 0.88);
-  --surface-strong-color: rgba(239, 227, 207, 0.94);
-  --surface-inset-color: rgba(230, 216, 196, 0.72);
-  --paper-shadow-color: rgba(80, 55, 34, 0.12);
+  /* 边框与分割 */
+  --border-color: rgba(26, 24, 23, 0.1);
+  --divider-color: rgba(26, 24, 23, 0.07);
 
-  /* 圆角系统 - 统一规范 */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-full: 9999px;
+  /* 主色 — 朱砂红 */
+  --primary-color: #b83a2a;
+  --primary-hover-color: #d44a3a;
+  --primary-pressed-color: #9a2a1a;
+  --primary-light-color: rgba(184, 58, 42, 0.12);
 
-  /* 阴影系统 - 多层柔和阴影 */
-  --shadow-sm: 0 1px 2px 0 rgba(67, 45, 28, 0.06);
-  --shadow-md: 0 8px 20px -10px rgba(67, 45, 28, 0.16), 0 3px 8px -4px rgba(67, 45, 28, 0.1);
-  --shadow-lg: 0 16px 28px -16px rgba(67, 45, 28, 0.22), 0 8px 14px -10px rgba(67, 45, 28, 0.14);
-  --shadow-xl: 0 24px 38px -20px rgba(67, 45, 28, 0.28), 0 12px 20px -16px rgba(67, 45, 28, 0.18);
-  --shadow-glass: 0 12px 30px -18px var(--paper-shadow-color);
+  /* 点缀色 — 传统五色 */
+  --accent-cinnabar: #c23a2b;
+  --accent-blue: #4a7c94;
+  --accent-yellow: #d4a017;
+  --accent-green: #2d5a3a;
 
-  /* 磨砂玻璃效果变量 */
-  --glass-bg: var(--surface-color);
-  --glass-bg-hover: rgba(255, 250, 241, 0.96);
-  --glass-blur: blur(12px);
-  --glass-border: 1px solid rgba(130, 95, 65, 0.2);
+  /* 语义色 */
+  --success-color: #4a8a5a;
+  --warning-color: #d4a017;
+  --error-color: #b83a2a;
+  --info-color: #4a7c94;
 
-  /* 渐变背景 */
-  --bg-gradient: linear-gradient(180deg, #f9f3e8 0%, #f2e8d7 55%, #ead9be 100%);
-  --bg-gradient-light: linear-gradient(180deg, #fffaf2 0%, #f6ecdd 100%);
+  /* =========================================================
+     字体系统
+     ========================================================= */
+  --font-sans:
+    'Inter', 'HarmonyOS Sans', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+  --font-serif: 'Noto Serif CJK SC', 'Source Han Serif SC', 'STSong', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 
-  /* 间距系统 */
+  /* 字重 */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* 行高 */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.8;
+
+  /* =========================================================
+     间距系统
+     ========================================================= */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
   --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  --spacing-4xl: 80px;
 
-  --layout-mobile-breakpoint: 992px;
+  /* 布局间距 */
+  --layout-gap: var(--spacing-lg);
+  --section-gap: var(--spacing-2xl);
+  --content-padding: var(--spacing-lg);
+
+  /* =========================================================
+     圆角系统
+     ========================================================= */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* =========================================================
+     阴影系统 — 中性墨色阴影
+     ========================================================= */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px -4px rgba(0, 0, 0, 0.1), 0 1px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 24px -12px rgba(0, 0, 0, 0.15), 0 4px 8px -6px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 32px -16px rgba(0, 0, 0, 0.2), 0 8px 16px -12px rgba(0, 0, 0, 0.12);
+
+  /* =========================================================
+     动画 Easing
+     ========================================================= */
+  --ease-out-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-stagger: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+
+  /* =========================================================
+     渐变背景
+     ========================================================= */
+  --bg-gradient: linear-gradient(180deg, #f5f0e8 0%, #efe8dc 100%);
+  --bg-gradient-light: linear-gradient(180deg, #faf6ef 0%, #f5f0e8 100%);
 }
 
-/* Naive UI 主题变量覆盖 */
+/* =============================================================
+   玻璃表面 — 仅在明确类名下启用 backdrop-filter
+   ============================================================= */
+.glass-surface {
+  background: rgba(245, 240, 232, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(26, 24, 23, 0.08);
+  border-radius: var(--radius-lg);
+}
+
+/* =============================================================
+   Naive UI 主题变量覆盖
+   ============================================================= */
 :root {
+  /* 主色映射 */
   --n-primary-color: var(--primary-color);
   --n-primary-hover-color: var(--primary-hover-color);
   --n-primary-pressed-color: var(--primary-pressed-color);
   --n-primary-hover-tint: var(--primary-light-color);
-  --n-primary-hover-ripple: rgba(154, 90, 47, 0.18);
-  --n-primary-active-tint: rgba(154, 90, 47, 0.18);
+  --n-primary-hover-ripple: rgba(184, 58, 42, 0.18);
+  --n-primary-active-tint: rgba(184, 58, 42, 0.18);
 
+  /* 语义色映射 */
   --n-success-color: var(--success-color);
   --n-warning-color: var(--warning-color);
   --n-error-color: var(--error-color);
 
-  --n-popover-color: var(--glass-bg);
+  /* 表面色映射 */
+  --n-popover-color: var(--surface-color);
   --n-card-color: transparent;
-  --n-modal-color: var(--glass-bg);
+  --n-modal-color: var(--surface-color);
   --n-body-color: transparent;
 
+  /* 文字色映射 */
   --n-text-color: var(--text-primary);
   --n-text-2-color: var(--text-secondary);
   --n-text-3-color: var(--text-tertiary);
   --n-text-4-color: var(--text-disabled);
 
+  /* 边框映射 */
   --n-border-color: var(--border-color);
   --n-border-radius: var(--radius-md);
 
-  --n-popover-shadow: var(--shadow-glass);
+  /* 阴影映射 */
+  --n-popover-shadow: var(--shadow-lg);
   --n-card-shadow: none;
-  --n-modal-shadow: var(--shadow-glass);
+  --n-modal-shadow: var(--shadow-lg);
+
+  /* =========================================================
+     向下兼容别名 — 旧变量映射到新体系
+     ========================================================= */
+  --accent-color: var(--accent-yellow);
+  --accent-red: var(--accent-cinnabar);
+  --glass-bg: var(--surface-color);
+  --glass-bg-hover: rgba(245, 240, 232, 0.96);
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid var(--border-color);
+  --shadow-glass: var(--shadow-lg);
 }
 
-/* 磨砂玻璃通用类 */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  box-shadow: var(--shadow-glass);
-}
-
-.glass-hover {
-  transition: all 0.3s ease;
-}
-
-.glass-hover:hover {
-  background: var(--glass-bg-hover);
-  box-shadow: var(--shadow-xl);
-  transform: translateY(-2px);
-}
-
-/* 全局卡片统一样式 */
-.card-glass {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-glass);
-  padding: var(--spacing-lg);
-  transition: all 0.3s ease;
-}
-
-.card-glass:hover {
-  box-shadow: var(--shadow-xl);
-}
-
+/* =============================================================
+   深色模式 — 浅墨灰基底，朱砂红更亮
+   ============================================================= */
 .dark {
   color-scheme: dark;
-  --glass-bg: rgba(43, 34, 27, 0.72);
-  --glass-bg-hover: rgba(54, 42, 33, 0.8);
-  --glass-border: 1px solid rgba(214, 183, 145, 0.2);
 
-  --text-primary: rgba(246, 238, 224, 0.92);
-  --text-secondary: rgba(246, 238, 224, 0.75);
-  --text-tertiary: rgba(246, 238, 224, 0.56);
-  --text-disabled: rgba(246, 238, 224, 0.38);
+  /* 基底 */
+  --bg-color: #1a1817;
+  --bg-inset-color: #22201e;
+  --surface-color: rgba(26, 24, 23, 0.88);
+  --surface-strong-color: rgba(34, 32, 30, 0.94);
+  --surface-inset-color: rgba(42, 39, 36, 0.72);
 
-  --border-color: rgba(214, 183, 145, 0.2);
-  --surface-inset-color: rgba(84, 66, 50, 0.5);
-  --bg-gradient: linear-gradient(180deg, #2a211a 0%, #3a2d23 50%, #4b3828 100%);
-  --bg-gradient-light: linear-gradient(180deg, #32271f 0%, #433327 100%);
+  /* 文字墨色 — 浅色底 */
+  --text-primary: rgba(230, 225, 218, 0.92);
+  --text-secondary: rgba(230, 225, 218, 0.75);
+  --text-tertiary: rgba(230, 225, 218, 0.56);
+  --text-disabled: rgba(230, 225, 218, 0.38);
 
-  --shadow-glass: 0 14px 36px -20px rgba(0, 0, 0, 0.5);
+  /* 边框 */
+  --border-color: rgba(230, 225, 218, 0.12);
+  --divider-color: rgba(230, 225, 218, 0.08);
 
-  --n-popover-color: var(--glass-bg);
+  /* 主色 — 朱砂红（深色模式更亮） */
+  --primary-color: #d44a3a;
+  --primary-hover-color: #e85a4a;
+  --primary-pressed-color: #b83a2a;
+  --primary-light-color: rgba(212, 74, 58, 0.18);
+
+  /* 语义色 */
+  --success-color: #5a9a6a;
+  --warning-color: #e0b020;
+  --error-color: #d44a3a;
+
+  /* 渐变 */
+  --bg-gradient: linear-gradient(180deg, #1a1817 0%, #22201e 50%, #2a2724 100%);
+  --bg-gradient-light: linear-gradient(180deg, #22201e 0%, #2a2724 100%);
+
+  /* 阴影 — 深色模式下更暗 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px -4px rgba(0, 0, 0, 0.3), 0 1px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 12px 24px -12px rgba(0, 0, 0, 0.45), 0 4px 8px -6px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 32px -16px rgba(0, 0, 0, 0.55), 0 8px 16px -12px rgba(0, 0, 0, 0.4);
+
+  /* 玻璃表面 */
+  --glass-surface-bg: rgba(26, 24, 23, 0.6);
+
+  /* 向下兼容别名 — 旧变量映射到新体系 */
+  --accent-color: var(--accent-yellow);
+  --accent-red: var(--accent-cinnabar);
+  --glass-bg: var(--surface-color);
+  --glass-bg-hover: rgba(34, 32, 30, 0.96);
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid var(--border-color);
+  --shadow-glass: var(--shadow-lg);
+
+  /* Naive UI 深色覆写 */
+  --n-popover-color: var(--surface-color);
   --n-card-color: transparent;
-  --n-modal-color: var(--glass-bg);
+  --n-modal-color: var(--surface-color);
   --n-body-color: transparent;
 
   --n-text-color: var(--text-primary);
@@ -155,8 +243,20 @@
   --n-text-4-color: var(--text-disabled);
 
   --n-border-color: var(--border-color);
+  --n-primary-hover-tint: var(--primary-light-color);
+  --n-primary-hover-ripple: rgba(212, 74, 58, 0.22);
+  --n-primary-active-tint: rgba(212, 74, 58, 0.22);
 }
 
+/* 深色模式下的玻璃表面 */
+.dark .glass-surface {
+  background: rgba(26, 24, 23, 0.6);
+  border: 1px solid rgba(230, 225, 218, 0.1);
+}
+
+/* =============================================================
+   无障碍 — 减少动效
+   ============================================================= */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

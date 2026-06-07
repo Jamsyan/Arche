@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NInput, NFormItemGi, type FormRules } from 'naive-ui'
-import ProForm from '@/components/ProForm.vue'
+import { NForm, NGrid, NGi, NFormItemGi, type FormRules } from 'naive-ui'
+import ArInput from '@/components/ui/ArInput.vue'
+import ArButton from '@/components/ui/ArButton.vue'
 import { registerApi } from '@/services/api'
 import { $message } from '@/utils/message'
 import { LockClosedOutline } from '@/icons'
@@ -83,7 +84,7 @@ const handleRegister = async () => {
 <template>
   <div class="register-page">
     <div class="register-shell">
-      <aside class="register-visual card-glass" aria-hidden="true">
+      <aside class="register-visual" aria-hidden="true">
         <div class="visual-orb orb-a" />
         <div class="visual-orb orb-b" />
         <div class="visual-grid" />
@@ -105,54 +106,46 @@ const handleRegister = async () => {
         </div>
       </aside>
 
-      <div class="register-card card-glass">
+      <div class="register-card">
         <div class="card-header">
           <div class="logo-icon"><LockClosedOutline /></div>
           <h2>创建账号</h2>
           <p>注册后即可发布和管理你的博客内容</p>
         </div>
 
-        <ProForm
-          :model="formModel"
-          :rules="rules"
-          :columns="1"
-          :label-width="92"
-          @submit="handleRegister"
-        >
-          <NFormItemGi label="邮箱" path="email"
-            ><NInput
-              v-model:value="formModel.email"
-              placeholder="请输入邮箱"
-              :input-props="{ name: 'email', autocomplete: 'email' }"
-          /></NFormItemGi>
-          <NFormItemGi label="用户名" path="username"
-            ><NInput
-              v-model:value="formModel.username"
-              placeholder="请输入用户名"
-              :input-props="{ name: 'username', autocomplete: 'username' }"
-          /></NFormItemGi>
-          <NFormItemGi label="密码" path="password">
-            <NInput
-              v-model:value="formModel.password"
-              type="password"
-              show-password-on="click"
-              placeholder="请输入密码"
-              :input-props="{ autocomplete: 'new-password' }"
-            />
-          </NFormItemGi>
-          <NFormItemGi label="确认密码" path="confirmPassword">
-            <NInput
-              v-model:value="formModel.confirmPassword"
-              type="password"
-              show-password-on="click"
-              placeholder="请再次输入密码"
-              :input-props="{ autocomplete: 'new-password' }"
-            />
-          </NFormItemGi>
-          <template #actions="{ submit }">
-            <NButton type="primary" block :loading="loading" @click="submit">立即注册</NButton>
-          </template>
-        </ProForm>
+        <NForm :model="formModel" :rules="rules" label-width="80">
+          <NGrid :cols="1">
+            <NFormItemGi label="邮箱" path="email"
+              ><ArInput v-model:value="formModel.email" placeholder="请输入邮箱"
+            /></NFormItemGi>
+            <NFormItemGi label="用户名" path="username"
+              ><ArInput v-model:value="formModel.username" placeholder="请输入用户名"
+            /></NFormItemGi>
+            <NFormItemGi label="密码" path="password">
+              <ArInput
+                v-model:value="formModel.password"
+                type="password"
+                show-password-on="click"
+                placeholder="请输入密码"
+              />
+            </NFormItemGi>
+            <NFormItemGi label="确认密码" path="confirmPassword">
+              <ArInput
+                v-model:value="formModel.confirmPassword"
+                type="password"
+                show-password-on="click"
+                placeholder="请再次输入密码"
+              />
+            </NFormItemGi>
+            <NGi :span="1" style="margin-top: 20px">
+              <div class="form-action">
+                <ArButton type="primary" size="lg" :loading="loading" @click="handleRegister"
+                  >立即注册</ArButton
+                >
+              </div>
+            </NGi>
+          </NGrid>
+        </NForm>
 
         <div class="bottom">已有账号？<RouterLink to="/login">去登录</RouterLink></div>
       </div>
@@ -182,6 +175,9 @@ const handleRegister = async () => {
   padding: 24px;
   display: flex;
   align-items: flex-end;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .register-visual-content {
@@ -224,7 +220,11 @@ const handleRegister = async () => {
   height: 220px;
   top: -44px;
   right: -44px;
-  background: radial-gradient(circle at 30% 30%, rgba(154, 90, 47, 0.36), rgba(154, 90, 47, 0.08));
+  background: radial-gradient(
+    circle at 30% 30%,
+    color-mix(in srgb, var(--primary-color) 36%, transparent),
+    color-mix(in srgb, var(--primary-color) 8%, transparent)
+  );
   animation: drift-a 8.8s ease-in-out infinite;
 }
 
@@ -235,8 +235,8 @@ const handleRegister = async () => {
   bottom: 88px;
   background: radial-gradient(
     circle at 40% 35%,
-    rgba(200, 155, 60, 0.26),
-    rgba(200, 155, 60, 0.06)
+    color-mix(in srgb, var(--accent-color) 26%, transparent),
+    color-mix(in srgb, var(--accent-color) 6%, transparent)
   );
   animation: drift-b 10.8s ease-in-out infinite;
 }
@@ -247,8 +247,12 @@ const handleRegister = async () => {
   z-index: 1;
   opacity: 0.28;
   background-image:
-    linear-gradient(rgba(154, 90, 47, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(154, 90, 47, 0.1) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--primary-color) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--primary-color) 10%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 26px 26px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.58), transparent 86%);
 }
@@ -267,8 +271,8 @@ const handleRegister = async () => {
   padding: 6px 10px;
   border-radius: 999px;
   color: var(--text-secondary);
-  background: rgba(255, 247, 236, 0.76);
-  border: 1px solid rgba(130, 95, 65, 0.12);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
   transition: all 0.24s ease;
 }
 
@@ -276,7 +280,7 @@ const handleRegister = async () => {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(130, 95, 65, 0.3);
+  background: color-mix(in srgb, var(--primary-color) 30%, transparent);
   transition: inherit;
 }
 
@@ -286,39 +290,46 @@ const handleRegister = async () => {
 }
 
 .stage-item.active {
-  color: rgba(86, 54, 30, 0.98);
-  border-color: rgba(130, 95, 65, 0.3);
-  background: rgba(255, 245, 230, 0.96);
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+  background: var(--surface-color);
   transform: translateX(6px);
 }
 
 .stage-item.active .dot {
-  background: rgba(130, 95, 65, 0.82);
-  box-shadow: 0 0 0 6px rgba(130, 95, 65, 0.14);
+  background: color-mix(in srgb, var(--primary-color) 82%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary-color) 14%, transparent);
 }
 
 .stage-item.done {
-  border-color: rgba(111, 151, 100, 0.24);
-  color: rgba(82, 120, 74, 0.9);
+  border-color: color-mix(in srgb, var(--success-color) 24%, transparent);
+  color: var(--success-color);
 }
 
 .stage-item.done .dot {
-  background: rgba(105, 145, 93, 0.74);
+  background: color-mix(in srgb, var(--success-color) 74%, transparent);
 }
 
 .register-card {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-2xl);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   animation: register-card-enter 0.38s ease both;
 }
 
 .register-card :deep(.n-card) {
-  background: rgba(255, 248, 236, 0.9);
-  border-color: rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border-color: var(--border-color);
 }
 
 .register-card :deep(.n-card-content) {
-  background: rgba(255, 246, 233, 0.72);
+  background: var(--surface-color);
   border-radius: 12px;
+}
+
+.register-card :deep(.n-form-item-blank) {
+  width: 100%;
 }
 .card-header {
   text-align: center;
@@ -352,18 +363,27 @@ const handleRegister = async () => {
   color: var(--text-secondary);
 }
 
+.form-action {
+  display: flex;
+  justify-content: center;
+}
+
+.form-action .ar-button {
+  min-width: 200px;
+}
+
 .bottom a {
-  color: rgba(125, 82, 48, 0.92);
+  color: var(--text-secondary);
   text-decoration: none;
-  border-bottom: 1px solid rgba(125, 82, 48, 0.26);
+  border-bottom: 1px solid var(--border-color);
   transition:
     color 0.2s ease,
     border-color 0.2s ease;
 }
 
 .bottom a:hover {
-  color: rgba(104, 66, 37, 0.96);
-  border-bottom-color: rgba(104, 66, 37, 0.42);
+  color: var(--text-primary);
+  border-bottom-color: color-mix(in srgb, var(--text-primary) 42%, transparent);
 }
 
 @keyframes register-card-enter {

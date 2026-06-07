@@ -6,6 +6,7 @@ import io
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from sqlalchemy import delete, func, select, or_
 from fastapi import UploadFile
@@ -20,42 +21,15 @@ from .models import (
     BlogTag,
     BlogPostTag,
     BlogFavorite,
+    PostFile,
 )
 
 MAX_TAGS_PER_POST = 50
 
-# A 等级 → 最大可见用户 P 等级（数字越小权限越高）
-# A0=仅限 P0, A1=P0~P1, A2=P0~P2, A3=P0~P3, A4=P0~P4, A5+=所有人
-ACCESS_LEVEL_MAP = {
-    "A0": 0,
-    "A1": 1,
-    "A2": 2,
-    "A3": 3,
-    "A4": 4,
-    "A5": 5,
-    "A6": 5,
-    "A7": 5,
-    "A8": 5,
-    "A9": 5,
-}
 
-
-def get_max_visible_p_level(access_level: str) -> int:
-    """获取帖子 A 等级对应的最大可见 P 等级。"""
-    return ACCESS_LEVEL_MAP.get(access_level.upper(), 5)
-
-
-def can_user_see_post(access_level: str, user_level: int) -> bool:
-    """判断用户是否有权限查看帖子。"""
-    max_p = get_max_visible_p_level(access_level)
-    return user_level <= max_p
-
-
-def get_access_level_filter(user_level: int) -> list[str]:
-    """根据用户等级生成 SQL 过滤条件（access_level 列表）。"""
-    # 用户能看到所有 access_level 对应的 max_visible_p >= user_level 的帖子
-    allowed = [al for al, max_p in ACCESS_LEVEL_MAP.items() if max_p >= user_level]
-    return allowed
+def can_user_see_post(required_level: int, user_level: int) -> bool:
+    """判断用户是否有权限查看帖子（用户等级 <= 帖子要求等级则可看）。"""
+    return user_level <= required_level
 
 
 class BlogService:
@@ -140,13 +114,10 @@ class BlogService:
                 query = query.where(BlogPost.id.in_(tag_posts))
                 count_query = count_query.where(BlogPost.id.in_(tag_posts))
 
-            # 权限过滤
+            # 权限过滤：用户只能看到 required_level >= user_level 的帖子
             if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
-                query = query.where(BlogPost.access_level.in_(allowed_levels))
-                count_query = count_query.where(
-                    BlogPost.access_level.in_(allowed_levels)
-                )
+                query = query.where(BlogPost.required_level >= user_level)
+                count_query = count_query.where(BlogPost.required_level >= user_level)
 
             # 总数
             total_result = await session.execute(count_query)
@@ -264,8 +235,21 @@ class BlogService:
                 "page_size": page_size,
             }
 
-    async def get_post_by_slug(self, slug: str, user_level: int | None = None) -> dict:
-        """根据 slug 获取帖子详情（公开）。"""
+    async def get_post_by_slug(
+        self,
+        slug: str,
+        user_level: int | None = None,
+        user_id: uuid.UUID | None = None,
+    ) -> dict:
+        """根据 slug 获取帖子详情。
+
+        权限控制：
+        - published 帖子：公开可见（按 required_level 过滤）
+        - 非 published 帖子：仅作者本人和 P0 可见
+        - 浏览量：仅 published 帖子，且不计作者本人和审核人员的访问
+        """
+        from backend.plugins.auth.models import User
+
         async with self.session_factory() as session:
             result = await session.execute(
                 select(BlogPost).where(BlogPost.slug == slug)
@@ -274,22 +258,50 @@ class BlogService:
             if not post:
                 raise AppError("帖子不存在", code="post_not_found", status_code=404)
 
-            # 权限检查
+            # required_level 权限检查
             if user_level is not None and not can_user_see_post(
-                post.access_level, user_level
+                post.required_level, user_level
             ):
                 raise AppError(
                     "无权查看此帖子", code="permission_denied", status_code=403
                 )
 
-            # 增加浏览量
-            post.views += 1
-            await session.commit()
-            await session.refresh(post)
+            # 状态检查：非 published 只允许作者和 P0 查看
+            is_author = user_id is not None and post.author_id == user_id
+            is_admin = user_level is not None and user_level == 0
+            if post.status != "published" and not is_author and not is_admin:
+                raise AppError("帖子不存在", code="post_not_found", status_code=404)
 
-            post_dict = self._post_to_dict(post)
+            # 浏览量：仅 published 帖子，不计作者本人和审核人员
+            should_count_view = (
+                post.status == "published" and not is_author and not is_admin
+            )
+            if should_count_view:
+                post.views += 1
+                await session.commit()
+                await session.refresh(post)
+
+            # 查询作者用户名
+            author_result = await session.execute(
+                select(User.username).where(User.id == post.author_id)
+            )
+            author_username = author_result.scalar_one_or_none()
+
+            post_dict = self._post_to_dict(post, author_username=author_username)
             post_dict["tags"] = await self.get_post_tags(post.id)
+            post_dict["paragraphs"] = self._split_paragraphs(post.content)
             return post_dict
+
+    @staticmethod
+    def _split_paragraphs(content: str) -> list[dict]:
+        """将正文按双换行分割为段落列表。"""
+        paragraphs = []
+        raw = re.split(r"\n\n+", content.strip())
+        for i, p in enumerate(raw, start=1):
+            stripped = p.strip()
+            if stripped:
+                paragraphs.append({"index": i, "content": stripped})
+        return paragraphs
 
     async def get_post_by_id(self, post_id: uuid.UUID) -> BlogPost:
         """根据 ID 获取帖子模型对象。"""
@@ -303,19 +315,38 @@ class BlogService:
             return post
 
     async def get_post_detail_by_id(
-        self, post_id: uuid.UUID, user_level: int | None = None
+        self,
+        post_id: uuid.UUID,
+        user_level: int | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> dict:
         """根据 ID 获取帖子详情（含标签，按权限过滤）。"""
+        from backend.plugins.auth.models import User
+
         post = await self.get_post_by_id(post_id)
 
-        # 权限检查
+        # required_level 权限检查
         if user_level is not None and not can_user_see_post(
-            post.access_level, user_level
+            post.required_level, user_level
         ):
             raise AppError("无权查看此帖子", code="permission_denied", status_code=403)
 
-        post_dict = self._post_to_dict(post)
+        # 状态检查
+        is_author = user_id is not None and post.author_id == user_id
+        is_admin = user_level is not None and user_level == 0
+        if post.status != "published" and not is_author and not is_admin:
+            raise AppError("帖子不存在", code="post_not_found", status_code=404)
+
+        # 查询作者用户名
+        async with self.session_factory() as session:
+            author_result = await session.execute(
+                select(User.username).where(User.id == post.author_id)
+            )
+            author_username = author_result.scalar_one_or_none()
+
+        post_dict = self._post_to_dict(post, author_username=author_username)
         post_dict["tags"] = await self.get_post_tags(post.id)
+        post_dict["paragraphs"] = self._split_paragraphs(post.content)
         return post_dict
 
     async def create_post(
@@ -324,22 +355,17 @@ class BlogService:
         title: str,
         content: str,
         tags: list[str] | None = None,
-        access_level: str = "A5",
+        required_level: int = 5,
         user_level: int = 5,
     ) -> dict:
         """创建帖子，默认进入审核队列（status=pending）。"""
         from backend.plugins.auth.models import User
         from backend.plugins.blog.sensitive_words import get_filter
 
-        # 权限等级验证
-        al_num = (
-            int(access_level.upper().lstrip("A"))
-            if access_level.upper().startswith("A")
-            else 5
-        )
-        if al_num < user_level:
+        # 权限等级验证：用户不能设置高于自身等级的可见门槛
+        if required_level < user_level:
             raise AppError(
-                f"无权设置 {access_level.upper()} 权限，最高可设置 A{user_level}",
+                f"无权设置 P{required_level} 权限，最高可设置 P{user_level}",
                 code="access_level_too_high",
                 status_code=403,
             )
@@ -351,6 +377,15 @@ class BlogService:
             raise AppError(
                 f"内容包含敏感词: {', '.join(matched_words)}",
                 code="sensitive_word",
+                status_code=400,
+            )
+
+        # 校验正文引用
+        errors = await self.validate_content(content, author_id)
+        if errors:
+            raise AppError(
+                "、".join(errors),
+                code="content_validation_error",
                 status_code=400,
             )
 
@@ -382,10 +417,14 @@ class BlogService:
                 slug=slug,
                 content=content,
                 status="pending",
-                access_level=access_level.upper(),
+                required_level=required_level,
             )
             session.add(post)
             await session.flush()  # 获取 post.id
+
+            # 扫描文件引用（新建时 post.id 已通过 flush 获取）
+            if content:
+                await self.scan_and_clean_post_files(post.id, content)
 
             # 处理标签（同一 session）
             if tags:
@@ -455,7 +494,17 @@ class BlogService:
                 # 重新生成 slug
                 post.slug = await self.generate_slug(title, exclude_slug=post.slug)
             if content is not None:
+                # 校验正文引用
+                errors = await self.validate_content(content, post.author_id)
+                if errors:
+                    raise AppError(
+                        "、".join(errors),
+                        code="content_validation_error",
+                        status_code=400,
+                    )
                 post.content = content
+                # 扫描文件引用
+                await self.scan_and_clean_post_files(post.id, content)
             # 编辑后重新进入审核
             post.status = "pending"
 
@@ -588,7 +637,112 @@ class BlogService:
 
             return self._comment_to_dict(comment)
 
+    # --- 段落评论 ---
+
+    async def get_paragraph_comments(
+        self,
+        post_id: uuid.UUID,
+        paragraph_index: int,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """获取段落评论列表。"""
+        from backend.plugins.auth.models import User
+
+        offset = (page - 1) * page_size
+
+        async with self.session_factory() as session:
+            count_result = await session.execute(
+                select(func.count()).where(
+                    BlogComment.post_id == post_id,
+                    BlogComment.paragraph_index == paragraph_index,
+                )
+            )
+            total = count_result.scalar_one()
+
+            result = await session.execute(
+                select(BlogComment)
+                .where(
+                    BlogComment.post_id == post_id,
+                    BlogComment.paragraph_index == paragraph_index,
+                )
+                .order_by(BlogComment.created_at.asc())
+                .offset(offset)
+                .limit(page_size)
+            )
+            comments = result.scalars().all()
+
+            if comments:
+                author_ids = [c.author_id for c in comments]
+                author_result = await session.execute(
+                    select(User.id, User.username).where(User.id.in_(author_ids))
+                )
+                author_map = {row.id: row.username for row in author_result.all()}
+            else:
+                author_map = {}
+
+            return {
+                "items": [
+                    self._comment_to_dict(
+                        c, author_username=author_map.get(c.author_id)
+                    )
+                    for c in comments
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def create_paragraph_comment(
+        self,
+        post_id: uuid.UUID,
+        paragraph_index: int,
+        author_id: uuid.UUID,
+        content: str,
+    ) -> dict:
+        """对某段落发表评论。"""
+        await self.get_post_by_id(post_id)
+
+        async with self.session_factory() as session:
+            comment = BlogComment(
+                post_id=post_id,
+                author_id=author_id,
+                content=content,
+                paragraph_index=paragraph_index,
+            )
+            session.add(comment)
+            await session.commit()
+            await session.refresh(comment)
+
+            return self._comment_to_dict(comment)
+
     # --- 点赞 ---
+
+    async def get_like_status(
+        self,
+        post_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict:
+        """获取点赞状态（是否已点赞 + 点赞数）。"""
+        await self.get_post_by_id(post_id)
+
+        async with self.session_factory() as session:
+            # 检查是否已点赞
+            result = await session.execute(
+                select(BlogLike).where(
+                    BlogLike.post_id == post_id,
+                    BlogLike.user_id == user_id,
+                )
+            )
+            liked = result.scalar_one_or_none() is not None
+
+            # 获取点赞总数
+            count_result = await session.execute(
+                select(func.count()).where(BlogLike.post_id == post_id)
+            )
+            count = count_result.scalar_one()
+
+            return {"liked": liked, "count": count}
 
     async def toggle_like(
         self,
@@ -829,10 +983,7 @@ class BlogService:
                 )
             )
             if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
-                count_query = count_query.where(
-                    BlogPost.access_level.in_(allowed_levels)
-                )
+                count_query = count_query.where(BlogPost.required_level >= user_level)
             total = (await session.execute(count_query)).scalar_one()
 
             query = (
@@ -847,8 +998,7 @@ class BlogService:
                 .limit(page_size)
             )
             if user_level is not None:
-                allowed_levels = get_access_level_filter(user_level)
-                query = query.where(BlogPost.access_level.in_(allowed_levels))
+                query = query.where(BlogPost.required_level >= user_level)
             result = await session.execute(query)
             posts = result.scalars().all()
 
@@ -975,7 +1125,7 @@ class BlogService:
         file: UploadFile,
         author_id: uuid.UUID,
         user_level: int = 5,
-        access_level: str = "A5",
+        required_level: int = 5,
         tags: list[str] | None = None,
     ) -> dict:
         """从文件导入帖子。"""
@@ -1010,7 +1160,7 @@ class BlogService:
             title=title,
             content=body,
             tags=tags,
-            access_level=access_level,
+            required_level=required_level,
             user_level=user_level,
         )
 
@@ -1215,6 +1365,140 @@ class BlogService:
                 "page_size": page_size,
             }
 
+    # ── Dashboard 统计 ──
+
+    async def get_stats(self) -> dict:
+        """获取博客相关统计（用于控制台 Dashboard）。"""
+        async with self.session_factory() as session:
+            # 帖子总数
+            total_posts_result = await session.execute(
+                select(func.count()).select_from(BlogPost)
+            )
+            total_posts = total_posts_result.scalar_one()
+
+            # 发布的帖子总数
+            published_result = await session.execute(
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.status == "published")
+            )
+            published_posts = published_result.scalar_one()
+
+            # 待审核帖子数
+            pending_result = await session.execute(
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.status == "pending")
+            )
+            pending_posts = pending_result.scalar_one()
+
+            # 总浏览量
+            views_result = await session.execute(
+                select(func.coalesce(func.sum(BlogPost.views), 0))
+            )
+            total_views = views_result.scalar_one()
+
+            # 总评论数
+            comments_result = await session.execute(
+                select(func.count()).select_from(BlogComment)
+            )
+            total_comments = comments_result.scalar_one()
+
+            # 总点赞数
+            likes_result = await session.execute(
+                select(func.count()).select_from(BlogLike)
+            )
+            total_likes = likes_result.scalar_one()
+
+            # 今日新增帖子
+            from datetime import datetime, timezone
+
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            today_posts_result = await session.execute(
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.created_at >= today_start)
+            )
+            today_posts = today_posts_result.scalar_one()
+
+        return {
+            "total_posts": total_posts,
+            "published_posts": published_posts,
+            "pending_posts": pending_posts,
+            "total_views": total_views,
+            "total_comments": total_comments,
+            "total_likes": total_likes,
+            "today_posts": today_posts,
+        }
+
+    # ── 每日曝光量趋势 ──
+
+    async def get_daily_trend(self, days: int = 7) -> dict:
+        """获取最近 N 天的每日浏览量、帖子新增量趋势。"""
+        from datetime import datetime, timedelta, timezone
+
+        end_date = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        start_date = end_date - timedelta(days=days - 1)
+
+        async with self.session_factory() as session:
+            # 每日新增帖子数
+            posts_query = (
+                select(
+                    func.date(BlogPost.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(BlogPost.created_at >= start_date)
+                .group_by(func.date(BlogPost.created_at))
+                .order_by(func.date(BlogPost.created_at))
+            )
+            posts_result = await session.execute(posts_query)
+            posts_by_date = {row.date: row.count for row in posts_result.all()}
+
+            # 每日浏览量（按帖子 created_at 聚合，取 sum of views）
+            views_query = (
+                select(
+                    func.date(BlogPost.created_at).label("date"),
+                    func.coalesce(func.sum(BlogPost.views), 0).label("total_views"),
+                )
+                .where(BlogPost.created_at >= start_date)
+                .group_by(func.date(BlogPost.created_at))
+                .order_by(func.date(BlogPost.created_at))
+            )
+            views_result = await session.execute(views_query)
+            views_by_date = {row.date: row.total_views for row in views_result.all()}
+
+            # 每日新增评论数
+            comments_query = (
+                select(
+                    func.date(BlogComment.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(BlogComment.created_at >= start_date)
+                .group_by(func.date(BlogComment.created_at))
+                .order_by(func.date(BlogComment.created_at))
+            )
+            comments_result = await session.execute(comments_query)
+            comments_by_date = {row.date: row.count for row in comments_result.all()}
+
+            # 组装时间序列
+            trend = []
+            for i in range(days):
+                date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+                trend.append(
+                    {
+                        "date": date,
+                        "views": int(views_by_date.get(date, 0)),
+                        "posts": int(posts_by_date.get(date, 0)),
+                        "comments": int(comments_by_date.get(date, 0)),
+                    }
+                )
+
+        return {"days": days, "trend": trend}
+
     # --- 举报 ---
 
     async def create_report(
@@ -1248,6 +1532,180 @@ class BlogService:
 
             return self._report_to_dict(report)
 
+    # --- 帖子文件生命周期管理 ---
+
+    async def scan_and_clean_post_files(
+        self, post_id: uuid.UUID, content: str
+    ) -> list[int]:
+        """
+        扫描正文中的 [#N] 引用，清理未引用的文件。
+        返回被引用的文件索引列表。
+        """
+        # 1. 提取所有 [#N] 引用
+        refs = set()
+        for match in re.finditer(r"\[#(\d+)\]", content):
+            refs.add(int(match.group(1)))
+
+        async with self.session_factory() as session:
+            # 2. 查询该帖子的所有临时文件
+            result = await session.execute(
+                select(PostFile).where(
+                    PostFile.post_id == post_id, PostFile.status == "temp"
+                )
+            )
+            post_files = result.scalars().all()
+
+            referenced_indices = []
+            orphaned_ids = []
+
+            for pf in post_files:
+                if pf.file_index in refs:
+                    pf.status = "persisted"
+                    referenced_indices.append(pf.file_index)
+                else:
+                    orphaned_ids.append(pf.id)
+
+            # 3. 删除未引用的文件记录（实际 OSS 文件保留，由定时任务清理）
+            if orphaned_ids:
+                await session.execute(
+                    delete(PostFile).where(PostFile.id.in_(orphaned_ids))
+                )
+
+            await session.commit()
+
+        return sorted(refs)
+
+    async def validate_post_file_refs(
+        self, content: str, owner_id: uuid.UUID
+    ) -> list[str]:
+        """
+        校验正文中所有 [#N] 引用是否都已上传。
+        返回错误信息列表（为空则校验通过）。
+        """
+        refs = set()
+        for match in re.finditer(r"\[#(\d+)\]", content):
+            refs.add(int(match.group(1)))
+
+        if not refs:
+            return []
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(PostFile.file_index).where(
+                    PostFile.owner_id == owner_id,
+                    PostFile.file_index.in_(list(refs)),
+                    PostFile.status.in_(["temp", "persisted"]),
+                )
+            )
+            existing = {row[0] for row in result.all()}
+
+        missing = refs - existing
+        if missing:
+            return [
+                f"图片 #'{idx}' 未上传，请先上传或移除引用" for idx in sorted(missing)
+            ]
+        return []
+
+    async def validate_content(self, content: str, owner_id: uuid.UUID) -> list[str]:
+        """全面校验正文内容。"""
+        errors = []
+        # 检查文件引用
+        file_errors = await self.validate_post_file_refs(content, owner_id)
+        errors.extend(file_errors)
+        # 检查视频链接（检测 bilibili/youtube 链接格式）
+        for match in re.finditer(r"\[([^\]]*)\]\((https?://[^)]+)\)", content):
+            url = match.group(2)
+            if self._is_trusted_video_host(url):
+                if not self._validate_video_url(url):
+                    errors.append(f"视频链接 '{url}' 格式无效")
+        return errors
+
+    @staticmethod
+    def _is_trusted_video_host(url: str) -> bool:
+        """安全地检查 URL 的 hostname 是否为受信任的视频平台。"""
+        trusted_domains = ("bilibili.com", "b23.tv", "youtube.com")
+        try:
+            parsed = urlsplit(url)
+            hostname = parsed.hostname or ""
+        except ValueError:
+            return False
+        # 规范化：转小写、移除尾部点号
+        hostname = hostname.lower().rstrip(".")
+        return any(
+            hostname == domain or hostname.endswith("." + domain)
+            for domain in trusted_domains
+        )
+
+    def _validate_video_url(self, url: str) -> bool:
+        """验证视频分享链接的基本格式。"""
+        parsed = urlsplit(url)
+        hostname = (parsed.hostname or "").lower().rstrip(".")
+        is_bilibili = hostname == "bilibili.com" or hostname.endswith(".bilibili.com")
+        is_b23tv = hostname == "b23.tv" or hostname.endswith(".b23.tv")
+        is_youtube = hostname == "youtube.com" or hostname.endswith(".youtube.com")
+        if is_bilibili or is_b23tv:
+            return bool(re.search(r"(BV[\w]+|video/[\w]+)", url))
+        if is_youtube:
+            return bool(re.search(r"(watch\?v=|embed/|shorts/)", url))
+        return True
+
+    # ── 内容话题热度排行（P0 管理用）──
+
+    async def get_hot_posts(self, limit: int = 10) -> list[dict]:
+        """按浏览量降序获取热门帖子（含点赞数和评论数）。"""
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            query = (
+                select(BlogPost)
+                .where(BlogPost.status == "published")
+                .order_by(BlogPost.views.desc())
+                .limit(limit)
+            )
+            result = await session.execute(query)
+            posts = result.scalars().all()
+
+            if not posts:
+                return []
+
+            post_ids = [p.id for p in posts]
+
+            # 作者信息
+            author_ids = [p.author_id for p in posts]
+            author_result = await session.execute(
+                select(User.id, User.username).where(User.id.in_(author_ids))
+            )
+            author_map = {row.id: row.username for row in author_result.all()}
+
+            # 点赞数
+            likes_result = await session.execute(
+                select(BlogLike.post_id, func.count(BlogLike.id))
+                .where(BlogLike.post_id.in_(post_ids))
+                .group_by(BlogLike.post_id)
+            )
+            likes_map = {row.post_id: row.count for row in likes_result.all()}
+
+            # 评论数
+            comments_result = await session.execute(
+                select(BlogComment.post_id, func.count(BlogComment.id))
+                .where(BlogComment.post_id.in_(post_ids))
+                .group_by(BlogComment.post_id)
+            )
+            comments_map = {row.post_id: row.count for row in comments_result.all()}
+
+            return [
+                {
+                    "id": str(p.id),
+                    "title": p.title,
+                    "author_username": author_map.get(p.author_id, "未知"),
+                    "views": p.views,
+                    "likes": likes_map.get(p.id, 0),
+                    "comments": comments_map.get(p.id, 0),
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                }
+                for p in posts
+            ]
+
     # --- 数据转换 ---
 
     def _tag_to_dict(self, tag: BlogTag) -> dict:
@@ -1271,11 +1729,14 @@ class BlogService:
             "title": post.title,
             "slug": post.slug,
             "content": post.content,
+            "cover_url": post.cover_url,
+            "source_url": post.source_url,
+            "source_name": post.source_name,
             "status": post.status,
             "quality_score": post.quality_score,
             "views": post.views,
             "likes": likes_count,
-            "access_level": post.access_level,
+            "required_level": post.required_level,
             "created_at": post.created_at.isoformat() if post.created_at else None,
         }
 
@@ -1289,6 +1750,7 @@ class BlogService:
             "author_username": author_username or str(comment.author_id)[:8],
             "content": comment.content,
             "parent_id": str(comment.parent_id) if comment.parent_id else None,
+            "paragraph_index": comment.paragraph_index,
             "created_at": comment.created_at.isoformat()
             if comment.created_at
             else None,

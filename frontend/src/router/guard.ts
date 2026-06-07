@@ -123,7 +123,7 @@ router.beforeEach(async (to, from, next) => {
   if (!permissionStore.routesLoaded && userStore.userInfo) {
     try {
       // 根据用户角色生成可访问路由列表，admin 路由通过 addRoute 动态注册
-      await permissionStore.generateRoutes(userStore.userInfo?.level ?? 5)
+      await permissionStore.generateRoutes()
     } catch {
       // 生成路由失败，跳转到首页
       $message.error('获取权限失败，请重新登录')

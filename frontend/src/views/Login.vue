@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <div class="login-shell">
-      <aside class="login-visual card-glass" aria-hidden="true">
+      <aside class="login-visual" aria-hidden="true">
         <div class="visual-orb orb-a" />
         <div class="visual-orb orb-b" />
         <div class="visual-grid" />
@@ -21,7 +21,7 @@
         </div>
       </aside>
 
-      <div class="login-card card-glass">
+      <div class="login-card">
         <div class="card-header">
           <div class="logo-icon" :class="`lock-${lockFeedback}`">
             <component :is="lockIcon" />
@@ -29,42 +29,35 @@
           <h2>欢迎回来</h2>
         </div>
 
-        <ProForm
-          :model="formModel"
-          :columns="1"
-          :label-width="80"
-          :show-feedback="true"
-          @submit="handleLogin"
-        >
-          <NFormItemGi label="账号" path="identity" :span="1">
-            <NInput
-              v-model:value="formModel.identity"
-              placeholder="请输入用户名或邮箱"
-              :input-props="{ name: 'identity', autocomplete: 'username' }"
-            />
-          </NFormItemGi>
-          <NFormItemGi label="密码" path="password" :span="1">
-            <NInput
-              v-model:value="formModel.password"
-              type="password"
-              show-password-on="click"
-              placeholder="请输入密码"
-              :input-props="{ autocomplete: 'current-password' }"
-            />
-          </NFormItemGi>
-          <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
-            <NSelect
-              v-model:value="formModel.role"
-              :options="roleOptions"
-              placeholder="请选择登录身份"
-            />
-          </NFormItemGi>
-          <template #actions="{ submit }">
-            <NButton type="primary" size="large" block :loading="loading" @click="submit">
-              立即登录
-            </NButton>
-          </template>
-        </ProForm>
+        <NForm :model="formModel" :show-feedback="true" label-width="80">
+          <NGrid :cols="1">
+            <NFormItemGi label="账号" path="identity" :span="1">
+              <ArInput v-model:value="formModel.identity" placeholder="请输入用户名或邮箱" />
+            </NFormItemGi>
+            <NFormItemGi label="密码" path="password" :span="1">
+              <ArInput
+                v-model:value="formModel.password"
+                type="password"
+                show-password-on="click"
+                placeholder="请输入密码"
+              />
+            </NFormItemGi>
+            <NFormItemGi v-if="useMockLogin" label="登录身份" path="role" :span="1">
+              <NSelect
+                v-model:value="formModel.role"
+                :options="roleOptions"
+                placeholder="请选择登录身份"
+              />
+            </NFormItemGi>
+            <NGi :span="1" style="margin-top: 20px">
+              <div class="form-action">
+                <ArButton type="primary" size="lg" :loading="loading" @click="handleLogin">
+                  立即登录
+                </ArButton>
+              </div>
+            </NGi>
+          </NGrid>
+        </NForm>
         <div class="register-entry">还没账号？<RouterLink to="/register">立即注册</RouterLink></div>
       </div>
     </div>
@@ -74,11 +67,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NSelect, NButton, NFormItemGi, NInput } from 'naive-ui'
+import { NForm, NGrid, NGi, NSelect, NFormItemGi } from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 import { $message } from '@/utils/message'
 import { LockClosedOutline, LockOpenOutline } from '@/icons'
-import ProForm from '@/components/ProForm.vue'
+import ArInput from '@/components/ui/ArInput.vue'
+import ArButton from '@/components/ui/ArButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -271,6 +265,9 @@ const handleLogin = async () => {
   display: flex;
   align-items: flex-end;
   padding: 28px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .visual-content {
@@ -302,7 +299,7 @@ const handleLogin = async () => {
   width: 2px;
   height: 0.95em;
   border-radius: 1px;
-  background: rgba(154, 90, 47, 0.68);
+  background: color-mix(in srgb, var(--primary-color) 68%, transparent);
   animation: caret-blink 1.8s steps(1) infinite;
   vertical-align: -0.08em;
 }
@@ -325,7 +322,11 @@ const handleLogin = async () => {
 .orb-a {
   width: 220px;
   height: 220px;
-  background: radial-gradient(circle at 30% 30%, rgba(154, 90, 47, 0.38), rgba(154, 90, 47, 0.08));
+  background: radial-gradient(
+    circle at 30% 30%,
+    color-mix(in srgb, var(--primary-color) 38%, transparent),
+    color-mix(in srgb, var(--primary-color) 8%, transparent)
+  );
   top: -36px;
   right: -40px;
   animation: drift-a 9s ease-in-out infinite;
@@ -336,8 +337,8 @@ const handleLogin = async () => {
   height: 180px;
   background: radial-gradient(
     circle at 40% 35%,
-    rgba(200, 155, 60, 0.28),
-    rgba(200, 155, 60, 0.06)
+    color-mix(in srgb, var(--accent-color) 28%, transparent),
+    color-mix(in srgb, var(--accent-color) 6%, transparent)
   );
   left: -40px;
   bottom: 80px;
@@ -350,8 +351,12 @@ const handleLogin = async () => {
   z-index: 1;
   opacity: 0.28;
   background-image:
-    linear-gradient(rgba(154, 90, 47, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(154, 90, 47, 0.1) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--primary-color) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--primary-color) 10%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 26px 26px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 85%);
 }
@@ -360,13 +365,12 @@ const handleLogin = async () => {
   position: absolute;
   z-index: 2;
   border-radius: 999px;
-  border: 1px solid rgba(138, 92, 57, 0.26);
-  background: rgba(255, 247, 236, 0.9);
-  color: rgba(91, 58, 32, 0.9);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 26%, transparent);
+  background: var(--surface-strong-color);
+  color: var(--text-primary);
   font-size: 12px;
   line-height: 1;
   padding: 8px 12px;
-  backdrop-filter: blur(1px);
 }
 
 .badge-a {
@@ -389,16 +393,23 @@ const handleLogin = async () => {
 
 .login-card {
   padding: var(--spacing-2xl);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .login-card :deep(.n-card) {
-  background: rgba(255, 248, 236, 0.9);
-  border-color: rgba(130, 95, 65, 0.14);
+  background: var(--surface-color);
+  border-color: var(--border-color);
 }
 
 .login-card :deep(.n-card-content) {
-  background: rgba(255, 246, 233, 0.72);
+  background: var(--surface-color);
   border-radius: 12px;
+}
+
+.login-card :deep(.n-form-item-blank) {
+  width: 100%;
 }
 
 .card-header {
@@ -430,23 +441,23 @@ const handleLogin = async () => {
 }
 
 .logo-icon.lock-success {
-  background: rgba(223, 242, 222, 0.9);
-  box-shadow: 0 0 0 1px rgba(98, 150, 88, 0.18) inset;
+  background: color-mix(in srgb, var(--success-color) 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--success-color) 18%, transparent) inset;
 }
 
 .logo-icon.lock-success svg {
-  color: rgba(70, 129, 59, 0.95);
+  color: var(--success-color);
   animation: lock-open-pop 0.56s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .logo-icon.lock-error {
-  background: rgba(255, 230, 230, 0.94);
-  box-shadow: 0 0 0 1px rgba(186, 57, 57, 0.16) inset;
+  background: color-mix(in srgb, var(--error-color) 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--error-color) 16%, transparent) inset;
   animation: lock-error-shake 0.46s ease-in-out;
 }
 
 .logo-icon.lock-error svg {
-  color: rgba(174, 52, 52, 0.94);
+  color: var(--error-color);
 }
 
 .card-header h2 {
@@ -462,18 +473,27 @@ const handleLogin = async () => {
   color: var(--text-secondary);
 }
 
+.form-action {
+  display: flex;
+  justify-content: center;
+}
+
+.form-action .ar-button {
+  min-width: 200px;
+}
+
 .register-entry a {
-  color: rgba(125, 82, 48, 0.92);
+  color: var(--text-secondary);
   text-decoration: none;
-  border-bottom: 1px solid rgba(125, 82, 48, 0.26);
+  border-bottom: 1px solid var(--border-color);
   transition:
     color 0.2s ease,
     border-color 0.2s ease;
 }
 
 .register-entry a:hover {
-  color: rgba(104, 66, 37, 0.96);
-  border-bottom-color: rgba(104, 66, 37, 0.42);
+  color: var(--text-primary);
+  border-bottom-color: color-mix(in srgb, var(--text-primary) 42%, transparent);
 }
 
 @keyframes drift-a {
@@ -493,15 +513,6 @@ const handleLogin = async () => {
   }
   50% {
     transform: translate3d(12px, -8px, 0);
-  }
-}
-
-@keyframes grid-float {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(26px);
   }
 }
 
@@ -578,19 +589,6 @@ const handleLogin = async () => {
   80% {
     transform: translateX(3px);
   }
-}
-
-.visual-copy-enter-active,
-.visual-copy-leave-active {
-  transition:
-    opacity 0.28s ease,
-    transform 0.28s ease;
-}
-
-.visual-copy-enter-from,
-.visual-copy-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
 }
 
 @media (max-width: 860px) {

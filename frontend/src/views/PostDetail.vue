@@ -1,27 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { NButton, NDivider, NIcon, NInput, NTag, useMessage } from 'naive-ui'
-import {
-  HeartOutline,
-  Heart,
-  BookmarkOutline,
-  Bookmark,
-  ChatbubbleOutline,
-  SendOutline
-} from '@vicons/ionicons5'
+import { useMessage } from 'naive-ui'
 import {
   getPostBySlugApi,
   getPostCommentsApi,
+  getParagraphCommentsApi,
   createPostCommentApi,
+  createParagraphCommentApi,
   likePostApi,
   addFavoriteApi,
   removeFavoriteApi,
   getFavoriteStatusApi,
+  getLikeStatusApi,
   type BlogPost,
-  type BlogComment
+  type BlogComment,
+  type Paragraph
 } from '@/services/api'
 import { useUserStore } from '@/store/modules/user'
+import PostDetail from '@/components/blog/PostDetail.vue'
+import AuthorBar from '@/components/blog/AuthorBar.vue'
+import FloatingActions from '@/components/blog/FloatingActions.vue'
+import ParagraphCommentPanel from '@/components/blog/ParagraphCommentPanel.vue'
+import LikeButton from '@/components/blog/LikeButton.vue'
+import FavoriteButton from '@/components/blog/FavoriteButton.vue'
+import ShareButton from '@/components/blog/ShareButton.vue'
+import CommentForm from '@/components/blog/CommentForm.vue'
+import CommentList from '@/components/blog/CommentList.vue'
 
 const route = useRoute()
 const message = useMessage()
@@ -29,51 +34,77 @@ const userStore = useUserStore()
 
 const post = ref<BlogPost | null>(null)
 const comments = ref<BlogComment[]>([])
-const newComment = ref('')
 const liked = ref(false)
 const favorited = ref(false)
+const likeCount = ref(0)
 const posting = ref(false)
+const loading = ref(true)
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
-const userInitial = computed(
-  () => (userStore.userInfo?.nickname || userStore.userInfo?.username || '?')[0]
-)
+const commentsCount = computed(() => comments.value.length)
+const isPostPublished = computed(() => post.value?.status === 'published')
+const canInteract = computed(() => isLoggedIn.value && isPostPublished.value)
+
+// --- 段落评论面板状态 ---
+const paragraphPanel = ref({
+  visible: false,
+  paragraph: null as Paragraph | null,
+  comments: [] as BlogComment[],
+  loading: false,
+  posting: false
+})
 
 const fetchPost = async () => {
+  loading.value = true
   try {
     const detail = await getPostBySlugApi(String(route.params.slug || ''))
     post.value = detail
+
     const [commentsRes] = await Promise.all([
       getPostCommentsApi(detail.id, { page: 1, page_size: 50 }, { silent: true })
     ])
     comments.value = commentsRes.list || []
+
+    // 并行获取登录态相关数据
     if (isLoggedIn.value) {
-      try {
-        const favStatus = await getFavoriteStatusApi(detail.id, {
+      const [favStatus, likeStatus] = await Promise.all([
+        getFavoriteStatusApi(detail.id, {
           silent: true,
           skipAuthLogout: true
-        })
-        favorited.value = favStatus.favorited
-      } catch {
-        // 静默
-      }
+        }),
+        getLikeStatusApi(detail.id, {
+          silent: true,
+          skipAuthLogout: true
+        }).catch(() => ({ liked: false, count: 0 }))
+      ])
+      favorited.value = favStatus.favorited
+      liked.value = likeStatus.liked
+      likeCount.value = likeStatus.count
     }
-  } catch {
+  } catch (err) {
+    console.error('[PostDetail] 加载帖子失败:', err)
     message.error('加载帖子失败')
+  } finally {
+    loading.value = false
   }
 }
 
+// --- 点赞 ---
 const toggleLike = async () => {
   if (!post.value || !isLoggedIn.value) return
   try {
     await likePostApi(post.value.id, { silent: true })
     liked.value = !liked.value
-    post.value.likes = (post.value.likes || 0) + (liked.value ? 1 : -1)
+    likeCount.value += liked.value ? 1 : -1
+    if (post.value.likes !== undefined) {
+      post.value.likes += liked.value ? 1 : -1
+    }
   } catch {
     message.error('操作失败')
   }
 }
 
+// --- 收藏 ---
 const toggleFavorite = async () => {
   if (!post.value || !isLoggedIn.value) return
   try {
@@ -91,17 +122,26 @@ const toggleFavorite = async () => {
   }
 }
 
-const submitComment = async () => {
-  if (!post.value || !newComment.value.trim()) return
+// --- 分享 ---
+const handleShare = () => {
+  const url = window.location.href
+  navigator.clipboard
+    .writeText(url)
+    .then(() => {
+      message.success('链接已复制到剪贴板')
+    })
+    .catch(() => {
+      message.error('复制失败')
+    })
+}
+
+// --- 全局评论 ---
+const submitComment = async (content: string) => {
+  if (!post.value) return
   posting.value = true
   try {
-    await createPostCommentApi(
-      post.value.id,
-      { content: newComment.value.trim() },
-      { silent: true }
-    )
+    await createPostCommentApi(post.value.id, { content }, { silent: true })
     message.success('评论成功')
-    newComment.value = ''
     const res = await getPostCommentsApi(
       post.value.id,
       { page: 1, page_size: 50 },
@@ -115,274 +155,364 @@ const submitComment = async () => {
   }
 }
 
+// --- 段落评论 ---
+const openParagraphComment = async (paragraph: Paragraph) => {
+  if (!post.value) return
+
+  paragraphPanel.value.visible = false
+  paragraphPanel.value.paragraph = paragraph
+  paragraphPanel.value.comments = []
+  paragraphPanel.value.loading = true
+
+  try {
+    const res = await getParagraphCommentsApi(
+      post.value.id,
+      paragraph.index,
+      { page: 1, page_size: 50 },
+      { silent: true }
+    )
+    paragraphPanel.value.comments = res.list || []
+  } catch {
+    // 静默
+  } finally {
+    paragraphPanel.value.loading = false
+    paragraphPanel.value.visible = true
+  }
+}
+
+const submitParagraphComment = async (content: string) => {
+  if (!post.value || !paragraphPanel.value.paragraph) return
+  paragraphPanel.value.posting = true
+  try {
+    await createParagraphCommentApi(
+      post.value.id,
+      paragraphPanel.value.paragraph.index,
+      { content },
+      { silent: true }
+    )
+    message.success('评论成功')
+    // 重新加载段落评论
+    const res = await getParagraphCommentsApi(
+      post.value.id,
+      paragraphPanel.value.paragraph.index,
+      { page: 1, page_size: 50 },
+      { silent: true }
+    )
+    paragraphPanel.value.comments = res.list || []
+  } catch {
+    message.error('评论失败')
+  } finally {
+    paragraphPanel.value.posting = false
+  }
+}
+
+const closeParagraphPanel = () => {
+  paragraphPanel.value.visible = false
+}
+
 onMounted(fetchPost)
 </script>
 
 <template>
-  <div v-if="post" class="post-detail-page">
-    <article class="section-card post-card">
-      <h1 class="post-title">{{ post.title }}</h1>
-      <div class="post-meta">
-        <span class="author">{{ post.author_username || '匿名' }}</span>
-        <span class="dot">·</span>
-        <span>{{ post.created_at?.slice(0, 10) || '-' }}</span>
-        <span v-if="post.views !== undefined" class="dot">·</span>
-        <span v-if="post.views !== undefined">{{ post.views }} 阅读</span>
-      </div>
-      <div class="tags-row">
-        <NTag v-for="tag in post.tags || []" :key="tag" size="small" :bordered="false">
-          {{ tag }}
-        </NTag>
-      </div>
-      <NDivider style="margin: 12px 0" />
-      <div class="post-content">{{ post.content }}</div>
-    </article>
+  <!-- 加载态 -->
+  <div v-if="loading" class="loading-state">
+    <div class="ink-loading" />
+    <p class="loading-text">加载中……</p>
+  </div>
 
-    <div class="section-card actions-card">
-      <div class="action-buttons">
-        <NButton
-          :disabled="!isLoggedIn"
-          quaternary
-          :type="liked ? 'primary' : 'default'"
-          @click="toggleLike"
-        >
-          <template #icon>
-            <NIcon><component :is="liked ? Heart : HeartOutline" /></NIcon>
-          </template>
-          {{ post.likes || 0 }}
-        </NButton>
-        <NButton
-          :disabled="!isLoggedIn"
-          quaternary
-          :type="favorited ? 'primary' : 'default'"
-          @click="toggleFavorite"
-        >
-          <template #icon>
-            <NIcon><component :is="favorited ? Bookmark : BookmarkOutline" /></NIcon>
-          </template>
-          {{ favorited ? '已收藏' : '收藏' }}
-        </NButton>
-        <span class="comment-count">
-          <NIcon size="16"><ChatbubbleOutline /></NIcon>
-          {{ comments.length }} 评论
-        </span>
+  <!-- 加载失败 -->
+  <div v-else-if="!post" class="error-state">
+    <div class="error-icon">⚠</div>
+    <p class="error-text">帖子加载失败</p>
+    <p class="error-hint">请检查网络连接或确认帖子是否存在</p>
+    <button class="error-retry-btn" @click="fetchPost">重新加载</button>
+  </div>
+
+  <!-- 内容 -->
+  <div v-else class="post-detail-page">
+    <!-- BLOG eybrow + 状态 -->
+    <div class="page-eyebrow">
+      BLOG
+      <span v-if="!isPostPublished" class="status-badge" :class="`status-${post.status}`">
+        {{ post.status === 'pending' ? '审核中' : post.status }}
+      </span>
+    </div>
+
+    <!-- 文章标题 -->
+    <h1 class="page-title">{{ post.title }}</h1>
+
+    <!-- 分隔线 -->
+    <div class="title-divider" />
+
+    <!-- 作者信息行 -->
+    <AuthorBar
+      :post-id="post.id"
+      :author-username="post.author_username ?? ''"
+      :source-url="post.source_url ?? ''"
+      :source-name="post.source_name ?? ''"
+    />
+
+    <!-- 正文区域（含左侧浮动操作栏） -->
+    <div class="content-wrapper">
+      <FloatingActions
+        :liked="liked"
+        :favorited="favorited"
+        :like-count="likeCount"
+        :disabled="!canInteract"
+        @toggle-like="toggleLike"
+        @toggle-favorite="toggleFavorite"
+        @share="handleShare"
+      />
+
+      <div class="content-main">
+        <PostDetail :post="post" @paragraph-click="openParagraphComment" />
       </div>
     </div>
 
-    <div class="section-card comments-card">
-      <h3 class="comments-title">评论</h3>
+    <!-- 正文底部操作栏 -->
+    <div class="bottom-actions">
+      <LikeButton
+        :count="likeCount"
+        :active="liked"
+        :disabled="!canInteract"
+        @toggle="toggleLike"
+      />
+      <FavoriteButton :active="favorited" :disabled="!canInteract" @toggle="toggleFavorite" />
+      <ShareButton :disabled="!isPostPublished" />
+    </div>
 
-      <div v-if="isLoggedIn" class="comment-form">
-        <div class="form-avatar">{{ userInitial }}</div>
-        <div class="form-input">
-          <NInput
-            v-model:value="newComment"
-            type="textarea"
-            :rows="2"
-            placeholder="写下你的评论……"
-            class="themed-input"
-          />
-          <div class="form-action">
-            <NButton size="small" type="primary" :loading="posting" @click="submitComment">
-              <template #icon
-                ><NIcon><SendOutline /></NIcon
-              ></template>
-              发表评论
-            </NButton>
-          </div>
-        </div>
+    <!-- 全局评论区 -->
+    <div class="global-comments">
+      <div class="comments-header">
+        <h3 class="comments-title">评论</h3>
+        <span v-if="commentsCount > 0" class="comments-badge">{{ commentsCount }}</span>
       </div>
+
+      <CommentForm v-if="isLoggedIn" :loading="posting" @submit="submitComment" />
       <div v-else class="login-hint">
-        <span>登录后即可发表评论</span>
+        <span class="login-hint-icon">⟡</span>
+        登录后即可发表评论
       </div>
 
-      <NDivider style="margin: 16px 0" />
+      <div class="comments-divider" />
 
-      <div v-if="comments.length > 0" class="comment-list">
-        <div v-for="c in comments" :key="c.id" class="comment-item">
-          <div class="comment-avatar">
-            {{ ((c.author_username || '?')[0] || '').toUpperCase() }}
-          </div>
-          <div class="comment-body">
-            <div class="comment-header">
-              <span class="comment-user">{{ c.author_username || '匿名' }}</span>
-              <span class="comment-time">{{ (c.created_at || '').slice(0, 10) }}</span>
-            </div>
-            <div class="comment-content">{{ c.content }}</div>
-          </div>
-        </div>
-      </div>
-      <div v-else class="no-comments">
-        <span>暂无评论，快来抢沙发吧</span>
-      </div>
+      <CommentList :comments="comments" />
     </div>
   </div>
-  <div v-else class="loading-state">
-    <p>加载中……</p>
-  </div>
+
+  <!-- 段落评论浮窗 -->
+  <ParagraphCommentPanel
+    :visible="paragraphPanel.visible"
+    :paragraph="paragraphPanel.paragraph"
+    :comments="paragraphPanel.comments"
+    :loading="paragraphPanel.loading"
+    :posting="paragraphPanel.posting"
+    :is-logged-in="isLoggedIn"
+    @close="closeParagraphPanel"
+    @submit-comment="submitParagraphComment"
+  />
 </template>
 
 <style scoped>
+/* ── 页面布局 ── */
 .post-detail-page {
-  max-width: 760px;
+  max-width: 880px;
   margin: 0 auto;
+  padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-4xl);
 }
-.section-card {
-  background: rgba(255, 248, 236, 0.72);
-  border: 1px solid rgba(130, 95, 65, 0.14);
-  border-radius: var(--radius-md);
-  backdrop-filter: blur(4px);
-}
-.post-card {
-  padding: 28px;
-  margin-bottom: 16px;
-}
-.post-title {
-  margin: 0 0 8px;
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.3;
-}
-.post-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
+
+/* ── BLOG eybrow ── */
+.page-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
   color: var(--text-tertiary);
-  margin-bottom: 10px;
-}
-.post-meta .author {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-.dot {
-  color: var(--text-quaternary);
-  margin: 0 2px;
-}
-.tags-row {
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
-.post-content {
-  font-size: 15px;
-  line-height: 1.8;
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.status-badge.status-pending {
+  background: var(--warning-light-color, rgba(212, 160, 23, 0.12));
+  color: var(--accent-yellow, #d4a017);
+}
+
+/* ── 标题 ── */
+.page-title {
+  margin: 0 0 var(--spacing-md);
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.35;
   color: var(--text-primary);
-  white-space: pre-wrap;
+  letter-spacing: -0.02em;
 }
-.actions-card {
-  padding: 12px 20px;
-  margin-bottom: 16px;
+
+/* ── 分隔线 ── */
+.title-divider {
+  height: 1px;
+  margin: 0 0 var(--spacing-sm);
+  background: linear-gradient(
+    90deg,
+    var(--primary-color) 0%,
+    var(--divider-color) 30%,
+    transparent 100%
+  );
+  opacity: 0.5;
 }
-.action-buttons {
+
+/* ── 正文区域 ── */
+.content-wrapper {
+  position: relative;
+  display: flow-root;
+  margin-bottom: var(--spacing-lg);
+}
+
+.content-main {
+  /* 给左侧浮动栏留空间 */
+  min-height: 300px;
+}
+
+/* ── 底部操作栏 ── */
+.bottom-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) 0;
+  border-top: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--divider-color);
+  margin-bottom: var(--spacing-xl);
 }
-.comment-count {
+
+/* ── 全局评论 ── */
+.global-comments {
+  padding-top: var(--spacing-md);
+}
+
+.comments-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--text-tertiary);
-  margin-left: auto;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
-.comments-card {
-  padding: 20px;
-}
+
 .comments-title {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
-.comment-form {
-  display: flex;
-  gap: 10px;
-}
-.form-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: var(--primary-color);
-  color: #fff;
-  display: flex;
+
+.comments-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  flex-shrink: 0;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--primary-light-color);
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
 }
-.form-input {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+
+.comments-divider {
+  height: 1px;
+  margin: var(--spacing-md) 0;
+  background: var(--divider-color);
 }
-.form-action {
-  display: flex;
-  justify-content: flex-end;
-}
+
 .login-hint {
   text-align: center;
-  padding: 12px 0;
+  padding: var(--spacing-lg) 0;
   font-size: 13px;
   color: var(--text-tertiary);
-}
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.comment-item {
-  display: flex;
-  gap: 10px;
-}
-.comment-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: rgba(130, 95, 65, 0.12);
-  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  flex-shrink: 0;
+  gap: var(--spacing-sm);
 }
-.comment-body {
-  flex: 1;
-  min-width: 0;
+
+.login-hint-icon {
+  font-size: 16px;
+  opacity: 0.5;
 }
-.comment-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.comment-user {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.comment-time {
-  font-size: 11px;
-  color: var(--text-quaternary);
-}
-.comment-content {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-primary);
-}
-.no-comments {
-  text-align: center;
-  padding: 24px 0;
-  font-size: 13px;
-  color: var(--text-tertiary);
-}
+
+/* ── 加载态 ── */
 .loading-state {
-  text-align: center;
-  padding: 60px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--spacing-md);
+}
+
+.loading-text {
+  font-size: 14px;
   color: var(--text-tertiary);
+}
+
+/* ── 错误态 ── */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--spacing-sm);
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 36px;
+  margin-bottom: var(--spacing-sm);
+  opacity: 0.6;
+}
+
+.error-text {
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.error-hint {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.error-retry-btn {
+  margin-top: var(--spacing-md);
+  padding: 8px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.error-retry-btn:hover {
+  background: var(--surface-hover-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 </style>

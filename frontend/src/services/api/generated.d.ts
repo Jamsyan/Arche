@@ -2207,10 +2207,10 @@ export interface components {
       /** File */
       file: string
       /**
-       * Access Level
-       * @default A5
+       * Required Level
+       * @default 5
        */
-      access_level: string
+      required_level: number
       /**
        * Tags
        * @default
@@ -2412,11 +2412,11 @@ export interface components {
        */
       tags?: string[]
       /**
-       * Access Level
-       * @description 阅读权限等级（A0-A9）
-       * @default A5
+       * Required Level
+       * @description 阅读所需最低 P 等级（0-5，数字越小权限越高）
+       * @default 5
        */
-      access_level: string
+      required_level: number
     }
     /** CreateReportRequest */
     CreateReportRequest: {

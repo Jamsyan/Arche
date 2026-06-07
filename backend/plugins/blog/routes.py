@@ -19,7 +19,12 @@ class CreatePostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256, description="标题")
     content: str = Field(..., min_length=1, description="正文内容")
     tags: list[str] = Field(default_factory=list, description="标签列表")
-    access_level: str = Field(default="A5", description="阅读权限等级（A0-A9）")
+    required_level: int = Field(
+        default=5,
+        ge=0,
+        le=5,
+        description="阅读所需最低 P 等级（0-5，数字越小权限越高）",
+    )
 
 
 class UpdatePostRequest(BaseModel):
@@ -87,20 +92,24 @@ async def get_post_by_id(post_id: str, request: Request):
     blog_service = container.get("blog")
     user = get_current_user(request)
     user_level = user["level"] if user else None
+    user_id = uuid.UUID(user["id"]) if user else None
     result = await blog_service.get_post_detail_by_id(
-        uuid.UUID(post_id), user_level=user_level
+        uuid.UUID(post_id), user_level=user_level, user_id=user_id
     )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 
 @router.get("/posts/{slug}")
 async def get_post(slug: str, request: Request):
-    """帖子详情（按权限过滤）。"""
+    """帖子详情（按权限过滤 + 状态控制）。"""
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
     user = get_current_user(request)
     user_level = user["level"] if user else None
-    result = await blog_service.get_post_by_slug(slug, user_level=user_level)
+    user_id = uuid.UUID(user["id"]) if user else None
+    result = await blog_service.get_post_by_slug(
+        slug, user_level=user_level, user_id=user_id
+    )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 
@@ -118,7 +127,7 @@ async def create_post(req: CreatePostRequest, request: Request):
         title=req.title,
         content=req.content,
         tags=req.tags,
-        access_level=req.access_level,
+        required_level=req.required_level,
         user_level=user["level"],
     )
     return {"code": "ok", "message": "发帖成功，等待审核", "data": result}
@@ -224,7 +233,63 @@ async def create_comment(post_id: str, req: CreateCommentRequest, request: Reque
     return {"code": "ok", "message": "评论成功", "data": result}
 
 
-# --- 需登录：点赞（幂等） ---
+# --- 段落评论（公开读，登录写） ---
+@router.get("/posts/{post_id}/paragraph-comments/{paragraph_index}")
+async def get_paragraph_comments(
+    post_id: str,
+    paragraph_index: int,
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+):
+    """段落评论列表（公开）。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_paragraph_comments(
+        post_id=uuid.UUID(post_id),
+        paragraph_index=paragraph_index,
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.post("/posts/{post_id}/paragraph-comments/{paragraph_index}")
+async def create_paragraph_comment(
+    post_id: str, paragraph_index: int, req: CreateCommentRequest, request: Request
+):
+    """段落评论（需登录）。"""
+    user = require_user(request)
+    author_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.create_paragraph_comment(
+        post_id=uuid.UUID(post_id),
+        paragraph_index=paragraph_index,
+        author_id=author_id,
+        content=req.content,
+    )
+    return {"code": "ok", "message": "评论成功", "data": result}
+
+
+# --- 需登录：点赞 ---
+@router.get("/posts/{post_id}/like-status")
+async def get_like_status(post_id: str, request: Request):
+    """获取点赞状态（需登录）。"""
+    user = get_current_user(request)
+    if not user:
+        return {"code": "ok", "data": {"liked": False, "count": 0}}
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_like_status(
+        post_id=uuid.UUID(post_id),
+        user_id=uuid.UUID(user["id"]),
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
 @router.post("/posts/{post_id}/like")
 async def toggle_like(post_id: str, request: Request):
     """点赞（需登录，幂等）。"""
@@ -416,7 +481,7 @@ async def create_report(req: CreateReportRequest, request: Request):
 async def import_post(
     request: Request,
     file: UploadFile = File(...),
-    access_level: str = Form(default="A5"),
+    required_level: int = Form(default=5),
     tags: str = Form(default=""),
 ):
     """从文件导入帖子（需登录）。"""
@@ -431,8 +496,27 @@ async def import_post(
         file=file,
         author_id=author_id,
         user_level=user["level"],
-        access_level=access_level,
+        required_level=required_level,
         tags=tag_list,
+    )
+    return {"code": "ok", "message": "导入成功，等待审核", "data": result}
+
+
+@router.post("/upload-file")
+async def upload_post_file(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """上传 TXT/MD 文件创建帖子（需登录）。"""
+    user = require_user(request)
+    author_id = uuid.UUID(user["id"])
+
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.import_post(
+        file=file,
+        author_id=author_id,
+        user_level=user["level"],
     )
     return {"code": "ok", "message": "导入成功，等待审核", "data": result}
 
@@ -528,3 +612,32 @@ async def remove_tag_from_post(post_id: str, tag_name: str, request: Request):
         user_id=user_id,
     )
     return {"code": "ok", "message": "移除成功", "data": {}}
+
+
+# ── 统计端点（P0） ──
+
+
+@router.get("/stats/daily-trend")
+@require_level(0)
+async def get_daily_trend(
+    request: Request,
+    days: int = 7,
+):
+    """每日曝光量趋势（P0）。返回最近 N 天的浏览量、帖子新增量。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_daily_trend(days=days)
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.get("/admin/hot-posts")
+@require_level(0)
+async def get_hot_posts(
+    request: Request,
+    limit: int = Query(10, ge=5, le=50),
+):
+    """内容话题热度排行（P0）。按浏览量降序，含点赞数和评论数。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_hot_posts(limit=limit)
+    return {"code": "ok", "message": "获取成功", "data": result}

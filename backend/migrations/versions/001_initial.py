@@ -54,7 +54,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(32), nullable=False, server_default="pending"),
         sa.Column("quality_score", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("views", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("access_level", sa.String(8), nullable=False, server_default="A5"),
+        sa.Column("required_level", sa.Integer(), nullable=False, server_default="5"),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
         ),

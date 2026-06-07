@@ -63,6 +63,8 @@ export interface OSSQuota {
   username?: string
   quota_bytes: number
   speed_multiplier: number
+  used_bytes: number
+  usage_percent: number
 }
 
 export interface OSSTopUser {
@@ -91,7 +93,11 @@ export const deleteOssAdminFileApi = (fileId: string, config?: RequestConfig) =>
   del<void>(`/oss/admin/files/${fileId}`, undefined, config)
 
 export const getOssAdminQuotasApi = (config?: RequestConfig) =>
-  get<OSSQuota[]>('/oss/admin/quotas', undefined, config)
+  get<{ items: OSSQuota[]; list: OSSQuota[]; total: number }>(
+    '/oss/admin/quotas',
+    undefined,
+    config
+  )
 
 export const updateOssUserQuotaApi = (
   userId: string,

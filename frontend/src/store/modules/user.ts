@@ -132,14 +132,41 @@ export const useUserStore = defineStore(
       clearUserState()
     }
 
+    // 解码 JWT payload 获取 exp 时间戳（秒）
+    const getJwtExp = (rawToken: string): number | null => {
+      try {
+        const parts = rawToken.split('.')
+        if (parts.length !== 3) return null // 不是合法 JWT（可能是 mock-token）
+        const payload = JSON.parse(atob(parts[1]!))
+        return payload.exp || null
+      } catch {
+        return null
+      }
+    }
+
     // 初始化用户状态，从localStorage恢复
     const initUserState = () => {
       const savedToken = localStorage.getItem('token')
       const savedRefreshToken = localStorage.getItem('refresh_token')
       const savedUserInfo = localStorage.getItem('userInfo')
-      if (savedToken) {
-        token.value = savedToken
+
+      if (!savedToken) {
+        // 没有 token，清除所有残留状态
+        clearUserState()
+        return
       }
+
+      // token 有效性预检：如果是合法 JWT 且已过期，且没有 refresh_token，则清除状态
+      const exp = getJwtExp(savedToken)
+      if (exp !== null) {
+        const now = Math.floor(Date.now() / 1000)
+        if (now >= exp && !savedRefreshToken) {
+          clearUserState()
+          return
+        }
+      }
+
+      token.value = savedToken
       if (savedRefreshToken) {
         refreshToken.value = savedRefreshToken
       }

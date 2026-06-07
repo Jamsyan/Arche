@@ -1,39 +1,22 @@
 <template>
-  <NConfigProvider :theme="theme" :theme-overrides="themeOverrides">
+  <NConfigProvider
+    :theme="theme"
+    :theme-overrides="themeOverrides"
+    :locale="zhCN"
+    :date-locale="dateZhCN"
+  >
     <NMessageProvider>
       <NDialogProvider>
         <NNotificationProvider>
           <NLoadingBarProvider>
-            <!-- 动态选择布局 -->
-            <GuestLayout v-if="currentLayout === 'guest'">
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </GuestLayout>
-            <UserLayout v-else-if="currentLayout === 'user'">
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </UserLayout>
-            <AdminLayout v-else-if="currentLayout === 'admin'">
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </AdminLayout>
-            <!-- 默认用访客布局 -->
-            <GuestLayout v-else>
-              <RouterView v-slot="{ Component }">
-                <Transition :name="appStore.transitionName" mode="out-in">
-                  <component :is="Component" />
-                </Transition>
-              </RouterView>
-            </GuestLayout>
+            <RouterView v-slot="{ Component, route: r }">
+              <component :is="layoutMap[(r.meta.layout as string) || 'guest'] || GuestLayout">
+                <component
+                  :is="Component"
+                  :key="r.matched[0]?.path === '/console' ? '/console' : r.fullPath"
+                />
+              </component>
+            </RouterView>
           </NLoadingBarProvider>
         </NNotificationProvider>
       </NDialogProvider>
@@ -50,16 +33,16 @@ import {
   NNotificationProvider,
   NLoadingBarProvider,
   darkTheme,
+  zhCN,
+  dateZhCN,
   type GlobalThemeOverrides
 } from 'naive-ui'
-import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store/modules/app'
 import GuestLayout from '@/layouts/GuestLayout.vue'
 import UserLayout from '@/layouts/UserLayout.vue'
-import AdminLayout from '@/layouts/AdminLayout.vue'
 
-const route = useRoute()
 const appStore = useAppStore()
+
 const themeOverrides: GlobalThemeOverrides = {
   common: {
     primaryColor: '#9a5a2f',
@@ -85,13 +68,69 @@ const themeOverrides: GlobalThemeOverrides = {
     borderHover: '1px solid #b8743d',
     borderPressed: '1px solid #6f3f22',
     borderFocus: '1px solid #b8743d'
+  },
+  Popover: {
+    color: 'var(--surface-color)',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: '12px'
+  },
+  Select: {
+    menuColor: 'var(--surface-color)',
+    menuBorder: '1px solid var(--border-color)',
+    menuBorderRadius: 'var(--radius-md)',
+    menuBoxShadow: 'var(--shadow-lg)',
+    optGroupTextColor: 'var(--text-secondary)',
+    optGroupFontSize: '11px'
+  },
+  InternalSelectMenu: {
+    color: 'var(--surface-color)',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--shadow-lg)',
+    optionColor: 'transparent',
+    optionColorHover: 'var(--primary-light-color)',
+    optionColorActive: 'var(--primary-light-color)',
+    optionTextColor: 'var(--text-primary)',
+    optionTextColorHover: 'var(--primary-color)',
+    optionTextColorActive: 'var(--primary-color)',
+    optionFontSize: '12px',
+    optionHeight: '28px'
+  },
+  Pagination: {
+    itemFontSizeSmall: '12px',
+    itemFontSizeActive: '12px',
+    itemTextColor: 'var(--text-secondary)',
+    itemTextColorHover: 'var(--primary-color)',
+    itemTextColorActive: 'var(--primary-color)',
+    itemColor: 'transparent',
+    itemColorHover: 'var(--primary-light-color)',
+    itemColorActive: 'var(--primary-light-color)',
+    itemBorder: '1px solid var(--border-color)',
+    itemBorderHover: '1px solid var(--primary-color)',
+    itemBorderActive: '1px solid var(--primary-color)',
+    itemBorderRadius: 'var(--radius-sm)',
+    buttonColor: 'transparent',
+    buttonColorHover: 'var(--primary-light-color)',
+    buttonBorder: '1px solid var(--border-color)',
+    buttonBorderHover: '1px solid var(--primary-color)',
+    buttonIconColor: 'var(--text-tertiary)',
+    buttonIconColorHover: 'var(--primary-color)',
+    inputBorderColor: 'var(--border-color)',
+    inputBorderColorHover: 'var(--primary-color)',
+    inputBorderColorFocus: 'var(--primary-color)',
+    selectBorderColor: 'var(--border-color)',
+    selectBorderColorHover: 'var(--primary-color)',
+    selectBorderColorFocus: 'var(--primary-color)',
+    prefixFontSize: '12px',
+    suffixFontSize: '12px'
   }
 }
 
-// 计算当前应该使用的布局
-const currentLayout = computed(() => {
-  return (route.meta.layout as 'guest' | 'user' | 'admin') || 'guest'
-})
+const layoutMap: Record<string, typeof GuestLayout> = {
+  guest: GuestLayout,
+  user: UserLayout
+}
 
 // 主题切换
 const theme = computed(() => {

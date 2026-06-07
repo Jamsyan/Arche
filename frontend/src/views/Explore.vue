@@ -2,30 +2,16 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NIcon, NTag, useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import {
-  AppsOutline,
-  ListOutline,
-  PersonOutline,
-  PricetagOutline,
-  ReorderThreeOutline,
-  SearchOutline
-} from '@vicons/ionicons5'
-import ProTable from '@/components/ProTable.vue'
-import BlogCard from '@/components/blog/BlogCard.vue'
-import { getBlogPostsApi, type BlogPost } from '@/services/api'
+import { PersonOutline, PricetagOutline } from '@vicons/ionicons5'
+import { PostCard } from '@/components/blog'
+import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import type { MockExploreItem } from '@/services/mock/types'
 
 type ExploreFilterMode = 'tag' | 'author'
-type ExploreViewMode = 'card' | 'wide-row' | 'compact-row'
 
 const filterMode = ref<ExploreFilterMode>('tag')
 const selectedTags = ref<string[]>([])
-const tagFilter = ref('')
 const selectedAuthors = ref<string[]>([])
-const authorFilter = ref('')
-const contentSearch = ref('')
-const viewMode = ref<ExploreViewMode>('card')
 
 const router = useRouter()
 const route = useRoute()
@@ -89,22 +75,17 @@ onMounted(async () => {
   if (q.mode === 'tag' || q.mode === 'author') filterMode.value = q.mode
   if (q.tags) selectedTags.value = String(q.tags).split(',').filter(Boolean)
   if (q.authors) selectedAuthors.value = String(q.authors).split(',').filter(Boolean)
-  if (q.view === 'card' || q.view === 'wide-row' || q.view === 'compact-row')
-    viewMode.value = q.view
-  if (q.q) contentSearch.value = String(q.q)
 
   await fetchExploreData()
 })
 
 watch(
-  [filterMode, selectedTags, selectedAuthors, viewMode, contentSearch],
+  [filterMode, selectedTags, selectedAuthors],
   () => {
     const query: Record<string, string> = {}
     if (filterMode.value !== 'tag') query.mode = filterMode.value
     if (selectedTags.value.length > 0) query.tags = selectedTags.value.join(',')
     if (selectedAuthors.value.length > 0) query.authors = selectedAuthors.value.join(',')
-    if (viewMode.value !== 'card') query.view = viewMode.value
-    if (contentSearch.value) query.q = contentSearch.value
 
     const keys = Object.keys(query)
     router.replace(keys.length ? { path: route.path, query } : { path: route.path })
@@ -144,16 +125,15 @@ const toggleSidebarOption = (option: string) => {
 type CompoundFilterChip = {
   type: '标签' | '用户'
   value: string
-  isDefault: boolean
 }
 
 const activeCompoundFilters = computed<CompoundFilterChip[]>(() => [
   ...(selectedTags.value.length > 0
-    ? selectedTags.value.map((value) => ({ type: '标签' as const, value, isDefault: false }))
-    : [{ type: '标签' as const, value: '全部', isDefault: true }]),
+    ? selectedTags.value.map((value) => ({ type: '标签' as const, value }))
+    : []),
   ...(selectedAuthors.value.length > 0
-    ? selectedAuthors.value.map((value) => ({ type: '用户' as const, value, isDefault: false }))
-    : [{ type: '用户' as const, value: '全部作者', isDefault: true }])
+    ? selectedAuthors.value.map((value) => ({ type: '用户' as const, value }))
+    : [])
 ])
 
 function toBlogPost(item: MockExploreItem): BlogPost {
@@ -174,53 +154,36 @@ const handleOpenItem = (post: BlogPost) => {
   router.push(`/blog/${post.slug}`)
 }
 
-const removeCompoundFilter = (type: '标签' | '用户', value: string) => {
-  if (type === '标签') {
-    selectedTags.value = selectedTags.value.filter((tag) => tag !== value)
-    return
-  }
-  selectedAuthors.value = selectedAuthors.value.filter((author) => author !== value)
-}
-
 const handleCompoundFilterChipClick = (chip: CompoundFilterChip) => {
-  if (chip.isDefault) {
-    if (chip.type === '标签') {
-      selectedTags.value = []
-      return
-    }
-    selectedAuthors.value = []
+  if (chip.type === '标签') {
+    selectedTags.value = selectedTags.value.filter((tag) => tag !== chip.value)
     return
   }
-  removeCompoundFilter(chip.type, chip.value)
+  selectedAuthors.value = selectedAuthors.value.filter((author) => author !== chip.value)
 }
 
-const visibleTags = computed(() => {
-  const filterValue = tagFilter.value.trim().toLowerCase()
-  if (!filterValue) {
-    return allTags.value
-  }
-  return allTags.value.filter((tag) => tag.toLowerCase().includes(filterValue))
-})
+const visibleTags = computed(() => allTags.value)
 
-const visibleAuthors = computed(() => {
-  const filterValue = authorFilter.value.trim().toLowerCase()
-  if (!filterValue) {
-    return allAuthors.value
-  }
-  return allAuthors.value.filter((author) => author.toLowerCase().includes(filterValue))
-})
+const visibleAuthors = computed(() => allAuthors.value)
+
+const tagThemeOverrides = {
+  borderRadius: '8px',
+  colorChecked: 'var(--primary-color)',
+  colorCheckedHover: 'var(--primary-hover-color)',
+  colorCheckedPressed: 'var(--primary-pressed-color)',
+  textColorChecked: '#fff',
+  border: 'none',
+  padding: '0 14px',
+  height: '30px',
+  fontSize: '13px',
+  color: 'var(--surface-color)',
+  textColor: 'var(--text-primary)',
+  colorCheckable: 'transparent',
+  colorHoverCheckable: 'var(--surface-hover-color)'
+}
 
 const filteredItems = computed(() => {
   let list = [...exploreItems.value]
-  const keyword = contentSearch.value.trim().toLowerCase()
-  if (keyword) {
-    list = list.filter(
-      (item) =>
-        item.title.toLowerCase().includes(keyword) ||
-        item.excerpt.toLowerCase().includes(keyword) ||
-        item.author.toLowerCase().includes(keyword)
-    )
-  }
 
   if (selectedAuthors.value.length > 0) {
     list = list.filter((item) => selectedAuthors.value.includes(item.author))
@@ -233,112 +196,35 @@ const filteredItems = computed(() => {
   list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   return list
 })
-
-const compactColumns: DataTableColumns<any> = [
-  {
-    title: '作者',
-    key: 'author',
-    width: 120,
-    filterOptions: allAuthors.value
-      .filter((author) => author !== '全部作者')
-      .map((author) => ({ label: author, value: author })),
-    filter: (value, row) => row.author === value
-  },
-  {
-    title: '标题',
-    key: 'title',
-    minWidth: 220,
-    ellipsis: {
-      tooltip: true
-    }
-  },
-  {
-    title: '点赞',
-    key: 'likes',
-    width: 88,
-    sorter: (a, b) => a.likes - b.likes
-  },
-  {
-    title: '收藏',
-    key: 'favorites',
-    width: 88,
-    sorter: (a, b) => a.favorites - b.favorites
-  },
-  {
-    title: '热度',
-    key: 'heat',
-    width: 88,
-    sorter: (a, b) => a.heat - b.heat
-  },
-  {
-    title: '创建时间',
-    key: 'createdAt',
-    width: 140,
-    sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  }
-]
-
-const compactRows = computed(() =>
-  filteredItems.value.map((item) => ({
-    key: item.id,
-    createdAt: item.date,
-    heat: item.likes * 2 + item.favorites,
-    ...item
-  }))
-)
 </script>
 
 <template>
   <div class="explore-page">
     <section class="explore-body">
-      <aside class="tag-sidebar card-glass">
-        <div class="filter-combo">
-          <div class="combo-top">
-            <NIcon class="search-leading-icon" size="16" aria-hidden="true">
-              <SearchOutline />
+      <aside class="tag-sidebar">
+        <div class="filter-tabs">
+          <button
+            class="filter-tab"
+            :class="{ active: filterMode === 'tag' }"
+            type="button"
+            @click="filterMode = 'tag'"
+          >
+            <NIcon size="14" aria-hidden="true">
+              <PricetagOutline />
             </NIcon>
-            <input
-              class="search-input"
-              type="search"
-              :value="filterMode === 'tag' ? tagFilter : authorFilter"
-              :placeholder="filterMode === 'tag' ? '筛选标签' : '筛选作者'"
-              @input="
-                (e) =>
-                  filterMode === 'tag'
-                    ? (tagFilter = (e.target as HTMLInputElement).value)
-                    : (authorFilter = (e.target as HTMLInputElement).value)
-              "
-            />
-          </div>
-          <div class="combo-bottom">
-            <div
-              class="combo-bottom-inner"
-              :class="filterMode === 'tag' ? 'mode-tag' : 'mode-author'"
-            >
-              <button
-                class="mode-button"
-                :class="{ active: filterMode === 'tag' }"
-                type="button"
-                @click="filterMode = 'tag'"
-              >
-                <NIcon size="14" aria-hidden="true">
-                  <PricetagOutline />
-                </NIcon>
-                <span>标签</span>
-              </button>
-              <button
-                class="mode-button"
-                :class="{ active: filterMode === 'author' }"
-                type="button"
-                @click="filterMode = 'author'"
-              >
-                <NIcon size="14" aria-hidden="true">
-                  <PersonOutline />
-                </NIcon>
-                <span>用户</span>
-              </button>
-            </div>
-          </div>
+            <span>标签</span>
+          </button>
+          <button
+            class="filter-tab"
+            :class="{ active: filterMode === 'author' }"
+            type="button"
+            @click="filterMode = 'author'"
+          >
+            <NIcon size="14" aria-hidden="true">
+              <PersonOutline />
+            </NIcon>
+            <span>用户</span>
+          </button>
         </div>
         <Transition name="tag-stack-panel" mode="out-in">
           <div :key="filterMode" class="tag-stack">
@@ -348,6 +234,7 @@ const compactRows = computed(() =>
               checkable
               :checked="isOptionChecked(option)"
               class="stack-tag"
+              :theme-overrides="tagThemeOverrides"
               @update:checked="() => toggleSidebarOption(option)"
             >
               {{ option }}
@@ -356,94 +243,35 @@ const compactRows = computed(() =>
         </Transition>
       </aside>
 
-      <main class="content card-glass">
-        <section class="content-search-panel">
-          <div class="content-search-row">
-            <NIcon class="search-leading-icon content-search-icon" size="16" aria-hidden="true">
-              <SearchOutline />
-            </NIcon>
-            <input
-              v-model.trim="contentSearch"
-              class="content-search-input"
-              type="search"
-              placeholder="搜索内容"
-            />
-          </div>
-        </section>
+      <main class="content">
         <section class="content-display-panel">
-          <div class="display-filter-bar">
-            <TransitionGroup name="compound-chip" tag="div" class="compound-filter-tabs">
+          <div v-if="activeCompoundFilters.length > 0" class="filter-bar">
+            <TransitionGroup name="filter-chip" tag="div" class="filter-chip-list">
               <button
                 v-for="chip in activeCompoundFilters"
                 :key="`${chip.type}-${chip.value}`"
                 type="button"
-                class="compound-chip"
-                :class="{ 'is-default': chip.isDefault }"
+                class="filter-chip"
                 @click="handleCompoundFilterChipClick(chip)"
               >
-                {{ chip.type }}: {{ chip.value }}{{ chip.isDefault ? '' : ' ×' }}
+                <span class="chip-label">{{ chip.type }}</span>
+                <span class="chip-value">{{ chip.value }}</span>
+                <span class="chip-close" aria-hidden="true">×</span>
               </button>
             </TransitionGroup>
-            <div class="view-switch" :class="viewMode">
-              <button
-                type="button"
-                :class="{ active: viewMode === 'card' }"
-                @click="viewMode = 'card'"
-                aria-label="卡片视图"
-                title="卡片视图"
-              >
-                <NIcon size="15" aria-hidden="true">
-                  <AppsOutline />
-                </NIcon>
-              </button>
-              <button
-                type="button"
-                :class="{ active: viewMode === 'wide-row' }"
-                @click="viewMode = 'wide-row'"
-                aria-label="宽行视图"
-                title="宽行视图"
-              >
-                <NIcon size="15" aria-hidden="true">
-                  <ListOutline />
-                </NIcon>
-              </button>
-              <button
-                type="button"
-                :class="{ active: viewMode === 'compact-row' }"
-                @click="viewMode = 'compact-row'"
-                aria-label="窄行视图"
-                title="窄行视图"
-              >
-                <NIcon size="15" aria-hidden="true">
-                  <ReorderThreeOutline />
-                </NIcon>
-              </button>
-            </div>
           </div>
-          <Transition name="view-mode" mode="out-in">
-            <ProTable
-              v-if="viewMode === 'compact-row'"
-              key="compact-row-table"
-              class="compact-table"
-              :columns="compactColumns"
-              :data="compactRows"
-              row-key="key"
-              :page-size="10"
-              :show-size-picker="false"
-              :show-quick-jumper="false"
+          <div class="explore-grid">
+            <PostCard
+              v-for="item in filteredItems"
+              :key="item.id"
+              :post="toBlogPost(item)"
+              layout="grid"
+              :show-cover="true"
+              :show-excerpt="true"
+              :show-actions="true"
+              @open="handleOpenItem"
             />
-            <div v-else key="blog-card-list" class="display-list" :class="`mode-${viewMode}`">
-              <BlogCard
-                v-for="item in filteredItems"
-                :key="item.id"
-                :post="toBlogPost(item)"
-                :layout="viewMode === 'wide-row' ? 'list' : 'grid'"
-                :show-cover="viewMode === 'card'"
-                :show-excerpt="true"
-                @open="handleOpenItem"
-              />
-            </div>
-          </Transition>
+          </div>
         </section>
       </main>
     </section>
@@ -456,13 +284,14 @@ const compactRows = computed(() =>
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--layout-gap);
+  font-family: var(--font-sans);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--spacing-lg);
   align-items: center;
 }
 
@@ -482,7 +311,7 @@ const compactRows = computed(() =>
 .explore-body {
   display: grid;
   grid-template-columns: minmax(280px, 300px) minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--layout-gap);
   overflow: visible;
   align-items: start;
 }
@@ -492,164 +321,54 @@ const compactRows = computed(() =>
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  gap: 17px;
+  gap: var(--spacing-md);
   width: 100%;
   max-width: 320px;
   min-height: 360px;
-  padding: 10px 5px;
+  padding: var(--spacing-md);
   box-sizing: border-box;
   position: sticky;
   top: 87px;
   align-self: start;
   max-height: calc(100vh - 87px);
   overflow-y: auto;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
-.filter-combo {
+.filter-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 0;
+  gap: 4px;
   width: 100%;
-  max-width: 250px;
-  min-height: 0;
-  margin: 10px 5px 5px;
-}
-
-.combo-top {
-  width: 100%;
-  height: 52px;
-  background: rgba(252, 242, 228, 0.96);
-  border-radius: 40px 20px 0 40px;
-  border: 1px solid rgba(130, 95, 65, 0.22);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;
-  text-align: left;
-  padding: 0 10px;
-  position: relative;
-}
-
-.combo-top::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  width: 56%;
-  height: 2px;
-  background: rgba(252, 242, 228, 0.96);
-  content: '';
-}
-
-.search-leading-icon {
-  position: absolute;
-  left: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  pointer-events: none;
-  transition: color 0.25s ease;
-}
-
-.combo-bottom {
-  width: 56%;
-  height: 46px;
-  align-self: flex-end;
-  background: rgba(251, 240, 226, 0.95);
-  border-radius: 0 0 20px 20px;
-  border: 1px solid rgba(130, 95, 65, 0.22);
-  border-top-color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.combo-bottom-inner {
-  width: 127px;
-  height: 75%;
-  background: rgba(255, 246, 233, 0.96);
-  border-radius: 40px;
-  transform: translateY(-2px);
-  border: 1px solid rgba(123, 84, 52, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 2px rgba(95, 63, 38, 0.2),
-    inset 0 0 0 1px rgba(123, 84, 52, 0.12);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
+  background: var(--bg-inset-color);
+  border-radius: var(--radius-md);
   padding: 3px;
+  border: 1px solid var(--border-color);
   box-sizing: border-box;
-  position: relative;
 }
 
-.combo-bottom-inner::before {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
-  height: calc(100% - 6px);
-  border-radius: 999px;
-  background: rgba(111, 63, 34, 0.72);
-  transition: transform 0.28s ease;
-  z-index: 0;
-}
-
-.combo-bottom-inner.mode-author::before {
-  transform: translateX(100%);
-}
-
-.mode-button {
-  height: 100%;
+.filter-tab {
+  flex: 1;
+  height: 32px;
   border: 0;
-  border-radius: 999px;
+  border-radius: calc(var(--radius-md) - 2px);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: color 0.22s ease;
-  position: relative;
-  z-index: 1;
-}
-
-.mode-button.active {
-  color: #fff;
-}
-
-.search-input {
-  width: 100%;
-  max-width: 237px;
-  height: 40px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: rgba(255, 246, 233, 0.9);
-  padding: 0 14px 0 38px;
-  color: var(--text-primary);
-  outline: none;
+  gap: 5px;
   font-size: 13px;
-  text-align: left;
-  transition:
-    border-color 0.3s ease,
-    box-shadow 0.3s ease,
-    background 0.3s ease,
-    transform 0.3s ease;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
 }
 
-.search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow:
-    0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(111, 63, 34, 0.16);
-  background: rgba(255, 248, 236, 0.96);
-  transform: translateY(-1px);
-}
-
-.combo-top:focus-within .search-leading-icon {
-  color: var(--primary-color);
+.filter-tab.active {
+  background: var(--surface-color);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .tag-stack {
@@ -660,51 +379,29 @@ const compactRows = computed(() =>
   overflow-y: auto;
   min-height: 0;
   width: 100%;
-  max-width: 250px;
-  margin: 5px 5px 10px;
-  padding: 10px;
+  margin: 0;
+  padding: var(--spacing-md);
   box-sizing: border-box;
   align-content: flex-start;
-  background: rgba(251, 240, 226, 0.95);
-  border-radius: 16px;
-  border: 1px solid rgba(130, 95, 65, 0.22);
-  box-shadow: none;
+  background: var(--bg-inset-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
 }
 
 .stack-tag {
   margin: 0;
-  border-radius: 999px;
-  background: rgba(255, 249, 240, 0.98);
-  border-color: rgba(145, 105, 72, 0.18);
-  box-shadow:
-    0 1px 2px rgba(69, 44, 24, 0.22),
-    0 3px 8px rgba(69, 44, 24, 0.12);
-  transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+  transition: transform var(--transition-fast);
 }
 
 .stack-tag:hover {
   transform: translateY(-1px);
-  background: rgba(255, 247, 236, 1);
-  box-shadow:
-    0 2px 4px rgba(69, 44, 24, 0.24),
-    0 5px 10px rgba(69, 44, 24, 0.14);
-}
-
-:deep(.stack-tag.n-tag--checked) {
-  border-radius: 999px;
-  box-shadow:
-    0 0 0 1px rgba(59, 130, 246, 0.15),
-    0 8px 18px rgba(59, 130, 246, 0.2);
 }
 
 .tag-stack-panel-enter-active,
 .tag-stack-panel-leave-active {
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity var(--transition-normal),
+    transform var(--transition-normal);
 }
 
 .tag-stack-panel-enter-from,
@@ -717,241 +414,93 @@ const compactRows = computed(() =>
   min-height: 360px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.content-search-panel {
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.content-search-row {
-  position: relative;
-}
-
-.content-search-icon {
-  left: 14px;
-}
-
-.content-search-input {
-  width: 100%;
-  height: 40px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: rgba(255, 250, 241, 0.92);
-  padding: 0 14px 0 38px;
-  color: var(--text-primary);
-  outline: none;
-  font-size: 13px;
-  transition:
-    border-color 0.3s ease,
-    box-shadow 0.3s ease,
-    background 0.3s ease,
-    transform 0.3s ease;
-}
-
-.content-search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow:
-    0 0 0 3px var(--primary-light-color),
-    0 8px 20px rgba(111, 63, 34, 0.16);
-  background: rgba(255, 250, 241, 0.98);
-  transform: translateY(-1px);
-}
-
-.content-search-row:focus-within .content-search-icon {
-  color: var(--primary-color);
+  gap: var(--spacing-md);
 }
 
 .content-display-panel {
   flex: 1;
   min-height: 0;
-  border-radius: 14px;
-  border: 1px solid rgba(130, 95, 65, 0.12);
-  background: rgba(255, 250, 241, 0.62);
-  padding: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  padding: var(--content-padding);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--spacing-md);
 }
 
-.display-filter-bar {
-  display: flex;
-  align-items: end;
-  gap: 6px;
-  flex-wrap: wrap;
+.filter-bar {
+  margin-bottom: 4px;
 }
 
-.compound-filter-tabs {
-  min-height: 30px;
+.filter-chip-list {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1;
   flex-wrap: wrap;
 }
 
-.compound-chip {
-  border: 1px solid rgba(130, 95, 65, 0.2);
-  border-radius: 999px;
-  background: rgba(255, 248, 236, 0.92);
-  color: var(--text-primary);
-  padding: 4px 10px;
-  font-size: 12px;
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--surface-color);
   cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  transition: all var(--transition-fast);
 }
 
-.compound-chip:hover {
-  background: rgba(255, 244, 229, 0.98);
+.filter-chip:hover {
+  background: var(--surface-strong-color);
+  border-color: var(--text-tertiary);
 }
 
-.compound-chip.is-default {
-  border-style: dashed;
-  color: var(--text-secondary);
-  background: rgba(255, 246, 233, 0.88);
+.chip-label {
+  color: var(--text-tertiary);
 }
 
-.compound-chip.is-default:hover {
-  background: rgba(255, 242, 225, 0.94);
+.chip-value {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
 }
 
-.compound-chip-enter-active,
-.compound-chip-leave-active {
-  transition: all 0.26s ease;
+.chip-close {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  margin-left: 2px;
 }
 
-.compound-chip-enter-from,
-.compound-chip-leave-to {
+.filter-chip:hover .chip-close {
+  color: var(--error-color);
+}
+
+.filter-chip-enter-active,
+.filter-chip-leave-active {
+  transition: all var(--transition-normal);
+}
+
+.filter-chip-enter-from,
+.filter-chip-leave-to {
   opacity: 0;
   transform: translateY(4px) scale(0.96);
 }
 
-.compound-chip-move {
-  transition: transform 0.26s ease;
+.filter-chip-move {
+  transition: transform var(--transition-normal);
 }
 
-.view-mode-enter-active,
-.view-mode-leave-active {
-  transition: all 0.22s ease;
-}
-
-.view-mode-enter-from,
-.view-mode-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-.view-switch {
-  margin-left: auto;
-  border: 1px solid rgba(130, 95, 65, 0.2);
-  border-radius: 999px;
-  background: rgba(255, 248, 236, 0.9);
-  display: inline-flex;
-  padding: 2px;
-  gap: 2px;
-}
-
-.view-switch button {
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: 999px;
-  width: 32px;
-  height: 28px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.view-switch button.active {
-  background: rgba(111, 63, 34, 0.72);
-  color: #fff;
-}
-
-.display-list {
+.explore-grid {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  scrollbar-gutter: stable;
   display: grid;
-  gap: 8px;
-}
-
-.display-list.mode-card {
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-}
-
-.display-list.mode-wide-row,
-.display-list.mode-compact-row {
-  grid-template-columns: 1fr;
-}
-
-.compact-table {
-  min-height: 0;
-}
-
-.compact-table :deep(.n-data-table) {
-  --n-td-color: rgba(255, 249, 240, 0.9);
-  --n-td-color-hover: rgba(255, 244, 229, 0.95);
-  --n-th-color: rgba(246, 236, 223, 0.95);
-  --n-border-color: rgba(130, 95, 65, 0.16);
-  --n-th-text-color: var(--text-secondary);
-  --n-td-text-color: var(--text-primary);
-}
-
-.compact-table :deep(.n-data-table .n-data-table-wrapper),
-.compact-table :deep(.n-data-table .n-scrollbar-container),
-.compact-table :deep(.n-data-table .n-data-table-base-table) {
-  background: rgba(255, 248, 236, 0.78);
-  border-radius: 10px;
-}
-
-.compact-table :deep(.n-data-table thead th) {
-  background: rgba(246, 236, 223, 0.96) !important;
-  color: var(--text-secondary) !important;
-}
-
-.compact-table :deep(.n-data-table tbody td) {
-  background: rgba(255, 249, 240, 0.9) !important;
-  color: var(--text-primary) !important;
-}
-
-.compact-table :deep(.n-data-table tbody tr:hover td) {
-  background: rgba(255, 244, 229, 0.95) !important;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr) {
-  animation: table-row-enter 0.28s ease both;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(1)) {
-  animation-delay: 0.03s;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(2)) {
-  animation-delay: 0.06s;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(3)) {
-  animation-delay: 0.09s;
-}
-
-.compact-table :deep(.n-data-table-tbody > .n-data-table-tr:nth-child(n + 4)) {
-  animation-delay: 0.12s;
-}
-
-@keyframes table-row-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+  align-content: start;
 }
 
 @media (max-width: 1100px) {

@@ -11,14 +11,23 @@ export interface BlogPost {
   slug: string
   title: string
   content: string
+  cover_url?: string
+  source_url?: string
+  source_name?: string
   tags: string[]
-  access_level?: string
+  required_level?: number
   status?: string
   created_at?: string
   updated_at?: string
   author_username?: string
   likes?: number
   views?: number
+  paragraphs?: Paragraph[]
+}
+
+export interface Paragraph {
+  index: number
+  content: string
 }
 
 export interface BlogComment {
@@ -27,6 +36,7 @@ export interface BlogComment {
   content: string
   author_id: string
   author_username?: string
+  paragraph_index?: number
   created_at?: string
 }
 
@@ -40,12 +50,14 @@ export interface CreatePostPayload {
   title: string
   content: string
   tags?: string[]
-  access_level?: string
+  required_level?: number
+  cover_url?: string
 }
 
 export interface UpdatePostPayload {
   title?: string
   content?: string
+  cover_url?: string
 }
 
 export interface CreateCommentPayload {
@@ -63,6 +75,11 @@ export interface BlogListParams extends ApiListParams {
   tag?: string
   sort_by?: string
   status?: string
+}
+
+export interface LikeStatus {
+  liked: boolean
+  count: number
 }
 
 export const getBlogPostsApi = (params?: BlogListParams, config?: RequestConfig) =>
@@ -100,6 +117,29 @@ export const createPostCommentApi = (
   payload: CreateCommentPayload,
   config?: RequestConfig
 ) => post<BlogComment>(`/blog/posts/${postId}/comments`, payload, config)
+
+export const getParagraphCommentsApi = (
+  postId: string,
+  paragraphIndex: number,
+  params?: ApiListParams,
+  config?: RequestConfig
+) =>
+  get<BackendPaginated<BlogComment>>(
+    `/blog/posts/${postId}/paragraph-comments/${paragraphIndex}`,
+    params,
+    config
+  ).then(normalizePaginated)
+
+export const createParagraphCommentApi = (
+  postId: string,
+  paragraphIndex: number,
+  payload: CreateCommentPayload,
+  config?: RequestConfig
+) =>
+  post<BlogComment>(`/blog/posts/${postId}/paragraph-comments/${paragraphIndex}`, payload, config)
+
+export const getLikeStatusApi = (postId: string, config?: RequestConfig) =>
+  get<LikeStatus>(`/blog/posts/${postId}/like-status`, undefined, config)
 
 export const likePostApi = (postId: string, config?: RequestConfig) =>
   post<void>(`/blog/posts/${postId}/like`, undefined, config)
@@ -152,3 +192,12 @@ export const batchApproveApi = (payload: BatchActionPayload, config?: RequestCon
 
 export const batchRejectApi = (payload: BatchActionPayload, config?: RequestConfig) =>
   post<void>('/blog/moderation/batch-reject', payload, config)
+
+export const uploadPostFileApi = (file: File, config?: RequestConfig) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return post<BlogPost>('/blog/upload-file', formData, {
+    ...config,
+    headers: { ...config?.headers, 'Content-Type': 'multipart/form-data' }
+  })
+}

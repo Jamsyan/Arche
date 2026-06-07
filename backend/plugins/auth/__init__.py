@@ -40,13 +40,26 @@ class AuthPlugin(BasePlugin):
         # 注册认证服务
         container.register("auth", lambda c: AuthService(c))
 
+        # 注册在线会话追踪器
+        from backend.plugins.auth.session import UserSessionTracker
+
+        container.register("session_tracker", lambda c: UserSessionTracker(c))
+
         # 挂载 JWT 中间件（需要 SECRET_KEY）
         secret_key = container.get("config").get_required("SECRET_KEY")
         if self._app:
             self._app.add_middleware(AuthMiddleware, secret_key=secret_key)
 
     def on_startup(self) -> None:
-        pass
+        """启动在线会话清理任务。"""
+        from backend.core.container import container as global_container
+
+        try:
+            if global_container.is_available("session_tracker"):
+                tracker = global_container.get("session_tracker")
+                tracker.start_cleanup()
+        except Exception:
+            pass
 
 
 # 自注册

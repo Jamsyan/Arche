@@ -1,5 +1,5 @@
 <template>
-  <div class="about-page card-glass">
+  <div class="about-page">
     <p class="subtitle">关于锦年志</p>
     <h1>记录时光，分享成长</h1>
     <p>
@@ -15,7 +15,12 @@
 .about-page {
   width: min(900px, 100%);
   margin: 0 auto;
-  line-height: 1.8;
+  line-height: var(--line-height-relaxed);
+  font-family: var(--font-sans);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3xl);
 }
 
 .subtitle {
@@ -27,12 +32,13 @@
 }
 
 h1 {
-  margin: 8px 0 12px;
+  margin: var(--spacing-sm) 0 var(--spacing-md);
   font-size: 30px;
+  color: var(--text-primary);
 }
 
 p {
-  margin: 0 0 12px;
+  margin: 0 0 var(--spacing-md);
   color: var(--text-secondary);
 }
 </style>

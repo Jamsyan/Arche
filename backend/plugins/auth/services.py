@@ -207,6 +207,12 @@ class AuthService:
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
             "is_active": user.is_active,
+            "deletion_status": user.deletion_status,
+            "deletion_reason": user.deletion_reason,
+            "deletion_expires_at": user.deletion_expires_at.isoformat()
+            if user.deletion_expires_at
+            else None,
+            "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
@@ -293,6 +299,45 @@ class AuthService:
         """启用用户。"""
         return await self.update_user(user_id, is_active=True)
 
+    async def soft_delete_user(
+        self,
+        user_id: uuid.UUID,
+        reason: str,
+        expires_in_days: int,
+    ) -> dict:
+        """软删除用户：标记删除状态、原因和过期时间，同时禁用账号。"""
+        from datetime import datetime, timedelta, timezone
+
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                raise AppError("用户不存在", code="user_not_found", status_code=404)
+
+            if user.deleted_at is not None:
+                raise AppError(
+                    "该用户已被删除",
+                    code="user_already_deleted",
+                    status_code=409,
+                )
+
+            now = datetime.now(timezone.utc)
+            user.is_active = False
+            user.deletion_status = (
+                "deleted_by_admin"
+                if reason == "violation"
+                else "user_requested_deletion"
+            )
+            user.deletion_reason = reason
+            user.deletion_expires_at = now + timedelta(days=expires_in_days)
+            user.deleted_at = now
+
+            await session.commit()
+            await session.refresh(user)
+            return self._user_to_dict(user)
+
     # --- 管理员创建用户 ---
     async def admin_create_user(
         self, email: str, username: str, password: str, level: int = 5
@@ -331,3 +376,77 @@ class AuthService:
             await session.commit()
             await session.refresh(user)
             return self._user_to_dict(user)
+
+    # ── 用户统计 ──
+
+    async def get_user_stats(self) -> dict:
+        """获取用户相关统计（用于用户管理 Dashboard）。"""
+        from datetime import datetime, timezone
+
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            # 总用户数
+            total_result = await session.execute(select(func.count(User.id)))
+            total_users = total_result.scalar_one()
+
+            # 活跃用户数
+            active_result = await session.execute(
+                select(func.count(User.id)).where(User.is_active.is_(True))
+            )
+            active_users = active_result.scalar_one()
+
+            # 禁用用户数
+            disabled_result = await session.execute(
+                select(func.count(User.id)).where(User.is_active.is_(False))
+            )
+            disabled_users = disabled_result.scalar_one()
+
+            # 今日新增
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            today_result = await session.execute(
+                select(func.count(User.id)).where(User.created_at >= today_start)
+            )
+            today_new = today_result.scalar_one()
+
+            # 各等级用户数
+            level_query = (
+                select(User.level, func.count(User.id).label("count"))
+                .group_by(User.level)
+                .order_by(User.level)
+            )
+            level_result = await session.execute(level_query)
+            by_level = {row.level: row.count for row in level_result.all()}
+
+            # 每日新增趋势（最近 30 天）
+            from datetime import timedelta
+
+            start_date = today_start - timedelta(days=29)
+
+            daily_query = (
+                select(
+                    func.date(User.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(User.created_at >= start_date)
+                .group_by(func.date(User.created_at))
+                .order_by(func.date(User.created_at))
+            )
+            daily_result = await session.execute(daily_query)
+            daily_map = {row.date: row.count for row in daily_result.all()}
+
+            trend = []
+            for i in range(30):
+                date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+                trend.append({"date": date, "count": int(daily_map.get(date, 0))})
+
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "disabled_users": disabled_users,
+            "today_new": today_new,
+            "by_level": by_level,
+            "daily_trend": trend,
+        }
