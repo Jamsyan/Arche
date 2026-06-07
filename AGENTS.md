@@ -6,8 +6,8 @@ Two independent packages, no workspace tooling:
 
 | Package | Dir | Package manager | Entry |
 |---|---|---|---|
-| Backend | `backend/` | `uv` (pyproject.toml) | `backend/main.py` → `uvicorn backend.main:app` |
-| Frontend | `frontend/` | `npm` (package.json) | `frontend/src/main.ts` → `npm run dev` |
+| Backend | `backend/` | `uv` ([pyproject.toml](file:///d:/Project/Arche/pyproject.toml) at repo root) | `backend/main.py` → `uvicorn backend.main:app` |
+| Frontend | `frontend/` | `npm` ([package.json](file:///d:/Project/Arche/frontend/package.json)) | `frontend/src/main.ts` → `npm run dev` |
 
 All commands below run from repo root unless `frontend/` is specified.
 
@@ -15,7 +15,7 @@ All commands below run from repo root unless `frontend/` is specified.
 
 ```bash
 # ── Install ──
-uv sync                        # backend deps (uv.lock is gitignored — generated locally)
+uv sync                        # backend deps (pyproject.toml at repo root)
 cd frontend && npm install     # frontend deps
 
 # ── Dev servers ──
@@ -45,7 +45,12 @@ uv run pytest backend/tests/unit/ -v       # unit dir only
 uv run pytest backend/tests/integration/ -v   # integration dir
 uv run pytest -k "auth" -v                 # keyword match
 uv run pytest backend/tests/unit/test_auth.py -v   # single file
-# Frontend: no test runner configured yet (test dirs exist but are empty)
+cd frontend && npm run test                # frontend tests (vitest, watch mode)
+cd frontend && npm run test:run            # frontend tests (single run)
+
+# ── API type generation ──
+cd frontend && npm run generate:api                    # fetch OpenAPI schema → src/services/api/generated.d.ts
+cd frontend && npm run generate:api:check              # generate + check git diff (for CI)
 ```
 
 ## Architecture: microkernel + plugins
@@ -69,14 +74,32 @@ Plugins auto-discovered from `backend/plugins/` (no manual registration). Each i
 - **Frontend code splitting by role**: `blog/` (public), `platform/` (authenticated), `admin/` (admin). Vite dynamic imports per role; unauthenticated users never load admin chunks.
 - **Backend serves frontend**: if `frontend/dist/` exists, FastAPI mounts `StaticFiles` at `/`. Production uses Nginx reverse proxy instead.
 - **Alibaba Cloud ecosystem**: Docker images pushed to Aliyun Container Registry (Shanghai). PyPI uses Aliyun mirror.
+- **API type sync**: `npm run generate:api` fetches the running backend's OpenAPI schema and generates TypeScript type definitions into `src/services/api/generated.d.ts`. CI verifies the generated file is up-to-date.
+- **Online session tracking**: `auth` plugin includes a 3-layer online session tracker (event-driven login/logout, implicit heartbeat via API requests, background timeout sweep) — see [`session.py`](file:///d:/Project/Arche/backend/plugins/auth/session.py).
+
+## Frontend component architecture
+
+The frontend has migrated from `naive-ui`-heavy components (`ProTable`, `ProForm`, `AdminLayout`) to a self-built design system:
+
+| Layer | Directory | Purpose |
+|---|---|---|
+| UI primitives | `src/components/ui/` | `ArButton`, `ArCard`, `ArTable`, `ArInput`, `ArAvatar`, `ArBadge`, `ArDivider`, `ArPagination`, `ArTag`, `ArWheelPicker` |
+| Blog components | `src/components/blog/` | `PostCard`, `PostEditor`, `PostDetail`, `RichTextEditor` (TipTap), `CommentForm`, `CommentList`, `ParagraphCommentPanel`, `LikeButton`, `FavoriteButton`, `ShareButton`, `CoverUploader`, `FloatingActions`, `AuthorBar`, `TagList`, `AssetSidebar` |
+| Admin components | `src/components/admin/` | `ModerationPanel`, `PostTable`, `SystemMetrics`, `UserTable` |
+| User components | `src/components/user/` | `UserCard`, `UserMenu` |
+| Layouts | `src/layouts/` | `BaseLayout` (header+sidebar+footer), `BaseHeader`, `BaseSidebar`, `FooterBar`, `GuestLayout`, `UserLayout`, `PlatformShell`, `BlogShell`, `ConsoleLayout` |
 
 ## CI (`.github/workflows/ci.yml`)
 
-Pipeline stages: `backend-lint` → `backend-test` → `frontend-check` → `frontend-test` → `security-scan` → `gate` → (`build` → `deploy`)
+Pipeline stages: `backend-lint` → `backend-test` → `frontend-check` → `frontend-test` → `security-scan` → `gate` → (`build` → `deploy` + `tag-release`)
 
 - Tags `v*` trigger build+deploy
 - PR merges to `master` auto-increment patch version, then build+deploy
 - Plain pushes to `master` (no tag) run lint/test only, no build
+- **`tag-release` job**: on successful push-to-master build, auto-creates and pushes the version tag
+- Build and deploy jobs are defined in separate workflow files: [`build.yml`](file:///d:/Project/Arche/.github/workflows/build.yml) and [`deploy.yml`](file:///d:/Project/Arche/.github/workflows/deploy.yml)
+- Frontend CI now actually runs tests (`npm run test:run`) — vitest with jsdom environment
+- Frontend CI also verifies generated API types exist (`test -f src/services/api/generated.d.ts`)
 
 ## References
 
@@ -84,5 +107,6 @@ Pipeline stages: `backend-lint` → `backend-test` → `frontend-check` → `fro
 - `frontend/docs/api-call-policy.md` — frontend API error handling conventions
 - `frontend/src/README.md` — frontend module structure rules
 - `docs/` — Chinese architecture/design documents
+- `docs/blog/wheel-picker-physics-engine.md` — technical deep-dive on the custom WheelPicker component
 - `README.md` — project overview, plugin table, quick start
 - `CONTRIBUTING.md` — commit conventions, PR flow

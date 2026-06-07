@@ -7,8 +7,12 @@
 - `router/`：路由定义、守卫与菜单构建逻辑，角色路由统一放在 `router/modules`。
 - `layouts/`：应用壳布局，侧边栏菜单从动态路由生成，不在页面中硬编码。
 - `views/`：业务页面；页面内复用组件放在 `views/<module>/components`。
-- `components/`：全局可复用基础组件，例如 `ProTable`、`ProForm`。
-- `composables/`：可复用业务逻辑钩子，例如 `useTable`、`useForm`。
+- `components/`：全局可复用组件，按领域分层：
+  - `components/ui/` — 基础 UI 原子组件（`ArButton`、`ArCard`、`ArTable` 等 `Ar*` 系列）
+  - `components/blog/` — 博客业务组件（`PostCard`、`RichTextEditor`、评论/点赞/收藏等）
+  - `components/admin/` — 管理后台组件（`PostTable`、`UserTable`、`SystemMetrics` 等）
+  - `components/user/` — 用户侧组件（`UserCard`、`UserMenu`）
+- `composables/`：可复用业务逻辑钩子，例如 `useTable`、`useForm`、`useLocalFiles`。
 - `styles/`：设计 token、主题与动画；颜色和圆角统一从 CSS 变量读取。
 - `directives/`：全局指令，例如 `v-permission`。
 - `constants/`、`types/`、`utils/`：常量、类型和纯工具函数。
@@ -26,7 +30,7 @@
 1. 在 `services/api` 增加模块接口定义。
 2. 在 `router/modules` 增加路由并补全 `meta`（`title/layout/permission/icon`）。
 3. 在 `views` 新建页面；复用逻辑抽到 `composables`。
-4. 如有可复用 UI 结构，优先沉淀到 `components`（Pro 系列）。
+4. 如有可复用 UI 结构，优先沉淀到 `components` 对应子目录（`ui/`/`blog/`/`admin/`/`user/`）。
 
 ## API 对照与调用规范
 

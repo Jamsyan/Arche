@@ -99,6 +99,71 @@ cd frontend && npm run lint
 uv run pytest
 ```
 
+## 开发新插件
+
+### 后端
+
+在 `backend/plugins/` 下新建目录，例如 `my_plugin/`：
+
+```
+backend/plugins/my_plugin/
+├── __init__.py      # 入口：插件类 + 自注册
+├── routes.py        # 路由（可选）
+└── services.py      # 业务逻辑（可选）
+```
+
+`__init__.py`：
+
+```python
+from fastapi import APIRouter
+from backend.core.base_plugin import BasePlugin
+from backend.core.plugin_registry import registry
+from . import routes  # noqa: 导入触发内部模块加载
+
+
+class MyPlugin(BasePlugin):
+    name = "my_plugin"
+
+    def setup(self, app):
+        app.include_router(routes.router)
+
+
+# 自注册
+plugin = MyPlugin()
+registry.register("my_plugin", plugin)
+```
+
+`routes.py`：
+
+```python
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api/my", tags=["my"])
+
+
+@router.get("/hello")
+async def hello():
+    return {"message": "Hello from my plugin!"}
+```
+
+简单插件可以不拆 `routes.py`，直接放 `__init__.py`。复杂插件按 `models.py` / `routes.py` / `services.py` 分层。
+
+### 前端
+
+1. 在 `frontend/src/components/` 下按领域子目录新建组件（`ui/` / `blog/` / `admin/` / `user/`）
+2. 在路由模块 `frontend/src/router/modules/` 中注册路由，补全 `meta`（`title/layout/permission/icon`）
+3. Vite 自动分割 chunk，无需额外配置
+
+## 代码按需下发原理
+
+前端通过 `dynamic import()` 按角色加载组件，Vite 会将不同角色的组件打包为独立的 JS chunk：
+
+- `blog/` — 公开可见，未登录用户可访问
+- `platform/` — 登录后可见
+- `admin/` — 管理员可见
+
+未登录用户只会加载 `blog` chunk，即使查看源码也找不到 `admin` 相关代码。登录后根据角色动态注册路由，触发 `import()` 加载对应 chunk。
+
 ## 代码风格
 
 - **Python**：遵循 [Ruff](https://docs.astral.sh/ruff/) 规则，提交前运行 `uv run ruff format .`
