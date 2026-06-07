@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import JSON as PG_JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
 class JSON(TypeDecorator):
@@ -98,7 +99,7 @@ class UUIDString(TypeDecorator):
         return uuid.UUID(value) if isinstance(value, str) else value
 
 
-class TrainingJob(Base):
+class TrainingJob(Base, HasSID):
     """训练任务表。"""
 
     __tablename__ = "training_jobs"
@@ -156,7 +157,7 @@ class TrainingJob(Base):
     )
 
 
-class TrainingInstance(Base):
+class TrainingInstance(Base, HasSID):
     """训练实例表。"""
 
     __tablename__ = "training_instances"
@@ -192,7 +193,7 @@ class TrainingInstance(Base):
     )
 
 
-class TrainingCost(Base):
+class TrainingCost(Base, HasSID):
     """训练费用记录表。"""
 
     __tablename__ = "training_costs"
@@ -217,7 +218,7 @@ class TrainingCost(Base):
     )
 
 
-class TrainingTaskStep(Base):
+class TrainingTaskStep(Base, HasSID):
     """训练任务编排步骤记录表。"""
 
     __tablename__ = "training_task_steps"
@@ -244,7 +245,7 @@ class TrainingTaskStep(Base):
     )
 
 
-class Dataset(Base):
+class Dataset(Base, HasSID):
     """数据集表。"""
 
     __tablename__ = "datasets"
@@ -275,7 +276,7 @@ class Dataset(Base):
     )
 
 
-class CodeRepo(Base):
+class CodeRepo(Base, HasSID):
     """代码仓库表。"""
 
     __tablename__ = "code_repos"
@@ -297,7 +298,7 @@ class CodeRepo(Base):
     )
 
 
-class Artifact(Base):
+class Artifact(Base, HasSID):
     """训练产物表。"""
 
     __tablename__ = "artifacts"

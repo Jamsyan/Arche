@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import (
     Boolean,
     Integer,
@@ -11,6 +13,31 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+
+
+def _default_sid() -> str:
+    """生成全局唯一的 sid 占位值。业务代码应调用 generate_sid() 生成规范 SID。"""
+    return uuid.uuid4().hex
+
+
+class HasSID:
+    """为模型添加 sid（Searchable ID）列的 mixin。
+
+    sid 格式：{prefix}-[{category}]-{32位hex-每4位一组用横杠分隔}
+    示例：asse-post-550e-8400-e29b-41d4-a716-4466-5544-0000
+    """
+
+    sid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True, default=_default_sid
+    )
+
+    def generate_sid(self, prefix: str, category: str | None = None) -> None:
+        """根据当前模型的 UUID id 自动生成 sid。"""
+        from backend.core.uid import make_sid
+
+        if self.id is None:
+            self.id = uuid.uuid4()
+        self.sid = make_sid(prefix, self.id, category)
 
 
 class ConfigEntry(Base):

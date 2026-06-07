@@ -16,9 +16,10 @@
       <SiteLogo size="md" />
     </div>
 
-    <!-- Header Center — guest 模式下的导航 + 搜索 -->
-    <div v-if="layoutMode === 'guest'" class="header-center">
-      <nav class="nav-menu">
+    <!-- Header Center -->
+    <div class="header-center">
+      <!-- Guest 模式：导航菜单 -->
+      <nav v-if="layoutMode === 'guest'" class="nav-menu">
         <RouterLink to="/" class="nav-item" :class="{ active: $route.path === '/' }"
           >首页</RouterLink
         >
@@ -28,30 +29,72 @@
         <RouterLink v-if="isLoggedIn" to="/tasks" class="nav-item">托管任务</RouterLink>
         <RouterLink to="/github" class="nav-item">GitHub</RouterLink>
       </nav>
-      <div class="search-section">
-        <div class="search-wrap">
-          <NIcon class="search-leading-icon" size="17" aria-hidden="true">
-            <SearchOutline />
-          </NIcon>
-          <input
-            v-model.trim="searchKeyword"
-            class="search-input"
-            type="search"
-            placeholder="搜索"
-            aria-label="搜索文章"
-            @keydown.enter="goSearch"
-          />
-        </div>
-      </div>
-    </div>
 
-    <!-- Header Center — user/admin 模式下的面包屑 -->
-    <div v-else class="header-center">
-      <div class="breadcrumb">
+      <!-- User/Admin 模式：面包屑 -->
+      <div v-else class="breadcrumb">
         <span v-for="(item, index) in breadcrumb" :key="index">
           {{ item }}
           <span v-if="index < breadcrumb.length - 1" class="breadcrumb-sep">/</span>
         </span>
+      </div>
+
+      <!-- 全局搜索栏（所有模式下显示） -->
+      <div class="search-section" :class="{ 'search-section--compact': layoutMode !== 'guest' }">
+        <div class="search-wrap" ref="searchWrapRef">
+          <NIcon class="search-leading-icon" size="17" aria-hidden="true">
+            <SearchOutline />
+          </NIcon>
+          <input
+            :value="searchStore.keyword"
+            class="search-input"
+            type="search"
+            :placeholder="searchPlaceholder"
+            aria-label="全局搜索"
+            @input="onSearchInput"
+            @focus="searchStore.activate()"
+            @blur="searchStore.deactivate()"
+            @keydown.enter="onSearchEnter"
+            @keydown.down.prevent="onSuggestionNavigate('down')"
+            @keydown.up.prevent="onSuggestionNavigate('up')"
+            @keydown.escape="searchStore.deactivate()"
+          />
+          <!-- 加载指示器 -->
+          <div v-if="searchStore.loading" class="search-loading">
+            <span class="loading-dot"></span>
+          </div>
+        </div>
+
+        <!-- 下拉建议面板 -->
+        <Transition name="suggestions-fade">
+          <div
+            v-if="
+              searchStore.active &&
+              searchStore.hasContent &&
+              (searchStore.hasSuggestions || searchStore.loading)
+            "
+            class="search-suggestions"
+            @mousedown.prevent
+          >
+            <div v-if="searchStore.loading" class="suggestions-loading">搜索中...</div>
+            <div v-else class="suggestions-list">
+              <div
+                v-for="(item, index) in searchStore.suggestions"
+                :key="item.sid"
+                class="suggestion-item"
+                :class="{ 'suggestion-item--active': selectedIndex === index }"
+                @mousedown="onSuggestionClick(item)"
+              >
+                <span class="suggestion-type-badge" :class="`suggestion-type--${item.type}`">
+                  {{ item.type }}
+                </span>
+                <div class="suggestion-content">
+                  <span class="suggestion-label">{{ item.label }}</span>
+                  <span class="suggestion-sublabel">{{ item.sublabel }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -69,13 +112,20 @@
         >
           <div class="user-menu-wrap">
             <ArAvatar
-              v-bind="{ ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}), size: 30 }"
+              v-bind="{
+                ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}),
+                size: 30
+              }"
               @click="showUserMenu = !showUserMenu"
             />
             <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
-              <!-- 用户信息头 -->
               <div class="dropdown-header">
-                <ArAvatar v-bind="{ ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}), size: 36 }" />
+                <ArAvatar
+                  v-bind="{
+                    ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}),
+                    size: 36
+                  }"
+                />
                 <div class="dropdown-user-info">
                   <span class="dropdown-username">{{
                     userStore.userInfo?.username || '用户'
@@ -120,7 +170,12 @@
       <div v-if="layoutMode !== 'guest'" class="user-menu-wrap">
         <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '用户' }}</span>
-          <ArAvatar v-bind="{ ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}), size: 26 }" />
+          <ArAvatar
+            v-bind="{
+              ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}),
+              size: 26
+            }"
+          />
         </button>
         <div v-if="showUserMenu" class="user-dropdown">
           <button v-if="layoutMode === 'user'" class="dropdown-item" @click="goToProfile">
@@ -152,6 +207,8 @@ import SiteLogo from '@/components/SiteLogo.vue'
 import ArAvatar from '@/components/ui/ArAvatar.vue'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
+import { useSearchStore } from '@/store/modules/search'
+import type { Suggestion } from '@/store/modules/search'
 
 const props = defineProps<{
   layoutMode: 'guest' | 'user' | 'admin'
@@ -165,14 +222,27 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const searchStore = useSearchStore()
 
-const searchKeyword = ref('')
 const showUserMenu = ref(false)
+const selectedIndex = ref(-1)
+const searchWrapRef = ref<HTMLElement | null>(null)
 const repoUrl = 'https://github.com/jamnodesmith/Arche'
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
 
+// 当前页面的搜索作用域（从路由 meta 读取）
+const searchScope = computed(() => {
+  const scope = route.meta?.searchScope as
+    | { type?: string; placeholder?: string; label?: string }
+    | undefined
+  return scope ?? null
+})
+
+const searchPlaceholder = computed(() => searchScope.value?.placeholder ?? '搜索...')
+
+// 面包屑
 const breadcrumb = computed(() => {
   const path = route.path
   const layoutLabel = props.layoutMode === 'admin' ? '管理后台' : '首页'
@@ -185,20 +255,69 @@ const breadcrumb = computed(() => {
   return [layoutLabel, '页面']
 })
 
-const goSearch = () => {
-  const kw = searchKeyword.value || ''
-  const path = route.path
+// 用户输入处理
+const onSearchInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  searchStore.setKeyword(target.value)
+  selectedIndex.value = -1
+}
 
-  // 根据当前页面上下文决定搜索目标
-  const target = path.startsWith('/admin/users')
-    ? { path: '/admin/users', query: { q: kw } }
-    : path.startsWith('/admin/content')
-      ? { path: '/admin/content', query: { q: kw } }
-      : path.startsWith('/admin')
-        ? { path: '/admin/ops', query: { q: kw } }
-        : { path: '/explore', query: { q: kw || undefined } }
+// 回车搜索
+const onSearchEnter = () => {
+  const kw = searchStore.keyword.trim()
+  if (!kw) return
 
-  router.push(target)
+  // 如果有选中的建议，跳转
+  if (selectedIndex.value >= 0 && selectedIndex.value < searchStore.suggestions.length) {
+    const item = searchStore.suggestions[selectedIndex.value]
+    if (item) navigateToSuggestion(item)
+    return
+  }
+
+  // 如果有建议列表，跳转到第一个
+  if (searchStore.hasSuggestions) {
+    const item = searchStore.suggestions[0]
+    if (item) navigateToSuggestion(item)
+    return
+  }
+
+  // 否则根据 scope 走搜索
+  const scope = searchScope.value
+  if (scope?.type === 'user') {
+    router.push({ path: '/admin/users/list', query: { q: kw } })
+  } else if (scope?.type === 'content') {
+    router.push({ path: '/admin/content/moderation', query: { q: kw } })
+  } else {
+    router.push({ path: '/explore', query: { q: kw || undefined } })
+  }
+
+  searchStore.clearSearch()
+}
+
+// 建议导航（上下键）
+const onSuggestionNavigate = (dir: 'up' | 'down') => {
+  const len = searchStore.suggestions.length
+  if (len === 0) return
+
+  if (dir === 'down') {
+    selectedIndex.value = selectedIndex.value < len - 1 ? selectedIndex.value + 1 : 0
+  } else {
+    selectedIndex.value = selectedIndex.value > 0 ? selectedIndex.value - 1 : len - 1
+  }
+}
+
+// 点击建议
+const onSuggestionClick = (item: Suggestion) => {
+  navigateToSuggestion(item)
+}
+
+// 跳转到建议目标
+const navigateToSuggestion = (item: Suggestion) => {
+  searchStore.clearSearch()
+  selectedIndex.value = -1
+  if (item.url) {
+    router.push(item.url)
+  }
 }
 
 const handleLogout = async () => {
@@ -217,10 +336,15 @@ const goToHome = () => {
   showUserMenu.value = false
 }
 
+// 点击外部关闭下拉
 const handleClickOutside = (e: MouseEvent) => {
   const target = e.target as HTMLElement
   if (!target.closest('.header-right') && !target.closest('.user-menu-wrap')) {
     showUserMenu.value = false
+  }
+  // 点击搜索外部关闭建议面板
+  if (searchWrapRef.value && !searchWrapRef.value.contains(target)) {
+    searchStore.deactivate()
   }
 }
 
@@ -261,6 +385,7 @@ onBeforeUnmount(() => {
   align-items: center;
   flex: 1;
   min-width: 0;
+  gap: var(--spacing-md);
 }
 
 .header-right {
@@ -298,12 +423,205 @@ onBeforeUnmount(() => {
   background: var(--surface-strong-color);
 }
 
-/* ── Search Section (centered flex) ── */
+/* ── Search Section ── */
 .search-section {
+  position: relative;
   flex: 1;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   min-width: 0;
+}
+
+.search-section--compact {
+  max-width: 360px;
+}
+
+/* ── Search Wrap ── */
+.search-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+}
+
+.search-section--compact .search-wrap {
+  max-width: 320px;
+}
+
+/* ── Search Input ── */
+.search-input {
+  width: 100%;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  padding: 0 14px 0 36px;
+  color: var(--text-primary);
+  outline: none;
+  font-size: 13px;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.search-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light-color);
+  background: var(--surface-color);
+}
+
+/* ── Search Icon ── */
+.search-leading-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.search-wrap:focus-within .search-leading-icon {
+  color: var(--primary-color);
+}
+
+/* ── Search Loading ── */
+.search-loading {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.loading-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Suggestions Dropdown ── */
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.suggestions-loading {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.suggestion-item:hover,
+.suggestion-item--active {
+  background: var(--primary-light-color);
+}
+
+.suggestion-type-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong-color);
+  color: var(--text-tertiary);
+}
+
+.suggestion-type--post {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.suggestion-type--user {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.suggestion-type--file {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.suggestion-type--task {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+.suggestion-type--log {
+  background: #eceff1;
+  color: #546e7a;
+}
+
+.suggestion-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.suggestion-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-sublabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Suggestions enter/leave animation ── */
+.suggestions-fade-enter-active,
+.suggestions-fade-leave-active {
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.suggestions-fade-enter-from,
+.suggestions-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 /* ── Nav Item ── */
@@ -336,71 +654,29 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
-/* ── 登录后组（头像 + 控制台） ── */
+/* ── Breadcrumb ── */
+.breadcrumb {
+  font-size: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.breadcrumb-sep {
+  margin: 0 var(--spacing-sm);
+  color: var(--text-tertiary);
+}
+
+/* ── 登录后组 ── */
 .logged-in-group {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
 }
 
-/* ── 未登录组（加入我们 + 登录） ── */
 .logged-out-group {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-}
-
-/* ── Guest Mode: Search ── */
-.search-wrap {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-}
-
-.search-input {
-  width: 100%;
-  height: 36px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: var(--bg-color);
-  padding: 0 14px 0 36px;
-  color: var(--text-primary);
-  outline: none;
-  font-size: 13px;
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-
-.search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-light-color);
-  background: var(--surface-color);
-}
-
-.search-leading-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-tertiary);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.search-wrap:focus-within .search-leading-icon {
-  color: var(--primary-color);
-}
-
-/* ── Breadcrumb ── */
-.breadcrumb {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.breadcrumb-sep {
-  margin: 0 var(--spacing-sm);
-  color: var(--text-tertiary);
 }
 
 /* ── User Info Button (user/admin) ── */
@@ -486,11 +762,6 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--divider-color);
 }
 
-.dropdown-avatar {
-  color: var(--primary-color);
-  flex-shrink: 0;
-}
-
 .dropdown-user-info {
   display: flex;
   flex-direction: column;
@@ -501,14 +772,6 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.dropdown-email {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ── Dropdown Stats ── */
@@ -544,27 +807,7 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-/* ── Responsive ── */
-@media (max-width: 992px) {
-  .base-header--guest .header-center {
-    gap: var(--spacing-sm);
-  }
-
-  .base-header--guest .nav-menu {
-    gap: 2px;
-  }
-
-  .base-header--guest .nav-item {
-    padding: 6px 10px;
-    font-size: 13px;
-  }
-
-  .search-wrap {
-    max-width: 300px;
-  }
-}
-
-/* ── 控制台按钮基础样式 ── */
+/* ── Console Button ── */
 .console-btn {
   color: var(--text-secondary);
   text-decoration: none;
@@ -581,12 +824,30 @@ onBeforeUnmount(() => {
   color: var(--primary-color);
 }
 
+/* ── Responsive ── */
+@media (max-width: 992px) {
+  .base-header--guest .header-center {
+    gap: var(--spacing-sm);
+  }
+
+  .base-header--guest .nav-menu {
+    gap: 2px;
+  }
+
+  .base-header--guest .nav-item {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .search-section--compact .search-wrap {
+    max-width: 240px;
+  }
+}
+
 /* ════════════════════════════════════════
    登录转场动画
-   单 <Transition mode="out-in"> 先离场后入场
    ════════════════════════════════════════ */
 
-/* ── 旧组（加入我们 + 登录）离场：向左淡出 ── */
 .group-swap-leave-active {
   transition: all 0.3s ease;
 }
@@ -595,7 +856,6 @@ onBeforeUnmount(() => {
   transform: translateX(-15px);
 }
 
-/* ── 新组（头像 + 控制台）入场：从右侧滑入 ── */
 .group-swap-enter-active {
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }

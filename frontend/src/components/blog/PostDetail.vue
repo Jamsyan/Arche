@@ -29,13 +29,19 @@ function renderContent(text: string): string {
       let embedUrl = ''
       let hostname = ''
       try {
-        const parsed = new URL(url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`)
+        const parsed = new URL(
+          url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`
+        )
         hostname = parsed.hostname.toLowerCase()
       } catch {
         return _match
       }
 
-      const isBilibiliHost = hostname === 'bilibili.com' || hostname.endsWith('.bilibili.com') || hostname === 'b23.tv' || hostname.endsWith('.b23.tv')
+      const isBilibiliHost =
+        hostname === 'bilibili.com' ||
+        hostname.endsWith('.bilibili.com') ||
+        hostname === 'b23.tv' ||
+        hostname.endsWith('.b23.tv')
       const isYoutubeHost = hostname === 'youtube.com' || hostname.endsWith('.youtube.com')
 
       if (isBilibiliHost) {

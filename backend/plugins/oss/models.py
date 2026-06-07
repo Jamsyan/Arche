@@ -10,9 +10,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class OSSFile(Base):
+class OSSFile(Base, HasSID):
     """文件表：本地/云端文件元数据 + 冷热分层索引。"""
 
     __tablename__ = "oss_files"

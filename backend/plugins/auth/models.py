@@ -10,9 +10,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class User(Base):
+class User(Base, HasSID):
     """用户表：id, email, username, password_hash, level, blog_quality_level,
     deletion_status, deletion_reason, deletion_expires_at, deleted_at,
     created_at, updated_at"""

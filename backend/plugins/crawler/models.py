@@ -8,9 +8,10 @@ from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class CrawlRecord(Base):
+class CrawlRecord(Base, HasSID):
     """漫游爬虫抓取记录（用于资产聚合查询和前端展示）。"""
 
     __tablename__ = "crawl_records"

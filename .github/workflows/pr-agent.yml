@@ -1,0 +1,28 @@
+# ── AI 代码审查（PR-Agent + DeepSeek V4） ──
+# 每次 PR 创建或推送新 commit 时自动审查。
+# 需要先设置 GitHub Secrets:
+#   1. DEEPSEEK_API_KEY: 从 https://platform.deepseek.com/api_keys 生成
+#
+# 配置参数见根目录 .pr_agent.toml
+
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Code Review
+        uses: the-pr-agent/pr-agent@main
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

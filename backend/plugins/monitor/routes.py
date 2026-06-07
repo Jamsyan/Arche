@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -46,7 +47,7 @@ class ComponentDataResponse(BaseModel):
 async def list_templates(request: Request) -> list[dict[str, Any]]:
     """获取当前用户的监控模板列表。"""
     user = require_user(request)
-    user_id = user["id"]
+    user_id = uuid.UUID(user["id"]) if isinstance(user["id"], str) else user["id"]
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
@@ -61,13 +62,14 @@ async def list_templates(request: Request) -> list[dict[str, Any]]:
 async def create_template(data: TemplateCreate, request: Request) -> dict[str, Any]:
     """创建新的监控模板。"""
     user = require_user(request)
+    user_id = uuid.UUID(user["id"]) if isinstance(user["id"], str) else user["id"]
     session_factory = get_session_factory()
     async with session_factory() as session:
         template = MonitorTemplate(
             name=data.name,
             components=data.components,
             refresh_interval=data.refresh_interval,
-            user_id=user["id"],
+            user_id=user_id,
         )
         session.add(template)
         await session.commit()
@@ -80,12 +82,17 @@ async def create_template(data: TemplateCreate, request: Request) -> dict[str, A
 async def get_template(template_id: str, request: Request) -> dict[str, Any]:
     """获取单个监控模板。"""
     user = require_user(request)
+    user_id = uuid.UUID(user["id"]) if isinstance(user["id"], str) else user["id"]
+    try:
+        tid = uuid.UUID(template_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Template not found")
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
             select(MonitorTemplate).where(
-                MonitorTemplate.id == template_id,
-                MonitorTemplate.user_id == user["id"],
+                MonitorTemplate.id == tid,
+                MonitorTemplate.user_id == user_id,
             )
         )
         template = result.scalar_one_or_none()
@@ -101,12 +108,17 @@ async def update_template(
 ) -> dict[str, Any]:
     """更新监控模板。"""
     user = require_user(request)
+    user_id = uuid.UUID(user["id"]) if isinstance(user["id"], str) else user["id"]
+    try:
+        tid = uuid.UUID(template_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Template not found")
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
             select(MonitorTemplate).where(
-                MonitorTemplate.id == template_id,
-                MonitorTemplate.user_id == user["id"],
+                MonitorTemplate.id == tid,
+                MonitorTemplate.user_id == user_id,
             )
         )
         template = result.scalar_one_or_none()
@@ -130,12 +142,17 @@ async def update_template(
 async def delete_template(template_id: str, request: Request) -> dict[str, str]:
     """删除监控模板。"""
     user = require_user(request)
+    user_id = uuid.UUID(user["id"]) if isinstance(user["id"], str) else user["id"]
+    try:
+        tid = uuid.UUID(template_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Template not found")
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(
             select(MonitorTemplate).where(
-                MonitorTemplate.id == template_id,
-                MonitorTemplate.user_id == user["id"],
+                MonitorTemplate.id == tid,
+                MonitorTemplate.user_id == user_id,
             )
         )
         template = result.scalar_one_or_none()

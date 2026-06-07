@@ -62,12 +62,15 @@ class AuthService:
                 password.encode("utf-8"), bcrypt.gensalt()
             ).decode("utf-8")
 
+            user_id = uuid.uuid4()
             user = User(
+                id=user_id,
                 email=email,
                 username=username,
                 password_hash=password_hash,
                 level=effective_level,
             )
+            user.generate_sid("user")
             session.add(user)
             await session.commit()
             await session.refresh(user)
@@ -366,12 +369,15 @@ class AuthService:
                 password.encode("utf-8"), bcrypt.gensalt()
             ).decode("utf-8")
 
+            user_id = uuid.uuid4()
             user = User(
+                id=user_id,
                 email=email,
                 username=username,
                 password_hash=password_hash,
                 level=level,
             )
+            user.generate_sid("user")
             session.add(user)
             await session.commit()
             await session.refresh(user)

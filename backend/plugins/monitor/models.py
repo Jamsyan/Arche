@@ -10,22 +10,24 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import JSON, DateTime, String, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class MonitorTemplate(Base):
+class MonitorTemplate(Base, HasSID):
     """监控模板。"""
 
     __tablename__ = "monitor_templates"
     __allow_unmapped__ = True
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     components: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     refresh_interval: Mapped[int] = mapped_column(default=30)
     created_at: Mapped[datetime] = mapped_column(
@@ -37,9 +39,9 @@ class MonitorTemplate(Base):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "id": self.id,
+            "id": str(self.id),
             "name": self.name,
-            "user_id": self.user_id,
+            "user_id": str(self.user_id) if self.user_id else None,
             "components": self.components or [],
             "refresh_interval": self.refresh_interval,
             "created_at": self.created_at.isoformat() if self.created_at else None,

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import HTTPException, Request
 import pytest
 
 from backend.plugins.monitor import routes
 
 
-def _make_mock_request(user_id: str = "test-user-1") -> Request:
+def _make_mock_request(user_id: str | None = None) -> Request:
     """创建一个带有认证用户状态的 mock Request。"""
+    if user_id is None:
+        user_id = uuid.uuid4().hex
     scope = {"type": "http"}
     request = Request(scope)
     request.state.user = {
