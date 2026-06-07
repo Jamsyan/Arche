@@ -6,7 +6,7 @@ import io
 import re
 import uuid
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from sqlalchemy import delete, func, select, or_
 from fastapi import UploadFile
@@ -1615,20 +1615,31 @@ class BlogService:
         # 检查视频链接（检测 bilibili/youtube 链接格式）
         for match in re.finditer(r"\[([^\]]*)\]\((https?://[^)]+)\)", content):
             url = match.group(2)
-            parsed = urlparse(url)
-            hostname = parsed.hostname or ""
-            if any(
-                hostname == d or hostname.endswith("." + d)
-                for d in ("bilibili.com", "b23.tv", "youtube.com")
-            ):
+            if self._is_trusted_video_host(url):
                 if not self._validate_video_url(url):
                     errors.append(f"视频链接 '{url}' 格式无效")
         return errors
 
+    @staticmethod
+    def _is_trusted_video_host(url: str) -> bool:
+        """安全地检查 URL 的 hostname 是否为受信任的视频平台。"""
+        trusted_domains = ("bilibili.com", "b23.tv", "youtube.com")
+        try:
+            parsed = urlsplit(url)
+            hostname = parsed.hostname or ""
+        except ValueError:
+            return False
+        # 规范化：转小写、移除尾部点号
+        hostname = hostname.lower().rstrip(".")
+        return any(
+            hostname == domain or hostname.endswith("." + domain)
+            for domain in trusted_domains
+        )
+
     def _validate_video_url(self, url: str) -> bool:
         """验证视频分享链接的基本格式。"""
-        parsed = urlparse(url)
-        hostname = parsed.hostname or ""
+        parsed = urlsplit(url)
+        hostname = (parsed.hostname or "").lower().rstrip(".")
         is_bilibili = hostname == "bilibili.com" or hostname.endswith(".bilibili.com")
         is_b23tv = hostname == "b23.tv" or hostname.endswith(".b23.tv")
         is_youtube = hostname == "youtube.com" or hostname.endswith(".youtube.com")
