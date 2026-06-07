@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import logging.config
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -192,8 +193,6 @@ def create_app() -> FastAPI:
     # 添加 API 请求统计中间件
     @app.middleware("http")
     async def record_request_stats(request: Request, call_next):
-        import time
-
         start = time.time()
         response = await call_next(request)
         duration_ms = round((time.time() - start) * 1000, 2)

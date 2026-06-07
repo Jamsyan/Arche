@@ -316,6 +316,13 @@ class AuthService:
             if not user:
                 raise AppError("用户不存在", code="user_not_found", status_code=404)
 
+            if user.deleted_at is not None:
+                raise AppError(
+                    "该用户已被删除",
+                    code="user_already_deleted",
+                    status_code=409,
+                )
+
             now = datetime.now(timezone.utc)
             user.is_active = False
             user.deletion_status = (

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,7 +34,7 @@ class User(Base):
     # ── 软删除字段 ──
     # deletion_status: active | deleted_by_admin | user_requested_deletion
     deletion_status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="active", server_default="'active'"
+        String(32), nullable=False, default="active", server_default=text("'active'")
     )
     # 删号原因: violation（违规删号）| user_request（用户主动注销）
     deletion_reason: Mapped[str | None] = mapped_column(

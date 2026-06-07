@@ -36,6 +36,7 @@ class RequestStatsTracker:
 
         # 按路径统计（最近 60 分钟）
         self._path_stats: dict[str, int] = defaultdict(int)
+        self._path_stats_history: dict[str, int] = {}
         self._path_stats_reset_time: float = time.time()
 
         # 累积总数
@@ -71,6 +72,8 @@ class RequestStatsTracker:
 
         # 路径统计（每 5 分钟重置一次，避免无限增长）
         if now - self._path_stats_reset_time > 300:
+            for path, count in self._path_stats.items():
+                self._path_stats_history[path] = self._path_stats_history.get(path, 0) + count
             self._path_stats.clear()
             self._path_stats_reset_time = now
         self._path_stats[path] += 1
@@ -124,7 +127,10 @@ class RequestStatsTracker:
 
     def get_path_stats(self) -> dict[str, int]:
         """获取按路径的请求统计（按次数降序）。"""
-        return dict(sorted(self._path_stats.items(), key=itemgetter(1), reverse=True))
+        combined = dict(self._path_stats_history)
+        for path, count in self._path_stats.items():
+            combined[path] = combined.get(path, 0) + count
+        return dict(sorted(combined.items(), key=itemgetter(1), reverse=True))
 
     def get_stats(self) -> dict:
         """获取完整统计快照。"""
@@ -144,3 +150,4 @@ class RequestStatsTracker:
         self._qps_history.clear()
         self._latency_samples.clear()
         self._path_stats.clear()
+        self._path_stats_history.clear()

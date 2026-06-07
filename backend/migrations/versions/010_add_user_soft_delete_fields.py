@@ -24,7 +24,7 @@ def upgrade() -> None:
                 "deletion_status",
                 sa.String(length=32),
                 nullable=False,
-                server_default="active",
+                server_default=sa.text("'active'"),
             )
         )
         batch_op.add_column(
