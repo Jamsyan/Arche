@@ -21,9 +21,6 @@ class OSSFile(Base, HasSID):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    sid: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True, default=""
-    )
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
@@ -51,9 +48,6 @@ class UserOSSQuota(Base, HasSID):
     __tablename__ = "user_oss_quotas"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    sid: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True, default=""
-    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, nullable=False, index=True
     )
