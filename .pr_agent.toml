@@ -1,5 +1,6 @@
 [config]
-model = "deepseek/deepseek-chat"
+model = "deepseek-chat"
+api_base = "https://api.deepseek.com/v1"
 response_language = "zh-CN"
 disable_auto_feedback = false
 
