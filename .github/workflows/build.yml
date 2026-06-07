@@ -56,22 +56,31 @@ jobs:
               [ -z "$DELETIONS" ] && DELETIONS=0
               CHANGE_PERCENT=$(( (INSERTIONS + DELETIONS) * 100 / TOTAL ))
 
-              # 检查提交信息关键词
-              LOG=$(git log "$LAST_TAG"...HEAD --format="%s" 2>/dev/null || echo "")
+              # 确定版本位 — 按 PR（merge commit）级别计算，而非单个 commit
+              # 1. 所有 commit body 中的 BREAKING CHANGE 是硬信号
+              BODIES=$(git log "$LAST_TAG"...HEAD --format="%b" 2>/dev/null || echo "")
+              if echo "$BODIES" | grep -qiE 'BREAKING CHANGE'; then
+                BUMP="major"
 
-              # 确定版本位 — 提交信息语义优先
-              if echo "$LOG" | grep -qiE '^(refactor|breaking)'; then
-                BUMP="major"
-              elif echo "$LOG" | grep -qiE '^feat'; then
-                BUMP="minor"
-              elif echo "$LOG" | grep -qiE '^fix'; then
-                BUMP="patch"
-              elif [ "$CHANGE_PERCENT" -gt 50 ]; then
-                BUMP="major"
-              elif [ "$CHANGE_PERCENT" -gt 15 ]; then
-                BUMP="minor"
+              # 2. 取 merge commit 的分支名前缀（一个 PR 视为一个整体）
               else
-                BUMP="patch"
+                MERGES=$(git log "$LAST_TAG"...HEAD --merges --format="%s" 2>/dev/null || echo "")
+                if echo "$MERGES" | grep -qiE 'from [^ ]+/breaking/'; then
+                  BUMP="major"
+                elif echo "$MERGES" | grep -qiE 'from [^ ]+/feat/'; then
+                  BUMP="minor"
+                elif [ -n "$MERGES" ]; then
+                  # 有 merge commit 但未匹配到 breaking/feat → patch
+                  BUMP="patch"
+
+                # 3. 无 merge commit（直接 push）→ 代码变更比例兜底
+                elif [ "$CHANGE_PERCENT" -gt 50 ]; then
+                  BUMP="major"
+                elif [ "$CHANGE_PERCENT" -gt 15 ]; then
+                  BUMP="minor"
+                else
+                  BUMP="patch"
+                fi
               fi
 
               # 解析版本并递增
