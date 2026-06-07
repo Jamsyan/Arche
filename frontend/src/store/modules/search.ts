@@ -78,8 +78,8 @@ export const useSearchStore = defineStore('search', () => {
   async function fetchSuggestions(q: string) {
     try {
       const response = await getSearchSuggestionsApi(q, 5)
-      const data = response as unknown as { code?: string; data?: { items?: SuggestionItem[] } }
-      suggestions.value = (data?.data?.items ?? data?.items ?? []) as Suggestion[]
+      const data = response as { code?: string; data?: { items?: SuggestionItem[] } }
+      suggestions.value = (data?.data?.items ?? []) as Suggestion[]
       error.value = null
     } catch (e) {
       console.error('搜索建议请求失败:', e)

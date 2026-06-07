@@ -55,9 +55,7 @@ def upgrade() -> None:
                     server_default="",
                 )
             )
-            batch_op.create_index(
-                f"ix_{table_name}_sid", ["sid"], unique=True
-            )
+            batch_op.create_index(f"ix_{table_name}_sid", ["sid"], unique=True)
 
 
 def downgrade() -> None:

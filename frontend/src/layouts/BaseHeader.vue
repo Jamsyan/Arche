@@ -270,14 +270,14 @@ const onSearchEnter = () => {
   // 如果有选中的建议，跳转
   if (selectedIndex.value >= 0 && selectedIndex.value < searchStore.suggestions.length) {
     const item = searchStore.suggestions[selectedIndex.value]
-    navigateToSuggestion(item)
+    if (item) navigateToSuggestion(item)
     return
   }
 
   // 如果有建议列表，跳转到第一个
   if (searchStore.hasSuggestions) {
     const item = searchStore.suggestions[0]
-    navigateToSuggestion(item)
+    if (item) navigateToSuggestion(item)
     return
   }
 

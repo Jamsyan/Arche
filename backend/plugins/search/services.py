@@ -137,7 +137,9 @@ class SearchService:
                         {
                             "type": "file",
                             "sid": f.sid,
-                            "label": f.path.rsplit("/", 1)[-1] if "/" in f.path else f.path,
+                            "label": f.path.rsplit("/", 1)[-1]
+                            if "/" in f.path
+                            else f.path,
                             "sublabel": f.mime_type or "",
                             "url": f"/assets?file_id={f.id}",
                         }
