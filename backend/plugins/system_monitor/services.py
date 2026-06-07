@@ -45,9 +45,12 @@ class SystemMonitorService:
         """检测当前进程是否运行在容器环境中。
 
         检测策略：
-          1. /proc/1/cgroup 中包含 docker 或 kubepods 字符串
-          2. /sys/fs/cgroup/cpu.stat 存在（cgroup v2 标志）
+          1. /.dockerenv 文件存在（Docker 容器标志）
+          2. /proc/1/cgroup 中包含 docker 或 kubepods 字符串
         """
+        if Path("/.dockerenv").exists():
+            return True
+
         cgroup_path = Path("/proc/1/cgroup")
         if cgroup_path.exists():
             try:
@@ -56,9 +59,6 @@ class SystemMonitorService:
                     return True
             except OSError:
                 pass
-
-        if Path("/sys/fs/cgroup/cpu.stat").exists():
-            return True
 
         return False
 
