@@ -144,12 +144,9 @@ def parse_sid(sid: str) -> Optional[SidParts]:
     return _build_sid_parts(prefix, category, raw_hex)
 
 
-def _parse_as_raw_uuid(raw: str) -> Optional[SidParts]:
-    """将无前缀的输入尝试解析为 UUID/hex。"""
-    cleaned = _clean_hex(raw)
-    if len(cleaned) != 32:
-        return None
-    return _build_sid_parts(None, None, cleaned)
+def _parse_as_raw_uuid(raw: str) -> None:
+    """将无前缀的输入尝试解析为 UUID/hex。无前缀时返回 None，由调用方决定如何处理。"""
+    return None
 
 
 def _clean_hex(text: str) -> str:

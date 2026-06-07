@@ -44,17 +44,45 @@ _TABLES = [
 ]
 
 
+def _backfill_sid(table_name: str) -> None:
+    """为存量数据回填唯一 sid。"""
+    conn = op.get_bind()
+    # 查出所有 sid IS NULL 的行，逐行分配唯一 sid
+    meta = sa.MetaData()
+    meta.reflect(bind=conn, only=[table_name])
+    table = sa.Table(table_name, meta, autoload_with=conn)
+    pk_col = table.primary_key.columns.keys()[0]
+    rows = conn.execute(
+        sa.text(f"SELECT {pk_col} FROM {table_name} WHERE sid IS NULL")
+    ).fetchall()
+    for (pk_val,) in rows:
+        import uuid
+
+        conn.execute(
+            sa.text(f"UPDATE {table_name} SET sid = :sid WHERE {pk_col} = :pk"),
+            {"sid": uuid.uuid4().hex, "pk": pk_val},
+        )
+
+
 def upgrade() -> None:
     for table_name in _TABLES:
         with op.batch_alter_table(table_name, schema=None) as batch_op:
+            # 1. 先添加可空列
             batch_op.add_column(
                 sa.Column(
                     "sid",
                     sa.String(length=64),
-                    nullable=False,
-                    server_default="",
+                    nullable=True,
                 )
             )
+        # 2. 回填唯一值（batch 外执行，避免 batch 模式下表名临时变化）
+        _backfill_sid(table_name)
+        with op.batch_alter_table(table_name, schema=None) as batch_op:
+            # 3. 收紧为 NOT NULL
+            batch_op.alter_column(
+                "sid", existing_type=sa.String(length=64), nullable=False
+            )
+            # 4. 创建唯一索引
             batch_op.create_index(f"ix_{table_name}_sid", ["sid"], unique=True)
 
 

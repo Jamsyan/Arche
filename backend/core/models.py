@@ -35,6 +35,8 @@ class HasSID:
         """根据当前模型的 UUID id 自动生成 sid。"""
         from backend.core.uid import make_sid
 
+        if self.id is None:
+            self.id = uuid.uuid4()
         self.sid = make_sid(prefix, self.id, category)
 
 

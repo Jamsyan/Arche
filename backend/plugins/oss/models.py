@@ -42,7 +42,7 @@ class OSSFile(Base, HasSID):
     __table_args__ = (Index("ix_oss_files_owner_storage", "owner_id", "storage_type"),)
 
 
-class UserOSSQuota(Base, HasSID):
+class UserOSSQuota(Base):
     """用户 OSS 配额表：配额上限 + 限速倍率。"""
 
     __tablename__ = "user_oss_quotas"
