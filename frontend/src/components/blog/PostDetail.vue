@@ -27,7 +27,18 @@ function renderContent(text: string): string {
     /<a\s+[^>]*href="((?:https?:\/\/)?(?:www\.)?(?:bilibili\.com|b23\.tv|youtube\.com)[^"]+)"[^>]*>.+?<\/a>/g,
     (_match, url) => {
       let embedUrl = ''
-      if (url.includes('bilibili.com') || url.includes('b23.tv')) {
+      let hostname = ''
+      try {
+        const parsed = new URL(url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`)
+        hostname = parsed.hostname.toLowerCase()
+      } catch {
+        return _match
+      }
+
+      const isBilibiliHost = hostname === 'bilibili.com' || hostname.endsWith('.bilibili.com') || hostname === 'b23.tv' || hostname.endsWith('.b23.tv')
+      const isYoutubeHost = hostname === 'youtube.com' || hostname.endsWith('.youtube.com')
+
+      if (isBilibiliHost) {
         const bvMatch = url.match(/BV[\w]+/)
         if (bvMatch) {
           embedUrl = `https://player.bilibili.com/player.html?isOutside=true&bvid=${bvMatch[0]}&autoplay=0&danmaku=0&high_quality=1&no_related=1`
@@ -37,7 +48,7 @@ function renderContent(text: string): string {
             embedUrl = `https://player.bilibili.com/player.html?isOutside=true&aid=${avMatch[1]}&autoplay=0&danmaku=0&high_quality=1&no_related=1`
           }
         }
-      } else if (url.includes('youtube.com')) {
+      } else if (isYoutubeHost) {
         const vMatch = url.match(/(?:watch\?v=|embed\/|shorts\/)([\w-]+)/)
         if (vMatch) {
           embedUrl = `https://www.youtube.com/embed/${vMatch[1]}`
