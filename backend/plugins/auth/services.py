@@ -383,6 +383,25 @@ class AuthService:
             await session.refresh(user)
             return self._user_to_dict(user)
 
+    async def reset_password(self, user_id: uuid.UUID, new_password: str) -> dict:
+        """管理员重置用户密码（P0）。"""
+        from backend.plugins.auth.models import User
+
+        async with self.session_factory() as session:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                raise AppError("用户不存在", code="user_not_found", status_code=404)
+
+            password_hash = bcrypt.hashpw(
+                new_password.encode("utf-8"), bcrypt.gensalt()
+            ).decode("utf-8")
+            user.password_hash = password_hash
+
+            await session.commit()
+            await session.refresh(user)
+            return self._user_to_dict(user)
+
     # ── 用户统计 ──
 
     async def get_user_stats(self) -> dict:

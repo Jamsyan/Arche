@@ -22,6 +22,9 @@ export interface UserInfo {
   permissions: string[]
   level?: number
   created_at?: string
+  bio?: string
+  email?: string
+  birthday?: string
 }
 
 interface RawUserInfo extends Partial<UserInfo> {

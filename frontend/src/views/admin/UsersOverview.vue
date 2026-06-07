@@ -173,7 +173,9 @@
       <template #footer>
         <div style="display: flex; gap: 8px; justify-content: flex-end">
           <ArButton @click="showLevelModal = false">取消</ArButton>
-          <ArButton type="primary" @click="handleLevelChange">确认</ArButton>
+          <ArButton type="primary" :loading="levelChanging" @click="handleLevelChange"
+            >确认</ArButton
+          >
         </div>
       </template>
     </NModal>
@@ -284,7 +286,7 @@
 <script setup lang="ts">
 import { ref, h, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { NModal, NForm, NFormItem, NSelect, NInputNumber } from 'naive-ui'
+import { NModal, NForm, NFormItem, NSelect, NInputNumber, NPopconfirm } from 'naive-ui'
 import { ArTag, ArTable, ArButton } from '@/components/ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getUserStatsApi, type UserStats } from '@/services/api/auth'
@@ -296,6 +298,7 @@ import {
   createAdminUserApi,
   softDeleteUserApi,
   getHotPostsApi,
+  resetUserPasswordApi,
   type AdminUser,
   type HotPost,
   type Paginated
@@ -332,6 +335,7 @@ const pageSize = ref(10)
 const showLevelModal = ref(false)
 const editingUser = ref<AdminUser | null>(null)
 const levelEditValue = ref(5)
+const levelChanging = ref(false)
 
 // ── 软删除弹窗 ──
 const showSoftDeleteModal = ref(false)
@@ -462,17 +466,29 @@ const columns: ArTableColumn[] = [
         { label: '行为分析', onClick: () => message.info('行为分析页面开发中') },
         { label: '审计日志', onClick: () => message.info('审计日志页面开发中') }
       ]
-      return h(
-        'div',
-        { class: 'action-cell' },
-        btns.map((b) =>
+      const resetBtn = h(
+        NPopconfirm,
+        {
+          title: '确认重置密码',
+          content: `确定重置用户「${row.username}」的密码？新密码将随机生成。`,
+          positiveText: '确认',
+          negativeText: '取消',
+          onPositiveClick: () => handleResetPassword(row)
+        },
+        {
+          trigger: () => h(ArButton, { size: 'sm', type: 'ghost' }, { default: () => '重置密码' })
+        }
+      )
+      return h('div', { class: 'action-cell' }, [
+        ...btns.map((b) =>
           h(
             ArButton,
             { size: 'sm', type: 'ghost', disabled: !!b.disabled, onClick: b.onClick },
             { default: () => b.label }
           )
-        )
-      )
+        ),
+        resetBtn
+      ])
     }
   }
 ]
@@ -502,14 +518,17 @@ function openLevelEdit(row: AdminUser) {
 
 async function handleLevelChange() {
   if (!editingUser.value) return
+  levelChanging.value = true
   try {
     await updateUserApi(editingUser.value.id, { level: levelEditValue.value })
     message.success(`用户「${editingUser.value.username}」等级已更新为 P${levelEditValue.value}`)
     showLevelModal.value = false
     editingUser.value = null
-    loadUsers(page.value)
+    await loadUsers(page.value)
   } catch {
     message.error('等级更新失败')
+  } finally {
+    levelChanging.value = false
   }
 }
 
@@ -530,7 +549,7 @@ async function handleEnableUser(row: AdminUser) {
     await enableUserApi(row.id)
     row.is_active = true
     message.success(`用户「${row.username}」已解封`)
-    loadUsers(page.value)
+    await loadUsers(page.value)
   } catch {
     message.error('解封失败')
   }
@@ -552,7 +571,7 @@ async function handleBanConfirm() {
     }
     showBanModal.value = false
     editingUser.value = null
-    loadUsers(page.value)
+    await loadUsers(page.value)
   } catch {
     message.error('封禁失败')
   }
@@ -565,6 +584,19 @@ function handleForceLogout(row: AdminUser) {
 
 function handleViewAssets(row: AdminUser) {
   message.info(`即将跳转至「${row.username}」的资产详情页面`)
+}
+
+async function handleResetPassword(row: AdminUser) {
+  try {
+    // 使用 crypto.getRandomValues 生成密码学安全的随机密码
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    const newPassword =
+      Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => chars[b % 36]).join('') + 'A1!'
+    await resetUserPasswordApi(row.id, newPassword)
+    message.success(`用户「${row.username}」密码已重置成功`)
+  } catch {
+    message.error('密码重置失败')
+  }
 }
 
 function openSoftDeleteModal(row: AdminUser) {

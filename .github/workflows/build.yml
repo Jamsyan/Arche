@@ -59,10 +59,16 @@ jobs:
               # 检查提交信息关键词
               LOG=$(git log "$LAST_TAG"...HEAD --format="%s" 2>/dev/null || echo "")
 
-              # 确定版本位
-              if [ "$CHANGE_PERCENT" -gt 30 ] || echo "$LOG" | grep -qiE '^(refactor|breaking)'; then
+              # 确定版本位 — 提交信息语义优先
+              if echo "$LOG" | grep -qiE '^(refactor|breaking)'; then
                 BUMP="major"
-              elif [ "$CHANGE_PERCENT" -gt 5 ] || echo "$LOG" | grep -qiE '^feat'; then
+              elif echo "$LOG" | grep -qiE '^feat'; then
+                BUMP="minor"
+              elif echo "$LOG" | grep -qiE '^fix'; then
+                BUMP="patch"
+              elif [ "$CHANGE_PERCENT" -gt 50 ]; then
+                BUMP="major"
+              elif [ "$CHANGE_PERCENT" -gt 15 ]; then
                 BUMP="minor"
               else
                 BUMP="patch"

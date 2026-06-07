@@ -5,6 +5,8 @@ import { useMessage } from 'naive-ui'
 import { useUserStore } from '@/store/modules/user'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
+import ArAvatar from '@/components/ui/ArAvatar.vue'
+import ArCard from '@/components/ui/ArCard.vue'
 
 const router = useRouter()
 const message = useMessage()
@@ -31,29 +33,44 @@ const handleLogout = async () => {
       <h2>个人资料</h2>
     </div>
 
-    <div class="section-card">
-      <div class="info-grid">
-        <div class="info-row">
-          <span class="info-label">用户名</span>
-          <span class="info-value">{{ userStore.userInfo?.username || '-' }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">昵称</span>
-          <span class="info-value">{{ userStore.userInfo?.nickname || '-' }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">角色</span>
-          <span class="info-value">
+    <!-- 头部：头像 + 用户信息 -->
+    <ArCard padding="lg" class="profile-header-card">
+      <div class="profile-header">
+        <ArAvatar
+          :avatar-url="userStore.userInfo?.avatar || ''"
+          :username="userStore.userInfo?.username || ''"
+          :size="64"
+          :clickable="false"
+        />
+        <div class="header-info">
+          <div class="header-name-row">
+            <span class="header-username">{{ userStore.userInfo?.username || '-' }}</span>
+            <span v-if="userStore.userInfo?.nickname" class="header-nickname">
+              （{{ userStore.userInfo.nickname }}）
+            </span>
             <ArTag
               :color="(userStore.userInfo?.level ?? 5) === 0 ? 'red' : 'primary'"
               type="light"
               size="sm"
+              class="header-tag"
             >
               {{ (userStore.userInfo?.level ?? 5) === 0 ? '管理员' : '普通用户' }}
             </ArTag>
-          </span>
+          </div>
+          <p v-if="userStore.userInfo?.bio" class="header-bio">{{ userStore.userInfo.bio }}</p>
         </div>
-        <div class="info-row">
+      </div>
+    </ArCard>
+
+    <!-- 信息卡片区 -->
+    <ArCard padding="lg">
+      <h3 class="section-title">基本信息</h3>
+      <div class="info-grid-2col">
+        <div class="info-item">
+          <span class="info-label">邮箱</span>
+          <span class="info-value">{{ userStore.userInfo?.email || '-' }}</span>
+        </div>
+        <div class="info-item">
           <span class="info-label">权限</span>
           <span class="info-value">
             {{
@@ -63,15 +80,43 @@ const handleLogout = async () => {
             }}
           </span>
         </div>
-        <div class="info-row">
+        <div class="info-item">
           <span class="info-label">注册时间</span>
           <span class="info-value">{{ userStore.userInfo?.created_at?.slice(0, 10) || '-' }}</span>
         </div>
+        <div class="info-item">
+          <span class="info-label">生日</span>
+          <span class="info-value">{{ userStore.userInfo?.birthday || '-' }}</span>
+        </div>
       </div>
+    </ArCard>
 
-      <div class="action-section">
-        <ArButton type="danger" @click="showLogoutModal = true">退出登录</ArButton>
+    <!-- 统计数据区 -->
+    <ArCard padding="lg">
+      <h3 class="section-title">数据统计</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-value">0</span>
+          <span class="stat-label">发帖数</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">0</span>
+          <span class="stat-label">阅读量</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">0</span>
+          <span class="stat-label">点赞数</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">0</span>
+          <span class="stat-label">收藏数</span>
+        </div>
       </div>
+    </ArCard>
+
+    <!-- 退出登录 -->
+    <div class="action-section">
+      <ArButton type="danger" @click="showLogoutModal = true">退出登录</ArButton>
     </div>
 
     <!-- 退出确认弹窗 -->
@@ -97,10 +142,13 @@ const handleLogout = async () => {
 <style scoped>
 .profile-page {
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
 .page-heading {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 0;
 }
 
 .page-heading h2 {
@@ -110,53 +158,124 @@ const handleLogout = async () => {
   color: var(--text-primary);
 }
 
-.section-card {
+/* ── 头部卡片 ── */
+.profile-header-card {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-lg);
-  backdrop-filter: blur(4px);
+  border-radius: var(--radius-lg);
 }
 
-.info-grid {
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
+.header-info {
   display: flex;
   flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.header-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.header-username {
+  font-size: 22px;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.header-nickname {
+  font-size: 15px;
+  color: var(--text-tertiary);
+}
+
+.header-tag {
+  flex-shrink: 0;
+}
+
+.header-bio {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── 信息卡片 ── */
+.section-title {
+  margin: 0 0 var(--spacing-md);
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.info-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-md);
 }
 
-.info-row {
+.info-item {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
   padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--divider-color);
 }
 
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-label {
-  width: 100px;
-  flex-shrink: 0;
-  font-size: 14px;
-  color: var(--text-secondary);
+.info-item .info-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
   font-weight: var(--font-weight-medium);
 }
 
-.info-value {
+.info-item .info-value {
   font-size: 14px;
   color: var(--text-primary);
 }
 
+/* ── 统计数据 ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-lg);
+  background: var(--surface-inset-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-color);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ── 退出按钮 ── */
 .action-section {
   display: flex;
   justify-content: center;
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--divider-color);
+  padding-top: var(--spacing-sm);
 }
 
-/* 模态框 */
+/* ── 模态框 ── */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -207,5 +326,24 @@ const handleLogout = async () => {
   gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-lg);
   border-top: 1px solid var(--divider-color);
+}
+
+@media (max-width: 680px) {
+  .info-grid-2col {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .header-name-row {
+    justify-content: center;
+  }
 }
 </style>
