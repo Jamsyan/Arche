@@ -585,8 +585,9 @@ function handleViewAssets(row: AdminUser) {
 
 async function handleResetPassword(row: AdminUser) {
   try {
-    await resetUserPasswordApi(row.id)
-    message.success(`用户「${row.username}」密码已重置，新密码请在用户信息中查看`)
+    const newPassword = Math.random().toString(36).slice(2, 10) + 'A1!'
+    await resetUserPasswordApi(row.id, newPassword)
+    message.success(`用户「${row.username}」密码已重置为：${newPassword}`)
   } catch {
     message.error('密码重置失败')
   }
