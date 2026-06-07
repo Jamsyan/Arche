@@ -214,103 +214,105 @@ onMounted(fetchPost)
 </script>
 
 <template>
-  <!-- 加载态 -->
-  <div v-if="loading" class="loading-state">
-    <div class="ink-loading" />
-    <p class="loading-text">加载中……</p>
-  </div>
-
-  <!-- 加载失败 -->
-  <div v-else-if="!post" class="error-state">
-    <div class="error-icon">⚠</div>
-    <p class="error-text">帖子加载失败</p>
-    <p class="error-hint">请检查网络连接或确认帖子是否存在</p>
-    <button class="error-retry-btn" @click="fetchPost">重新加载</button>
-  </div>
-
-  <!-- 内容 -->
-  <div v-else class="post-detail-page">
-    <!-- BLOG eybrow + 状态 -->
-    <div class="page-eyebrow">
-      BLOG
-      <span v-if="!isPostPublished" class="status-badge" :class="`status-${post.status}`">
-        {{ post.status === 'pending' ? '审核中' : post.status }}
-      </span>
+  <div class="post-detail-view">
+    <!-- 加载态 -->
+    <div v-if="loading" class="loading-state">
+      <div class="ink-loading" />
+      <p class="loading-text">加载中……</p>
     </div>
 
-    <!-- 文章标题 -->
-    <h1 class="page-title">{{ post.title }}</h1>
+    <!-- 加载失败 -->
+    <div v-else-if="!post" class="error-state">
+      <div class="error-icon">⚠</div>
+      <p class="error-text">帖子加载失败</p>
+      <p class="error-hint">请检查网络连接或确认帖子是否存在</p>
+      <button class="error-retry-btn" @click="fetchPost">重新加载</button>
+    </div>
 
-    <!-- 分隔线 -->
-    <div class="title-divider" />
+    <!-- 内容 -->
+    <div v-else class="post-detail-page">
+      <!-- BLOG eybrow + 状态 -->
+      <div class="page-eyebrow">
+        BLOG
+        <span v-if="!isPostPublished" class="status-badge" :class="`status-${post.status}`">
+          {{ post.status === 'pending' ? '审核中' : post.status }}
+        </span>
+      </div>
 
-    <!-- 作者信息行 -->
-    <AuthorBar
-      :post-id="post.id"
-      :author-username="post.author_username ?? ''"
-      :source-url="post.source_url ?? ''"
-      :source-name="post.source_name ?? ''"
+      <!-- 文章标题 -->
+      <h1 class="page-title">{{ post.title }}</h1>
+
+      <!-- 分隔线 -->
+      <div class="title-divider" />
+
+      <!-- 作者信息行 -->
+      <AuthorBar
+        :post-id="post.id"
+        :author-username="post.author_username ?? ''"
+        :source-url="post.source_url ?? ''"
+        :source-name="post.source_name ?? ''"
+      />
+
+      <!-- 正文区域（含左侧浮动操作栏） -->
+      <div class="content-wrapper">
+        <FloatingActions
+          :liked="liked"
+          :favorited="favorited"
+          :like-count="likeCount"
+          :disabled="!canInteract"
+          @toggle-like="toggleLike"
+          @toggle-favorite="toggleFavorite"
+          @share="handleShare"
+        />
+
+        <div class="content-main">
+          <PostDetail :post="post" @paragraph-click="openParagraphComment" />
+        </div>
+      </div>
+
+      <!-- 正文底部操作栏 -->
+      <div class="bottom-actions">
+        <LikeButton
+          :count="likeCount"
+          :active="liked"
+          :disabled="!canInteract"
+          @toggle="toggleLike"
+        />
+        <FavoriteButton :active="favorited" :disabled="!canInteract" @toggle="toggleFavorite" />
+        <ShareButton :disabled="!isPostPublished" />
+      </div>
+
+      <!-- 全局评论区 -->
+      <div class="global-comments">
+        <div class="comments-header">
+          <h3 class="comments-title">评论</h3>
+          <span v-if="commentsCount > 0" class="comments-badge">{{ commentsCount }}</span>
+        </div>
+
+        <CommentForm v-if="isLoggedIn" :loading="posting" @submit="submitComment" />
+        <div v-else class="login-hint">
+          <span class="login-hint-icon">⟡</span>
+          登录后即可发表评论
+        </div>
+
+        <div class="comments-divider" />
+
+        <CommentList :comments="comments" />
+      </div>
+    </div>
+
+    <!-- 段落评论浮窗 -->
+    <ParagraphCommentPanel
+      :visible="paragraphPanel.visible"
+      :paragraph="paragraphPanel.paragraph"
+      :comments="paragraphPanel.comments"
+      :loading="paragraphPanel.loading"
+      :posting="paragraphPanel.posting"
+      :is-logged-in="isLoggedIn"
+      @close="closeParagraphPanel"
+      @submit-comment="submitParagraphComment"
     />
-
-    <!-- 正文区域（含左侧浮动操作栏） -->
-    <div class="content-wrapper">
-      <FloatingActions
-        :liked="liked"
-        :favorited="favorited"
-        :like-count="likeCount"
-        :disabled="!canInteract"
-        @toggle-like="toggleLike"
-        @toggle-favorite="toggleFavorite"
-        @share="handleShare"
-      />
-
-      <div class="content-main">
-        <PostDetail :post="post" @paragraph-click="openParagraphComment" />
-      </div>
-    </div>
-
-    <!-- 正文底部操作栏 -->
-    <div class="bottom-actions">
-      <LikeButton
-        :count="likeCount"
-        :active="liked"
-        :disabled="!canInteract"
-        @toggle="toggleLike"
-      />
-      <FavoriteButton :active="favorited" :disabled="!canInteract" @toggle="toggleFavorite" />
-      <ShareButton :disabled="!isPostPublished" />
-    </div>
-
-    <!-- 全局评论区 -->
-    <div class="global-comments">
-      <div class="comments-header">
-        <h3 class="comments-title">评论</h3>
-        <span v-if="commentsCount > 0" class="comments-badge">{{ commentsCount }}</span>
-      </div>
-
-      <CommentForm v-if="isLoggedIn" :loading="posting" @submit="submitComment" />
-      <div v-else class="login-hint">
-        <span class="login-hint-icon">⟡</span>
-        登录后即可发表评论
-      </div>
-
-      <div class="comments-divider" />
-
-      <CommentList :comments="comments" />
-    </div>
   </div>
-
-  <!-- 段落评论浮窗 -->
-  <ParagraphCommentPanel
-    :visible="paragraphPanel.visible"
-    :paragraph="paragraphPanel.paragraph"
-    :comments="paragraphPanel.comments"
-    :loading="paragraphPanel.loading"
-    :posting="paragraphPanel.posting"
-    :is-logged-in="isLoggedIn"
-    @close="closeParagraphPanel"
-    @submit-comment="submitParagraphComment"
-  />
 </template>
 
 <style scoped>
