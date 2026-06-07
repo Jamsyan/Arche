@@ -1,11 +1,11 @@
 # CodeRabbit AI PR 审查配置
-# 安装: 访问 https://github.com/apps/coderabbitai 安装到本仓库
+# 安装: https://github.com/apps/coderabbitai 安装到本仓库
 # 文档: https://docs.coderabbit.ai/
 
 language: zh-CN
 
-# 审查等级: chill（宽松） / assertive（适中） / nitpicky（严格）
 reviews:
+  # 审查等级: chill（宽松） / assertive（适中）
   profile: assertive
   request_changes_workflow: true
   auto_review:
@@ -14,6 +14,35 @@ reviews:
     base_branches:
       - master
       - main
+
+  # ── Walkthrough 精简 ──
+  poem: false                          # 关闭诗歌
+  changed_files_summary: false         # 关闭大表格，walkthrough 更短
+  sequence_diagrams: false             # 关闭 Mermaid 时序图
+  estimate_code_review_effort: false   # 关闭预估评审时间
+  related_issues: false                # 关闭关联 issue 推荐
+  related_prs: false                   # 关闭关联 PR 推荐
+  suggested_labels: false              # 关闭标签建议
+  suggested_reviewers: false           # 关闭审查者建议
+  enable_prompt_for_ai_agents: false   # 关闭 inline comment 中的 AI Agent 提示
+
+  # ── Summary 放置到 walkthrough 中，保持 PR 描述干净 ──
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  high_level_summary_instructions: |
+    用 2-3 句话总结 PR 的核心变更，不要列文件清单。按「新增功能 / 修复 / 重构 / 测试」分类简述。
+
+  # ── Pre-merge checks: 只保留真正有判断力的项 ──
+  pre_merge_checks:
+    title:
+      mode: warning                    # 标题检查保留 warning 级别
+    description:
+      mode: off                        # 关闭描述检查（总是 skip，无意义）
+    docstrings:
+      mode: off                        # 关闭 docstring 覆盖率检查
+    issue_assessment:
+      mode: off                        # 关闭链接 issue 评估
+
   tools:
     python:
       enabled: true
@@ -51,7 +80,9 @@ reviews:
 
     ## 回复风格
     - 使用中文回复
+    - 只说真正有质量的问题，不要为了凑数量而提无意义的建议
     - 每个问题给出具体代码位置（文件名+行号）
-    - 严重问题标记为 "CHANGES REQUESTED"
-    - 小建议标记为 "SUGGESTION"
+    - 严重问题标记为 "CHANGES REQUESTED"，确保一针见血
+    - 小建议标记为 "SUGGESTION"，简洁到一句话能说清楚
     - 如果代码没有问题，简洁回复 "LGTM"
+    - 不要输出「Prompt for AI Agents」类内容
