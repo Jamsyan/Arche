@@ -132,9 +132,7 @@ class TestFilenameValidation:
         service = StorageService(db_container)
 
         with patch("backend.plugins.oss.backends.MinIOBackend", new=MockMinIOBackend):
-            good_file = _make_upload_file(
-                "image.png", b"pdf content", "image/png"
-            )
+            good_file = _make_upload_file("image.png", b"pdf content", "image/png")
 
             result = await service.upload_file(
                 good_file, owner_id=uuid.uuid4(), user_level=5

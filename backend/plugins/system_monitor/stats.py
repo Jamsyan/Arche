@@ -73,7 +73,9 @@ class RequestStatsTracker:
         # 路径统计（每 5 分钟重置一次，避免无限增长）
         if now - self._path_stats_reset_time > 300:
             for path, count in self._path_stats.items():
-                self._path_stats_history[path] = self._path_stats_history.get(path, 0) + count
+                self._path_stats_history[path] = (
+                    self._path_stats_history.get(path, 0) + count
+                )
             self._path_stats.clear()
             self._path_stats_reset_time = now
         self._path_stats[path] += 1
