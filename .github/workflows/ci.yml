@@ -153,11 +153,11 @@ jobs:
 
           # 写入部署说明
           cat > "${BUNDLE}/README.txt" <<-EOM
-        Arche v${TAG} 部署包
-        ====================
-        镜像版本: backend-${TAG}, frontend-${TAG}
-        部署方式: docker-compose up -d
-        EOM
+          Arche v${TAG} 部署包
+          ====================
+          镜像版本: backend-${TAG}, frontend-${TAG}
+          部署方式: docker-compose up -d
+          EOM
 
           zip -r "arche-v${TAG}.zip" "${BUNDLE}/"
           echo "Created: arche-v${TAG}.zip"

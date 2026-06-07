@@ -82,37 +82,10 @@ jobs:
             }
             core.info(`Created: ${created}, Updated: ${updated}`);
 
-            // ── 删除不在配置中且未被使用的标签 ──
-            let deleted = 0;
-            const skippedInUse = [];
-            for (const name of currentByName.keys()) {
-              if (configNames.has(name)) continue;
-
-              if (usedNames.has(name)) {
-                skippedInUse.push(name);
-              } else {
-                await github.rest.issues.deleteLabel({ owner, repo, name });
-                deleted++;
-              }
-            }
-
-            // ── 输出摘要 ──
-            core.info(`Deleted (unused, not in config): ${deleted}`);
-            if (skippedInUse.length > 0) {
-              core.warning(
-                `Skipped deletion (in use, not in config): ${skippedInUse.join(', ')}`
-              );
-            }
-
             // ── 写入 Step Summary ──
             let summary = `## Label Sync Summary\n\n`;
             summary += `| Action | Count |\n|--------|------:|\n`;
             summary += `| Created | ${created} |\n`;
             summary += `| Updated | ${updated} |\n`;
-            summary += `| Deleted | ${deleted} |\n`;
-            if (skippedInUse.length > 0) {
-              summary += `| Skipped (in use) | ${skippedInUse.length} |\n`;
-              summary += `\n**Skipped labels:** ${skippedInUse.join(', ')}\n`;
-            }
             core.summary.addRaw(summary);
             await core.summary.write();

@@ -1,0 +1,188 @@
+# AI Issues 自动管理
+# 当 Issue 创建时，AI 自动分析、分类、回复、标记质量、关闭无效提交
+# 需要设置仓库 Secret: OPENAI_API_KEY
+#
+# 可选方案：
+#   本文件使用 OpenAI API（需自备 Key）。
+#   也可改用 GitHub Models（`actions/ai-inference`）免 API Key，
+#   但需添加 `permissions: models: read` 并替换 inference 步骤。
+
+name: AI Issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 获取 Issue 内容
+        uses: actions/github-script@v7
+        id: issue
+        with:
+          script: |
+            const { issue } = context.payload;
+            // 获取仓库现有标签列表，输出格式如 ["bug", "enhancement", ...]
+            const { data: labels } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const labelNames = labels.map(l => l.name);
+
+            core.setOutput('title', Buffer.from(issue.title || '').toString('base64'));
+            core.setOutput('body', Buffer.from(issue.body || '').toString('base64'));
+            core.setOutput('number', String(issue.number));
+            core.setOutput('labels', JSON.stringify(labelNames));
+
+      - name: AI 分析 Issue
+        id: analyze
+        run: |
+          $titleEncoded = '${{ steps.issue.outputs.title }}'
+          $bodyEncoded = '${{ steps.issue.outputs.body }}'
+          $labels = '${{ steps.issue.outputs.labels }}'
+
+          # base64 解码
+          $title = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($titleEncoded))
+          $body = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($bodyEncoded))
+
+          # 构建 prompt
+          $prompt = @"
+          你是一个 GitHub Issue 管理助手，负责对 Arche 项目的新 Issue 进行首次筛选。
+
+          ## 现有标签
+          $labels
+
+          ## 分析要求
+          请分析以下 Issue 并返回严格的 JSON（不要 markdown 包裹，纯 JSON）：
+
+          {
+            "type": "bug | feature | question | docs | invalid",
+            "quality": "good | needs-info",
+            "area": "backend | frontend | ci/cd | unclear",
+            "priority": "high | medium | low",
+            "suggested_labels": ["标签名必须来自现有标签列表"],
+            "auto_close": false,
+            "close_reason": "如果 auto_close 为 true，说明原因",
+            "reply": "建议的自动回复内容（简洁、友好、专业，使用中文）"
+          }
+
+          规则：
+          - auto_close 仅在以下情况为 true：垃圾广告、纯情绪宣泄、完全无法理解、明显不是本项目的
+          - quality 为 needs-info 时：Bug 没有复现步骤、没有报错信息、Feature 没有具体描述
+          - suggested_labels 中只能包含现有标签列表中存在的标签名
+          - priority 默认 medium
+          "@
+
+          $body = @{
+            model = "gpt-4o-mini"
+            messages = @(
+              @{ role = "system"; content = $prompt }
+              @{ role = "user"; content = "标题: $title`n`n内容: $body" }
+            )
+            response_format = @{ type = "json_object" }
+            temperature = 0.1
+          } | ConvertTo-Json -Depth 10
+
+          $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" `
+            -Method Post `
+            -Headers @{
+              "Authorization" = "Bearer $env:OPENAI_API_KEY"
+              "Content-Type"  = "application/json"
+            } `
+            -Body $body
+
+          $analysis = $response.choices[0].message.content
+          echo "analysis=$analysis" >> $env:GITHUB_OUTPUT
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: 执行分析结果
+        uses: actions/github-script@v7
+        env:
+          ANALYSIS: ${{ steps.analyze.outputs.analysis }}
+        with:
+          script: |
+            const { issue } = context.payload;
+            const issueNumber = issue.number;
+
+            // 解析 AI 分析结果（通过 env 传递，避免引号冲突）
+            const analysis = JSON.parse(process.env.ANALYSIS);
+            core.info(`Issue #${issueNumber} 分析完成: ${JSON.stringify(analysis)}`);
+
+            // ── 1. 添加标签 ──
+            const labelsToAdd = [];
+            if (analysis.type === 'bug') labelsToAdd.push('type: bug');
+            if (analysis.type === 'feature') labelsToAdd.push('type: feature');
+            if (analysis.type === 'question') labelsToAdd.push('question');
+            if (analysis.type === 'docs') labelsToAdd.push('type: docs');
+
+            if (analysis.area === 'backend') labelsToAdd.push('area: backend');
+            if (analysis.area === 'frontend') labelsToAdd.push('area: frontend');
+            if (analysis.area === 'ci/cd') labelsToAdd.push('area: ci/cd');
+
+            if (analysis.priority === 'high') labelsToAdd.push('priority: high');
+            if (analysis.priority === 'medium') labelsToAdd.push('priority: medium');
+            if (analysis.priority === 'low') labelsToAdd.push('priority: low');
+
+            if (analysis.quality === 'needs-info') labelsToAdd.push('needs-info');
+            if (analysis.type === 'invalid') labelsToAdd.push('invalid');
+
+            // 添加 AI 建议的额外标签（去重、只添加存在的）
+            if (analysis.suggested_labels && Array.isArray(analysis.suggested_labels)) {
+              // 获取仓库现有标签
+              const { data: existingLabels } = await github.rest.issues.listLabelsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              const existingNames = new Set(existingLabels.map(l => l.name));
+              for (const label of analysis.suggested_labels) {
+                if (existingNames.has(label) && !labelsToAdd.includes(label)) {
+                  labelsToAdd.push(label);
+                }
+              }
+            }
+
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: labelsToAdd,
+              });
+              core.info(`已添加标签: ${labelsToAdd.join(', ')}`);
+            }
+
+            // ── 2. 自动回复 ──
+            if (analysis.reply) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `> 🤖 AI 自动分析\n\n${analysis.reply}\n\n---\n*我是 AI 助手，正在学习理解这个项目。如果分析有误，请忽略。*`,
+              });
+              core.info('已发布自动回复');
+            }
+
+            // ── 3. 自动关闭（仅对明显无效的 Issue） ──
+            if (analysis.auto_close) {
+              const closeReason = analysis.close_reason || '该 Issue 不符合提交规范';
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `> 🤖 AI 自动关闭\n\n**原因**: ${closeReason}\n\n如果你认为这是一个有效的 Issue，请补充信息后重新打开。`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: 'closed',
+                state_reason: 'not_planned',
+              });
+              core.info(`已自动关闭 Issue #${issueNumber}: ${closeReason}`);
+            }

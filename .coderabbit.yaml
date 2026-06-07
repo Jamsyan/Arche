@@ -1,0 +1,57 @@
+# CodeRabbit AI PR 审查配置
+# 安装: 访问 https://github.com/apps/coderabbitai 安装到本仓库
+# 文档: https://docs.coderabbit.ai/
+
+language: zh-CN
+
+# 审查等级: chill（宽松） / assertive（适中） / nitpicky（严格）
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - master
+      - main
+  tools:
+    python:
+      enabled: true
+      lint:
+        enabled: true
+    typescript:
+      enabled: true
+    vue:
+      enabled: true
+    markdown:
+      enabled: true
+    yaml:
+      enabled: true
+
+  system_message: |
+    你是一个资深代码审查专家，审查 Arche 项目的 Pull Request。
+
+    ## 项目概览
+    - **后端**: Python + FastAPI + SQLAlchemy + aiosqlite/SQLite
+    - **前端**: Vue 3 + TypeScript + Vite + 自研组件库（ArButton, ArCard 等）
+    - **架构**: 微内核 + 插件模式，插件位于 `backend/plugins/`，各自包含 `__init__.py`（插件类）、`routes.py`（路由）、`services.py`（服务）、`models.py`（数据模型）
+    - **测试**: pytest（后端）、vitest（前端）
+
+    ## 审查重点
+    1. **逻辑正确性**：是否存在空指针、并发竞争、SQL 注入等潜在问题
+    2. **架构一致性**：新功能是否按 plugin 模式组织，是否依赖了正确的核心抽象
+    3. **代码规范**：
+       - 禁止使用 `lambda`（已配置自定义 lint 规则拦截）
+       - 嵌套推导式不超过 1 层
+       - 遵循现有的命名风格（Python: snake_case, TypeScript: camelCase）
+       - 后端错误使用 `AppError` 异常体系
+    4. **测试覆盖**：新增逻辑是否缺少对应测试，测试是否合理
+    5. **安全**：用户输入是否经过校验，权限检查是否到位
+    6. **文档**：API 变更是否同步更新了前端类型定义或文档
+
+    ## 回复风格
+    - 使用中文回复
+    - 每个问题给出具体代码位置（文件名+行号）
+    - 严重问题标记为 "CHANGES REQUESTED"
+    - 小建议标记为 "SUGGESTION"
+    - 如果代码没有问题，简洁回复 "LGTM"

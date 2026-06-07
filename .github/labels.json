@@ -16,5 +16,10 @@
 
   { "name": "good first issue", "color": "7057ff", "description": "新手友好" },
   { "name": "help wanted",      "color": "008672", "description": "需要帮助" },
-  { "name": "question",         "color": "d876e3", "description": "疑问/讨论" }
+  { "name": "question",         "color": "d876e3", "description": "疑问/讨论" },
+
+  { "name": "needs-info",      "color": "f9d71c", "description": "信息不完整，需要补充" },
+  { "name": "duplicate",       "color": "cfd3d7", "description": "重复 Issue" },
+  { "name": "invalid",         "color": "e4e669", "description": "无效 Issue" },
+  { "name": "stale",           "color": "ffffff", "description": "长期未活动" }
 ]
