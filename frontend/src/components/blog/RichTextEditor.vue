@@ -173,16 +173,16 @@ const ImagePlaceholder = Node.create({
   },
 
   addNodeView() {
-    return VueNodeViewRenderer(ImagePlaceholderNodeComponent)
+    return VueNodeViewRenderer(ImagePlaceholderNodeComponent as any)
   },
 
   addInputRules() {
-    function placeholderRuleHandler(props: { state: any; range: any; match: RegExpMatchArray }) {
+    function placeholderRuleHandler(this: any, props: { state: any; range: any; match: RegExpMatchArray }) {
       const { state, range, match } = props
       const { tr } = state
       const start = range.from
       const end = range.to
-      const index = parseInt(match[1], 10) || 1
+      const index = parseInt(match[1]!, 10) || 1
       tr.replaceWith(start, end, this.type.create({ index }))
       return tr
     }
@@ -282,8 +282,7 @@ const editor = useEditor({
     StarterKit.configure({
       heading: {
         levels: [1, 2]
-      },
-      placeholder: false // 使用 CSS 实现占位符
+      }
     }),
     Underline,
     TextStyle,
@@ -323,7 +322,7 @@ watch(
     if (isUpdatingFromExternal.value) return
     const currentHtml = editor.value.getHTML()
     if (newVal !== currentHtml) {
-      editor.value.commands.setContent(newVal || '', false)
+      editor.value.commands.setContent(newVal || '', {})
     }
   }
 )
@@ -373,7 +372,7 @@ function execSetFormat(type: string, level?: number) {
   if (type === 'paragraph') {
     editor.value.chain().focus().setParagraph().run()
   } else if (type === 'heading' && level) {
-    editor.value.chain().focus().toggleHeading({ level }).run()
+    editor.value.chain().focus().toggleHeading({ level: level as 1 | 2 }).run()
   } else if (type === 'blockquote') {
     editor.value.chain().focus().toggleBlockquote().run()
   }
@@ -401,7 +400,7 @@ function execInsertEmoji(emoji: string) {
 // ── 点击外部关闭下拉面板 ──
 
 function handleClickOutside(e: MouseEvent) {
-  const target = e.target as Node
+  const target = e.target as globalThis.Node
 
   if (showEmojiPicker.value && emojiPickerRef.value && !emojiPickerRef.value.contains(target)) {
     showEmojiPicker.value = false
@@ -676,7 +675,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 编辑器内容区 -->
-    <editor-content :editor="editor" class="editor-content" />
+    <editor-content :editor="editor!" class="editor-content" />
   </div>
 </template>
 

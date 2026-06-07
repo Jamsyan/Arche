@@ -247,9 +247,9 @@ onMounted(fetchPost)
     <!-- 作者信息行 -->
     <AuthorBar
       :post-id="post.id"
-      :author-username="post.author_username"
-      :source-url="post.source_url"
-      :source-name="post.source_name"
+      :author-username="post.author_username ?? ''"
+      :source-url="post.source_url ?? ''"
+      :source-name="post.source_name ?? ''"
     />
 
     <!-- 正文区域（含左侧浮动操作栏） -->

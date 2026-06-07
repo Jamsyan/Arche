@@ -383,7 +383,7 @@ function isSortable(col: ArTableColumn): boolean {
               ]"
             >
               <template v-if="col.render">
-                <component :is="() => col.render(row)" />
+                <component :is="() => col.render!(row)" />
               </template>
               <span v-else class="ar-table__cell-text">{{ row[col.key] }}</span>
             </td>

@@ -46,9 +46,7 @@ class RequestStatsTracker:
         self._today_date: str = ""
         self._today_requests: int = 0
 
-    def record_request(
-        self, path: str, duration_ms: float, status_code: int
-    ) -> None:
+    def record_request(self, path: str, duration_ms: float, status_code: int) -> None:
         """记录一次 API 请求。"""
         now = time.time()
         minute = int(now // 60)
@@ -126,9 +124,7 @@ class RequestStatsTracker:
 
     def get_path_stats(self) -> dict[str, int]:
         """获取按路径的请求统计（按次数降序）。"""
-        return dict(
-            sorted(self._path_stats.items(), key=itemgetter(1), reverse=True)
-        )
+        return dict(sorted(self._path_stats.items(), key=itemgetter(1), reverse=True))
 
     def get_stats(self) -> dict:
         """获取完整统计快照。"""

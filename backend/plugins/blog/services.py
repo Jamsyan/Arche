@@ -273,9 +273,7 @@ class BlogService:
 
             # 浏览量：仅 published 帖子，不计作者本人和审核人员
             should_count_view = (
-                post.status == "published"
-                and not is_author
-                and not is_admin
+                post.status == "published" and not is_author and not is_admin
             )
             if should_count_view:
                 post.views += 1
@@ -984,9 +982,7 @@ class BlogService:
                 )
             )
             if user_level is not None:
-                count_query = count_query.where(
-                    BlogPost.required_level >= user_level
-                )
+                count_query = count_query.where(BlogPost.required_level >= user_level)
             total = (await session.execute(count_query)).scalar_one()
 
             query = (
@@ -1381,13 +1377,17 @@ class BlogService:
 
             # 发布的帖子总数
             published_result = await session.execute(
-                select(func.count()).select_from(BlogPost).where(BlogPost.status == "published")
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.status == "published")
             )
             published_posts = published_result.scalar_one()
 
             # 待审核帖子数
             pending_result = await session.execute(
-                select(func.count()).select_from(BlogPost).where(BlogPost.status == "pending")
+                select(func.count())
+                .select_from(BlogPost)
+                .where(BlogPost.status == "pending")
             )
             pending_posts = pending_result.scalar_one()
 
@@ -1542,15 +1542,14 @@ class BlogService:
         """
         # 1. 提取所有 [#N] 引用
         refs = set()
-        for match in re.finditer(r'\[#(\d+)\]', content):
+        for match in re.finditer(r"\[#(\d+)\]", content):
             refs.add(int(match.group(1)))
 
         async with self.session_factory() as session:
             # 2. 查询该帖子的所有临时文件
             result = await session.execute(
                 select(PostFile).where(
-                    PostFile.post_id == post_id,
-                    PostFile.status == "temp"
+                    PostFile.post_id == post_id, PostFile.status == "temp"
                 )
             )
             post_files = result.scalars().all()
@@ -1583,7 +1582,7 @@ class BlogService:
         返回错误信息列表（为空则校验通过）。
         """
         refs = set()
-        for match in re.finditer(r'\[#(\d+)\]', content):
+        for match in re.finditer(r"\[#(\d+)\]", content):
             refs.add(int(match.group(1)))
 
         if not refs:
@@ -1601,31 +1600,31 @@ class BlogService:
 
         missing = refs - existing
         if missing:
-            return [f"图片 #'{idx}' 未上传，请先上传或移除引用" for idx in sorted(missing)]
+            return [
+                f"图片 #'{idx}' 未上传，请先上传或移除引用" for idx in sorted(missing)
+            ]
         return []
 
-    async def validate_content(
-        self, content: str, owner_id: uuid.UUID
-    ) -> list[str]:
+    async def validate_content(self, content: str, owner_id: uuid.UUID) -> list[str]:
         """全面校验正文内容。"""
         errors = []
         # 检查文件引用
         file_errors = await self.validate_post_file_refs(content, owner_id)
         errors.extend(file_errors)
         # 检查视频链接（检测 bilibili/youtube 链接格式）
-        for match in re.finditer(r'\[([^\]]*)\]\((https?://[^)]+)\)', content):
+        for match in re.finditer(r"\[([^\]]*)\]\((https?://[^)]+)\)", content):
             url = match.group(2)
-            if 'bilibili.com' in url or 'youtube.com' in url:
+            if "bilibili.com" in url or "youtube.com" in url:
                 if not self._validate_video_url(url):
                     errors.append(f"视频链接 '{url}' 格式无效")
         return errors
 
     def _validate_video_url(self, url: str) -> bool:
         """验证视频分享链接的基本格式。"""
-        if 'bilibili.com' in url:
-            return bool(re.search(r'(BV[\w]+|video/[\w]+)', url))
-        if 'youtube.com' in url:
-            return bool(re.search(r'(watch\?v=|embed/|shorts/)', url))
+        if "bilibili.com" in url:
+            return bool(re.search(r"(BV[\w]+|video/[\w]+)", url))
+        if "youtube.com" in url:
+            return bool(re.search(r"(watch\?v=|embed/|shorts/)", url))
         return True
 
     # ── 内容话题热度排行（P0 管理用）──

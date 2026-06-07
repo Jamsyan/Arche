@@ -34,5 +34,5 @@ function hashStr(str: string): number {
 export function getCoverGradient(post: { title?: string; tags?: string[] }): string {
   const seed = (post.title || '') + (post.tags?.join('') || '')
   const index = hashStr(seed) % GRADIENTS.length
-  return GRADIENTS[index]
+  return GRADIENTS[index]!
 }

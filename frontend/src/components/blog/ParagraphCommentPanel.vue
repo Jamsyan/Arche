@@ -7,7 +7,7 @@ import type { Paragraph } from '@/services/api'
 
 const props = withDefaults(
   defineProps<{
-    visible: boolean
+    visible?: boolean
     paragraph?: Paragraph | null
     comments?: BlogComment[]
     loading?: boolean
@@ -67,6 +67,7 @@ function handleSubmit(content: string) {
         </div>
 
         <!-- 段落原文引用 -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
         <div class="paragraph-quote" v-html="paragraph.content" />
 
         <!-- 评论列表 -->

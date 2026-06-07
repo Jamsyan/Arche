@@ -134,7 +134,11 @@ async def get_online_users(request: Request):
                 "stats": tracker.get_stats(),
             },
         }
-    return {"code": "ok", "message": "获取成功", "data": {"online_count": 0, "users": [], "stats": {}}}
+    return {
+        "code": "ok",
+        "message": "获取成功",
+        "data": {"online_count": 0, "users": [], "stats": {}},
+    }
 
 
 # ── Dashboard 聚合端点（P0） ──

@@ -62,14 +62,14 @@ function handleSave() {
     ? {
         title: title.value.trim(),
         content: content.value.trim(),
-        cover_url: props.coverUrl || undefined
+        ...(props.coverUrl ? { cover_url: props.coverUrl } : {})
       }
     : {
         title: title.value.trim(),
         content: content.value.trim(),
         tags: tags.value,
         required_level: requiredLevel.value,
-        cover_url: props.coverUrl || undefined
+        ...(props.coverUrl ? { cover_url: props.coverUrl } : {})
       }
   emit('save', payload)
 }

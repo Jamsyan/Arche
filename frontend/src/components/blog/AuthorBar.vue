@@ -21,7 +21,7 @@ const shortId = computed(() => {
 })
 
 const authorInitial = computed(() => {
-  return (props.authorUsername || '?')[0].toUpperCase()
+  return (props.authorUsername || '?').charAt(0).toUpperCase()
 })
 
 const hasSource = computed(() => props.sourceUrl && props.sourceName)

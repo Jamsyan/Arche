@@ -259,7 +259,7 @@
         <label class="form-label">过期清理时间</label>
         <div class="radio-group">
           <button
-            v-for="d in [30, 60, 90]"
+            v-for="d in [30, 60, 90] as const"
             :key="d"
             class="radio-btn"
             :class="{ 'radio-btn--active': softDeleteExpires === d }"
@@ -415,7 +415,7 @@ const columns: ArTableColumn[] = [
       const deletionStatus = row.deletion_status
       // 待注销状态优先显示
       if (deletionStatus === 'user_requested_deletion') {
-        return h(ArTag, { color: 'warning', size: 'sm' }, { default: () => '待注销' })
+        return h(ArTag, { color: 'yellow', size: 'sm' }, { default: () => '待注销' })
       }
       if (deletionStatus === 'deleted_by_admin') {
         return h(ArTag, { color: 'red', size: 'sm' }, { default: () => '已删号' })
@@ -468,7 +468,7 @@ const columns: ArTableColumn[] = [
         btns.map((b) =>
           h(
             ArButton,
-            { size: 'sm', type: 'ghost', disabled: b.disabled, onClick: b.onClick },
+            { size: 'sm', type: 'ghost', disabled: !!b.disabled, onClick: b.onClick },
             { default: () => b.label }
           )
         )
@@ -484,7 +484,7 @@ async function loadUsers(resetPage?: number) {
     const params: Record<string, unknown> = { page: page.value, page_size: pageSize.value }
     const res = await getUsersApi(params as any)
     const paginated = res as unknown as Paginated<AdminUser>
-    users.value = (paginated.list || paginated.items || []).map((u) => ({ ...u, key: u.id }))
+    users.value = (paginated.list || []).map((u) => ({ ...u, key: u.id }))
     total.value = paginated.total || 0
   } catch {
     message.error('获取用户列表失败')
@@ -681,12 +681,12 @@ const xLabels = computed(() => {
 
 function bezierSmooth(points: { x: number; y: number }[]): string {
   if (points.length === 0) return ''
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+  if (points.length === 1) return `M ${points[0]!.x} ${points[0]!.y}`
   const tension = points.length > 10 ? 2 : 3
-  let d = `M ${points[0].x} ${points[0].y}`
+  let d = `M ${points[0]!.x} ${points[0]!.y}`
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i]
-    const p1 = points[i + 1]
+    const p0 = points[i]!
+    const p1 = points[i + 1]!
     const segLen = (p1.x - p0.x) / tension
     d += ` C ${p0.x + segLen} ${p0.y}, ${p1.x - segLen} ${p1.y}, ${p1.x} ${p1.y}`
   }
@@ -698,7 +698,7 @@ const fillPath = computed(() => {
   if (!bezierPath.value || chartPoints.value.length === 0) return ''
   const last = chartPoints.value[chartPoints.value.length - 1]
   const first = chartPoints.value[0]
-  return `${bezierPath.value} L ${last.x} ${chartH - padding.bottom} L ${first.x} ${chartH - padding.bottom} Z`
+  return `${bezierPath.value} L ${last!.x} ${chartH - padding.bottom} L ${first!.x} ${chartH - padding.bottom} Z`
 })
 
 onMounted(() => {

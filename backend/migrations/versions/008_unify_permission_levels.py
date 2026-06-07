@@ -25,9 +25,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     with op.batch_alter_table("blog_posts") as batch_op:
         # 1. 新增整数字段，允许为空（兼容旧数据迁移）
-        batch_op.add_column(
-            sa.Column("required_level", sa.Integer(), nullable=True)
-        )
+        batch_op.add_column(sa.Column("required_level", sa.Integer(), nullable=True))
 
     # 2. 数据迁移：将 access_level（A0-A9）转为对应数字
     #    A0→0, A1→1, ..., A5→5, A6→5, ..., A9→5

@@ -30,7 +30,7 @@ function parseBytes(str: string): number | null {
   const trimmed = str.trim().toUpperCase()
   const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB)?$/)
   if (!match) return null
-  const value = parseFloat(match[1])
+  const value = parseFloat(match[1]!)
   const unit = match[2] || 'B'
   switch (unit) {
     case 'B':

@@ -69,19 +69,17 @@
         >
           <div class="user-menu-wrap">
             <ArAvatar
-              :username="userStore.userInfo?.username"
-              :size="30"
+              v-bind="{ ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}), size: 30 }"
               @click="showUserMenu = !showUserMenu"
             />
             <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
               <!-- 用户信息头 -->
               <div class="dropdown-header">
-                <ArAvatar :username="userStore.userInfo?.username" :size="36" />
+                <ArAvatar v-bind="{ ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}), size: 36 }" />
                 <div class="dropdown-user-info">
                   <span class="dropdown-username">{{
                     userStore.userInfo?.username || '用户'
                   }}</span>
-                  <span class="dropdown-email">{{ userStore.userInfo?.email || '' }}</span>
                 </div>
               </div>
               <div class="dropdown-stats">
@@ -122,7 +120,7 @@
       <div v-if="layoutMode !== 'guest'" class="user-menu-wrap">
         <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '用户' }}</span>
-          <ArAvatar :username="userStore.userInfo?.username" :size="26" />
+          <ArAvatar v-bind="{ ...(userStore.userInfo ? { username: userStore.userInfo.username } : {}), size: 26 }" />
         </button>
         <div v-if="showUserMenu" class="user-dropdown">
           <button v-if="layoutMode === 'user'" class="dropdown-item" @click="goToProfile">

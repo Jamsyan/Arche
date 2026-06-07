@@ -76,6 +76,7 @@ function handleParagraphClick(para: Paragraph) {
       @click="handleParagraphClick(para)"
     >
       <span class="paragraph-index">{{ para.index }}</span>
+      <!-- eslint-disable-next-line vue/no-v-html -->
       <div class="paragraph-text" v-html="renderContent(para.content)" />
     </div>
   </article>

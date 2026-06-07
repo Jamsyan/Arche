@@ -378,15 +378,15 @@ const chartXLabels = computed(() => chartLabels.value)
 // 贝塞尔平滑曲线路径（点数越多曲度越大，保证"够润"）
 function bezierSmooth(points: { x: number; y: number }[]): string {
   if (points.length === 0) return ''
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+  if (points.length === 1) return `M ${points[0]!.x} ${points[0]!.y}`
 
   // 根据点数调整张力：点越多 segLen 占比越大，曲线越"润"
   const tension = points.length > 10 ? 2 : 3
 
-  let d = `M ${points[0].x} ${points[0].y}`
+  let d = `M ${points[0]!.x} ${points[0]!.y}`
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i]
-    const p1 = points[i + 1]
+    const p0 = points[i]!
+    const p1 = points[i + 1]!
     const segLen = (p1.x - p0.x) / tension
     d += ` C ${p0.x + segLen} ${p0.y}, ${p1.x - segLen} ${p1.y}, ${p1.x} ${p1.y}`
   }
@@ -399,7 +399,7 @@ const fillPath = computed(() => {
   if (!bezierPath.value || chartPoints.value.length === 0) return ''
   const last = chartPoints.value[chartPoints.value.length - 1]
   const first = chartPoints.value[0]
-  return `${bezierPath.value} L ${last.x} ${chartH - padding.bottom} L ${first.x} ${chartH - padding.bottom} Z`
+  return `${bezierPath.value} L ${last!.x} ${chartH - padding.bottom} L ${first!.x} ${chartH - padding.bottom} Z`
 })
 
 // ── QPS 柱状图 ──

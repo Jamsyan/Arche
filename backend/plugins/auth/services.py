@@ -209,7 +209,9 @@ class AuthService:
             "is_active": user.is_active,
             "deletion_status": user.deletion_status,
             "deletion_reason": user.deletion_reason,
-            "deletion_expires_at": user.deletion_expires_at.isoformat() if user.deletion_expires_at else None,
+            "deletion_expires_at": user.deletion_expires_at.isoformat()
+            if user.deletion_expires_at
+            else None,
             "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
@@ -316,7 +318,11 @@ class AuthService:
 
             now = datetime.now(timezone.utc)
             user.is_active = False
-            user.deletion_status = "deleted_by_admin" if reason == "violation" else "user_requested_deletion"
+            user.deletion_status = (
+                "deleted_by_admin"
+                if reason == "violation"
+                else "user_requested_deletion"
+            )
             user.deletion_reason = reason
             user.deletion_expires_at = now + timedelta(days=expires_in_days)
             user.deleted_at = now
@@ -427,9 +433,7 @@ class AuthService:
             trend = []
             for i in range(30):
                 date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
-                trend.append(
-                    {"date": date, "count": int(daily_map.get(date, 0))}
-                )
+                trend.append({"date": date, "count": int(daily_map.get(date, 0))})
 
         return {
             "total_users": total_users,

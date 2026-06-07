@@ -208,8 +208,14 @@ class CreateUserRequest(BaseModel):
 
 
 class SoftDeleteUserRequest(BaseModel):
-    reason: str = Field(..., pattern=r"^(violation|user_request)$", description="删号原因: violation(违规) / user_request(用户主动注销)")
-    expires_in_days: int = Field(..., ge=30, le=90, description="永久清理过期天数: 30/60/90")
+    reason: str = Field(
+        ...,
+        pattern=r"^(violation|user_request)$",
+        description="删号原因: violation(违规) / user_request(用户主动注销)",
+    )
+    expires_in_days: int = Field(
+        ..., ge=30, le=90, description="永久清理过期天数: 30/60/90"
+    )
 
 
 @router.post("/admin/users")

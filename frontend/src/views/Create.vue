@@ -197,8 +197,9 @@
               {{ getStatus(editingPost!).label }}
             </ArTag>
             <ArWheelPicker
-              :options="[...accessLevels]"
-              v-model="editorAccess"
+              :options="accessLevels.map(String)"
+              :model-value="String(editorAccess)"
+              @update:model-value="editorAccess = Number($event)"
               title="帖子可见权限：P0=仅管理员 · P5=所有人可见"
             />
           </div>
@@ -305,7 +306,7 @@ const editingPost = ref<BlogPost | null>(null)
 const tagInputValue = ref('')
 const editorTags = ref<string[]>([])
 const accessLevels = [0, 1, 2, 3, 4, 5] as const
-const editorAccess = ref<number>(userStore.level ?? 5)
+const editorAccess = ref<number>(userStore.userInfo?.level ?? 5)
 
 const coverUrl = ref('')
 const coverFile = ref<File | null>(null) // 用户通过 CoverUploader 选择的本地文件
@@ -364,7 +365,7 @@ const handleNewPost = () => {
   isCreatingNew.value = true
   editingPost.value = null
   editorTags.value = []
-  editorAccess.value = userStore.level ?? 5
+  editorAccess.value = userStore.userInfo?.level ?? 5
   coverUrl.value = ''
   coverFile.value = null
   clearStaged()
@@ -386,7 +387,7 @@ const handleFileSelected = async (e: Event) => {
     isCreatingNew.value = true
     editingPost.value = null
     editorTags.value = []
-    editorAccess.value = userStore.level ?? 5
+    editorAccess.value = userStore.userInfo?.level ?? 5
     isEditorOpen.value = true
     // 填充内容到编辑器
     // 由于 PostEditor 通过 ref 暴露了 title 和 content
@@ -504,7 +505,7 @@ const saveCurrent = async () => {
     const payload: CreatePostPayload = {
       title,
       content: finalContent,
-      cover_url: finalCoverUrl || undefined,
+      ...(finalCoverUrl ? { cover_url: finalCoverUrl } : {}),
       tags: editorTags.value,
       required_level: editorAccess.value
     }

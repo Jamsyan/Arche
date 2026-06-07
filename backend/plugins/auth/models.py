@@ -37,7 +37,9 @@ class User(Base):
         String(32), nullable=False, default="active", server_default="'active'"
     )
     # 删号原因: violation（违规删号）| user_request（用户主动注销）
-    deletion_reason: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
+    deletion_reason: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
     # 永久清理过期时间
     deletion_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None

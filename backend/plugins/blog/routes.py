@@ -19,7 +19,12 @@ class CreatePostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256, description="标题")
     content: str = Field(..., min_length=1, description="正文内容")
     tags: list[str] = Field(default_factory=list, description="标签列表")
-    required_level: int = Field(default=5, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）")
+    required_level: int = Field(
+        default=5,
+        ge=0,
+        le=5,
+        description="阅读所需最低 P 等级（0-5，数字越小权限越高）",
+    )
 
 
 class UpdatePostRequest(BaseModel):

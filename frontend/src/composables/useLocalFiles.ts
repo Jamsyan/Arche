@@ -60,7 +60,7 @@ export function useLocalFiles() {
     const re = /\[#(\d+)\]/g
     let m: RegExpExecArray | null
     while ((m = re.exec(content)) !== null) {
-      refs.add(parseInt(m[1], 10))
+      if (m[1]) refs.add(parseInt(m[1], 10))
     }
     return stagedFiles.value.filter((f) => refs.has(f.index))
   }

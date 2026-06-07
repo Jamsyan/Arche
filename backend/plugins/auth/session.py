@@ -33,7 +33,9 @@ class UserSessionTracker:
         config = container.get("config")
         timeout_str = config.get("ONLINE_TIMEOUT_SECONDS", str(DEFAULT_ONLINE_TIMEOUT))
         try:
-            self._timeout = int(timeout_str) if str(timeout_str).strip() else DEFAULT_ONLINE_TIMEOUT
+            self._timeout = (
+                int(timeout_str) if str(timeout_str).strip() else DEFAULT_ONLINE_TIMEOUT
+            )
         except (ValueError, TypeError):
             self._timeout = DEFAULT_ONLINE_TIMEOUT
 
@@ -81,7 +83,9 @@ class UserSessionTracker:
             if self._online_count > self._peak_online:
                 self._peak_online = self._online_count
                 self._peak_time = now
-            logger.info("用户上线: %s (%s), 当前在线: %d", username, user_id, self._online_count)
+            logger.info(
+                "用户上线: %s (%s), 当前在线: %d", username, user_id, self._online_count
+            )
         else:
             # 已在线，刷新即可
             self._sessions[user_id]["last_seen"] = now
@@ -162,7 +166,9 @@ class UserSessionTracker:
                 )
         if stale_ids:
             self._online_count = len(self._sessions)
-            logger.debug("清理超时会话 %d 个, 当前在线: %d", len(stale_ids), self._online_count)
+            logger.debug(
+                "清理超时会话 %d 个, 当前在线: %d", len(stale_ids), self._online_count
+            )
 
     def close(self) -> None:
         self.stop_cleanup()

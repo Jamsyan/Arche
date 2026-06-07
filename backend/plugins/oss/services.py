@@ -145,7 +145,9 @@ class StorageService:
             )
             return result.scalar() or 0
 
-    async def _check_quota(self, user_id: uuid.UUID, additional_bytes: int, user_level: int = 5) -> None:
+    async def _check_quota(
+        self, user_id: uuid.UUID, additional_bytes: int, user_level: int = 5
+    ) -> None:
         quota = await self._get_quota_bytes(user_id, user_level=user_level)
         # -1 表示不限
         if quota == -1:
