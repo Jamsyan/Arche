@@ -1,6 +1,6 @@
 # Issue 自动拆分子任务
 # 在 Issue 评论区输入 /split 触发 AI 分析并将大 Issue 拆分为可执行的子任务
-# 需要设置仓库 Secret: OPENAI_API_KEY
+# 需要设置仓库 Secret: DEEPSEEK_API_KEY
 
 name: AI Split Issue
 
@@ -72,7 +72,7 @@ jobs:
           "@
 
           $body = @{
-            model = "gpt-4o-mini"
+            model = "deepseek-chat"
             messages = @(
               @{ role = "system"; content = $prompt }
               @{ role = "user"; content = "标题: $title`n`n内容: $body" }
@@ -81,10 +81,10 @@ jobs:
             temperature = 0.3
           } | ConvertTo-Json -Depth 10
 
-          $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" `
+          $response = Invoke-RestMethod -Uri "https://api.deepseek.com/v1/chat/completions" `
             -Method Post `
             -Headers @{
-              "Authorization" = "Bearer $env:OPENAI_API_KEY"
+              "Authorization" = "Bearer $env:DEEPSEEK_API_KEY"
               "Content-Type"  = "application/json"
             } `
             -Body $body
@@ -92,7 +92,7 @@ jobs:
           $result = $response.choices[0].message.content
           echo "tasks=$result" >> $env:GITHUB_OUTPUT
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
 
       - name: 创建子 Issue 并更新父 Issue
         uses: actions/github-script@v7

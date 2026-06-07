@@ -1,9 +1,9 @@
 # AI Issues 自动管理
 # 当 Issue 创建时，AI 自动分析、分类、回复、标记质量、关闭无效提交
-# 需要设置仓库 Secret: OPENAI_API_KEY
+# 需要设置仓库 Secret: DEEPSEEK_API_KEY
 #
 # 可选方案：
-#   本文件使用 OpenAI API（需自备 Key）。
+#   本文件使用 DeepSeek API（免费额度）。
 #   也可改用 GitHub Models（`actions/ai-inference`）免 API Key，
 #   但需添加 `permissions: models: read` 并替换 inference 步骤。
 
@@ -79,7 +79,7 @@ jobs:
           "@
 
           $body = @{
-            model = "gpt-4o-mini"
+            model = "deepseek-chat"
             messages = @(
               @{ role = "system"; content = $prompt }
               @{ role = "user"; content = "标题: $title`n`n内容: $body" }
@@ -88,10 +88,10 @@ jobs:
             temperature = 0.1
           } | ConvertTo-Json -Depth 10
 
-          $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" `
+          $response = Invoke-RestMethod -Uri "https://api.deepseek.com/v1/chat/completions" `
             -Method Post `
             -Headers @{
-              "Authorization" = "Bearer $env:OPENAI_API_KEY"
+              "Authorization" = "Bearer $env:DEEPSEEK_API_KEY"
               "Content-Type"  = "application/json"
             } `
             -Body $body
@@ -99,7 +99,7 @@ jobs:
           $analysis = $response.choices[0].message.content
           echo "analysis=$analysis" >> $env:GITHUB_OUTPUT
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
 
       - name: 执行分析结果
         uses: actions/github-script@v7
