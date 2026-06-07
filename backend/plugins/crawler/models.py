@@ -19,7 +19,7 @@ class CrawlRecord(Base, HasSID):
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     url = Column(String(2048), nullable=False)
     title = Column(String(512), nullable=True)

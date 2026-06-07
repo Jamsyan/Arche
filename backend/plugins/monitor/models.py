@@ -26,9 +26,6 @@ class MonitorTemplate(Base, HasSID):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
-    )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     components: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
@@ -42,9 +39,9 @@ class MonitorTemplate(Base, HasSID):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "id": self.id,
+            "id": str(self.id),
             "name": self.name,
-            "user_id": self.user_id,
+            "user_id": str(self.user_id) if self.user_id else None,
             "components": self.components or [],
             "refresh_interval": self.refresh_interval,
             "created_at": self.created_at.isoformat() if self.created_at else None,

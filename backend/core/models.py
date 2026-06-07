@@ -21,7 +21,7 @@ class HasSID:
     """
 
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
 
     def generate_sid(self, prefix: str, category: str | None = None) -> None:

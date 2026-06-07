@@ -108,7 +108,7 @@ class TrainingJob(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     creator_id: Mapped[uuid.UUID] = mapped_column(UUIDString, nullable=False)
@@ -169,7 +169,7 @@ class TrainingInstance(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
@@ -208,7 +208,7 @@ class TrainingCost(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
@@ -236,7 +236,7 @@ class TrainingTaskStep(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
@@ -266,7 +266,7 @@ class Dataset(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -300,7 +300,7 @@ class CodeRepo(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     git_url: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -325,7 +325,7 @@ class Artifact(Base, HasSID):
         UUIDString, primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False

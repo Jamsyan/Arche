@@ -22,7 +22,7 @@ class BlogPost(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -55,7 +55,7 @@ class BlogComment(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -80,7 +80,7 @@ class BlogLike(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -102,7 +102,7 @@ class BlogReport(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     reporter_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -121,7 +121,7 @@ class BlogTag(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -151,7 +151,7 @@ class BlogFavorite(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -173,7 +173,7 @@ class PostFile(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sid: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, index=True
+        String(64), nullable=False, index=True, default=""
     )
     post_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
