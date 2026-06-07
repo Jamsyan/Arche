@@ -173,7 +173,7 @@
       <template #footer>
         <div style="display: flex; gap: 8px; justify-content: flex-end">
           <ArButton @click="showLevelModal = false">取消</ArButton>
-          <ArButton type="primary" @click="handleLevelChange">确认</ArButton>
+          <ArButton type="primary" :loading="levelChanging" @click="handleLevelChange">确认</ArButton>
         </div>
       </template>
     </NModal>
@@ -284,7 +284,7 @@
 <script setup lang="ts">
 import { ref, h, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { NModal, NForm, NFormItem, NSelect, NInputNumber } from 'naive-ui'
+import { NModal, NForm, NFormItem, NSelect, NInputNumber, NPopconfirm } from 'naive-ui'
 import { ArTag, ArTable, ArButton } from '@/components/ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getUserStatsApi, type UserStats } from '@/services/api/auth'
@@ -296,6 +296,7 @@ import {
   createAdminUserApi,
   softDeleteUserApi,
   getHotPostsApi,
+  resetUserPasswordApi,
   type AdminUser,
   type HotPost,
   type Paginated
@@ -332,6 +333,7 @@ const pageSize = ref(10)
 const showLevelModal = ref(false)
 const editingUser = ref<AdminUser | null>(null)
 const levelEditValue = ref(5)
+const levelChanging = ref(false)
 
 // ── 软删除弹窗 ──
 const showSoftDeleteModal = ref(false)
@@ -462,16 +464,30 @@ const columns: ArTableColumn[] = [
         { label: '行为分析', onClick: () => message.info('行为分析页面开发中') },
         { label: '审计日志', onClick: () => message.info('审计日志页面开发中') }
       ]
+      const resetBtn = h(
+        NPopconfirm,
+        {
+          title: '确认重置密码',
+          content: `确定重置用户「${row.username}」的密码？新密码将随机生成。`,
+          positiveText: '确认',
+          negativeText: '取消',
+          onPositiveClick: () => handleResetPassword(row)
+        },
+        {
+          trigger: () =>
+            h(ArButton, { size: 'sm', type: 'ghost' }, { default: () => '重置密码' })
+        }
+      )
       return h(
         'div',
         { class: 'action-cell' },
-        btns.map((b) =>
+        [...btns.map((b) =>
           h(
             ArButton,
             { size: 'sm', type: 'ghost', disabled: !!b.disabled, onClick: b.onClick },
             { default: () => b.label }
           )
-        )
+        ), resetBtn]
       )
     }
   }
@@ -565,6 +581,15 @@ function handleForceLogout(row: AdminUser) {
 
 function handleViewAssets(row: AdminUser) {
   message.info(`即将跳转至「${row.username}」的资产详情页面`)
+}
+
+async function handleResetPassword(row: AdminUser) {
+  try {
+    await resetUserPasswordApi(row.id)
+    message.success(`用户「${row.username}」密码已重置，新密码请在用户信息中查看`)
+  } catch {
+    message.error('密码重置失败')
+  }
 }
 
 function openSoftDeleteModal(row: AdminUser) {

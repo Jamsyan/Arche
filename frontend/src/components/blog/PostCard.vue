@@ -125,6 +125,7 @@ function handleClick() {
 .post-card {
   cursor: pointer;
   font-family: var(--font-sans);
+  max-width: 420px;
   transition:
     transform var(--ease-out-smooth),
     box-shadow var(--ease-out-smooth);

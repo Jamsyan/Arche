@@ -183,20 +183,22 @@ async def get_notifications(request: Request):
     # 2. 系统告警
     if container.is_available("system_monitor"):
         sys_svc = container.get("system_monitor")
+        config = container.get("config")
+        cpu_warn_threshold = int(config.get("CPU_WARN_THRESHOLD", "80"))
         try:
             summary = sys_svc.get_summary()
             cpu = summary.get("cpu_percent", 0)
             disk = summary.get("disk_percent", 0)
             mem = summary.get("memory_percent", 0)
 
-            if cpu > 80:
+            if cpu > cpu_warn_threshold:
                 notifications.append(
                     {
                         "id": "cpu-warning",
                         "type": "danger",
                         "icon": "\U0001f534",
                         "title": f"CPU 负载 {cpu}%",
-                        "desc": "系统 CPU 使用率超过 80% 警戒线",
+                        "desc": f"系统 CPU 使用率超过 {cpu_warn_threshold}% 警戒线",
                         "route": "/admin/ops/system",
                         "count": 1,
                     }

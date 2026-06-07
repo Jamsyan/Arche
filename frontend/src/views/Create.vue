@@ -288,6 +288,7 @@ import {
 import { uploadOssFileApi } from '@/services/api/oss'
 import { useUserStore } from '@/store/modules/user'
 import { useLocalFiles } from '@/composables/useLocalFiles'
+import { getCoverGradient } from '@/utils/cover'
 
 type PostTab = 'all' | 'published' | 'draft'
 
@@ -386,7 +387,7 @@ const handleFileSelected = async (e: Event) => {
     // 上传成功后，打开编辑器并填充内容
     isCreatingNew.value = true
     editingPost.value = null
-    editorTags.value = []
+    editorTags.value = (result as any)?.tags || []
     editorAccess.value = userStore.userInfo?.level ?? 5
     isEditorOpen.value = true
     // 填充内容到编辑器
@@ -396,6 +397,15 @@ const handleFileSelected = async (e: Event) => {
       // result 是后端返回的 BlogPost 对象
       editorRef.value.title = (result as any).title || ''
       editorRef.value.content = (result as any).content || ''
+      // 无封面时自动生成渐变色封面
+      if ((result as any).cover_url) {
+        coverUrl.value = (result as any).cover_url
+      } else {
+        coverUrl.value = getCoverGradient({
+          title: (result as any).title,
+          tags: (result as any).tags
+        })
+      }
     }
     message.success('文件导入成功')
   } catch {

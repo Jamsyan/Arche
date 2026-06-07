@@ -200,6 +200,18 @@ async def soft_delete_user(user_id: str, req: SoftDeleteUserRequest, request: Re
     return {"code": "ok", "message": "用户已标记删除", "data": result}
 
 
+@router.post("/users/{user_id}/reset-password")
+@require_level(0)
+async def reset_password(user_id: str, req: ResetPasswordRequest, request: Request):
+    """管理员重置用户密码（P0）。"""
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    result = await auth_service.reset_password(
+        uuid.UUID(user_id), new_password=req.new_password
+    )
+    return {"code": "ok", "message": "密码重置成功", "data": result}
+
+
 class CreateUserRequest(BaseModel):
     email: str = Field(..., min_length=1, max_length=128, description="邮箱")
     username: str = Field(..., min_length=3, max_length=64, description="用户名")
@@ -216,6 +228,10 @@ class SoftDeleteUserRequest(BaseModel):
     expires_in_days: int = Field(
         ..., ge=30, le=90, description="永久清理过期天数: 30/60/90"
     )
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=6, max_length=128, description="新密码")
 
 
 @router.post("/admin/users")

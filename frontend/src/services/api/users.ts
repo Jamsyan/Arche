@@ -79,3 +79,6 @@ export const softDeleteUserApi = (
 
 export const getHotPostsApi = (limit?: number, config?: RequestConfig) =>
   get<HotPost[]>('/blog/admin/hot-posts', { limit }, config)
+
+export const resetUserPasswordApi = (userId: string, config?: RequestConfig) =>
+  post<AdminUser>(`/auth/users/${userId}/reset-password`, undefined, config)

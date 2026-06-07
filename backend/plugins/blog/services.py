@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from sqlalchemy import delete, func, select, or_
+from sqlalchemy import delete, func, select, or_, text
 from fastapi import UploadFile
 
 from backend.core.middleware import AppError
@@ -277,9 +277,17 @@ class BlogService:
                 post.status == "published" and not is_author and not is_admin
             )
             if should_count_view:
-                post.views += 1
-                await session.commit()
-                await session.refresh(post)
+                try:
+                    # 使用原子 SQL 更新浏览量，避免 SQLite 并发写冲突
+                    await session.execute(
+                        text("UPDATE blog_posts SET views = views + 1 WHERE id = :id"),
+                        {"id": post.id},
+                    )
+                    await session.commit()
+                    post.views += 1  # 同步本地对象
+                except Exception:
+                    await session.rollback()
+                    # 浏览量更新失败不阻碍帖子正常返回
 
             # 查询作者用户名
             author_result = await session.execute(

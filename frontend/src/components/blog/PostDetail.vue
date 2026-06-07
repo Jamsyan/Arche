@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { marked } from 'marked'
 import type { BlogPost, Paragraph } from '@/services/api'
 
 const props = defineProps<{
@@ -20,9 +21,10 @@ const paragraphs = computed(() => {
 })
 
 function renderContent(text: string): string {
-  let html = text
+  // 1. 使用 marked 将 Markdown 渲染为 HTML
+  let html = marked.parse(text, { gfm: true }) as string
 
-  // 1. 处理视频嵌入 — 直接匹配 TipTap 输出的 <a> 标签
+  // 2. 处理视频嵌入 — 匹配 marked 输出的 <a> 标签
   html = html.replace(
     /<a\s+[^>]*href="((?:https?:\/\/)?(?:www\.)?(?:bilibili\.com|b23\.tv|youtube\.com)[^"]+)"[^>]*>.+?<\/a>/g,
     (_match, url) => {
@@ -68,13 +70,10 @@ function renderContent(text: string): string {
     }
   )
 
-  // 2. 处理图片 [#N]
+  // 3. 处理图片 [#N]
   html = html.replace(/\[#(\d+)\]/g, (_match, num) => {
     return `<div class="media-block image-block"><img src="https://picsum.photos/seed/${props.post.id}_${num}/800/450" alt="图片 #${num}" loading="lazy" /></div>`
   })
-
-  // 3. 段落内换行转 <br>
-  html = html.replace(/\n/g, '<br>')
 
   return html
 }
@@ -147,14 +146,6 @@ function handleParagraphClick(para: Paragraph) {
   display: block;
 }
 
-.paragraph-text :deep(p) {
-  margin: 0 0 1em;
-}
-
-.paragraph-text :deep(p:last-child) {
-  margin-bottom: 0;
-}
-
 .paragraph-text :deep(.media-block) {
   margin: 0;
   text-align: center;
@@ -190,5 +181,117 @@ function handleParagraphClick(para: Paragraph) {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+/* ── Markdown 元素样式 ── */
+.paragraph-text :deep(h1) {
+  font-size: 1.75em;
+  font-weight: 700;
+  margin: 1.2em 0 0.6em;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.paragraph-text :deep(h2) {
+  font-size: 1.45em;
+  font-weight: 700;
+  margin: 1.1em 0 0.5em;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.paragraph-text :deep(h3) {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 1em 0 0.45em;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.paragraph-text :deep(h4) {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin: 0.9em 0 0.4em;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.paragraph-text :deep(p) {
+  margin: 0 0 1em;
+}
+
+.paragraph-text :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.paragraph-text :deep(code) {
+  font-family: var(--font-mono, 'Fira Code', 'Consolas', monospace);
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  background: var(--surface-hover-color, rgba(128, 128, 128, 0.1));
+  border-radius: 3px;
+  word-break: break-word;
+}
+
+.paragraph-text :deep(pre) {
+  background: var(--surface-hover-color, rgba(128, 128, 128, 0.08));
+  border-radius: var(--radius-md);
+  padding: 1em;
+  margin: 0.8em 0;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.paragraph-text :deep(pre code) {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+  color: inherit;
+}
+
+.paragraph-text :deep(ul) {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+  list-style: disc;
+}
+
+.paragraph-text :deep(ol) {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+  list-style: decimal;
+}
+
+.paragraph-text :deep(li) {
+  margin: 0.25em 0;
+}
+
+.paragraph-text :deep(blockquote) {
+  margin: 0.8em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid var(--primary-color, #667eea);
+  background: var(--surface-hover-color, rgba(128, 128, 128, 0.05));
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-secondary);
+}
+
+.paragraph-text :deep(blockquote p) {
+  margin: 0.3em 0;
+}
+
+.paragraph-text :deep(a) {
+  color: var(--primary-color, #667eea);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
+}
+
+.paragraph-text :deep(a:hover) {
+  color: var(--primary-hover-color, #5a6fd6);
+}
+
+.paragraph-text :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+  margin: 1.5em 0;
 }
 </style>
