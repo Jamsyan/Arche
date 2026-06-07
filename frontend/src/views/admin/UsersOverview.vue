@@ -173,7 +173,9 @@
       <template #footer>
         <div style="display: flex; gap: 8px; justify-content: flex-end">
           <ArButton @click="showLevelModal = false">取消</ArButton>
-          <ArButton type="primary" :loading="levelChanging" @click="handleLevelChange">确认</ArButton>
+          <ArButton type="primary" :loading="levelChanging" @click="handleLevelChange"
+            >确认</ArButton
+          >
         </div>
       </template>
     </NModal>
@@ -474,21 +476,19 @@ const columns: ArTableColumn[] = [
           onPositiveClick: () => handleResetPassword(row)
         },
         {
-          trigger: () =>
-            h(ArButton, { size: 'sm', type: 'ghost' }, { default: () => '重置密码' })
+          trigger: () => h(ArButton, { size: 'sm', type: 'ghost' }, { default: () => '重置密码' })
         }
       )
-      return h(
-        'div',
-        { class: 'action-cell' },
-        [...btns.map((b) =>
+      return h('div', { class: 'action-cell' }, [
+        ...btns.map((b) =>
           h(
             ArButton,
             { size: 'sm', type: 'ghost', disabled: !!b.disabled, onClick: b.onClick },
             { default: () => b.label }
           )
-        ), resetBtn]
-      )
+        ),
+        resetBtn
+      ])
     }
   }
 ]
@@ -518,14 +518,17 @@ function openLevelEdit(row: AdminUser) {
 
 async function handleLevelChange() {
   if (!editingUser.value) return
+  levelChanging.value = true
   try {
     await updateUserApi(editingUser.value.id, { level: levelEditValue.value })
     message.success(`用户「${editingUser.value.username}」等级已更新为 P${levelEditValue.value}`)
     showLevelModal.value = false
     editingUser.value = null
-    loadUsers(page.value)
+    await loadUsers(page.value)
   } catch {
     message.error('等级更新失败')
+  } finally {
+    levelChanging.value = false
   }
 }
 
@@ -546,7 +549,7 @@ async function handleEnableUser(row: AdminUser) {
     await enableUserApi(row.id)
     row.is_active = true
     message.success(`用户「${row.username}」已解封`)
-    loadUsers(page.value)
+    await loadUsers(page.value)
   } catch {
     message.error('解封失败')
   }
@@ -568,7 +571,7 @@ async function handleBanConfirm() {
     }
     showBanModal.value = false
     editingUser.value = null
-    loadUsers(page.value)
+    await loadUsers(page.value)
   } catch {
     message.error('封禁失败')
   }
@@ -585,9 +588,12 @@ function handleViewAssets(row: AdminUser) {
 
 async function handleResetPassword(row: AdminUser) {
   try {
-    const newPassword = Math.random().toString(36).slice(2, 10) + 'A1!'
+    // 使用 crypto.getRandomValues 生成密码学安全的随机密码
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    const newPassword =
+      Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => chars[b % 36]).join('') + 'A1!'
     await resetUserPasswordApi(row.id, newPassword)
-    message.success(`用户「${row.username}」密码已重置为：${newPassword}`)
+    message.success(`用户「${row.username}」密码已重置成功`)
   } catch {
     message.error('密码重置失败')
   }

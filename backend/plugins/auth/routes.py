@@ -202,12 +202,12 @@ async def soft_delete_user(user_id: str, req: SoftDeleteUserRequest, request: Re
 
 @router.post("/users/{user_id}/reset-password")
 @require_level(0)
-async def reset_password(user_id: str, req: ResetPasswordRequest, request: Request):
+async def reset_password(user_id: uuid.UUID, req: ResetPasswordRequest, request: Request):
     """管理员重置用户密码（P0）。"""
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.reset_password(
-        uuid.UUID(user_id), new_password=req.new_password
+        user_id, new_password=req.new_password
     )
     return {"code": "ok", "message": "密码重置成功", "data": result}
 
