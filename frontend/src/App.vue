@@ -1,5 +1,10 @@
 <template>
-  <NConfigProvider :theme="theme" :theme-overrides="themeOverrides">
+  <NConfigProvider
+    :theme="theme"
+    :theme-overrides="themeOverrides"
+    :locale="zhCN"
+    :date-locale="dateZhCN"
+  >
     <NMessageProvider>
       <NDialogProvider>
         <NNotificationProvider>
@@ -28,6 +33,8 @@ import {
   NNotificationProvider,
   NLoadingBarProvider,
   darkTheme,
+  zhCN,
+  dateZhCN,
   type GlobalThemeOverrides
 } from 'naive-ui'
 import { useAppStore } from '@/store/modules/app'
@@ -61,6 +68,62 @@ const themeOverrides: GlobalThemeOverrides = {
     borderHover: '1px solid #b8743d',
     borderPressed: '1px solid #6f3f22',
     borderFocus: '1px solid #b8743d'
+  },
+  Popover: {
+    color: 'var(--surface-color)',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: '12px'
+  },
+  Select: {
+    menuColor: 'var(--surface-color)',
+    menuBorder: '1px solid var(--border-color)',
+    menuBorderRadius: 'var(--radius-md)',
+    menuBoxShadow: 'var(--shadow-lg)',
+    optGroupTextColor: 'var(--text-secondary)',
+    optGroupFontSize: '11px'
+  },
+  InternalSelectMenu: {
+    color: 'var(--surface-color)',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--shadow-lg)',
+    optionColor: 'transparent',
+    optionColorHover: 'var(--primary-light-color)',
+    optionColorActive: 'var(--primary-light-color)',
+    optionTextColor: 'var(--text-primary)',
+    optionTextColorHover: 'var(--primary-color)',
+    optionTextColorActive: 'var(--primary-color)',
+    optionFontSize: '12px',
+    optionHeight: '28px'
+  },
+  Pagination: {
+    itemFontSizeSmall: '12px',
+    itemFontSizeActive: '12px',
+    itemTextColor: 'var(--text-secondary)',
+    itemTextColorHover: 'var(--primary-color)',
+    itemTextColorActive: 'var(--primary-color)',
+    itemColor: 'transparent',
+    itemColorHover: 'var(--primary-light-color)',
+    itemColorActive: 'var(--primary-light-color)',
+    itemBorder: '1px solid var(--border-color)',
+    itemBorderHover: '1px solid var(--primary-color)',
+    itemBorderActive: '1px solid var(--primary-color)',
+    itemBorderRadius: 'var(--radius-sm)',
+    buttonColor: 'transparent',
+    buttonColorHover: 'var(--primary-light-color)',
+    buttonBorder: '1px solid var(--border-color)',
+    buttonBorderHover: '1px solid var(--primary-color)',
+    buttonIconColor: 'var(--text-tertiary)',
+    buttonIconColorHover: 'var(--primary-color)',
+    inputBorderColor: 'var(--border-color)',
+    inputBorderColorHover: 'var(--primary-color)',
+    inputBorderColorFocus: 'var(--primary-color)',
+    selectBorderColor: 'var(--border-color)',
+    selectBorderColorHover: 'var(--primary-color)',
+    selectBorderColorFocus: 'var(--primary-color)',
+    prefixFontSize: '12px',
+    suffixFontSize: '12px'
   }
 }
 

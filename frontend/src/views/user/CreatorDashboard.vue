@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
-import { NDataTable } from 'naive-ui'
 import { getMyPostsApi, getPostCommentsApi, type BlogPost } from '@/services/api'
+import ArTable from '@/components/ui/ArTable.vue'
+import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 
 interface MetricRow {
   key: string
@@ -18,15 +19,21 @@ const totalPosts = ref(0)
 const totalComments = ref(0)
 const totalLikes = ref(0)
 
-const columns = [
+const columns: ArTableColumn[] = [
   { title: '标题', key: 'title' },
   { title: '状态', key: 'status' },
   {
     title: '评论数',
     key: 'comments',
+    sortable: true,
     sorter: (a: MetricRow, b: MetricRow) => a.comments - b.comments
   },
-  { title: '点赞', key: 'likes', sorter: (a: MetricRow, b: MetricRow) => a.likes - b.likes },
+  {
+    title: '点赞',
+    key: 'likes',
+    sortable: true,
+    sorter: (a: MetricRow, b: MetricRow) => a.likes - b.likes
+  },
   { title: '创建时间', key: 'createdAt' }
 ]
 
@@ -106,7 +113,7 @@ onMounted(fetchData)
         <span class="card-header-title">内容表现排行（近 50 篇）</span>
       </div>
       <div class="table-wrap" :class="{ 'is-loading': loading }">
-        <NDataTable :columns="columns" :data="rows" :loading="loading" />
+        <ArTable :columns="columns" :data="rows" :loading="loading" />
       </div>
     </div>
   </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { h, onMounted, onUnmounted, ref } from 'vue'
-import { NDataTable, NTag } from 'naive-ui'
+import { NTag } from 'naive-ui'
+import { ArTable } from '@/components/ui'
 import { getProcessesApi, type ProcessInfo } from '@/services/api'
 import { SystemMetrics } from '@/components/admin'
 
@@ -71,7 +72,7 @@ onUnmounted(() => {
     <div v-if="processes.length > 0" class="processes-section">
       <h3 class="section-title">进程列表</h3>
       <div class="table-wrapper">
-        <NDataTable
+        <ArTable
           :columns="processColumns"
           :data="processes"
           :loading="loading"

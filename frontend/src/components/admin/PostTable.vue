@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { h, ref } from 'vue'
-import { NInput, NSelect, NPopconfirm, NPagination, useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
+import { NInput, NSelect, NPopconfirm, useMessage } from 'naive-ui'
+import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getBlogPostsApi, deletePostApi, type BlogPost } from '@/services/api'
-import { ArButton, ArTag } from '@/components/ui'
+import { ArButton, ArTag, ArTable, ArPagination } from '@/components/ui'
 
 interface PostRow {
   key: string
@@ -39,7 +39,7 @@ const statusTagMap: Record<
   rejected: { label: '已驳回', color: 'red' }
 }
 
-const columns: DataTableColumns<PostRow> = [
+const columns: ArTableColumn[] = [
   {
     title: '标题',
     key: 'title',
@@ -171,7 +171,7 @@ const handlePageChange = (p: number) => {
     </div>
 
     <div class="table-wrapper">
-      <n-data-table
+      <ArTable
         :columns="columns"
         :data="posts"
         :loading="loading"
@@ -183,12 +183,11 @@ const handlePageChange = (p: number) => {
     </div>
 
     <div class="pager">
-      <NPagination
+      <ArPagination
         :page="page"
         :page-size="pageSize"
         :item-count="total"
         :page-sizes="[10, 20, 50]"
-        :show-size-picker="true"
         @update:page="handlePageChange"
         @update:page-size="
           (v: number) => {

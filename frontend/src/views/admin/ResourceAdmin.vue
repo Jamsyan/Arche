@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from 'vue'
-import { NDataTable, NGrid, NGi, NTabPane, NTabs, NPagination, useMessage } from 'naive-ui'
-import { ArButton } from '@/components/ui'
+import { NGrid, NGi, NTabPane, NTabs, useMessage } from 'naive-ui'
+import { ArButton, ArTable, ArPagination } from '@/components/ui'
 import { getAssetsApi, getAssetStatsApi, type AssetStats } from '@/services/api'
 import {
   getOssAdminStatsApi,
@@ -223,7 +223,7 @@ onMounted(() => {
           </NGrid>
 
           <div class="section-card table-card">
-            <NDataTable
+            <ArTable
               :columns="assetColumns"
               :data="assetList"
               :loading="false"
@@ -231,12 +231,11 @@ onMounted(() => {
               :bordered="false"
             />
             <div class="pager">
-              <NPagination
+              <ArPagination
                 :page="assetPage"
                 :page-size="assetPageSize"
                 :item-count="assetTotal"
                 :page-sizes="[10, 20, 50]"
-                show-size-picker
                 @update:page="onAssetPageChange"
                 @update:page-size="onAssetPageSizeChange"
               />
@@ -258,7 +257,7 @@ onMounted(() => {
 
           <div class="section-card table-card">
             <h3 class="section-title">文件列表</h3>
-            <NDataTable
+            <ArTable
               :columns="ossFileColumns"
               :data="ossFileList"
               :loading="ossLoading"
@@ -266,12 +265,11 @@ onMounted(() => {
               :bordered="false"
             />
             <div class="pager">
-              <NPagination
+              <ArPagination
                 :page="ossFilePage"
                 :page-size="ossFilePageSize"
                 :item-count="ossFileTotal"
                 :page-sizes="[10, 20, 50]"
-                show-size-picker
                 @update:page="onOssFilePageChange"
                 @update:page-size="onOssFilePageSizeChange"
               />
@@ -280,7 +278,7 @@ onMounted(() => {
 
           <div class="section-card table-card">
             <h3 class="section-title">存储排行 TOP 10</h3>
-            <NDataTable
+            <ArTable
               :columns="ossTopUserColumns"
               :data="ossTopUsers"
               :row-key="(row: any) => row.user_id"

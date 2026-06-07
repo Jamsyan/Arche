@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from 'vue'
-import { NDataTable, NInput, NProgress, useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import { ArButton } from '@/components/ui'
+import { NInput, NProgress, useMessage } from 'naive-ui'
+import { ArButton, ArTable } from '@/components/ui'
+import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getOssAdminQuotasApi, updateOssUserQuotaApi, type OSSQuota } from '@/services/api'
 
 const message = useMessage()
@@ -102,7 +102,7 @@ const getUsagePercent = (row: OSSQuota): number => {
   return Math.min(row.usage_percent, 100)
 }
 
-const columns: DataTableColumns<OSSQuota> = [
+const columns: ArTableColumn[] = [
   {
     title: '用户 ID',
     key: 'user_id',
@@ -179,7 +179,7 @@ onMounted(() => {
     </div>
 
     <div class="table-wrapper">
-      <NDataTable
+      <ArTable
         :columns="columns"
         :data="quotas"
         :loading="loading"

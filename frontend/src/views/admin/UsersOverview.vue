@@ -1,19 +1,29 @@
 <template>
   <div class="users-dashboard">
     <div class="page-header">
-      <h1 class="page-title">用户管理</h1>
-      <p class="page-desc">用户数据总览与全量管理</p>
-      <div class="page-actions">
-        <NInput
-          v-model:value="searchQ"
-          placeholder="搜索用户名/邮箱..."
-          clearable
-          size="small"
-          style="width: 200px"
-          @keyup.enter="loadUsers(1)"
-        />
-        <ArButton size="sm" @click="showCreateModal = true">+ 创建用户</ArButton>
-        <ArButton size="sm" @click="loadUsers()">刷新</ArButton>
+      <div class="page-header-row">
+        <div class="page-header-left">
+          <h1 class="page-title">用户管理</h1>
+          <p class="page-desc">用户数据总览与全量管理</p>
+        </div>
+        <div class="page-header-tools">
+          <button class="refresh-btn" title="刷新数据" @click="loadUsers()">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+          </button>
+          <ArButton size="sm" @click="showCreateModal = true">+ 创建用户</ArButton>
+        </div>
       </div>
     </div>
 
@@ -109,18 +119,15 @@
 
     <!-- 用户列表 -->
     <div class="table-section">
-      <div class="table-header">
-        <span class="table-title">全部用户（{{ total }}）</span>
-      </div>
       <ArTable
         :columns="columns"
         :data="users"
         :loading="loading"
-        :pagination="{ page, pageSize: pageSize as unknown as number, itemCount: total }"
+        :pagination="{ page, pageSize, itemCount: total }"
         @update:page="handlePageChange"
         @update:page-size="
           (v: number) => {
-            pageSize = v as unknown as number
+            pageSize = v
             loadUsers(1)
           }
         "
@@ -160,15 +167,15 @@
 <script setup lang="ts">
 import { ref, h, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import { NInput, NModal, NForm, NFormItem, NSelect, NPopconfirm } from 'naive-ui'
-import { ArButton, ArTag, ArTable } from '@/components/ui'
+import { NModal, NForm, NFormItem, NSelect, NPopconfirm } from 'naive-ui'
+import { ArTag, ArTable, ArAvatar } from '@/components/ui'
+import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getUserStatsApi, type UserStats } from '@/services/api/auth'
 import {
   getUsersApi,
   disableUserApi,
-  enableUserApi,
   createAdminUserApi,
+  deleteUserApi,
   type AdminUser,
   type Paginated
 } from '@/services/api'
@@ -194,45 +201,49 @@ async function fetchStats() {
 }
 
 // ── 用户列表 ──
-const searchQ = ref('')
 const users = ref<AdminUser[]>([])
 const total = ref(0)
 const loading = ref(false)
 const page = ref(1)
-let pageSize = ref(10)
+const pageSize = ref(10)
 
-const columns: DataTableColumns<AdminUser> = [
+const columns: ArTableColumn[] = [
   {
     title: '用户',
     key: 'username',
-    ellipsis: true,
     render: (row) =>
       h('div', { class: 'user-cell' }, [
-        h(
-          'div',
-          { class: 'user-cell-avatar' },
-          (row.nickname || row.username).charAt(0).toUpperCase()
-        ),
-        h('div', { class: 'user-cell-info' }, [
-          h('div', { class: 'user-cell-name' }, row.nickname || row.username),
-          h('div', { class: 'user-cell-email' }, row.email || '-')
-        ])
+        h(ArAvatar, {
+          username: row.nickname || row.username,
+          size: 36,
+          onClick: () => message.info(`查看用户「${row.username}」详情`)
+        }),
+        h('div', { class: 'user-cell-name' }, row.nickname || row.username)
       ])
+  },
+  {
+    title: '创建时间',
+    key: 'created_at',
+    width: 100,
+    render: (row) => (row.created_at ? row.created_at.slice(0, 10) : '-')
   },
   {
     title: '等级',
     key: 'level',
-    width: 100,
+    width: 80,
     render: (row) => {
       const lv = row.level ?? 5
-      const color = lv === 0 ? 'red' : lv <= 2 ? 'primary' : 'default'
-      return h(ArTag, { color, size: 'sm' }, { default: () => `P${lv}` })
+      return h(
+        ArTag,
+        { color: lv === 0 ? 'red' : 'default', size: 'sm' },
+        { default: () => `P${lv}` }
+      )
     }
   },
   {
     title: '状态',
     key: 'is_active',
-    width: 80,
+    width: 70,
     render: (row) => {
       const active = row.is_active !== false
       return h(
@@ -243,42 +254,44 @@ const columns: DataTableColumns<AdminUser> = [
     }
   },
   {
-    title: '创建时间',
-    key: 'created_at',
-    width: 100,
-    render: (row) => (row.created_at ? row.created_at.slice(0, 10) : '-')
-  },
-  {
     title: '操作',
     key: 'actions',
-    width: 200,
+    width: 300,
     render: (row) => {
       const isActive = row.is_active !== false
-      return h('div', { class: 'action-cell' }, [
-        h(
-          ArButton,
-          { size: 'sm', onClick: () => message.info('等级编辑功能待实现') },
-          { default: () => '等级' }
-        ),
-        h(
-          NPopconfirm,
-          {
-            title: '确认操作',
-            content: `确定${isActive ? '禁用' : '启用'}用户「${row.username}」吗？`,
-            positiveText: '确认',
-            negativeText: '取消',
-            onPositiveClick: () => toggleUserStatus(row)
-          },
-          {
-            trigger: () =>
-              h(
-                ArButton,
-                { size: 'sm', type: isActive ? 'ghost' : 'primary' },
-                { default: () => (isActive ? '禁用' : '启用') }
-              )
+      const btns = [
+        { label: '封号', onClick: () => handleBanUser(row), disabled: !isActive },
+        { label: '下线', onClick: () => message.info('强制下线功能待实现') },
+        { label: '删号', onClick: () => handleDeleteUser(row), confirm: true },
+        { label: '授权', onClick: () => message.info('临时权限赋予功能待实现') },
+        { label: '等级', onClick: () => showLevelEdit(row) }
+      ]
+      return h(
+        'div',
+        { class: 'action-cell' },
+        btns.map((b) => {
+          if (b.confirm) {
+            return h(
+              NPopconfirm,
+              {
+                title: '确认删除',
+                content: `确定永久删除用户「${row.username}」吗？`,
+                positiveText: '确认删除',
+                negativeText: '取消',
+                onPositiveClick: b.onClick
+              },
+              {
+                trigger: () => h('button', { class: 'action-btn', disabled: b.disabled }, b.label)
+              }
+            )
           }
-        )
-      ])
+          return h(
+            'button',
+            { class: 'action-btn', disabled: b.disabled, onClick: b.onClick },
+            b.label
+          )
+        })
+      )
     }
   }
 ]
@@ -288,7 +301,6 @@ async function loadUsers(resetPage?: number) {
   loading.value = true
   try {
     const params: Record<string, unknown> = { page: page.value, page_size: pageSize.value }
-    if (searchQ.value) params.q = searchQ.value
     const res = await getUsersApi(params as any)
     const paginated = res as unknown as Paginated<AdminUser>
     users.value = (paginated.list || paginated.items || []).map((u) => ({ ...u, key: u.id }))
@@ -300,19 +312,27 @@ async function loadUsers(resetPage?: number) {
   }
 }
 
-async function toggleUserStatus(row: AdminUser) {
+function showLevelEdit(row: AdminUser) {
+  message.info(`编辑用户「${row.username}」的等级（当前 P${row.level ?? 5}）`)
+}
+
+async function handleBanUser(row: AdminUser) {
   try {
-    if (row.is_active !== false) {
-      await disableUserApi(row.id)
-      row.is_active = false
-      message.success('用户已禁用')
-    } else {
-      await enableUserApi(row.id)
-      row.is_active = true
-      message.success('用户已启用')
-    }
+    await disableUserApi(row.id)
+    row.is_active = false
+    message.success(`用户「${row.username}」已封号`)
   } catch {
-    message.error('操作失败')
+    message.error('封号失败')
+  }
+}
+
+async function handleDeleteUser(row: AdminUser) {
+  try {
+    await deleteUserApi(row.id)
+    message.success(`用户「${row.username}」已删除`)
+    loadUsers(page.value)
+  } catch {
+    message.error('删除失败')
   }
 }
 
@@ -438,12 +458,18 @@ onMounted(() => {
 }
 
 .page-header {
+  margin-bottom: 20px;
+}
+.page-header-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
+}
+.page-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .page-title {
   font-size: 22px;
@@ -455,12 +481,30 @@ onMounted(() => {
   font-size: 13px;
   color: var(--text-tertiary);
   margin: 0;
-  width: 100%;
 }
-.page-actions {
+.page-header-tools {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.refresh-btn:hover {
+  background: var(--primary-light-color);
+  color: var(--primary-color);
 }
 
 .metric-grid {
@@ -572,12 +616,6 @@ onMounted(() => {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
-.table-header {
-  padding: 14px 16px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
 .table-footer {
   display: flex;
   justify-content: center;
@@ -585,42 +623,67 @@ onMounted(() => {
 }
 
 .user-cell {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 2px 5px;
+  background: var(--surface-inset-color);
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  transition: all 0.15s ease;
 }
-.user-cell-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+.user-cell:hover {
+  border-color: var(--primary-color);
   background: var(--primary-light-color);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.user-cell-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
 }
 .user-cell-name {
-  font-size: 13px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text-primary);
-}
-.user-cell-email {
-  font-size: 11px;
-  color: var(--text-tertiary);
+  line-height: 1;
 }
 
 .action-cell {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.action-btn:hover {
+  background: var(--surface-strong-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+.action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.action-btn:disabled:hover {
+  background: var(--surface-color);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

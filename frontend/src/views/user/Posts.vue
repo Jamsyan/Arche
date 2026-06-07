@@ -2,8 +2,8 @@
 import { ref, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { NDataTable, NPagination } from 'naive-ui'
 import { AddOutline } from '@/icons'
+import { ArTable, ArPagination } from '@/components/ui'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
 import { PostCard } from '@/components/blog'
@@ -187,7 +187,7 @@ onMounted(fetchPosts)
     </div>
 
     <div class="section-card">
-      <NDataTable
+      <ArTable
         :columns="columns"
         :data="tableData"
         :loading="loading"
@@ -195,12 +195,11 @@ onMounted(fetchPosts)
         single-line
       />
       <div class="pager">
-        <NPagination
+        <ArPagination
           :page="currentPage"
           :page-size="pageSize"
           :item-count="total"
           :page-sizes="[10, 20, 50]"
-          show-size-picker
           @update:page="handlePageChange"
           @update:page-size="handlePageSizeChange"
         />

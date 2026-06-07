@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h, ref } from 'vue'
-import { NInput, NPagination, NPopconfirm, useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
+import { NInput, NPopconfirm, useMessage } from 'naive-ui'
+import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import {
   getUsersApi,
   enableUserApi,
@@ -9,7 +9,7 @@ import {
   type AdminUser,
   type Paginated
 } from '@/services/api'
-import { ArButton, ArTag } from '@/components/ui'
+import { ArButton, ArTag, ArTable, ArPagination } from '@/components/ui'
 
 interface UserRow {
   key: string
@@ -30,7 +30,7 @@ const loading = ref(false)
 const page = ref(1)
 let pageSize: number = 10
 
-const columns: DataTableColumns<UserRow> = [
+const columns: ArTableColumn[] = [
   {
     title: '用户名',
     key: 'username',
@@ -184,7 +184,7 @@ const handlePageChange = (p: number) => {
     </div>
 
     <div class="table-wrapper">
-      <n-data-table
+      <ArTable
         :columns="columns"
         :data="users"
         :loading="loading"
@@ -196,12 +196,11 @@ const handlePageChange = (p: number) => {
     </div>
 
     <div class="pager">
-      <NPagination
+      <ArPagination
         :page="page"
         :page-size="pageSize"
         :item-count="total"
         :page-sizes="[10, 20, 50]"
-        :show-size-picker="true"
         @update:page="handlePageChange"
         @update:page-size="
           (v: number) => {

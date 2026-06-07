@@ -68,13 +68,15 @@
           class="logged-in-group"
         >
           <div class="user-menu-wrap">
-            <button class="avatar-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
-              <NIcon size="20"><PersonCircleOutline /></NIcon>
-            </button>
+            <ArAvatar
+              :username="userStore.userInfo?.username"
+              :size="30"
+              @click="showUserMenu = !showUserMenu"
+            />
             <div v-if="showUserMenu" class="user-dropdown" @click="showUserMenu = false">
               <!-- 用户信息头 -->
               <div class="dropdown-header">
-                <NIcon size="28" class="dropdown-avatar"><PersonCircleOutline /></NIcon>
+                <ArAvatar :username="userStore.userInfo?.username" :size="36" />
                 <div class="dropdown-user-info">
                   <span class="dropdown-username">{{
                     userStore.userInfo?.username || '用户'
@@ -120,7 +122,7 @@
       <div v-if="layoutMode !== 'guest'" class="user-menu-wrap">
         <button class="user-info-btn" @click="showUserMenu = !showUserMenu" aria-label="用户菜单">
           <span class="username">{{ userStore.userInfo?.username || '用户' }}</span>
-          <NIcon size="24" class="avatar-icon"><PersonCircleOutline /></NIcon>
+          <ArAvatar :username="userStore.userInfo?.username" :size="26" />
         </button>
         <div v-if="showUserMenu" class="user-dropdown">
           <button v-if="layoutMode === 'user'" class="dropdown-item" @click="goToProfile">
@@ -144,12 +146,12 @@ import { NIcon } from 'naive-ui'
 import {
   SearchOutline,
   MenuOutline,
-  PersonCircleOutline,
   PersonOutline,
   SettingsOutline,
   LogOutOutline
 } from '@vicons/ionicons5'
 import SiteLogo from '@/components/SiteLogo.vue'
+import ArAvatar from '@/components/ui/ArAvatar.vue'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'
 
@@ -186,10 +188,19 @@ const breadcrumb = computed(() => {
 })
 
 const goSearch = () => {
-  router.push({
-    path: '/explore',
-    query: { q: searchKeyword.value || undefined }
-  })
+  const kw = searchKeyword.value || ''
+  const path = route.path
+
+  // 根据当前页面上下文决定搜索目标
+  const target = path.startsWith('/admin/users')
+    ? { path: '/admin/users', query: { q: kw } }
+    : path.startsWith('/admin/content')
+      ? { path: '/admin/content', query: { q: kw } }
+      : path.startsWith('/admin')
+        ? { path: '/admin/ops', query: { q: kw } }
+        : { path: '/explore', query: { q: kw || undefined } }
+
+  router.push(target)
 }
 
 const handleLogout = async () => {
@@ -394,27 +405,6 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
-/* ── User Menu (guest) ── */
-.avatar-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
-  font-size: 13px;
-  background: var(--surface-color);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.avatar-btn:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-}
-
 /* ── User Info Button (user/admin) ── */
 .user-info-btn {
   display: flex;
@@ -438,10 +428,6 @@ onBeforeUnmount(() => {
   font-weight: var(--font-weight-medium);
   font-size: 14px;
   color: var(--text-secondary);
-}
-
-.avatar-icon {
-  color: var(--primary-color);
 }
 
 /* ── User Dropdown ── */
