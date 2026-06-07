@@ -6,6 +6,7 @@ import io
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 from sqlalchemy import delete, func, select, or_
 from fastapi import UploadFile
@@ -1614,16 +1615,26 @@ class BlogService:
         # 检查视频链接（检测 bilibili/youtube 链接格式）
         for match in re.finditer(r"\[([^\]]*)\]\((https?://[^)]+)\)", content):
             url = match.group(2)
-            if "bilibili.com" in url or "youtube.com" in url:
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ""
+            if any(
+                hostname == d or hostname.endswith("." + d)
+                for d in ("bilibili.com", "b23.tv", "youtube.com")
+            ):
                 if not self._validate_video_url(url):
                     errors.append(f"视频链接 '{url}' 格式无效")
         return errors
 
     def _validate_video_url(self, url: str) -> bool:
         """验证视频分享链接的基本格式。"""
-        if "bilibili.com" in url:
+        parsed = urlparse(url)
+        hostname = parsed.hostname or ""
+        is_bilibili = hostname == "bilibili.com" or hostname.endswith(".bilibili.com")
+        is_b23tv = hostname == "b23.tv" or hostname.endswith(".b23.tv")
+        is_youtube = hostname == "youtube.com" or hostname.endswith(".youtube.com")
+        if is_bilibili or is_b23tv:
             return bool(re.search(r"(BV[\w]+|video/[\w]+)", url))
-        if "youtube.com" in url:
+        if is_youtube:
             return bool(re.search(r"(watch\?v=|embed/|shorts/)", url))
         return True
 

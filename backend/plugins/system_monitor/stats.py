@@ -20,6 +20,7 @@ class RequestStatsTracker:
     """
 
     WINDOW_SECONDS = 60  # 统计窗口：1 分钟
+    MAX_PATH_HISTORY = 500  # _path_stats_history 最大条目数
 
     def __init__(self, container: "ServiceContainer"):
         self.container = container
@@ -76,6 +77,14 @@ class RequestStatsTracker:
                 self._path_stats_history[path] = (
                     self._path_stats_history.get(path, 0) + count
                 )
+            # 限制历史条目数，防止内存泄漏
+            if len(self._path_stats_history) > self.MAX_PATH_HISTORY:
+                sorted_items = sorted(
+                    self._path_stats_history.items(),
+                    key=itemgetter(1),
+                    reverse=True,
+                )[: self.MAX_PATH_HISTORY]
+                self._path_stats_history = dict(sorted_items)
             self._path_stats.clear()
             self._path_stats_reset_time = now
         self._path_stats[path] += 1
