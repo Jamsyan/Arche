@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NPagination, useMessage } from 'naive-ui'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
-import { PostCard } from '@/components/blog'
+import { PostCard, HeroCarousel } from '@/components/blog'
 import { useUserStore } from '@/store/modules/user'
 
 const route = useRoute()
@@ -16,10 +16,7 @@ const posts = ref<BlogPost[]>([])
 const hotPosts = ref<BlogPost[]>([])
 const total = ref(0)
 const page = ref(Number(route.query.page || 1))
-const hotIndex = ref(0)
 const HOT_ROTATE_INTERVAL_MS = 12000
-
-let hotTimer: ReturnType<typeof setInterval> | null = null
 
 const filterByAccess = (list: BlogPost[]) =>
   userStore.token ? list : list.filter((item) => (item.required_level ?? 5) >= 5)
@@ -36,7 +33,6 @@ const fetchPosts = async () => {
     posts.value = latestList
     hotPosts.value = hotList.length > 0 ? hotList : latestList.slice(0, 6)
     total.value = latestRes.total || 0
-    hotIndex.value = 0
   } catch {
     message.error('获取文章列表失败，请刷新重试')
   } finally {
@@ -53,14 +49,6 @@ const syncQuery = () => {
   })
 }
 
-const hotGroups = computed(() => {
-  const groups: BlogPost[][] = []
-  for (let i = 0; i < hotPosts.value.length; i += 2) {
-    groups.push(hotPosts.value.slice(i, i + 2))
-  }
-  return groups
-})
-const currentHotGroup = computed(() => hotGroups.value[hotIndex.value] || [])
 const latestPosts = computed(() => posts.value.slice(0, 6))
 const quickPosts = computed(() => posts.value.slice(6, 12))
 
@@ -72,29 +60,6 @@ const openPost = (post: BlogPost) => {
   router.push(`/blog/${post.slug}`)
 }
 
-const startHotTimer = () => {
-  if (hotTimer) {
-    clearInterval(hotTimer)
-  }
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    return
-  }
-  hotTimer = setInterval(() => {
-    if (hotGroups.value.length > 1) {
-      hotIndex.value = (hotIndex.value + 1) % hotGroups.value.length
-    }
-  }, HOT_ROTATE_INTERVAL_MS)
-}
-
-const resetHotTimer = () => {
-  startHotTimer()
-}
-
-const jumpToHot = (index: number) => {
-  hotIndex.value = index
-  resetHotTimer()
-}
-
 watch(page, async () => {
   syncQuery()
   await fetchPosts()
@@ -102,50 +67,12 @@ watch(page, async () => {
 
 onMounted(async () => {
   await fetchPosts()
-  startHotTimer()
-})
-
-onBeforeUnmount(() => {
-  if (hotTimer) {
-    clearInterval(hotTimer)
-  }
 })
 </script>
 
 <template>
   <div class="home-page">
-    <section
-      v-if="currentHotGroup.length > 0"
-      class="hero-carousel"
-      :style="{ '--hot-interval': `${HOT_ROTATE_INTERVAL_MS}ms` }"
-    >
-      <Transition name="hero-slide" mode="out-in">
-        <div :key="hotIndex" class="hero-track">
-          <PostCard
-            v-for="post in currentHotGroup"
-            :key="post.id"
-            :post="post"
-            layout="grid"
-            @open="openPost(post)"
-          />
-        </div>
-      </Transition>
-      <div class="carousel-controls">
-        <div class="hot-dots">
-          <button
-            v-for="(_, index) in hotGroups"
-            :key="index"
-            class="dot"
-            :class="{ active: hotIndex === index }"
-            :aria-label="`切换到第 ${index + 1} 组`"
-            type="button"
-            @click.stop="jumpToHot(index)"
-          >
-            <span class="dot-fill" />
-          </button>
-        </div>
-      </div>
-    </section>
+    <HeroCarousel v-if="hotPosts.length > 0" :posts="hotPosts" :interval="HOT_ROTATE_INTERVAL_MS" />
 
     <section class="post-section">
       <div v-if="latestPosts.length === 0" class="empty">暂无内容</div>
@@ -205,84 +132,6 @@ onBeforeUnmount(() => {
   font-family: var(--font-sans);
 }
 
-.hero-carousel {
-  min-height: 240px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: var(--content-padding);
-}
-
-.hero-track {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-md);
-}
-
-.carousel-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.hot-dots {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  width: min(520px, 100%);
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  border: none;
-  padding: 0;
-  background: color-mix(in srgb, var(--primary-color) 26%, transparent);
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform var(--transition-normal);
-}
-
-.dot:hover {
-  transform: scale(1.08);
-}
-
-.dot-fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--primary-color) 55%, transparent);
-  transform: scale(0.65);
-  transition: transform var(--transition-normal);
-}
-
-.dot.active .dot-fill {
-  background: var(--primary-color);
-  transform: scale(1);
-}
-
-.hero-slide-enter-active,
-.hero-slide-leave-active {
-  transition:
-    opacity var(--transition-slow),
-    transform var(--transition-slow);
-}
-
-.hero-slide-enter-from {
-  opacity: 0;
-  transform: translateX(24px);
-}
-
-.hero-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-24px);
-}
-
 .post-section {
   display: flex;
   flex-direction: column;
@@ -319,18 +168,7 @@ onBeforeUnmount(() => {
   padding: var(--spacing-md) 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-slide-enter-active,
-  .hero-slide-leave-active {
-    transition: none !important;
-  }
-}
-
 @media (max-width: 680px) {
-  .hero-track {
-    grid-template-columns: 1fr;
-  }
-
   .latest-grid {
     grid-template-columns: 1fr;
   }
