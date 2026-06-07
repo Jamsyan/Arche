@@ -2,16 +2,15 @@
 /**
  * HeroCarousel — iOS 后台式卡片堆叠轮播。
  *
- * 核心视觉：中间一张完整主卡，两侧卡片一层叠一层无限延伸。
- * 正如 iPhone 后台卡片：第一张完整清晰，后面一张叠一张形成深邃堆叠。
+ * 核心视觉：中间一张完整主卡（A1），左右 B1/C1 清晰可读但微模糊，
+ * 两侧卡片一层叠一层无限延伸，遵循近大远小透视规律。
  *
- * 实现方式：
- * - 每张卡片绝对定位，独立 transform
- * - 弹簧驱动当前索引，所有卡片平滑过渡
- * - 每张卡片的偏移量基于距中心的距离，每层仅露出 ~35px 边缘
- * - 3 份拷贝实现无限循环
+ * 实现：
+ * - 透视投影算法（位置 + 缩放各用独立因子）
+ * - CSS filter blur 实现"失焦"效果
+ * - 5 份拷贝 + 提前边界复位实现平滑无限循环
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSpring } from '@/utils/spring'
 import { getCoverGradient } from '@/utils/cover'
@@ -30,20 +29,27 @@ const sceneRef = ref<HTMLElement | null>(null)
 
 // ── 常量 ──
 const CARD_W = 280
-const CARD_H_RATIO = 3 / 4 // height = width * ratio (aspect-ratio 4/3)
-const PEEK = 35 // 每层露出的边缘宽度 (px)
-const STACK_SCALE = 0.88 // 每层递减倍率
+// 透视参数：位置因子大 → 散布快，缩放因子小 → 衰减慢
+const POS_FACTOR = 0.47 // 位置透视因子（n=1 时偏移 ~180px）
+const SCALE_FACTOR = 0.18 // 缩放透视因子（n=1 时 scale ~0.85）
+const MAX_SPREAD = 560
 
-// 3 份拷贝
+// 5 份拷贝 → 更大缓冲空间，边界复位更平滑
+const COPIES = 5
 const displayPosts = computed(() => {
   if (props.posts.length === 0) return []
-  return [...props.posts, ...props.posts, ...props.posts]
+  const result: BlogPost[] = []
+  for (let c = 0; c < COPIES; c++) {
+    result.push(...props.posts)
+  }
+  return result
 })
 const N = computed(() => props.posts.length)
 
-// ── 弹簧驱动索引 ──
-const targetIdx = ref(N.value)
-const animatedIdx = useSpring(targetIdx, {
+// ── 弹簧驱动索引（从正中间份开始） ──
+const MID = Math.floor(COPIES / 2)
+const targetIdx = ref(MID * N.value)
+const { value: animatedIdx, jump } = useSpring(targetIdx, {
   stiffness: 160,
   damping: 22,
   precision: 0.3
@@ -51,41 +57,59 @@ const animatedIdx = useSpring(targetIdx, {
 
 // ── 场景尺寸 ──
 const sceneW = ref(800)
-const sceneH = computed(() => Math.max(240, sceneW.value * CARD_H_RATIO * 0.35))
+const sceneH = computed(() => Math.max(240, (CARD_W * 3) / 4 + 40))
 
 // ── 所有卡片的堆叠变换 ──
-// 每张卡片根据 (i - animatedIdx) 计算绝对位置
-// 正偏移 → 右侧堆叠，负偏移 → 左侧堆叠
+// 位置：position = sign * maxSpread * (1 - 1/(1 + |n| * posFactor))
+// 缩放：scale = 1 / (1 + |n| * scaleFactor)
+// 模糊：blur 从 n±0.5 开始递增，B1/C1 微模糊
+// 阴影：三层 box-shadow 模拟"卡片放在地板上的感觉"
 const cardStates = computed(() => {
   const cw = CARD_W
   return displayPosts.value.map((_, i) => {
-    const n = i - animatedIdx.value // 连续偏移量
+    const n = i - animatedIdx.value
     const abs = Math.abs(n)
     const sign = Math.sign(n) || 1
 
-    // ── 堆叠衰减曲线（iOS 式：每层进度性缩小 + 偏移） ──
-    const scale = Math.pow(STACK_SCALE, abs)
-    const halfW = (cw * scale) / 2
-    // 卡片近侧边缘距中心 = cardHalf + peek * abs
-    const nearEdge = cw / 2 + PEEK * abs
-    // 卡片中心偏移 = nearEdge - halfW
-    const xOffset = sign * (nearEdge - halfW)
+    // ── 位置（近大远小非线性） ──
+    const t = 1 - 1 / (1 + abs * POS_FACTOR)
+    const xOffset = sign * t * MAX_SPREAD
 
-    // 透明度：越远越淡
-    const opacity = Math.max(0, 1 - abs * 0.13)
+    // ── 缩放 ──
+    const scale = 1 / (1 + abs * SCALE_FACTOR)
 
-    // z-index：越近越高
-    const zIndex = Math.max(0, 10 - abs)
+    // ── 透明度（二次曲线：B1/C1 完全 opaque，远处快速趋零） ──
+    // 保证边界跳转时远处卡片 opacity ≈ 0，跳变不可见
+    const opacity = 1 / (1 + Math.pow(Math.max(0, abs - 0.8), 2) * 1.8)
+
+    // ── 模糊（远处彻底模糊，配合低 opacity 淹没跳变） ──
+    const blurAmt = abs <= 0.5 ? 0 : Math.min(8, (abs - 0.5) * 2.2)
+
+    // ── 居中 ──
+    const transformX = xOffset - cw / 2
+
+    // ── 地板阴影：三层 shadow 随距离衰减，产生"卡片放在地上的感觉" ──
+    const si = Math.max(0, 1 - abs * 0.25)
+    const shadow = [
+      `0 ${(1.5 * scale).toFixed(1)}px ${(4 * scale).toFixed(1)}px rgba(26,24,23,${(0.05 * si).toFixed(3)})`,
+      `0 ${(6 * scale).toFixed(1)}px ${(18 * scale).toFixed(1)}px rgba(26,24,23,${(0.08 * si).toFixed(3)})`,
+      `0 ${(18 * scale).toFixed(1)}px ${(50 * scale).toFixed(1)}px rgba(26,24,23,${(0.06 * si).toFixed(3)})`
+    ].join(', ')
 
     return {
-      transform: `translateX(${xOffset}px) translateY(-50%) scale(${scale})`,
+      transform: `translateX(${transformX}px) translateY(-50%) scale(${scale})`,
+      filter: blurAmt > 0 ? `blur(${blurAmt}px)` : 'none',
+      boxShadow: shadow,
       opacity,
-      zIndex,
-      // 主卡 + 左右各一张可点击
+      zIndex: Math.max(0, 10 - Math.round(abs)),
       pe: (abs < 1.5 ? 'auto' : 'none') as 'auto' | 'none'
     }
   })
 })
+
+function showOverlay(i: number): boolean {
+  return Math.abs(i - Math.round(animatedIdx.value)) <= 1
+}
 
 function getCardState(i: number) {
   return cardStates.value[i] ?? {}
@@ -126,6 +150,19 @@ function goTo(cardIdx: number) {
   targetIdx.value = cardIdx
   resetTimer()
 }
+
+// ── 边界复位（无缝跳转，无弹簧反弹） ──
+// 用 jump() 同时跳过 current + target，不反转弹簧方向
+// 关键：Math.round() 确保跳转到整数位置，避免小数累计偏移
+watch(animatedIdx, (pos) => {
+  const len = N.value
+  if (len <= 1) return
+  if (pos < len * 1.8) {
+    jump(Math.round(pos) + len)
+  } else if (pos >= len * 3.2) {
+    jump(Math.round(pos) - len)
+  }
+})
 
 // ── 封面样式 ──
 function coverStyle(post: BlogPost) {
@@ -181,11 +218,9 @@ onBeforeUnmount(() => {
 <template>
   <section class="hero-carousel" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
     <div ref="sceneRef" class="carousel-scene" :style="{ height: sceneH + 'px' }">
-      <!-- 侧边渐变遮罩 -->
       <div class="mask-left" />
       <div class="mask-right" />
 
-      <!-- 堆叠卡片层 -->
       <div class="card-stack">
         <article
           v-for="(post, i) in displayPosts"
@@ -198,7 +233,7 @@ onBeforeUnmount(() => {
           <div class="card-cover" :style="coverStyle(post)">
             <div class="card-shine" />
           </div>
-          <div v-if="cardAtMain(i)" class="card-overlay">
+          <div v-if="showOverlay(i)" class="card-overlay">
             <div class="overlay-content">
               <span class="overlay-author">{{ post.author_username || '匿名' }}</span>
               <h3 class="overlay-title">{{ post.title }}</h3>
@@ -245,7 +280,7 @@ onBeforeUnmount(() => {
         :class="{ active: Math.round(animatedIdx) % N === index }"
         :aria-label="`切换到第 ${index + 1} 张`"
         type="button"
-        @click="goTo(N + index)"
+        @click="goTo(MID * N + index)"
       >
         <span class="dot-fill" />
       </button>
@@ -267,7 +302,6 @@ onBeforeUnmount(() => {
   user-select: none;
 }
 
-/* ── 场景容器 ── */
 .carousel-scene {
   position: relative;
   overflow: hidden;
@@ -276,7 +310,6 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-/* ── 卡片堆叠层 ── */
 .card-stack {
   position: absolute;
   left: 50%;
@@ -285,7 +318,6 @@ onBeforeUnmount(() => {
   height: 0;
 }
 
-/* ── 单张卡片 ── */
 .carousel-card {
   position: absolute;
   left: 0;
@@ -295,23 +327,14 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-md);
   overflow: hidden;
   cursor: pointer;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
-  box-shadow:
-    0 4px 20px rgba(26, 24, 23, 0.12),
-    0 1px 4px rgba(26, 24, 23, 0.08);
   transition: filter 0.3s ease;
 }
 
 .carousel-card:hover {
   filter: brightness(1.05);
-}
-
-.carousel-card.is-main {
-  box-shadow:
-    0 8px 32px rgba(26, 24, 23, 0.18),
-    0 2px 8px rgba(26, 24, 23, 0.1);
 }
 
 .carousel-card:focus-visible {
@@ -340,6 +363,7 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+/* ── 文字叠覆 ── */
 .card-overlay {
   position: absolute;
   inset: 0;
@@ -375,7 +399,6 @@ onBeforeUnmount(() => {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* ── 侧边渐变遮罩 ── */
 .mask-left,
 .mask-right {
   position: absolute;
@@ -390,13 +413,11 @@ onBeforeUnmount(() => {
   left: 0;
   background: linear-gradient(to right, var(--surface-color) 0%, transparent 100%);
 }
-
 .mask-right {
   right: 0;
   background: linear-gradient(to left, var(--surface-color) 0%, transparent 100%);
 }
 
-/* ── 导航箭头 ── */
 .nav-arrow {
   position: absolute;
   top: 50%;

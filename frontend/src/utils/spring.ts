@@ -30,14 +30,19 @@ const DEFAULTS = {
   precision: 0.5
 } satisfies Required<SpringConfig>
 
+interface SpringHandle {
+  /** 当前弹簧位置（只读） */
+  value: Readonly<Ref<number>>
+  /** 瞬间跳转到指定位置（无动画），用于无缝边界复位 */
+  // eslint-disable-next-line no-unused-vars
+  jump: (x: number) => void
+}
+
 /**
  * 创建一个弹簧驱动的响应式数值。
  * 修改 targetRef.value 会自动触发弹簧动画。
  */
-export function useSpring(
-  targetRef: Ref<number>,
-  config: SpringConfig = {}
-): Readonly<Ref<number>> {
+export function useSpring(targetRef: Ref<number>, config: SpringConfig = {}): SpringHandle {
   const { stiffness, damping, mass, precision } = { ...DEFAULTS, ...config }
   const current = ref(targetRef.value)
   let velocity = 0
@@ -74,6 +79,13 @@ export function useSpring(
     }
   }
 
+  /** 瞬间跳转到指定位置（无动画），用于无限循环无缝复位 */
+  function jump(val: number) {
+    current.value = val
+    targetRef.value = val
+    velocity = 0
+  }
+
   const stopWatch = watchEffect(() => {
     void targetRef.value
     start()
@@ -88,7 +100,7 @@ export function useSpring(
     stopWatch()
   })
 
-  return readonly(current)
+  return { value: readonly(current), jump }
 }
 
 // eslint-disable-next-line no-unused-vars
