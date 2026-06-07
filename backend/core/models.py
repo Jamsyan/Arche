@@ -13,6 +13,24 @@ from sqlalchemy.orm import Mapped, mapped_column
 from backend.core.db import Base
 
 
+class HasSID:
+    """为模型添加 sid（Searchable ID）列的 mixin。
+
+    sid 格式：{prefix}-[{category}]-{32位hex-每4位一组用横杠分隔}
+    示例：asse-post-550e-8400-e29b-41d4-a716-4466-5544-0000
+    """
+
+    sid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+
+    def generate_sid(self, prefix: str, category: str | None = None) -> None:
+        """根据当前模型的 UUID id 自动生成 sid。"""
+        from backend.core.uid import make_sid
+
+        self.sid = make_sid(prefix, self.id, category)
+
+
 class ConfigEntry(Base):
     """运行时配置条目，替代 .env 中的业务配置。"""
 

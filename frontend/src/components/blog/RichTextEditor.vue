@@ -177,7 +177,10 @@ const ImagePlaceholder = Node.create({
   },
 
   addInputRules() {
-    function placeholderRuleHandler(this: any, props: { state: any; range: any; match: RegExpMatchArray }) {
+    function placeholderRuleHandler(
+      this: any,
+      props: { state: any; range: any; match: RegExpMatchArray }
+    ) {
       const { state, range, match } = props
       const { tr } = state
       const start = range.from
@@ -372,7 +375,11 @@ function execSetFormat(type: string, level?: number) {
   if (type === 'paragraph') {
     editor.value.chain().focus().setParagraph().run()
   } else if (type === 'heading' && level) {
-    editor.value.chain().focus().toggleHeading({ level: level as 1 | 2 }).run()
+    editor.value
+      .chain()
+      .focus()
+      .toggleHeading({ level: level as 1 | 2 })
+      .run()
   } else if (type === 'blockquote') {
     editor.value.chain().focus().toggleBlockquote().run()
   }

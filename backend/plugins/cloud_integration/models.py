@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import JSON as PG_JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
 class JSON(TypeDecorator):
@@ -98,7 +99,7 @@ class UUIDString(TypeDecorator):
         return uuid.UUID(value) if isinstance(value, str) else value
 
 
-class TrainingJob(Base):
+class TrainingJob(Base, HasSID):
     """训练任务表。"""
 
     __tablename__ = "training_jobs"
@@ -106,6 +107,7 @@ class TrainingJob(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     creator_id: Mapped[uuid.UUID] = mapped_column(UUIDString, nullable=False)
     model_config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -156,7 +158,7 @@ class TrainingJob(Base):
     )
 
 
-class TrainingInstance(Base):
+class TrainingInstance(Base, HasSID):
     """训练实例表。"""
 
     __tablename__ = "training_instances"
@@ -164,6 +166,7 @@ class TrainingInstance(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
     )
@@ -192,7 +195,7 @@ class TrainingInstance(Base):
     )
 
 
-class TrainingCost(Base):
+class TrainingCost(Base, HasSID):
     """训练费用记录表。"""
 
     __tablename__ = "training_costs"
@@ -200,6 +203,7 @@ class TrainingCost(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
     )
@@ -217,7 +221,7 @@ class TrainingCost(Base):
     )
 
 
-class TrainingTaskStep(Base):
+class TrainingTaskStep(Base, HasSID):
     """训练任务编排步骤记录表。"""
 
     __tablename__ = "training_task_steps"
@@ -225,6 +229,7 @@ class TrainingTaskStep(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
     )
@@ -244,7 +249,7 @@ class TrainingTaskStep(Base):
     )
 
 
-class Dataset(Base):
+class Dataset(Base, HasSID):
     """数据集表。"""
 
     __tablename__ = "datasets"
@@ -252,6 +257,7 @@ class Dataset(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     path: Mapped[str] = mapped_column(String(1024), nullable=False)  # 虚拟路径
@@ -275,7 +281,7 @@ class Dataset(Base):
     )
 
 
-class CodeRepo(Base):
+class CodeRepo(Base, HasSID):
     """代码仓库表。"""
 
     __tablename__ = "code_repos"
@@ -283,6 +289,7 @@ class CodeRepo(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     git_url: Mapped[str] = mapped_column(String(1024), nullable=False)
     git_branch: Mapped[str] = mapped_column(
@@ -297,7 +304,7 @@ class CodeRepo(Base):
     )
 
 
-class Artifact(Base):
+class Artifact(Base, HasSID):
     """训练产物表。"""
 
     __tablename__ = "artifacts"
@@ -305,6 +312,7 @@ class Artifact(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUIDString, ForeignKey("training_jobs.id"), nullable=False
     )

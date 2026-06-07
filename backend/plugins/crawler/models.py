@@ -6,16 +6,19 @@ import uuid
 
 from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class CrawlRecord(Base):
+class CrawlRecord(Base, HasSID):
     """漫游爬虫抓取记录（用于资产聚合查询和前端展示）。"""
 
     __tablename__ = "crawl_records"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     url = Column(String(2048), nullable=False)
     title = Column(String(512), nullable=True)
     content_type = Column(

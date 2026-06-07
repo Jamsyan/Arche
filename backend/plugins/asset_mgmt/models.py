@@ -13,9 +13,10 @@ from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class AssetIndex(Base):
+class AssetIndex(Base, HasSID):
     """资产索引表：跨插件统一资产目录。"""
 
     __tablename__ = "asset_index"

@@ -5,6 +5,7 @@ import { NIcon, NTag, useMessage } from 'naive-ui'
 import { PersonOutline, PricetagOutline } from '@vicons/ionicons5'
 import { PostCard } from '@/components/blog'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
+import { useSearchStore } from '@/store/modules/search'
 import type { MockExploreItem } from '@/services/mock/types'
 
 type ExploreFilterMode = 'tag' | 'author'
@@ -15,6 +16,7 @@ const selectedAuthors = ref<string[]>([])
 
 const router = useRouter()
 const route = useRoute()
+const searchStore = useSearchStore()
 
 const message = useMessage()
 const exploreItems = ref<MockExploreItem[]>([])
@@ -46,7 +48,12 @@ const convertBlogPostToExploreItem = (post: BlogPost, index: number): MockExplor
 const fetchExploreData = async () => {
   loading.value = true
   try {
-    const result = await getBlogPostsApi({ page: 1, page_size: 20, sort_by: 'created_at' })
+    const params: Record<string, unknown> = { page: 1, page_size: 20, sort_by: 'created_at' }
+    const q = searchStore.keyword.trim()
+    if (q) {
+      params.q = q
+    }
+    const result = await getBlogPostsApi(params)
     if (result.list && result.list.length > 0) {
       exploreItems.value = result.list.map(convertBlogPostToExploreItem)
       const tagSet = new Set<string>()
@@ -91,6 +98,18 @@ watch(
     router.replace(keys.length ? { path: route.path, query } : { path: route.path })
   },
   { deep: true }
+)
+
+// 监听全局搜索关键词变化
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => searchStore.keyword,
+  () => {
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => {
+      fetchExploreData()
+    }, 400)
+  }
 )
 
 const isOptionChecked = (option: string) => {

@@ -10,9 +10,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class OSSFile(Base):
+class OSSFile(Base, HasSID):
     """文件表：本地/云端文件元数据 + 冷热分层索引。"""
 
     __tablename__ = "oss_files"
@@ -20,6 +21,7 @@ class OSSFile(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
@@ -41,12 +43,13 @@ class OSSFile(Base):
     __table_args__ = (Index("ix_oss_files_owner_storage", "owner_id", "storage_type"),)
 
 
-class UserOSSQuota(Base):
+class UserOSSQuota(Base, HasSID):
     """用户 OSS 配额表：配额上限 + 限速倍率。"""
 
     __tablename__ = "user_oss_quotas"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, nullable=False, index=True
     )

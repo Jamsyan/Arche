@@ -10,9 +10,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class User(Base):
+class User(Base, HasSID):
     """用户表：id, email, username, password_hash, level, blog_quality_level,
     deletion_status, deletion_reason, deletion_expires_at, deleted_at,
     created_at, updated_at"""
@@ -22,6 +23,7 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)

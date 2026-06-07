@@ -10,9 +10,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.db import Base
+from backend.core.models import HasSID
 
 
-class BlogPost(Base):
+class BlogPost(Base, HasSID):
     """博客文章表。"""
 
     __tablename__ = "blog_posts"
@@ -20,6 +21,7 @@ class BlogPost(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     slug: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
@@ -42,7 +44,7 @@ class BlogPost(Base):
     )
 
 
-class BlogComment(Base):
+class BlogComment(Base, HasSID):
     """博客评论表。"""
 
     __tablename__ = "blog_comments"
@@ -50,6 +52,7 @@ class BlogComment(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -64,7 +67,7 @@ class BlogComment(Base):
     )
 
 
-class BlogLike(Base):
+class BlogLike(Base, HasSID):
     """博客点赞表。"""
 
     __tablename__ = "blog_likes"
@@ -72,6 +75,7 @@ class BlogLike(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -83,7 +87,7 @@ class BlogLike(Base):
     )
 
 
-class BlogReport(Base):
+class BlogReport(Base, HasSID):
     """博客举报表。"""
 
     __tablename__ = "blog_reports"
@@ -91,6 +95,7 @@ class BlogReport(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     reporter_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -99,7 +104,7 @@ class BlogReport(Base):
     )
 
 
-class BlogTag(Base):
+class BlogTag(Base, HasSID):
     """博客标签表。"""
 
     __tablename__ = "blog_tags"
@@ -107,6 +112,7 @@ class BlogTag(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -126,16 +132,17 @@ class BlogPostTag(Base):
     )
 
 
-class BlogFavorite(Base):
+class BlogFavorite(Base, HasSID):
     """博客收藏表。"""
 
     __tablename__ = "blog_favorites"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    post_id: Mapped[str] = mapped_column(String(36), nullable=False)
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    post_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -145,7 +152,7 @@ class BlogFavorite(Base):
     )
 
 
-class PostFile(Base):
+class PostFile(Base, HasSID):
     """帖子关联文件表：记录帖子临时上传的文件及其引用状态。"""
 
     __tablename__ = "blog_post_files"
@@ -153,6 +160,7 @@ class PostFile(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    sid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     post_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
