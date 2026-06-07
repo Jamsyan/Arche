@@ -38,47 +38,35 @@ jobs:
             TAG="${REF#refs/tags/v}"
             echo "Manual tag push → build: $TAG"
 
-          # push 到 master → 按 git diff 算版本
+          # push 到 master → 按 PR 合并或直接 push 算版本
           elif [[ "$EVENT" == "push" && "$REF" == refs/heads/master ]]; then
             LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
             if [ -n "$LAST_TAG" ]; then
-              # 计算源码总行数（避免除零）
-              TOTAL=$(git ls-files | grep -E '\.(py|ts|vue|js|css)$' | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-              [ -z "$TOTAL" ] && TOTAL=1
-              [ "$TOTAL" -eq 0 ] && TOTAL=1
-
-              # 计算变更量
+              # 计算代码变更行数（最权威的决定因素）
               STATS=$(git diff --shortstat "$LAST_TAG"...HEAD 2>/dev/null)
               INSERTIONS=$(echo "$STATS" | sed -n 's/.* \([0-9]*\) insertion.*/\1/p')
-              DELETIONS=$(echo "$STATS" | sed -n 's/.* \([0-9]*\) deletion.*/\1/p')
               [ -z "$INSERTIONS" ] && INSERTIONS=0
-              [ -z "$DELETIONS" ] && DELETIONS=0
-              CHANGE_PERCENT=$(( (INSERTIONS + DELETIONS) * 100 / TOTAL ))
 
-              # 确定版本位 — 按 PR（merge commit）级别计算，而非单个 commit
-              # 1. 所有 commit body 中的 BREAKING CHANGE 是硬信号
-              BODIES=$(git log "$LAST_TAG"...HEAD --format="%b" 2>/dev/null || echo "")
-              if echo "$BODIES" | grep -qiE 'BREAKING CHANGE'; then
+              # 获取 PR 合并记录（分支名作为辅助信号）
+              MERGES=$(git log "$LAST_TAG"...HEAD --merges --format="%s" 2>/dev/null || echo "")
+
+              # --- 版本判定：行数为主，分支名为辅 ---
+              if [ "$INSERTIONS" -gt 15000 ]; then
+                # 超大变更（>15000 行）→ major
                 BUMP="major"
-
-              # 2. 取 merge commit 的分支名前缀（一个 PR 视为一个整体）
+              elif [ "$INSERTIONS" -gt 2000 ]; then
+                # 中型变更（2000-15000 行）→ minor
+                BUMP="minor"
               else
-                MERGES=$(git log "$LAST_TAG"...HEAD --merges --format="%s" 2>/dev/null || echo "")
+                # 小变更（<2000 行）：分支名二次判断
                 if echo "$MERGES" | grep -qiE 'from [^ ]+/breaking/'; then
                   BUMP="major"
-                elif echo "$MERGES" | grep -qiE 'from [^ ]+/feat/'; then
-                  BUMP="minor"
-                elif [ -n "$MERGES" ]; then
-                  # 有 merge commit 但未匹配到 breaking/feat → patch
-                  BUMP="patch"
-
-                # 3. 无 merge commit（直接 push）→ 代码变更比例兜底
-                elif [ "$CHANGE_PERCENT" -gt 50 ]; then
-                  BUMP="major"
-                elif [ "$CHANGE_PERCENT" -gt 15 ]; then
+                elif echo "$MERGES" | grep -qiE 'from [^ ]+/refactor/'; then
+                  # 小重构也升 minor
                   BUMP="minor"
                 else
+                  # 小 feat / 小 fix / style / chore → patch
                   BUMP="patch"
                 fi
               fi
@@ -95,7 +83,7 @@ jobs:
                 patch) PATCH=$((PATCH + 1)) ;;
               esac
               TAG="${MAJOR}.${MINOR}.${PATCH}"
-              echo "Push → bump ${BUMP} (${CHANGE_PERCENT}% changed): ${LAST_TAG#v} → $TAG"
+              echo "Push → bump ${BUMP}: ${LAST_TAG#v} → $TAG"
             else
               TAG="0.0.1"
               echo "First build → $TAG"
