@@ -245,11 +245,6 @@ function getColAttrs(col: ArTableColumn) {
 function isSortable(col: ArTableColumn): boolean {
   return col.sortable ?? props.sortable ?? false
 }
-
-/** RenderCell 函数式组件 */
-function RenderCell(props: { renderFn: Function; row: any }) {
-  return props.renderFn(props.row)
-}
 </script>
 
 <template>
@@ -387,7 +382,9 @@ function RenderCell(props: { renderFn: Function; row: any }) {
                 getColAttrs(col).style
               ]"
             >
-              <component v-if="col.render" :is="RenderCell" :render-fn="col.render" :row="row" />
+              <template v-if="col.render">
+                <component :is="() => col.render(row)" />
+              </template>
               <span v-else class="ar-table__cell-text">{{ row[col.key] }}</span>
             </td>
           </tr>
@@ -425,7 +422,7 @@ function RenderCell(props: { renderFn: Function; row: any }) {
         :page="pagination.page"
         :page-size="pagination.pageSize"
         :item-count="pagination.itemCount"
-        :page-sizes="pagination.pageSizes"
+        :page-sizes="pagination.pageSizes ?? [10, 20, 50]"
         @update:page="(p: number) => emit('update:page', p)"
         @update:page-size="(s: number) => emit('update:pageSize', s)"
       />
@@ -519,16 +516,8 @@ function RenderCell(props: { renderFn: Function; row: any }) {
   transition: background 0.15s ease;
 }
 
-.ar-table__row:hover {
-  background: var(--primary-light-color);
-}
-
 .ar-table__row--striped {
   background: var(--surface-inset-color);
-}
-
-.ar-table__row--striped:hover {
-  background: var(--primary-light-color);
 }
 
 .ar-table__row--selected {

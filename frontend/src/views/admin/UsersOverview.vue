@@ -161,19 +161,85 @@
         </div>
       </template>
     </NModal>
+
+    <!-- 等级编辑弹窗 -->
+    <NModal v-model:show="showLevelModal" title="编辑用户等级" preset="card" style="width: 360px">
+      <div class="modal-hint">当前编辑：{{ editingUser?.username }}</div>
+      <NSelect v-model:value="levelEditValue" :options="levelOptions" />
+      <template #footer>
+        <div style="display: flex; gap: 8px; justify-content: flex-end">
+          <ArButton @click="showLevelModal = false">取消</ArButton>
+          <ArButton type="primary" @click="handleLevelChange">确认</ArButton>
+        </div>
+      </template>
+    </NModal>
+
+    <!-- 封禁弹窗 -->
+    <NModal v-model:show="showBanModal" title="封禁用户" preset="card" style="width: 400px">
+      <div class="modal-hint">选择对「{{ editingUser?.username }}」的封禁方式</div>
+      <div class="ban-options">
+        <button
+          class="ban-option"
+          :class="{ 'ban-option--active': banDuration === 'permanent' }"
+          @click="banDuration = 'permanent'"
+        >
+          永久封禁
+        </button>
+        <button
+          class="ban-option"
+          :class="{ 'ban-option--active': banDuration === 10 }"
+          @click="banDuration = 10"
+        >
+          封禁 10 小时
+        </button>
+        <button
+          class="ban-option"
+          :class="{ 'ban-option--active': banDuration === 24 }"
+          @click="banDuration = 24"
+        >
+          封禁 24 小时
+        </button>
+        <button
+          class="ban-option"
+          :class="{ 'ban-option--active': banDuration === 72 }"
+          @click="banDuration = 72"
+        >
+          封禁 72 小时
+        </button>
+        <div class="ban-custom-row">
+          <button
+            class="ban-option"
+            :class="{ 'ban-option--active': banDuration === 'custom' }"
+            @click="banDuration = 'custom'"
+          >
+            自定义
+          </button>
+          <NInputNumber v-model:value="customBanHours" :min="1" :max="720" style="width: 100px" />
+          <span class="ban-custom-unit">小时</span>
+        </div>
+      </div>
+      <template #footer>
+        <div style="display: flex; gap: 8px; justify-content: flex-end">
+          <ArButton @click="showBanModal = false">取消</ArButton>
+          <ArButton type="primary" @click="handleBanConfirm">确认封禁</ArButton>
+        </div>
+      </template>
+    </NModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, h, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { NModal, NForm, NFormItem, NSelect, NPopconfirm } from 'naive-ui'
-import { ArTag, ArTable, ArAvatar } from '@/components/ui'
+import { NModal, NForm, NFormItem, NSelect, NPopconfirm, NInputNumber } from 'naive-ui'
+import { ArTag, ArTable, ArButton } from '@/components/ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
 import { getUserStatsApi, type UserStats } from '@/services/api/auth'
 import {
   getUsersApi,
   disableUserApi,
+  enableUserApi,
+  updateUserApi,
   createAdminUserApi,
   deleteUserApi,
   type AdminUser,
@@ -207,25 +273,47 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 
+// ── 等级编辑弹窗 ──
+const showLevelModal = ref(false)
+const editingUser = ref<AdminUser | null>(null)
+const levelEditValue = ref(5)
+
+// ── 封禁弹窗 ──
+const showBanModal = ref(false)
+const banDuration = ref<string | number>('permanent')
+const customBanHours = ref(24)
+
 const columns: ArTableColumn[] = [
+  {
+    title: '用户 ID',
+    key: 'id',
+    width: 110,
+    render: (row) =>
+      h(
+        'span',
+        {
+          class: 'id-cell',
+          title: '点击复制',
+          onClick: () => {
+            navigator.clipboard.writeText(row.id).catch(() => {})
+            message.success('已复制用户 ID')
+          }
+        },
+        row.id.slice(0, 8) + '...'
+      )
+  },
   {
     title: '用户',
     key: 'username',
-    render: (row) =>
-      h('div', { class: 'user-cell' }, [
-        h(ArAvatar, {
-          username: row.nickname || row.username,
-          size: 36,
-          onClick: () => message.info(`查看用户「${row.username}」详情`)
-        }),
-        h('div', { class: 'user-cell-name' }, row.nickname || row.username)
-      ])
+    width: 140,
+    render: (row) => h('span', { class: 'user-name' }, row.nickname || row.username)
   },
   {
-    title: '创建时间',
-    key: 'created_at',
-    width: 100,
-    render: (row) => (row.created_at ? row.created_at.slice(0, 10) : '-')
+    title: '邮箱',
+    key: 'email',
+    width: 200,
+    ellipsis: true,
+    render: (row) => row.email || '-'
   },
   {
     title: '等级',
@@ -235,7 +323,12 @@ const columns: ArTableColumn[] = [
       const lv = row.level ?? 5
       return h(
         ArTag,
-        { color: lv === 0 ? 'red' : 'default', size: 'sm' },
+        {
+          color: lv === 0 ? 'red' : 'default',
+          size: 'sm',
+          style: { cursor: 'pointer' },
+          onClick: () => openLevelEdit(row)
+        },
         { default: () => `P${lv}` }
       )
     }
@@ -243,28 +336,50 @@ const columns: ArTableColumn[] = [
   {
     title: '状态',
     key: 'is_active',
-    width: 70,
+    width: 100,
     render: (row) => {
       const active = row.is_active !== false
       return h(
         ArTag,
-        { color: active ? 'green' : 'red', size: 'sm' },
+        {
+          color: active ? 'green' : 'red',
+          size: 'sm',
+          style: { cursor: active ? 'pointer' : 'default' },
+          onClick: () => handleStatusClick(row)
+        },
         { default: () => (active ? '活跃' : '禁用') }
       )
     }
   },
   {
+    title: '注册 / 活跃',
+    key: 'created_at',
+    width: 150,
+    render: (row) => {
+      const created = row.created_at ? row.created_at.slice(0, 10) : '-'
+      const updated = row.updated_at ? row.updated_at.slice(0, 10) : null
+      const same = updated === (row.created_at ? row.created_at.slice(0, 10) : null)
+      if (!updated || same) {
+        return h('span', { class: 'time-cell' }, `注册: ${created}`)
+      }
+      return h('div', { class: 'time-cell' }, [
+        h('div', null, `注册: ${created}`),
+        h('div', { style: { color: 'var(--text-tertiary)', fontSize: '11px' } }, `活跃: ${updated}`)
+      ])
+    }
+  },
+  {
     title: '操作',
     key: 'actions',
-    width: 300,
+    width: 340,
     render: (row) => {
       const isActive = row.is_active !== false
       const btns = [
-        { label: '封号', onClick: () => handleBanUser(row), disabled: !isActive },
-        { label: '下线', onClick: () => message.info('强制下线功能待实现') },
+        { label: '下线', onClick: () => handleForceLogout(row), disabled: !isActive },
         { label: '删号', onClick: () => handleDeleteUser(row), confirm: true },
-        { label: '授权', onClick: () => message.info('临时权限赋予功能待实现') },
-        { label: '等级', onClick: () => showLevelEdit(row) }
+        { label: '查看资产', onClick: () => handleViewAssets(row) },
+        { label: '行为分析', onClick: () => message.info('行为分析页面开发中') },
+        { label: '审计日志', onClick: () => message.info('审计日志页面开发中') }
       ]
       return h(
         'div',
@@ -281,14 +396,19 @@ const columns: ArTableColumn[] = [
                 onPositiveClick: b.onClick
               },
               {
-                trigger: () => h('button', { class: 'action-btn', disabled: b.disabled }, b.label)
+                trigger: () =>
+                  h(
+                    ArButton,
+                    { size: 'sm', type: 'ghost', disabled: b.disabled },
+                    { default: () => b.label }
+                  )
               }
             )
           }
           return h(
-            'button',
-            { class: 'action-btn', disabled: b.disabled, onClick: b.onClick },
-            b.label
+            ArButton,
+            { size: 'sm', type: 'ghost', disabled: b.disabled, onClick: b.onClick },
+            { default: () => b.label }
           )
         })
       )
@@ -312,18 +432,78 @@ async function loadUsers(resetPage?: number) {
   }
 }
 
-function showLevelEdit(row: AdminUser) {
-  message.info(`编辑用户「${row.username}」的等级（当前 P${row.level ?? 5}）`)
+// ── 等级编辑 ──
+function openLevelEdit(row: AdminUser) {
+  editingUser.value = row
+  levelEditValue.value = row.level ?? 5
+  showLevelModal.value = true
 }
 
-async function handleBanUser(row: AdminUser) {
+async function handleLevelChange() {
+  if (!editingUser.value) return
   try {
-    await disableUserApi(row.id)
-    row.is_active = false
-    message.success(`用户「${row.username}」已封号`)
+    await updateUserApi(editingUser.value.id, { level: levelEditValue.value })
+    message.success(`用户「${editingUser.value.username}」等级已更新为 P${levelEditValue.value}`)
+    showLevelModal.value = false
+    editingUser.value = null
+    loadUsers(page.value)
   } catch {
-    message.error('封号失败')
+    message.error('等级更新失败')
   }
+}
+
+// ── 状态操作（封禁 / 解封）──
+function handleStatusClick(row: AdminUser) {
+  const active = row.is_active !== false
+  if (active) {
+    editingUser.value = row
+    banDuration.value = 'permanent'
+    showBanModal.value = true
+  } else {
+    handleEnableUser(row)
+  }
+}
+
+async function handleEnableUser(row: AdminUser) {
+  try {
+    await enableUserApi(row.id)
+    row.is_active = true
+    message.success(`用户「${row.username}」已解封`)
+    loadUsers(page.value)
+  } catch {
+    message.error('解封失败')
+  }
+}
+
+async function handleBanConfirm() {
+  if (!editingUser.value) return
+  try {
+    await disableUserApi(editingUser.value.id)
+    editingUser.value.is_active = false
+    const duration = banDuration.value
+    if (duration === 'permanent') {
+      message.success(`用户「${editingUser.value.username}」已永久封禁`)
+    } else {
+      const hours = duration === 'custom' ? customBanHours.value : (duration as number)
+      message.success(
+        `用户「${editingUser.value.username}」已封禁 ${hours} 小时（定时解封功能待接入）`
+      )
+    }
+    showBanModal.value = false
+    editingUser.value = null
+    loadUsers(page.value)
+  } catch {
+    message.error('封禁失败')
+  }
+}
+
+// ── 操作栏 ──
+function handleForceLogout(row: AdminUser) {
+  message.info(`强制下线功能待实现（将使「${row.username}」的 token 立即失效）`)
+}
+
+function handleViewAssets(row: AdminUser) {
+  message.info(`即将跳转至「${row.username}」的资产详情页面`)
 }
 
 async function handleDeleteUser(row: AdminUser) {
@@ -376,7 +556,6 @@ async function handleCreateUser() {
 }
 
 // ── 增长趋势图表 ──
-const yLabels = ['100%', '80%', '60%', '40%', '20%', '0%']
 const padding = { top: 8, bottom: 25, left: 45, right: 10 }
 const chartW = 600
 const chartH = 200
@@ -386,17 +565,26 @@ const chartData = computed(() => {
   const trend = stats.value.daily_trend ?? []
   return trend.length === 0 ? [0] : trend.map((t) => t.count)
 })
-const normalizedData = computed(() => {
+
+// Y 轴最大值（以 5 为步长向上取整）
+const yMax = computed(() => {
   const max = Math.max(...chartData.value, 1)
-  return chartData.value.map((v) => v / max)
+  return Math.ceil(max / 5) * 5
 })
+
+// Y 轴标签（0 → yMax 等分 5 段，共 6 个标签，从上到下递减）
+const yLabels = computed(() => {
+  const step = yMax.value / 5
+  return [0, 1, 2, 3, 4, 5].map((i) => String(Math.round(step * (5 - i))))
+})
+
 const gridY = (i: number) => padding.top + (chartAreaH / 5) * i
 const chartPoints = computed(() =>
-  normalizedData.value.map((ratio, i) => ({
+  chartData.value.map((value, i) => ({
     x:
       padding.left +
-      (i / Math.max(normalizedData.value.length - 1, 1)) * (chartW - padding.left - padding.right),
-    y: padding.top + chartAreaH * (1 - ratio)
+      (i / Math.max(chartData.value.length - 1, 1)) * (chartW - padding.left - padding.right),
+    y: padding.top + chartAreaH * (1 - value / yMax.value)
   }))
 )
 const xPositions = computed(() => chartPoints.value.map((p) => p.x))
@@ -404,9 +592,11 @@ const xLabels = computed(() => {
   const trend = stats.value.daily_trend ?? []
   return trend.length === 0
     ? []
-    : trend.map((_, i) => {
-        const day = i + 1
-        return day % 5 === 1 || day === 1 || day === trend.length ? `${day}日` : ''
+    : trend.map((t, i) => {
+        if (i % 5 === 0 || i === trend.length - 1) {
+          return t.date ? t.date.slice(5) : `${i + 1}日`
+        }
+        return ''
       })
 })
 
@@ -616,36 +806,37 @@ onMounted(() => {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
-.table-footer {
-  display: flex;
-  justify-content: center;
-  padding: 12px 16px;
-}
 
-.user-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding: 2px 5px;
+/* ── 用户 ID 列 ── */
+.id-cell {
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-inset-color);
-  border: 1px solid var(--border-color);
-  border-radius: 100px;
-  transition: all 0.15s ease;
 }
-.user-cell:hover {
-  border-color: var(--primary-color);
+.id-cell:hover {
+  color: var(--primary-color);
   background: var(--primary-light-color);
 }
-.user-cell-name {
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 700;
+
+/* ── 用户名列 ── */
+.user-name {
+  font-weight: 600;
+  font-size: 14px;
   color: var(--text-primary);
-  line-height: 1;
 }
 
+/* ── 时间列 ── */
+.time-cell {
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+/* ── 操作栏 ── */
 .action-cell {
   display: flex;
   gap: 4px;
@@ -654,35 +845,51 @@ onMounted(() => {
   flex-wrap: nowrap;
 }
 
-.action-btn {
-  display: inline-flex;
+/* ── 弹窗辅助 ── */
+.modal-hint {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── 封禁选项 ── */
+.ban-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ban-option {
+  display: flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
-  padding: 0 8px;
+  height: 36px;
+  padding: 0 16px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--surface-color);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 13px;
   font-family: inherit;
+  cursor: pointer;
   transition: all 0.15s ease;
-  white-space: nowrap;
 }
-.action-btn:hover {
-  background: var(--surface-strong-color);
+.ban-option:hover {
   border-color: var(--primary-color);
   color: var(--primary-color);
 }
-.action-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+.ban-option--active {
+  border-color: var(--primary-color);
+  background: var(--primary-light-color);
+  color: var(--primary-color);
+  font-weight: 600;
 }
-.action-btn:disabled:hover {
-  background: var(--surface-color);
-  border-color: var(--border-color);
+.ban-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ban-custom-unit {
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
