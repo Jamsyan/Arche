@@ -45,7 +45,9 @@ const coverStyle = computed(() => {
 })
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+  const el = document.createElement('div')
+  el.innerHTML = html
+  return el.textContent || ''
 }
 
 const excerpt = computed(() => {
