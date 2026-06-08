@@ -4,11 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { NPagination, useMessage } from 'naive-ui'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import { withFallback, blogMockData } from '@/services/mock'
-import { PostCard, HeroCarousel } from '@/components/blog'
+import { useUserStore } from '@/store/modules/user'
+import { PostCard, HeroCarousel, TrendingTags, WatchHistoryStack } from '@/components/blog'
+import type { WatchHistoryItem } from '@/components/blog/WatchHistoryStack.vue'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const posts = ref<BlogPost[]>([])
@@ -16,6 +19,27 @@ const hotPosts = ref<BlogPost[]>([])
 const total = ref(0)
 const page = ref(Number(route.query.page || 1))
 const HOT_ROTATE_INTERVAL_MS = 12000
+
+// ── Zone 2: trending tags from mock ──
+const trendingTags = computed(() => blogMockData.tags.filter((t) => t !== '全部').slice(0, 20))
+
+// ── Zone 3: watch history (only when logged in) ──
+const historyItems = ref<WatchHistoryItem[]>([])
+
+function buildHistoryItems(allPosts: BlogPost[]) {
+  // dev 模式下免登录查看效果，production 仅登录态展示
+  const showHistory = import.meta.env.DEV || userStore.isLoggedIn
+  if (!showHistory || allPosts.length === 0) {
+    historyItems.value = []
+    return
+  }
+  const labels = ['刚刚', '5 分钟前', '1 小时前', '昨天', '3 天前']
+  historyItems.value = allPosts.slice(0, 8).map((post, i) => ({
+    post,
+    progress: (Date.now() + i * 997) % 101,
+    lastReadAt: labels[i % labels.length]
+  }))
+}
 
 const fetchPosts = async () => {
   loading.value = true
@@ -26,6 +50,7 @@ const fetchPosts = async () => {
   hotPosts.value = [...blogMockData.posts]
     .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
     .slice(0, 6) as BlogPost[]
+  buildHistoryItems(posts.value)
 
   try {
     const [latestRes, hotRes] = await Promise.all([
@@ -47,6 +72,7 @@ const fetchPosts = async () => {
     if (latestList.length >= 4) {
       posts.value = latestList
       total.value = latestRes.total || 0
+      buildHistoryItems(posts.value)
     }
     if (hotList.length > 0) {
       hotPosts.value = hotList
@@ -67,9 +93,6 @@ const syncQuery = () => {
   })
 }
 
-const latestPosts = computed(() => posts.value.slice(0, 6))
-const quickPosts = computed(() => posts.value.slice(6, 12))
-
 const openPost = (post: BlogPost) => {
   if (post.id.startsWith('demo-')) {
     message.info('当前为示例内容，待接口恢复后可点击进入真实文章')
@@ -77,6 +100,20 @@ const openPost = (post: BlogPost) => {
   }
   router.push(`/blog/${post.slug}`)
 }
+
+function handleHistoryOpen(item: WatchHistoryItem) {
+  openPost(item.post)
+}
+
+function handleTagSelect(tag: string) {
+  router.push({ path: '/explore', query: { tag } })
+}
+
+// 监听登录态变化，重新生成浏览历史
+watch(
+  () => userStore.isLoggedIn,
+  () => buildHistoryItems(posts.value)
+)
 
 watch(page, async () => {
   syncQuery()
@@ -90,36 +127,35 @@ onMounted(async () => {
 
 <template>
   <div class="home-page">
+    <!-- ── Zone 1: 轮播图 ── -->
     <HeroCarousel v-if="hotPosts.length > 0" :posts="hotPosts" :interval="HOT_ROTATE_INTERVAL_MS" />
 
-    <section class="post-section">
-      <div v-if="latestPosts.length === 0" class="empty">暂无内容</div>
+    <!-- ── Zone 2: 过渡区 · 热门标签云 ── -->
+    <TrendingTags v-if="trendingTags.length > 0" :tags="trendingTags" @select="handleTagSelect" />
 
-      <!-- Masonry 瀑布流 -->
-      <div v-else class="masonry">
+    <!-- ── Zone 3: 观看历史（仅登录态） ── -->
+    <WatchHistoryStack
+      v-if="historyItems.length > 0"
+      :items="historyItems"
+      direction="ltr"
+      @open="handleHistoryOpen"
+    />
+
+    <!-- ── Zone 4: 内容卡片网格 ── -->
+    <section v-if="posts.length > 0" class="post-section">
+      <div class="section-head">
+        <h3>最新发布</h3>
+      </div>
+      <div v-if="posts.length === 0" class="empty">暂无内容</div>
+      <div v-else class="post-grid">
         <div
-          v-for="(post, index) in latestPosts"
+          v-for="(post, index) in posts"
           :key="post.id"
-          class="masonry-item"
-          :style="{ animationDelay: `${index * 80}ms` }"
+          class="grid-item"
+          :style="{ animationDelay: `${index * 60}ms` }"
         >
           <PostCard :post="post" mode="media" :show-actions="true" @open="openPost(post)" />
         </div>
-      </div>
-    </section>
-
-    <section v-if="quickPosts.length > 0" class="post-section">
-      <div class="section-head">
-        <h3>继续浏览</h3>
-      </div>
-      <div class="quick-list">
-        <PostCard
-          v-for="post in quickPosts"
-          :key="post.id"
-          :post="post"
-          mode="feed"
-          @open="openPost(post)"
-        />
       </div>
     </section>
 
@@ -141,8 +177,8 @@ onMounted(async () => {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--layout-gap);
-  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  gap: var(--section-gap);
+  padding: 0 var(--content-padding) var(--spacing-lg);
   font-family: var(--font-sans);
 }
 
@@ -159,19 +195,18 @@ onMounted(async () => {
   color: var(--text-primary);
 }
 
-/* ── Masonry 瀑布流（CSS columns） ── */
-.masonry {
-  column-width: 220px;
-  column-gap: var(--layout-gap);
+/* ── CSS Grid 弹性网格 ── */
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--layout-gap);
 }
 
-.masonry-item {
-  break-inside: avoid;
-  margin-bottom: var(--layout-gap);
-  animation: masonry-in 0.5s var(--ease-out-smooth) both;
+.grid-item {
+  animation: grid-in 0.5s var(--ease-out-smooth) both;
 }
 
-@keyframes masonry-in {
+@keyframes grid-in {
   from {
     opacity: 0;
     transform: translateY(12px);
@@ -180,13 +215,6 @@ onMounted(async () => {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* ── 继续浏览 ── */
-.quick-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
 }
 
 .pager {
@@ -200,10 +228,16 @@ onMounted(async () => {
   padding: var(--spacing-md) 0;
 }
 
-/* ── 响应式：平板以下降为 2 列 ── */
+/* ── 响应式 ── */
+@media (max-width: 700px) {
+  .post-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
 @media (max-width: 520px) {
-  .masonry {
-    column-width: 160px;
+  .post-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
