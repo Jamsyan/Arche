@@ -76,20 +76,16 @@ onMounted(async () => {
 
     <section class="post-section">
       <div v-if="latestPosts.length === 0" class="empty">暂无内容</div>
-      <div v-else class="latest-grid">
+
+      <!-- Masonry 瀑布流 -->
+      <div v-else class="masonry">
         <div
           v-for="(post, index) in latestPosts"
           :key="post.id"
-          class="stagger-item"
-          :style="{ animationDelay: `${index * 60}ms` }"
+          class="masonry-item"
+          :style="{ animationDelay: `${index * 80}ms` }"
         >
-          <PostCard
-            :post="post"
-            layout="grid"
-            :show-cover="true"
-            :show-actions="true"
-            @open="openPost(post)"
-          />
+          <PostCard :post="post" mode="media" :show-actions="true" @open="openPost(post)" />
         </div>
       </div>
     </section>
@@ -103,8 +99,7 @@ onMounted(async () => {
           v-for="post in quickPosts"
           :key="post.id"
           :post="post"
-          layout="compact"
-          :show-excerpt="false"
+          mode="feed"
           @open="openPost(post)"
         />
       </div>
@@ -145,12 +140,30 @@ onMounted(async () => {
   color: var(--text-primary);
 }
 
-.latest-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--layout-gap);
+/* ── Masonry 瀑布流（CSS columns） ── */
+.masonry {
+  column-count: 5;
+  column-gap: var(--layout-gap);
 }
 
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: var(--layout-gap);
+  animation: masonry-in 0.5s var(--ease-out-smooth) both;
+}
+
+@keyframes masonry-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 继续浏览 ── */
 .quick-list {
   display: flex;
   flex-direction: column;
@@ -168,9 +181,22 @@ onMounted(async () => {
   padding: var(--spacing-md) 0;
 }
 
-@media (max-width: 680px) {
-  .latest-grid {
-    grid-template-columns: 1fr;
+/* ── 响应式 ── */
+@media (max-width: 1100px) {
+  .masonry {
+    column-count: 4;
+  }
+}
+
+@media (max-width: 860px) {
+  .masonry {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 640px) {
+  .masonry {
+    column-count: 2;
   }
 }
 </style>

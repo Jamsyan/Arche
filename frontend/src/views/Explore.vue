@@ -284,9 +284,7 @@ const filteredItems = computed(() => {
               v-for="item in filteredItems"
               :key="item.id"
               :post="toBlogPost(item)"
-              layout="grid"
-              :show-cover="true"
-              :show-excerpt="true"
+              mode="media"
               :show-actions="true"
               @open="handleOpenItem"
             />
