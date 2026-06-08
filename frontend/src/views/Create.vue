@@ -521,13 +521,14 @@ const saveCurrent = async () => {
     if (isEdit) {
       await updatePostApi(editingPost.value!.id, payload)
       message.success('保存成功')
+      await fetchData()
+      // 编辑已有帖子：保存后保持编辑器打开，方便连续编辑下一篇
     } else {
       await createPostApi(payload)
       message.success('发布成功，帖子已提交审核')
+      await fetchData()
+      exitEdit()
     }
-
-    await fetchData()
-    exitEdit()
   } catch {
     message.error('保存失败，请重试')
   } finally {

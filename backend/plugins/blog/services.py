@@ -525,8 +525,9 @@ class BlogService:
                         status_code=403,
                     )
                 post.required_level = required_level
-            # 编辑后重新进入审核
-            post.status = "pending"
+            # 仅标题或正文变更才重新进入审核；权限/标签等非内容改动不触发
+            if title is not None or content is not None:
+                post.status = "pending"
 
             await session.commit()
             await session.refresh(post)
