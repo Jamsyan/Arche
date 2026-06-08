@@ -38,7 +38,7 @@ class TestBlogAPI:
             page_size=5,
             status_filter="published",
             sort_by="created_at",
-            user_level=5,
+            user_level=None,
             search_query="python",
             tag_filter=None,
         )

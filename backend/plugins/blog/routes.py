@@ -30,6 +30,10 @@ class CreatePostRequest(BaseModel):
 class UpdatePostRequest(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=256, description="标题")
     content: str | None = Field(None, min_length=1, description="正文内容")
+    required_level: int | None = Field(
+        None, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）"
+    )
+    tags: list[str] | None = Field(None, description="标签列表")
 
 
 class CreateCommentRequest(BaseModel):
@@ -61,7 +65,7 @@ async def get_posts(
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
     user = get_current_user(request)
-    user_level = user["level"] if user else 5
+    user_level = user["level"] if user else None
 
     # 非管理员只能看到 published 的文章
     status_filter = status
@@ -172,6 +176,9 @@ async def update_post(post_id: str, req: UpdatePostRequest, request: Request):
         author_id=author_id,
         title=req.title,
         content=req.content,
+        required_level=req.required_level,
+        tags=req.tags,
+        user_level=user["level"],
     )
     return {"code": "ok", "message": "编辑成功，重新进入审核", "data": result}
 
