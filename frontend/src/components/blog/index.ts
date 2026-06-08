@@ -1,4 +1,5 @@
 export { default as PostCard } from './PostCard.vue'
+export { default as HeroCarousel } from './HeroCarousel.vue'
 export { default as PostDetail } from './PostDetail.vue'
 export { default as PostEditor } from './PostEditor.vue'
 export { default as RichTextEditor } from './RichTextEditor.vue'

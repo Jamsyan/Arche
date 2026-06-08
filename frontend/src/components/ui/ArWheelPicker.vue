@@ -28,8 +28,12 @@ const viewportRef = ref<HTMLElement | null>(null)
 // 每项宽度 = 36px + 6px gap
 const ITEM_STEP = 42
 
-// 3 份复制实现视觉循环滚动
-const displayOptions = computed(() => [...props.options, ...props.options, ...props.options])
+// 5 份复制实现视觉循环滚动（更多缓冲，边界复位更平滑）
+const displayOptions = computed(() => {
+  const result: string[] = []
+  for (let c = 0; c < 5; c++) result.push(...props.options)
+  return result
+})
 
 // ── 物理引擎状态 ──
 let offsetX = 0

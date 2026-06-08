@@ -483,6 +483,9 @@ class BlogService:
         author_id: uuid.UUID,
         title: str | None = None,
         content: str | None = None,
+        required_level: int | None = None,
+        tags: list[str] | None = None,
+        user_level: int = 5,
     ) -> dict:
         """编辑帖子（仅作者本人）。"""
         async with self.session_factory() as session:
@@ -513,8 +516,18 @@ class BlogService:
                 post.content = content
                 # 扫描文件引用
                 await self.scan_and_clean_post_files(post.id, content)
-            # 编辑后重新进入审核
-            post.status = "pending"
+            if required_level is not None:
+                # 权限等级验证：用户不能设置高于自身等级的可见门槛
+                if required_level < user_level:
+                    raise AppError(
+                        f"无权设置 P{required_level} 权限，最高可设置 P{user_level}",
+                        code="access_level_too_high",
+                        status_code=403,
+                    )
+                post.required_level = required_level
+            # 仅标题或正文变更才重新进入审核；权限/标签等非内容改动不触发
+            if title is not None or content is not None:
+                post.status = "pending"
 
             await session.commit()
             await session.refresh(post)

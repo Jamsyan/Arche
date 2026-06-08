@@ -57,6 +57,8 @@ export interface CreatePostPayload {
 export interface UpdatePostPayload {
   title?: string
   content?: string
+  tags?: string[]
+  required_level?: number
   cover_url?: string
 }
 

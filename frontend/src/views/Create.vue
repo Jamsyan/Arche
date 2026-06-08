@@ -286,14 +286,12 @@ import {
   type CreatePostPayload
 } from '@/services/api'
 import { uploadOssFileApi } from '@/services/api/oss'
-import { useUserStore } from '@/store/modules/user'
 import { useLocalFiles } from '@/composables/useLocalFiles'
 import { getCoverGradient } from '@/utils/cover'
 
 type PostTab = 'all' | 'published' | 'draft'
 
 const router = useRouter()
-const userStore = useUserStore()
 const message = useMessage()
 const editorRef = ref<InstanceType<typeof PostEditor> | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -307,7 +305,7 @@ const editingPost = ref<BlogPost | null>(null)
 const tagInputValue = ref('')
 const editorTags = ref<string[]>([])
 const accessLevels = [0, 1, 2, 3, 4, 5] as const
-const editorAccess = ref<number>(userStore.userInfo?.level ?? 5)
+const editorAccess = ref<number>(5)
 
 const coverUrl = ref('')
 const coverFile = ref<File | null>(null) // 用户通过 CoverUploader 选择的本地文件
@@ -366,7 +364,7 @@ const handleNewPost = () => {
   isCreatingNew.value = true
   editingPost.value = null
   editorTags.value = []
-  editorAccess.value = userStore.userInfo?.level ?? 5
+  editorAccess.value = 5
   coverUrl.value = ''
   coverFile.value = null
   clearStaged()
@@ -388,7 +386,7 @@ const handleFileSelected = async (e: Event) => {
     isCreatingNew.value = true
     editingPost.value = null
     editorTags.value = (result as any)?.tags || []
-    editorAccess.value = userStore.userInfo?.level ?? 5
+    editorAccess.value = 5
     isEditorOpen.value = true
     // 填充内容到编辑器
     // 由于 PostEditor 通过 ref 暴露了 title 和 content
@@ -523,13 +521,14 @@ const saveCurrent = async () => {
     if (isEdit) {
       await updatePostApi(editingPost.value!.id, payload)
       message.success('保存成功')
+      await fetchData()
+      // 编辑已有帖子：保存后保持编辑器打开，方便连续编辑下一篇
     } else {
       await createPostApi(payload)
       message.success('发布成功，帖子已提交审核')
+      await fetchData()
+      exitEdit()
     }
-
-    await fetchData()
-    exitEdit()
   } catch {
     message.error('保存失败，请重试')
   } finally {
