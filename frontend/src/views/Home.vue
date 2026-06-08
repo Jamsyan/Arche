@@ -3,13 +3,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NPagination, useMessage } from 'naive-ui'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
+import { withFallback, blogMockData } from '@/services/mock'
 import { PostCard, HeroCarousel } from '@/components/blog'
-import { useUserStore } from '@/store/modules/user'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
-const userStore = useUserStore()
 
 const loading = ref(false)
 const posts = ref<BlogPost[]>([])
@@ -18,23 +17,42 @@ const total = ref(0)
 const page = ref(Number(route.query.page || 1))
 const HOT_ROTATE_INTERVAL_MS = 12000
 
-const filterByAccess = (list: BlogPost[]) =>
-  userStore.token ? list : list.filter((item) => (item.required_level ?? 5) >= 5)
-
 const fetchPosts = async () => {
   loading.value = true
+
+  // 先以 mock 数据保底 —— 访客也能看到内容
+  posts.value = blogMockData.posts as BlogPost[]
+  total.value = blogMockData.posts.length
+  hotPosts.value = [...blogMockData.posts]
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 6) as BlogPost[]
+
   try {
     const [latestRes, hotRes] = await Promise.all([
-      getBlogPostsApi({ page: page.value, page_size: 12, sort_by: 'created_at' }),
-      getBlogPostsApi({ page: 1, page_size: 6, sort_by: 'views' })
+      withFallback(
+        () => getBlogPostsApi({ page: page.value, page_size: 12, sort_by: 'created_at' }),
+        { list: [], total: 0 },
+        { silent: true }
+      ),
+      withFallback(
+        () => getBlogPostsApi({ page: 1, page_size: 6, sort_by: 'views' }),
+        { list: [], total: 0 },
+        { silent: true }
+      )
     ])
-    const latestList = filterByAccess(latestRes.list || [])
-    const hotList = filterByAccess(hotRes.list || [])
-    posts.value = latestList
-    hotPosts.value = hotList.length > 0 ? hotList : latestList.slice(0, 6)
-    total.value = latestRes.total || 0
+    const latestList = latestRes.list || []
+    const hotList = hotRes.list || []
+
+    // 真实数据足够时才覆盖 mock
+    if (latestList.length >= 4) {
+      posts.value = latestList
+      total.value = latestRes.total || 0
+    }
+    if (hotList.length > 0) {
+      hotPosts.value = hotList
+    }
   } catch {
-    message.error('获取文章列表失败，请刷新重试')
+    // mock 数据保持不变
   } finally {
     loading.value = false
   }
@@ -118,12 +136,13 @@ onMounted(async () => {
 
 <style scoped>
 .home-page {
-  width: min(1200px, 100%);
+  width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--layout-gap);
-  padding: 0 0 var(--spacing-lg);
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
   font-family: var(--font-sans);
 }
 
@@ -142,7 +161,7 @@ onMounted(async () => {
 
 /* ── Masonry 瀑布流（CSS columns） ── */
 .masonry {
-  column-count: 5;
+  column-width: 220px;
   column-gap: var(--layout-gap);
 }
 
@@ -181,22 +200,10 @@ onMounted(async () => {
   padding: var(--spacing-md) 0;
 }
 
-/* ── 响应式 ── */
-@media (max-width: 1100px) {
+/* ── 响应式：平板以下降为 2 列 ── */
+@media (max-width: 520px) {
   .masonry {
-    column-count: 4;
-  }
-}
-
-@media (max-width: 860px) {
-  .masonry {
-    column-count: 3;
-  }
-}
-
-@media (max-width: 640px) {
-  .masonry {
-    column-count: 2;
+    column-width: 160px;
   }
 }
 </style>

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NIcon, NTag, useMessage } from 'naive-ui'
+import { NIcon, NTag } from 'naive-ui'
 import { PersonOutline, PricetagOutline } from '@vicons/ionicons5'
 import { PostCard } from '@/components/blog'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
+import { withFallback, blogMockData } from '@/services/mock'
 import { useSearchStore } from '@/store/modules/search'
 import type { MockExploreItem } from '@/services/mock/types'
 
@@ -18,7 +19,6 @@ const router = useRouter()
 const route = useRoute()
 const searchStore = useSearchStore()
 
-const message = useMessage()
 const exploreItems = ref<MockExploreItem[]>([])
 const allTags = ref<string[]>([])
 const allAuthors = ref<string[]>([])
@@ -47,30 +47,42 @@ const convertBlogPostToExploreItem = (post: BlogPost, index: number): MockExplor
 
 const fetchExploreData = async () => {
   loading.value = true
+
+  // 先以 mock 数据保底
+  exploreItems.value = blogMockData.posts.map(convertBlogPostToExploreItem)
+  const tagSet = new Set<string>()
+  const authorSet = new Set<string>()
+  blogMockData.posts.forEach((post) => {
+    ;(post.tags || []).forEach((tag) => tagSet.add(tag))
+    if (post.author_username) authorSet.add(post.author_username)
+  })
+  allTags.value = ['全部', ...Array.from(tagSet)]
+  allAuthors.value = ['全部作者', ...Array.from(authorSet)]
+
   try {
     const params: Record<string, unknown> = { page: 1, page_size: 20, sort_by: 'created_at' }
     const q = searchStore.keyword.trim()
     if (q) {
       params.q = q
     }
-    const result = await getBlogPostsApi(params)
-    if (result.list && result.list.length > 0) {
+    const result = await withFallback(
+      () => getBlogPostsApi(params),
+      { list: [], total: 0 },
+      { silent: true }
+    )
+    if (result.list && result.list.length >= 4) {
       exploreItems.value = result.list.map(convertBlogPostToExploreItem)
-      const tagSet = new Set<string>()
-      const authorSet = new Set<string>()
+      const newTagSet = new Set<string>()
+      const newAuthorSet = new Set<string>()
       result.list.forEach((post) => {
-        ;(post.tags || []).forEach((tag) => tagSet.add(tag))
-        if (post.author_username) authorSet.add(post.author_username)
+        ;(post.tags || []).forEach((tag) => newTagSet.add(tag))
+        if (post.author_username) newAuthorSet.add(post.author_username)
       })
-      allTags.value = ['全部', ...Array.from(tagSet)]
-      allAuthors.value = ['全部作者', ...Array.from(authorSet)]
-    } else {
-      exploreItems.value = []
-      allTags.value = ['全部']
-      allAuthors.value = ['全部作者']
+      allTags.value = ['全部', ...Array.from(newTagSet)]
+      allAuthors.value = ['全部作者', ...Array.from(newAuthorSet)]
     }
   } catch {
-    message.error('获取文章列表失败，请刷新重试')
+    // mock 数据保持不变
   } finally {
     loading.value = false
   }

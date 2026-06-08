@@ -44,7 +44,14 @@ const coverStyle = computed(() => {
   return { background: getCoverGradient(props.post) }
 })
 
-const excerpt = computed(() => props.post.content?.slice(0, 120) || '')
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+}
+
+const excerpt = computed(() => {
+  const text = props.post.content ? stripHtml(props.post.content) : ''
+  return text.slice(0, 120) || ''
+})
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 
 function tagColor(index: number) {
@@ -81,23 +88,25 @@ function handleClick() {
       <div v-else class="md-cover md-cover--fallback" :style="coverStyle" />
 
       <div class="md-body">
-        <div class="md-meta">
-          <span class="md-author">{{ authorName }}</span>
-          <span class="md-sep">·</span>
-          <span class="md-date">{{ dateStr }}</span>
-        </div>
         <h4 class="md-title">{{ post.title }}</h4>
         <p class="md-excerpt">{{ excerpt }}</p>
-        <div v-if="displayTags.length > 0" class="md-tags">
-          <ArTag
-            v-for="(tag, i) in displayTags"
-            :key="tag"
-            :color="tagColor(i)"
-            size="sm"
-            type="light"
-          >
-            {{ tag }}
-          </ArTag>
+        <div class="md-footer">
+          <div class="md-meta">
+            <span class="md-author">{{ authorName }}</span>
+            <span class="md-sep">·</span>
+            <span class="md-date">{{ dateStr }}</span>
+          </div>
+          <div v-if="displayTags.length > 0" class="md-tags">
+            <ArTag
+              v-for="(tag, i) in displayTags"
+              :key="tag"
+              :color="tagColor(i)"
+              size="sm"
+              type="light"
+            >
+              {{ tag }}
+            </ArTag>
+          </div>
         </div>
       </div>
 
@@ -264,6 +273,15 @@ function handleClick() {
   flex: 1;
 }
 
+/* 底部区域：作者信息 + 标签，自然推到底部 */
+.md-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
 .md-meta {
   display: flex;
   align-items: center;
@@ -312,8 +330,6 @@ function handleClick() {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-top: auto;
-  padding-top: 2px;
 }
 
 .md-actions {
