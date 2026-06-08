@@ -24,19 +24,19 @@ const fetchPosts = async () => {
   posts.value = blogMockData.posts as BlogPost[]
   total.value = blogMockData.posts.length
   hotPosts.value = [...blogMockData.posts]
-    .sort((a, b) => b.views - a.views)
+    .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
     .slice(0, 6) as BlogPost[]
 
   try {
     const [latestRes, hotRes] = await Promise.all([
       withFallback(
         () => getBlogPostsApi({ page: page.value, page_size: 12, sort_by: 'created_at' }),
-        { list: [], total: 0 },
+        { list: [], total: 0, page: 0, page_size: 0 },
         { silent: true }
       ),
       withFallback(
         () => getBlogPostsApi({ page: 1, page_size: 6, sort_by: 'views' }),
-        { list: [], total: 0 },
+        { list: [], total: 0, page: 0, page_size: 0 },
         { silent: true }
       )
     ])

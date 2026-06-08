@@ -67,7 +67,7 @@ const fetchExploreData = async () => {
     }
     const result = await withFallback(
       () => getBlogPostsApi(params),
-      { list: [], total: 0 },
+      { list: [], total: 0, page: 0, page_size: 0 },
       { silent: true }
     )
     if (result.list && result.list.length >= 4) {
