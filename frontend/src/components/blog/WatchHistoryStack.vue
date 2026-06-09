@@ -32,8 +32,10 @@ const dedupedItems = computed(() => {
   const seen = new Set<string>()
   return props.items
     .filter((item) => {
+      // 去重 + 过滤已读完（progress >= 100）
       if (seen.has(item.post.id)) return false
       seen.add(item.post.id)
+      if (item.progress != null && item.progress >= 100) return false
       return true
     })
     .slice(0, MAX_ITEMS)
@@ -98,7 +100,7 @@ function estimateDuration(post: BlogPost): string {
         <span class="section-icon">&#9654;</span>
         <h3 class="section-title">继续观看</h3>
       </div>
-      <span class="section-hint">{{ dedupedItems.length }} 个未读完</span>
+      <span class="section-hint">{{ dedupedItems.length }} 条待读</span>
     </div>
 
     <div ref="viewportRef" class="scroll-viewport" @wheel="onWheel" @mousedown="startDrag">
@@ -162,6 +164,10 @@ function estimateDuration(post: BlogPost): string {
   flex-direction: column;
   gap: var(--spacing-sm);
   user-select: none;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
 }
 
 .section-head {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
-import { HeartOutline, BookmarkOutline, ChatbubbleOutline } from '@vicons/ionicons5'
+import { EyeOutline, HeartOutline, BookmarkOutline, ChatbubbleOutline } from '@vicons/ionicons5'
 import ArTag from '@/components/ui/ArTag.vue'
 import { getCoverGradient } from '@/utils/cover'
 import type { BlogPost } from '@/services/api'
@@ -37,6 +37,7 @@ const emit = defineEmits<{
 const TAG_COLORS = ['red', 'blue', 'yellow', 'green', 'default'] as const
 
 const authorName = computed(() => props.post.author_username || '匿名')
+const authorDisplay = computed(() => `@ ${authorName.value}`)
 const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
 
 const coverStyle = computed(() => {
@@ -73,25 +74,20 @@ function tagColor(index: number) {
   return TAG_COLORS[index % TAG_COLORS.length]!
 }
 
-/** 相对时间：输入 "2026-04-01" → "3 个月前" */
-function relativeTime(dateStr: string): string {
+/** 日期格式化：今年 → "04-01"，往年 → "2025-04-01" */
+function formatDate(dateStr: string): string {
   if (!dateStr || dateStr === '-') return '-'
-  const now = Date.now()
-  const date = new Date(dateStr).getTime()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-  if (hours < 24) return `${hours} 小时前`
-  if (days < 7) return `${days} 天前`
-  if (days < 30) return `${Math.floor(days / 7)} 周前`
-  if (days < 365) return `${Math.floor(days / 30)} 个月前`
-  return `${Math.floor(days / 365)} 年前`
+  const date = new Date(dateStr)
+  const now = new Date()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${month}-${day}`
+  }
+  return `${date.getFullYear()}-${month}-${day}`
 }
 
-const timeAgo = computed(() => relativeTime(props.post.created_at || ''))
+const displayDate = computed(() => formatDate(props.post.created_at || ''))
 
 function handleClick() {
   emit('open', props.post)
@@ -203,16 +199,31 @@ function handleClick() {
       </div>
     </template>
 
-    <!-- ═══ compact: 封面缩略图 + 紧凑信息（首页用） ═══ -->
+    <!-- ═══ compact: 封面+内容分区卡片（首页用） ═══ -->
     <template v-if="mode === 'compact'">
-      <!-- 封面缩略图 -->
-      <div v-if="post.cover_url" class="cp-cover">
-        <img :src="post.cover_url" alt="" class="cp-cover-img" loading="lazy" />
+      <!-- 封面区 -->
+      <div class="cp-cover-wrap">
+        <div v-if="post.cover_url" class="cp-cover">
+          <img :src="post.cover_url" alt="" class="cp-cover-img" loading="lazy" />
+        </div>
+        <div v-else class="cp-cover cp-cover--fallback" :style="coverStyle" />
+        <!-- 统计数据（右下角） -->
+        <div class="cp-cover-stats">
+          <span class="cp-stat-item">
+            <NIcon size="12"><EyeOutline /></NIcon>
+            {{ post.views ?? 0 }}
+          </span>
+          <span class="cp-stat-item">
+            <NIcon size="12"><HeartOutline /></NIcon>
+            {{ post.likes ?? 0 }}
+          </span>
+        </div>
       </div>
-      <div v-else class="cp-cover cp-cover--fallback" :style="coverStyle" />
 
+      <!-- 内容区 -->
       <div class="cp-body">
         <h4 class="cp-title">{{ post.title }}</h4>
+        <p v-if="shortExcerpt" class="cp-excerpt">{{ shortExcerpt }}</p>
         <div v-if="displayTags.length > 0" class="cp-tags">
           <ArTag
             v-for="(tag, i) in displayTags"
@@ -225,12 +236,10 @@ function handleClick() {
           </ArTag>
         </div>
         <div class="cp-footer">
-          <span class="cp-author">
-            <span class="cp-badge">锦年主</span>
-            {{ authorName }}
-          </span>
+          <span class="cp-badge">博主</span>
+          <span class="cp-author">{{ authorDisplay }}</span>
           <span class="cp-sep">·</span>
-          <span class="cp-time">{{ timeAgo }}</span>
+          <span class="cp-time">{{ displayDate }}</span>
         </div>
       </div>
     </template>
@@ -242,11 +251,11 @@ function handleClick() {
         <p v-if="shortExcerpt" class="dn-excerpt">{{ shortExcerpt }}</p>
         <div class="dn-meta">
           <span class="dn-author">
-            <span class="dn-badge">锦年主</span>
-            {{ authorName }}
+            <span class="dn-badge">博主</span>
+            {{ authorDisplay }}
           </span>
           <span class="dn-sep">·</span>
-          <span class="dn-time">{{ timeAgo }}</span>
+          <span class="dn-time">{{ displayDate }}</span>
           <span class="dn-sep">·</span>
           <span class="dn-likes">♥ {{ post.likes || 0 }}</span>
         </div>
@@ -733,7 +742,7 @@ function handleClick() {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
 }
 
-/* ══════════ COMPACT (封面缩略图 + 紧凑信息) ══════════ */
+/* ══════════ COMPACT (封面+内容分区卡片) ══════════ */
 .post-card--compact {
   display: flex;
   flex-direction: column;
@@ -752,10 +761,15 @@ function handleClick() {
   box-shadow: var(--shadow-md);
 }
 
+/* ── 封面区 ── */
+.cp-cover-wrap {
+  position: relative;
+  line-height: 0;
+}
+
 .cp-cover {
   width: 100%;
   overflow: hidden;
-  line-height: 0;
 }
 
 .cp-cover-img {
@@ -768,11 +782,35 @@ function handleClick() {
 
 .cp-cover--fallback {
   aspect-ratio: 16 / 9;
-  max-height: 120px;
+  max-height: 130px;
   background-size: cover;
   background-position: center;
 }
 
+/* 统计数据（右下角毛玻璃 pill） */
+.cp-cover-stats {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cp-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* ── 内容区 ── */
 .cp-body {
   padding: var(--spacing-sm) var(--spacing-md);
   display: flex;
@@ -793,6 +831,17 @@ function handleClick() {
   overflow: hidden;
 }
 
+.cp-excerpt {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .cp-tags {
   display: flex;
   gap: 4px;
@@ -804,32 +853,25 @@ function handleClick() {
   align-items: center;
   gap: 4px;
   font-size: 12px;
+  line-height: 18px;
   color: var(--text-tertiary);
   margin-top: auto;
   padding-top: 6px;
   border-top: 1px solid var(--border-color);
 }
 
-.cp-author {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-secondary);
-  font-weight: var(--font-weight-medium);
+.cp-badge {
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--primary-color);
+  line-height: 18px;
 }
 
-.cp-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  height: 16px;
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 3px;
-  line-height: 1;
+.cp-author {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  font-size: 12px;
+  letter-spacing: 0.01em;
 }
 
 .cp-time {
@@ -894,6 +936,7 @@ function handleClick() {
   align-items: center;
   gap: 4px;
   font-size: 12px;
+  line-height: 18px;
   color: var(--text-tertiary);
   flex-wrap: wrap;
 }
@@ -907,17 +950,10 @@ function handleClick() {
 }
 
 .dn-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  height: 16px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--font-weight-semibold);
-  color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 3px;
-  line-height: 1;
+  line-height: 18px;
+  color: var(--primary-color);
 }
 
 .dn-time {

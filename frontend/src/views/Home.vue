@@ -106,7 +106,19 @@ function handleHistoryOpen(item: WatchHistoryItem) {
 }
 
 function handleTagSelect(tag: string) {
-  router.push({ path: '/explore', query: { tag } })
+  if (tag === '__more__') {
+    router.push({ path: '/explore' })
+    return
+  }
+  router.push({ path: '/explore', query: { tags: tag } })
+}
+
+function handleCreate() {
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/login', query: { redirect: '/create' } })
+    return
+  }
+  router.push('/create')
 }
 
 // 监听登录态变化，重新生成浏览历史
@@ -131,13 +143,17 @@ onMounted(async () => {
     <HeroCarousel v-if="hotPosts.length > 0" :posts="hotPosts" :interval="HOT_ROTATE_INTERVAL_MS" />
 
     <!-- ── Zone 2: 过渡区 · 热门标签云 ── -->
-    <TrendingTags v-if="trendingTags.length > 0" :tags="trendingTags" @select="handleTagSelect" />
+    <TrendingTags
+      v-if="trendingTags.length > 0"
+      :tags="trendingTags"
+      @select="handleTagSelect"
+      @create="handleCreate"
+    />
 
     <!-- ── Zone 3: 观看历史（仅登录态） ── -->
     <WatchHistoryStack
-      v-if="historyItems.length > 0"
+      v-if="historyItems.length > 0 && userStore.isLoggedIn"
       :items="historyItems"
-      direction="ltr"
       @open="handleHistoryOpen"
     />
 
@@ -198,7 +214,7 @@ onMounted(async () => {
 /* ── CSS Grid 弹性网格 ── */
 .post-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--spacing-md);
 }
 
@@ -231,7 +247,7 @@ onMounted(async () => {
 /* ── 响应式 ── */
 @media (max-width: 700px) {
   .post-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   }
 }
 
