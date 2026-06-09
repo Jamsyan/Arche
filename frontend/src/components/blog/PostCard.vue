@@ -6,7 +6,7 @@ import ArTag from '@/components/ui/ArTag.vue'
 import { getCoverGradient } from '@/utils/cover'
 import type { BlogPost } from '@/services/api'
 
-type PostCardMode = 'showcase' | 'media' | 'feed' | 'stack' | 'cover'
+type PostCardMode = 'showcase' | 'media' | 'feed' | 'stack' | 'cover' | 'compact' | 'dense'
 
 const props = withDefaults(
   defineProps<{
@@ -60,11 +60,38 @@ const excerpt = computed(() => {
   const text = props.post.content ? stripHtml(props.post.content) : ''
   return text.slice(0, 120) || ''
 })
+
+// compact/dense 模式用更短的摘要
+const shortExcerpt = computed(() => {
+  const text = props.post.content ? stripHtml(props.post.content) : ''
+  return text.slice(0, 50) || ''
+})
+
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 
 function tagColor(index: number) {
   return TAG_COLORS[index % TAG_COLORS.length]!
 }
+
+/** 相对时间：输入 "2026-04-01" → "3 个月前" */
+function relativeTime(dateStr: string): string {
+  if (!dateStr || dateStr === '-') return '-'
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  if (hours < 24) return `${hours} 小时前`
+  if (days < 7) return `${days} 天前`
+  if (days < 30) return `${Math.floor(days / 7)} 周前`
+  if (days < 365) return `${Math.floor(days / 30)} 个月前`
+  return `${Math.floor(days / 365)} 年前`
+}
+
+const timeAgo = computed(() => relativeTime(props.post.created_at || ''))
 
 function handleClick() {
   emit('open', props.post)
@@ -172,6 +199,67 @@ function handleClick() {
         <div class="cv-bottom-overlay">
           <span v-if="metaProgress != null" class="cv-progress"> 已读 {{ metaProgress }}% </span>
           <span v-if="metaDuration" class="cv-duration">{{ metaDuration }}</span>
+        </div>
+      </div>
+    </template>
+
+    <!-- ═══ compact: 封面缩略图 + 紧凑信息（首页用） ═══ -->
+    <template v-if="mode === 'compact'">
+      <!-- 封面缩略图 -->
+      <div v-if="post.cover_url" class="cp-cover">
+        <img :src="post.cover_url" alt="" class="cp-cover-img" loading="lazy" />
+      </div>
+      <div v-else class="cp-cover cp-cover--fallback" :style="coverStyle" />
+
+      <div class="cp-body">
+        <h4 class="cp-title">{{ post.title }}</h4>
+        <div v-if="displayTags.length > 0" class="cp-tags">
+          <ArTag
+            v-for="(tag, i) in displayTags"
+            :key="tag"
+            :color="tagColor(i)"
+            size="sm"
+            type="light"
+          >
+            {{ tag }}
+          </ArTag>
+        </div>
+        <div class="cp-footer">
+          <span class="cp-author">
+            <span class="cp-badge">锦年主</span>
+            {{ authorName }}
+          </span>
+          <span class="cp-sep">·</span>
+          <span class="cp-time">{{ timeAgo }}</span>
+        </div>
+      </div>
+    </template>
+
+    <!-- ═══ dense: 高文字密度卡片（探索页用） ═══ -->
+    <template v-if="mode === 'dense'">
+      <div class="dn-body">
+        <h4 class="dn-title">{{ post.title }}</h4>
+        <p v-if="shortExcerpt" class="dn-excerpt">{{ shortExcerpt }}</p>
+        <div class="dn-meta">
+          <span class="dn-author">
+            <span class="dn-badge">锦年主</span>
+            {{ authorName }}
+          </span>
+          <span class="dn-sep">·</span>
+          <span class="dn-time">{{ timeAgo }}</span>
+          <span class="dn-sep">·</span>
+          <span class="dn-likes">♥ {{ post.likes || 0 }}</span>
+        </div>
+        <div v-if="displayTags.length > 0" class="dn-tags">
+          <ArTag
+            v-for="(tag, i) in displayTags"
+            :key="tag"
+            :color="tagColor(i)"
+            size="sm"
+            type="light"
+          >
+            {{ tag }}
+          </ArTag>
         </div>
       </div>
     </template>
@@ -643,5 +731,211 @@ function handleClick() {
 
 :global(.dark) .cv-bottom-overlay {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+}
+
+/* ══════════ COMPACT (封面缩略图 + 紧凑信息) ══════════ */
+.post-card--compact {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.2s var(--ease-out-smooth),
+    box-shadow 0.2s var(--ease-out-smooth);
+}
+
+.post-card--compact:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.cp-cover {
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.cp-cover-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 140px;
+  object-fit: cover;
+}
+
+.cp-cover--fallback {
+  aspect-ratio: 16 / 9;
+  max-height: 120px;
+  background-size: cover;
+  background-position: center;
+}
+
+.cp-body {
+  padding: var(--spacing-sm) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.cp-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.45;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cp-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cp-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+}
+
+.cp-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.cp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  height: 16px;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.cp-time {
+  color: var(--text-quaternary);
+}
+
+.cp-sep {
+  color: var(--text-quaternary, rgba(26, 24, 23, 0.18));
+}
+
+/* ══════════ DENSE (高文字密度) ══════════ */
+.post-card--dense {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.2s var(--ease-out-smooth),
+    box-shadow 0.2s var(--ease-out-smooth);
+}
+
+.post-card--dense:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.dn-body {
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dn-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dn-excerpt {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dn-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  flex-wrap: wrap;
+}
+
+.dn-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.dn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  height: 16px;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.dn-time {
+  color: var(--text-quaternary);
+}
+
+.dn-likes {
+  color: var(--text-tertiary);
+}
+
+.dn-sep {
+  color: var(--text-quaternary, rgba(26, 24, 23, 0.18));
+}
+
+.dn-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
 }
 </style>

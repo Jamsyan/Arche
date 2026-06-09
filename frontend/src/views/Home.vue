@@ -144,7 +144,7 @@ onMounted(async () => {
     <!-- ── Zone 4: 内容卡片网格 ── -->
     <section v-if="posts.length > 0" class="post-section">
       <div class="section-head">
-        <h3>最新发布</h3>
+        <h3>推荐内容</h3>
       </div>
       <div v-if="posts.length === 0" class="empty">暂无内容</div>
       <div v-else class="post-grid">
@@ -154,7 +154,7 @@ onMounted(async () => {
           class="grid-item"
           :style="{ animationDelay: `${index * 60}ms` }"
         >
-          <PostCard :post="post" mode="media" :show-actions="true" @open="openPost(post)" />
+          <PostCard :post="post" mode="compact" @open="openPost(post)" />
         </div>
       </div>
     </section>
@@ -198,8 +198,8 @@ onMounted(async () => {
 /* ── CSS Grid 弹性网格 ── */
 .post-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--layout-gap);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--spacing-md);
 }
 
 .grid-item {
@@ -231,7 +231,7 @@ onMounted(async () => {
 /* ── 响应式 ── */
 @media (max-width: 700px) {
   .post-grid {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
 
