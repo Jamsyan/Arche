@@ -73,7 +73,7 @@ Plugins auto-discovered from `backend/plugins/` (no manual registration). Each i
 - **Chinese comments/docs**: all code comments and documentation are in Chinese. Commit messages follow Conventional Commits (`feat:`, `fix:`, etc.).
 - **Frontend code splitting by role**: `blog/` (public), `platform/` (authenticated), `admin/` (admin). Vite dynamic imports per role; unauthenticated users never load admin chunks.
 - **Backend serves frontend**: if `frontend/dist/` exists, FastAPI mounts `StaticFiles` at `/`. Production uses Nginx reverse proxy instead.
-- **Alibaba Cloud ecosystem**: Docker images pushed to Aliyun Container Registry (Shanghai). PyPI uses Aliyun mirror.
+- **Container registry**: Docker images pushed to GitHub Container Registry (`ghcr.io`). PyPI uses Aliyun mirror.
 - **API type sync**: `npm run generate:api` fetches the running backend's OpenAPI schema and generates TypeScript type definitions into `src/services/api/generated.d.ts`. CI verifies the generated file is up-to-date.
 - **Online session tracking**: `auth` plugin includes a 3-layer online session tracker (event-driven login/logout, implicit heartbeat via API requests, background timeout sweep) — see [`session.py`](file:///d:/Project/Arche/backend/plugins/auth/session.py).
 
