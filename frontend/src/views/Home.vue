@@ -37,7 +37,7 @@ function buildHistoryItems(allPosts: BlogPost[]) {
   historyItems.value = allPosts.slice(0, 8).map((post, i) => ({
     post,
     progress: (Date.now() + i * 997) % 101,
-    lastReadAt: labels[i % labels.length]
+    ...(labels[i % labels.length] ? { lastReadAt: labels[i % labels.length] } : {})
   }))
 }
 

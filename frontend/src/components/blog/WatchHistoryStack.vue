@@ -132,7 +132,7 @@ function estimateDuration(post: BlogPost): string {
           <PostCard
             mode="cover"
             :post="item.post"
-            :meta-progress="item.progress"
+            :meta-progress="item.progress ?? 0"
             :meta-duration="estimateDuration(item.post)"
           />
         </article>

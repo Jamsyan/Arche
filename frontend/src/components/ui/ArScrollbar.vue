@@ -146,9 +146,9 @@ function startDrag(axis: 'x' | 'y', e: MouseEvent) {
     const thumbW = (thumbSize / 100) * trackSize
     const scrollPerPx = maxScroll / (trackSize - thumbW)
     if (axis === 'x') {
-      el.scrollLeft = startScroll + delta * scrollPerPx
+      el!.scrollLeft = startScroll + delta * scrollPerPx
     } else {
-      el.scrollTop = startScroll + delta * scrollPerPx
+      el!.scrollTop = startScroll + delta * scrollPerPx
     }
   }
 

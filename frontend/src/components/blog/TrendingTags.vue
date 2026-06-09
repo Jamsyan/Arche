@@ -38,7 +38,7 @@ const renderedTags = computed(() => {
 
 // 给每个标签分配随机颜色（基于 index 确定性分配）
 function tagColor(index: number): TagColor {
-  return TAG_COLORS[index % TAG_COLORS.length]
+  return TAG_COLORS[index % TAG_COLORS.length]!
 }
 
 onMounted(() => {
