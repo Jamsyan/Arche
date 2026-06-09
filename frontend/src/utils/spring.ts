@@ -33,9 +33,9 @@ const DEFAULTS = {
 interface SpringHandle {
   /** 当前弹簧位置（只读） */
   value: Readonly<Ref<number>>
-  /** 瞬间跳转到指定位置（无动画），用于无缝边界复位 */
+  /** 为 current 和 target 同时增加一个偏移量（无动画），用于无限循环无缝边界复位 */
   // eslint-disable-next-line no-unused-vars
-  jump: (x: number) => void
+  jump: (_offset: number) => void
 }
 
 /**
@@ -79,11 +79,12 @@ export function useSpring(targetRef: Ref<number>, config: SpringConfig = {}): Sp
     }
   }
 
-  /** 瞬间跳转到指定位置（无动画），用于无限循环无缝复位 */
-  function jump(val: number) {
-    current.value = val
-    targetRef.value = val
-    velocity = 0
+  /** 为 current 和 target 同时增加一个偏移量（无动画），用于无限循环无缝边界复位。
+   *  offset 为整数时不会引入小数漂移，弹簧动量得以保留。 */
+  function jump(offset: number) {
+    current.value += offset
+    targetRef.value += offset
+    // 不重置 velocity——保留动量防止视觉卡顿
   }
 
   const stopWatch = watchEffect(() => {

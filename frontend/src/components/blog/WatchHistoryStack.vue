@@ -2,9 +2,9 @@
 /**
  * WatchHistoryStack — 继续观看 · 平铺横滚
  *
- * 卡片平铺排列，鼠标滚轮滚动，两端限位卡片提示上限并支持跳转。
+ * 卡片平铺排列，鼠标滚轮/拖拽滚动，两端限位卡片提示上限并支持跳转。
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import type { BlogPost } from '@/services/api'
 import PostCard from './PostCard.vue'
 
@@ -39,15 +39,49 @@ const dedupedItems = computed(() => {
     .slice(0, MAX_ITEMS)
 })
 
-// ── 鼠标滚轮 → 水平平滑滚动 ──
+// ── 滚动容器 ──
 const viewportRef = ref<HTMLElement | null>(null)
 
+// ── 鼠标滚轮 → 水平平滑滚动 ──
 function onWheel(e: WheelEvent) {
   const el = viewportRef.value
   if (!el) return
   e.preventDefault()
   el.scrollBy({ left: e.deltaY, behavior: 'smooth' })
 }
+
+// ── 鼠标拖拽 → 水平滚动 ──
+let dragStartX = 0
+let dragStartScroll = 0
+let isDragging = false
+
+function startDrag(e: MouseEvent) {
+  // 忽略拖动限位卡和卡片内的点击
+  const target = e.target as HTMLElement
+  if (target.closest('.boundary-card') || target.closest('.post-card')) return
+
+  isDragging = true
+  dragStartX = e.clientX
+  dragStartScroll = viewportRef.value?.scrollLeft ?? 0
+  window.addEventListener('mousemove', onDragMove)
+  window.addEventListener('mouseup', stopDrag)
+}
+
+function onDragMove(e: MouseEvent) {
+  if (!isDragging || !viewportRef.value) return
+  const delta = e.clientX - dragStartX
+  viewportRef.value.scrollLeft = dragStartScroll - delta
+}
+
+function stopDrag() {
+  isDragging = false
+  window.removeEventListener('mousemove', onDragMove)
+  window.removeEventListener('mouseup', stopDrag)
+}
+
+onBeforeUnmount(() => {
+  stopDrag()
+})
 
 // ── 估算阅读时长 ──
 function estimateDuration(post: BlogPost): string {
@@ -67,7 +101,7 @@ function estimateDuration(post: BlogPost): string {
       <span class="section-hint">{{ dedupedItems.length }} 个未读完</span>
     </div>
 
-    <div ref="viewportRef" class="scroll-viewport" @wheel="onWheel">
+    <div ref="viewportRef" class="scroll-viewport" @wheel="onWheel" @mousedown="startDrag">
       <div class="scroll-track">
         <!-- 左端限位卡 -->
         <article class="boundary-card" @click="emit('viewAll')">
@@ -165,18 +199,30 @@ function estimateDuration(post: BlogPost): string {
 .scroll-viewport {
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
   scroll-behavior: smooth;
+  cursor: grab;
+}
+
+.scroll-viewport:active {
+  cursor: grabbing;
+}
+
+.scroll-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .scroll-track {
   display: flex;
   gap: 14px;
   padding: 4px 0;
+  pointer-events: none;
 }
 
-/* ═══════════════════════════════════════
-   实际卡片
-   ═══════════════════════════════════════ */
+.scroll-track > * {
+  pointer-events: auto;
+}
+
 .scroll-card {
   flex: 0 0 270px;
   height: 170px;
@@ -252,9 +298,6 @@ function estimateDuration(post: BlogPost): string {
   color: var(--text-tertiary);
 }
 
-/* ═══════════════════════════════════════
-   深色模式
-   ═══════════════════════════════════════ */
 :global(.dark) .scroll-card:hover {
   box-shadow:
     0 0 0 2px var(--primary-color),
