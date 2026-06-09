@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+/**
+ * WatchHistoryStack — 继续观看 · Peek 布局
+ *
+ * 一张主卡完整展示，下一张从右侧露出封面一角。
+ * 点击箭头切换，主卡滑出、下一张滑入成为新主卡。
+ */
+import { computed, ref } from 'vue'
 import type { BlogPost } from '@/services/api'
+import PostCard from './PostCard.vue'
 
 export interface WatchHistoryItem {
   post: BlogPost
@@ -11,114 +18,122 @@ export interface WatchHistoryItem {
 const props = withDefaults(
   defineProps<{
     items: WatchHistoryItem[]
-    direction?: 'ltr' | 'rtl'
   }>(),
-  { direction: 'ltr' }
+  {}
 )
 
 const emit = defineEmits<{
   open: [item: WatchHistoryItem]
 }>()
 
-const hoveredIndex = ref<number | null>(null)
+const dedupedItems = computed(() => {
+  const seen = new Set<string>()
+  return props.items.filter((item) => {
+    if (seen.has(item.post.id)) return false
+    seen.add(item.post.id)
+    return true
+  })
+})
 
-const VISIBLE = 56 // visible width per card before next card starts
-const BLUR_END = 4 // last N cards start blurring
+const CARD_W = 260
+const PEEK = 56
 
-function getCardStyle(index: number) {
-  const total = props.items.length
-  const isHovered = hoveredIndex.value === index
-  const dist = hoveredIndex.value !== null ? Math.abs(hoveredIndex.value - index) : 99
-  const isNear = dist >= 1 && dist <= 2
+const focusIndex = ref(0)
+const maxFocus = computed(() => Math.max(0, dedupedItems.value.length - 1))
 
-  // Base horizontal offset
-  let offsetX = index * VISIBLE
-  if (props.direction === 'rtl') {
-    offsetX = -(total - 1 - index) * VISIBLE
-  }
-
-  // Vertical lift & scale
-  let translateY = 0
-  let scale = 1
-  const zIndex = isHovered ? total + 1 : isNear ? total : index
-
-  if (isHovered) {
-    translateY = -28
-    scale = 1.18
-  } else if (isNear) {
-    translateY = -10
-    scale = 1.05
-  }
-
-  // Edge blur → cards at the far end visually dissolve
-  const fromEnd = props.direction === 'rtl' ? index : total - 1 - index
-  let filter = 'none'
-  let opacity = 1
-
-  if (fromEnd < BLUR_END && !isHovered) {
-    const t = 1 - fromEnd / BLUR_END // 0 → 1
-    filter = `blur(${t * 3}px)`
-    opacity = 1 - t * 0.35
-  }
-
-  return {
-    transform: `translateX(${offsetX}px) translateY(${translateY}px) scale(${scale})`,
-    zIndex,
-    filter,
-    opacity
-  }
+function goPrev() {
+  focusIndex.value = Math.max(0, focusIndex.value - 1)
 }
 
-// Dynamic gradient pair for placeholder covers
-const gradientPool = [
-  ['#f2dfc7', '#dcbca0'],
-  ['#d9c8b0', '#9f8169'],
-  ['#e8d7bf', '#c0a688'],
-  ['#d0c2b1', '#8f7560'],
-  ['#c4b5a0', '#7d6855']
-] as const
+function goNext() {
+  focusIndex.value = Math.min(maxFocus.value, focusIndex.value + 1)
+}
 
-function placeholderGradient(index: number) {
-  const [a, b] = gradientPool[index % gradientPool.length]
-  return `linear-gradient(135deg, ${a}, ${b})`
+function cardTranslate(index: number): string {
+  const focus = focusIndex.value
+  if (index === focus) return 'translateX(0)'
+  if (index === focus - 1) return `translateX(-${CARD_W - PEEK}px)`
+  if (index === focus + 1) return `translateX(${CARD_W - PEEK}px)`
+  return `translateX(${index < focus ? -CARD_W : CARD_W}px)`
+}
+
+function isCardVisible(index: number): boolean {
+  return Math.abs(index - focusIndex.value) <= 1
+}
+
+function estimateDuration(post: BlogPost): string {
+  const text = post.content || ''
+  const len = text.replace(/<[^>]+>/g, '').length
+  const mins = Math.max(1, Math.ceil(len / 300))
+  return `${mins} 分钟`
+}
+
+function cardZIndex(index: number): number {
+  return index === focusIndex.value ? 2 : 1
 }
 </script>
 
 <template>
-  <section class="watch-history" :class="`dir-${direction}`">
+  <section class="watch-history">
     <div class="section-head">
-      <h3 class="section-title">继续观看</h3>
+      <div class="section-title-group">
+        <span class="section-icon">&#9654;</span>
+        <h3 class="section-title">继续观看</h3>
+      </div>
+      <div class="section-actions">
+        <span class="section-hint">{{ dedupedItems.length }} 个未读完</span>
+        <button class="nav-btn" :disabled="focusIndex <= 0" @click="goPrev" aria-label="上一张">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M15 18L9 12L15 6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          class="nav-btn"
+          :disabled="focusIndex >= maxFocus"
+          @click="goNext"
+          aria-label="下一张"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M9 18L15 12L9 6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
-    <div class="stack-viewport" @mouseleave="hoveredIndex = null">
-      <div class="stack-track">
+
+    <div class="peek-viewport">
+      <div class="peek-track">
         <div
-          v-for="(item, index) in items"
+          v-for="(item, index) in dedupedItems"
           :key="item.post.id"
-          class="stack-card"
-          :style="getCardStyle(index)"
-          @mouseenter="hoveredIndex = index"
+          v-show="isCardVisible(index)"
+          class="peek-card"
+          :style="{
+            transform: cardTranslate(index),
+            zIndex: cardZIndex(index)
+          }"
           @click="emit('open', item)"
         >
-          <div
-            class="card-cover"
-            :style="{
-              backgroundImage: item.post.cover_url
-                ? `url(${item.post.cover_url})`
-                : placeholderGradient(index)
-            }"
+          <PostCard
+            mode="cover"
+            :post="item.post"
+            :meta-progress="item.progress"
+            :meta-duration="estimateDuration(item.post)"
           />
-          <div class="card-body">
-            <span class="card-title">{{ item.post.title }}</span>
-            <span class="card-meta">
-              {{ item.progress != null ? `已读 ${item.progress}%` : '未读' }}
-              <template v-if="item.lastReadAt"> · {{ item.lastReadAt }} </template>
-            </span>
-          </div>
         </div>
       </div>
-
-      <!-- Edge fade mask -->
-      <div class="edge-mask" :class="direction === 'rtl' ? 'mask-left' : 'mask-right'" />
+      <div class="edge-peek"></div>
     </div>
   </section>
 </template>
@@ -128,102 +143,124 @@ function placeholderGradient(index: number) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  user-select: none;
 }
 
-.section-head h3 {
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-icon {
+  font-size: 10px;
+  color: var(--primary-color);
+  opacity: 0.7;
+}
+
+.section-title {
   margin: 0;
   font-size: 18px;
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
-/* ── Viewport clips overflow ── */
-.stack-viewport {
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-right: 4px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.nav-btn:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.peek-viewport {
   position: relative;
   overflow: hidden;
-  height: 180px; /* 130px card + 50px hover lift room */
+  height: 190px;
 }
 
-.stack-track {
+.peek-track {
   position: relative;
-  height: 130px;
-  top: 12px; /* vertical centering offset */
+  height: 170px;
+  top: 10px;
 }
 
-/* ── Individual card ── */
-.stack-card {
+.peek-card {
   position: absolute;
   left: 0;
   top: 0;
-  width: 180px;
-  height: 130px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
-  box-shadow: var(--shadow-sm);
+  width: 260px;
+  height: 170px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
+  box-shadow:
+    0 4px 16px -6px rgba(26, 24, 23, 0.15),
+    0 1px 4px -2px rgba(26, 24, 23, 0.08);
   transition:
-    transform 0.32s var(--ease-out-spring),
-    filter 0.3s ease,
-    opacity 0.3s ease,
-    box-shadow 0.25s ease;
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease;
 }
 
-.stack-card:hover {
-  box-shadow: var(--shadow-lg);
+.peek-card:hover {
+  box-shadow:
+    0 0 0 2px var(--primary-color),
+    0 4px 16px -6px rgba(26, 24, 23, 0.15),
+    0 1px 4px -2px rgba(26, 24, 23, 0.08);
 }
 
-.card-cover {
-  width: 100%;
-  height: 70px;
-  background-size: cover;
-  background-position: center;
-}
-
-.card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px 8px;
-}
-
-.card-title {
-  font-size: 12px;
-  font-weight: var(--font-weight-medium);
-  color: var(--text-primary);
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.card-meta {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── Edge fade mask ── */
-.edge-mask {
+.edge-peek {
   position: absolute;
   top: 0;
-  bottom: 0;
-  width: 80px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.mask-right {
   right: 0;
+  bottom: 0;
+  width: 60px;
+  pointer-events: none;
+  z-index: 3;
   background: linear-gradient(to right, transparent, var(--bg-color) 85%);
 }
 
-.mask-left {
-  left: 0;
-  background: linear-gradient(to left, transparent, var(--bg-color) 85%);
+:global(.dark) .peek-card:hover {
+  box-shadow:
+    0 0 0 2px var(--primary-color),
+    0 4px 16px -6px rgba(0, 0, 0, 0.45),
+    0 1px 4px -2px rgba(0, 0, 0, 0.25);
 }
 </style>

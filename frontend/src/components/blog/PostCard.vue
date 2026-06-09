@@ -6,7 +6,7 @@ import ArTag from '@/components/ui/ArTag.vue'
 import { getCoverGradient } from '@/utils/cover'
 import type { BlogPost } from '@/services/api'
 
-type PostCardMode = 'showcase' | 'media' | 'feed'
+type PostCardMode = 'showcase' | 'media' | 'feed' | 'stack' | 'cover'
 
 const props = withDefaults(
   defineProps<{
@@ -16,6 +16,12 @@ const props = withDefaults(
     showOverlay?: boolean
     /** media 模式下是否显示底部分享/点赞栏 */
     showActions?: boolean
+    /** stack 模式下左侧标签内容（作者名等） */
+    label?: string
+    /** cover 模式下观看进度 (0-100) */
+    metaProgress?: number
+    /** cover 模式下阅读时长文字 */
+    metaDuration?: string
   }>(),
   {
     mode: 'media',
@@ -135,6 +141,37 @@ function handleClick() {
           <span>{{ authorName }}</span>
           <span class="fd-sep">·</span>
           <span>{{ dateStr }}</span>
+        </div>
+      </div>
+    </template>
+
+    <!-- ═══ stack: 紧凑堆叠卡（标签 + 贴面封面 + 标题底栏） ═══ -->
+    <template v-if="mode === 'stack'">
+      <div class="sk-body">
+        <div class="sk-label">
+          <span class="sk-label-text">{{ label || authorName }}</span>
+        </div>
+        <div class="sk-cover" :style="coverStyle">
+          <div class="sk-cover-shine" />
+        </div>
+      </div>
+      <div class="sk-title-bar">
+        <span class="sk-title">{{ post.title }}</span>
+      </div>
+    </template>
+
+    <!-- ═══ cover: 全封面 + 信息浮层 ═══ -->
+    <template v-if="mode === 'cover'">
+      <div class="cv-card" :style="coverStyle">
+        <!-- 顶部：左→右渐变，标题 + @作者 -->
+        <div class="cv-top-overlay">
+          <span class="cv-title">{{ post.title }}</span>
+          <span class="cv-author">@{{ authorName }}</span>
+        </div>
+        <!-- 底部：进度 + 时长 -->
+        <div class="cv-bottom-overlay">
+          <span v-if="metaProgress != null" class="cv-progress"> 已读 {{ metaProgress }}% </span>
+          <span v-if="metaDuration" class="cv-duration">{{ metaDuration }}</span>
         </div>
       </div>
     </template>
@@ -410,5 +447,201 @@ function handleClick() {
 
 .fd-sep {
   color: var(--text-quaternary, rgba(26, 24, 23, 0.18));
+}
+
+/* ══════════ STACK ══════════ */
+.post-card--stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-strong-color);
+}
+
+.sk-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── 左侧标签（竖排文字，宽可通过 --sk-label-w 覆写） ── */
+.sk-label {
+  width: var(--sk-label-w, 38px);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  background: var(--surface-inset-color);
+}
+
+.sk-label-text {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
+/* ── 封面（"贴上去"的层次感） ── */
+.sk-cover {
+  flex: 1;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  /* 右边上下圆角与卡片对齐 */
+  border-top-right-radius: inherit;
+  border-bottom-right-radius: inherit;
+  /* 左边上下独立小圆角 */
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  /* 阴影产生"照片贴在表面"的深度感 */
+  box-shadow:
+    -1px 0 6px rgba(26, 24, 23, 0.06),
+    2px 2px 8px rgba(26, 24, 23, 0.1);
+}
+
+.sk-cover-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ── 底部标题栏（紧凑贴合） ── */
+.sk-title-bar {
+  padding: var(--sk-title-pad, 8px 10px);
+  background: var(--surface-color);
+}
+
+.sk-title {
+  font-size: var(--sk-title-size, 12px);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  letter-spacing: -0.01em;
+}
+
+/* 深色模式适配 */
+:global(.dark) .sk-label {
+  background: rgba(42, 39, 36, 0.72);
+}
+
+:global(.dark) .sk-cover {
+  box-shadow:
+    -1px 0 6px rgba(0, 0, 0, 0.15),
+    2px 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:global(.dark) .sk-title-bar {
+  background: rgba(26, 24, 23, 0.88);
+}
+
+/* ══════════ COVER ══════════ */
+.post-card--cover {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.cv-card {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+/* ── 顶部 overlay：左→右渐隐 ── */
+.cv-top-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  background: linear-gradient(
+    to right,
+    rgba(26, 24, 23, 0.5) 0%,
+    rgba(26, 24, 23, 0.18) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  min-height: 32px;
+}
+
+.cv-title {
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+  line-height: 1.3;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 72%;
+  flex-shrink: 1;
+}
+
+.cv-author {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ── 底部 overlay：下→上渐隐 ── */
+.cv-bottom-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 7px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to top, rgba(26, 24, 23, 0.55) 0%, transparent 100%);
+  pointer-events: none;
+  min-height: 32px;
+}
+
+.cv-progress {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-duration {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* 深色模式 */
+:global(.dark) .cv-top-overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.2) 55%,
+    transparent 100%
+  );
+}
+
+:global(.dark) .cv-bottom-overlay {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
 }
 </style>
