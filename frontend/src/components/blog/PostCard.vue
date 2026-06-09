@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { NIcon } from 'naive-ui'
 import { EyeOutline, HeartOutline, BookmarkOutline, ChatbubbleOutline } from '@vicons/ionicons5'
 import ArTag from '@/components/ui/ArTag.vue'
 import { getCoverGradient } from '@/utils/cover'
+import { generateTextCover } from '@/utils/generateTextCover'
 import type { BlogPost } from '@/services/api'
 
 type PostCardMode = 'showcase' | 'media' | 'feed' | 'stack' | 'cover' | 'compact' | 'dense'
@@ -69,6 +70,18 @@ const shortExcerpt = computed(() => {
 })
 
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
+
+/** 无封面时自动生成的文字封面 data URL（惰性，仅 compact 模式） */
+const textCoverUrl = ref('')
+function getTextCover(post: BlogPost): string {
+  if (!textCoverUrl.value) {
+    textCoverUrl.value = generateTextCover(post)
+  }
+  return textCoverUrl.value
+}
+
+/** compact 模式是否是有封面的帖子 */
+const hasCover = computed(() => !!props.post.cover_url)
 
 function tagColor(index: number) {
   return TAG_COLORS[index % TAG_COLORS.length]!
@@ -200,13 +213,16 @@ function handleClick() {
     </template>
 
     <!-- ═══ compact: 封面+内容分区卡片（首页用） ═══ -->
+    <!-- 有封面 → 放大封面 + 压缩文字；无封面 → 自动文字封面 + 文字优待 -->
     <template v-if="mode === 'compact'">
       <!-- 封面区 -->
       <div class="cp-cover-wrap">
         <div v-if="post.cover_url" class="cp-cover">
           <img :src="post.cover_url" alt="" class="cp-cover-img" loading="lazy" />
         </div>
-        <div v-else class="cp-cover cp-cover--fallback" :style="coverStyle" />
+        <div v-else class="cp-cover cp-cover--text">
+          <img :src="getTextCover(post)" alt="" class="cp-text-cover-img" loading="lazy" />
+        </div>
         <!-- 统计数据（右下角） -->
         <div class="cp-cover-stats">
           <span class="cp-stat-item">
@@ -220,10 +236,13 @@ function handleClick() {
         </div>
       </div>
 
-      <!-- 内容区 -->
-      <div class="cp-body">
-        <h4 class="cp-title">{{ post.title }}</h4>
-        <p v-if="shortExcerpt" class="cp-excerpt">{{ shortExcerpt }}</p>
+      <!-- 内容区：有封面 → 文字少；无封面 → 文字多 -->
+      <div :class="['cp-body', { 'cp-body--text-priority': !hasCover }]">
+        <h4 :class="['cp-title', { 'cp-title--compact': hasCover }]">{{ post.title }}</h4>
+        <p v-if="hasCover && shortExcerpt" class="cp-excerpt cp-excerpt--compact">
+          {{ shortExcerpt }}
+        </p>
+        <p v-if="!hasCover" class="cp-excerpt cp-excerpt--expanded">{{ excerpt }}</p>
         <div v-if="displayTags.length > 0" class="cp-tags">
           <ArTag
             v-for="(tag, i) in displayTags"
@@ -772,19 +791,29 @@ function handleClick() {
   overflow: hidden;
 }
 
+/* 有封面：大幅展示，自然比例，更大上限 */
 .cp-cover-img {
   width: 100%;
   height: auto;
   display: block;
-  max-height: 140px;
+  max-height: 260px;
   object-fit: cover;
 }
 
-.cp-cover--fallback {
+/* 无封面：自动生成文字封面，固定比例 */
+.cp-cover--text {
+  width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 130px;
-  background-size: cover;
-  background-position: center;
+  max-height: 170px;
+  overflow: hidden;
+  background: var(--surface-inset-color);
+}
+
+.cp-text-cover-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 /* 统计数据（右下角毛玻璃 pill） */
@@ -819,6 +848,12 @@ function handleClick() {
   flex: 1;
 }
 
+/* 无封面时文字区获得更多空间，内容更舒展 */
+.cp-body--text-priority {
+  padding: var(--spacing-md) var(--spacing-md);
+  gap: 8px;
+}
+
 .cp-title {
   margin: 0;
   font-size: 14px;
@@ -831,15 +866,31 @@ function handleClick() {
   overflow: hidden;
 }
 
+/* 有封面时标题只显示 1 行 */
+.cp-title--compact {
+  -webkit-line-clamp: 1;
+}
+
 .cp-excerpt {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-tertiary);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 有封面时正文只显示 1 行 */
+.cp-excerpt--compact {
+  -webkit-line-clamp: 1;
+}
+
+/* 无封面时正文显示 3 行，文字优待 */
+.cp-excerpt--expanded {
+  -webkit-line-clamp: 4;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .cp-tags {

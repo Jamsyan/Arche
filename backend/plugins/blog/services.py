@@ -362,6 +362,7 @@ class BlogService:
         author_id: uuid.UUID,
         title: str,
         content: str,
+        intro: str | None = None,
         tags: list[str] | None = None,
         required_level: int = 5,
         user_level: int = 5,
@@ -423,6 +424,7 @@ class BlogService:
                 author_id=author_id,
                 title=title,
                 slug=slug,
+                intro=intro,
                 content=content,
                 status="pending",
                 required_level=required_level,
@@ -482,6 +484,7 @@ class BlogService:
         post_id: uuid.UUID,
         author_id: uuid.UUID,
         title: str | None = None,
+        intro: str | None = None,
         content: str | None = None,
         required_level: int | None = None,
         tags: list[str] | None = None,
@@ -504,6 +507,8 @@ class BlogService:
                 post.title = title
                 # 重新生成 slug
                 post.slug = await self.generate_slug(title, exclude_slug=post.slug)
+            if intro is not None:
+                post.intro = intro
             if content is not None:
                 # 校验正文引用
                 errors = await self.validate_content(content, post.author_id)
@@ -1749,6 +1754,7 @@ class BlogService:
             "author_username": author_username or str(post.author_id)[:8],
             "title": post.title,
             "slug": post.slug,
+            "intro": post.intro,
             "content": post.content,
             "cover_url": post.cover_url,
             "source_url": post.source_url,

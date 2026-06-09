@@ -10,6 +10,7 @@ export interface BlogPost {
   id: string
   slug: string
   title: string
+  intro?: string
   content: string
   cover_url?: string
   source_url?: string
@@ -48,6 +49,7 @@ export interface BlogTag {
 
 export interface CreatePostPayload {
   title: string
+  intro?: string
   content: string
   tags?: string[]
   required_level?: number

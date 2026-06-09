@@ -30,6 +30,7 @@ const emit = defineEmits<{
 const isEdit = computed(() => !!props.post)
 
 const title = ref(props.post?.title || '')
+const intro = ref(props.post?.intro || '')
 const content = ref(props.post?.content || '')
 const tagInput = ref('')
 const tags = ref<string[]>(props.post?.tags || [])
@@ -61,11 +62,13 @@ function handleSave() {
   const payload: CreatePostPayload | UpdatePostPayload = isEdit.value
     ? {
         title: title.value.trim(),
+        intro: intro.value.trim() || undefined,
         content: content.value.trim(),
         ...(props.coverUrl ? { cover_url: props.coverUrl } : {})
       }
     : {
         title: title.value.trim(),
+        intro: intro.value.trim() || undefined,
         content: content.value.trim(),
         tags: tags.value,
         required_level: requiredLevel.value,
@@ -93,6 +96,7 @@ defineExpose({
   handleTagKeydown,
   requiredLevel,
   title,
+  intro,
   content,
   updateMeta
 })
@@ -110,6 +114,21 @@ defineExpose({
         :maxlength="120"
         show-count
       />
+    </div>
+
+    <!-- 引言 -->
+    <div class="editor-field">
+      <label class="field-label"
+        >引言 <span class="field-optional">（可选，用作文字封面素材）</span></label
+      >
+      <textarea
+        v-model="intro"
+        class="field-textarea"
+        placeholder="用一两句话概括文章精华……"
+        rows="2"
+        maxlength="512"
+      />
+      <span class="field-hint">未填写时将从正文自动截取</span>
     </div>
 
     <!-- 内容 -->
@@ -186,6 +205,43 @@ defineExpose({
   font-size: 14px;
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
+}
+
+.field-optional {
+  font-weight: var(--font-weight-normal);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--text-quaternary);
+  line-height: 1.4;
+}
+
+.field-textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.field-textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light-color);
+}
+
+.field-textarea::placeholder {
+  color: var(--text-quaternary);
 }
 
 .tag-input-row {
