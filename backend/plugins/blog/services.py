@@ -365,6 +365,7 @@ class BlogService:
         intro: str | None = None,
         tags: list[str] | None = None,
         required_level: int = 5,
+        auto_cover_url: str | None = None,
         user_level: int = 5,
     ) -> dict:
         """创建帖子，默认进入审核队列（status=pending）。"""
@@ -426,6 +427,7 @@ class BlogService:
                 slug=slug,
                 intro=intro,
                 content=content,
+                auto_cover_url=auto_cover_url,
                 status="pending",
                 required_level=required_level,
             )
@@ -488,6 +490,7 @@ class BlogService:
         content: str | None = None,
         required_level: int | None = None,
         tags: list[str] | None = None,
+        auto_cover_url: str | None = None,
         user_level: int = 5,
     ) -> dict:
         """编辑帖子（仅作者本人）。"""
@@ -509,6 +512,8 @@ class BlogService:
                 post.slug = await self.generate_slug(title, exclude_slug=post.slug)
             if intro is not None:
                 post.intro = intro
+            if auto_cover_url is not None:
+                post.auto_cover_url = auto_cover_url
             if content is not None:
                 # 校验正文引用
                 errors = await self.validate_content(content, post.author_id)
@@ -1757,6 +1762,7 @@ class BlogService:
             "intro": post.intro,
             "content": post.content,
             "cover_url": post.cover_url,
+            "auto_cover_url": post.auto_cover_url,
             "source_url": post.source_url,
             "source_name": post.source_name,
             "status": post.status,

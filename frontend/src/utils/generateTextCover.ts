@@ -68,11 +68,15 @@ function parseGradient(style: string): CanvasGradient | null {
 
 /**
  * 为帖子生成文字封面图片。
- * @returns data URL（image/jpeg, 0.85 质量），同 session 内缓存
+ * @param post - 帖子数据
+ * @param noCache - 强制不缓存（用于创建帖子时的预生成）
+ * @returns data URL（image/jpeg, 0.85 质量）
  */
-export function generateTextCover(post: BlogPost): string {
-  const cached = cache.get(post.id)
-  if (cached) return cached
+export function generateTextCover(post: BlogPost, noCache?: boolean): string {
+  if (!noCache) {
+    const cached = cache.get(post.id)
+    if (cached) return cached
+  }
 
   const canvas = document.createElement('canvas')
   canvas.width = W

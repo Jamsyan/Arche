@@ -26,6 +26,9 @@ class CreatePostRequest(BaseModel):
         le=5,
         description="阅读所需最低 P 等级（0-5，数字越小权限越高）",
     )
+    auto_cover_url: str | None = Field(
+        None, max_length=1024, description="自动生成封面 URL（无 cover_url 时使用）"
+    )
 
 
 class UpdatePostRequest(BaseModel):
@@ -36,6 +39,9 @@ class UpdatePostRequest(BaseModel):
         None, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）"
     )
     tags: list[str] | None = Field(None, description="标签列表")
+    auto_cover_url: str | None = Field(
+        None, max_length=1024, description="自动生成封面 URL"
+    )
 
 
 class CreateCommentRequest(BaseModel):
@@ -135,6 +141,7 @@ async def create_post(req: CreatePostRequest, request: Request):
         content=req.content,
         tags=req.tags,
         required_level=req.required_level,
+        auto_cover_url=req.auto_cover_url,
         user_level=user["level"],
     )
     return {"code": "ok", "message": "发帖成功，等待审核", "data": result}
@@ -182,6 +189,7 @@ async def update_post(post_id: str, req: UpdatePostRequest, request: Request):
         content=req.content,
         required_level=req.required_level,
         tags=req.tags,
+        auto_cover_url=req.auto_cover_url,
         user_level=user["level"],
     )
     return {"code": "ok", "message": "编辑成功，重新进入审核", "data": result}

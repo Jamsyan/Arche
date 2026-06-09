@@ -11,6 +11,8 @@ import {
   type CreatePostPayload,
   type UpdatePostPayload
 } from '@/services/api'
+import { uploadOssFileApi } from '@/services/api/oss'
+import { generateTextCover } from '@/utils/generateTextCover'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,6 +39,28 @@ const fetchDetail = async () => {
 const handleSave = async (payload: CreatePostPayload | UpdatePostPayload) => {
   submitting.value = true
   try {
+    // 没有封面 → 自动生成文字封面并上传 OSS
+    if (!payload.cover_url && payload.title) {
+      const textCoverDataUrl = generateTextCover(
+        {
+          id: '',
+          slug: '',
+          title: payload.title,
+          intro: (payload as any).intro || undefined,
+          content: payload.content || '',
+          tags: (payload as any).tags || []
+        } as BlogPost,
+        true
+      )
+      const blob = await fetch(textCoverDataUrl).then((r) => r.blob())
+      const file = new File([blob], 'text-cover.jpg', { type: 'image/jpeg' })
+      const resp = await uploadOssFileApi(file, false)
+      const respData = resp as unknown as { data?: { id: string } }
+      if (respData?.data?.id) {
+        ;(payload as any).auto_cover_url = `/api/oss/files/${respData.data.id}`
+      }
+    }
+
     if (mode.value === 'edit') {
       await updatePostApi(postId.value, payload)
       message.success('保存成功')

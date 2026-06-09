@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import { EyeOutline, HeartOutline, BookmarkOutline, ChatbubbleOutline } from '@vicons/ionicons5'
 import ArTag from '@/components/ui/ArTag.vue'
 import { getCoverGradient } from '@/utils/cover'
-import { generateTextCover } from '@/utils/generateTextCover'
 import type { BlogPost } from '@/services/api'
 
 type PostCardMode = 'showcase' | 'media' | 'feed' | 'stack' | 'cover' | 'compact' | 'dense'
@@ -71,17 +70,10 @@ const shortExcerpt = computed(() => {
 
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 
-/** 无封面时自动生成的文字封面 data URL（惰性，仅 compact 模式） */
-const textCoverUrl = ref('')
-function getTextCover(post: BlogPost): string {
-  if (!textCoverUrl.value) {
-    textCoverUrl.value = generateTextCover(post)
-  }
-  return textCoverUrl.value
-}
-
-/** compact 模式是否是有封面的帖子 */
-const hasCover = computed(() => !!props.post.cover_url)
+/** compact 模式是否是有真实封面（非自动生成）的帖子 */
+const hasRealCover = computed(() => !!props.post.cover_url)
+/** compact 模式使用的封面 URL（真实封面优先，否则用自动生成的） */
+const displayCoverUrl = computed(() => props.post.cover_url || props.post.auto_cover_url || '')
 
 function tagColor(index: number) {
   return TAG_COLORS[index % TAG_COLORS.length]!
@@ -217,11 +209,14 @@ function handleClick() {
     <template v-if="mode === 'compact'">
       <!-- 封面区 -->
       <div class="cp-cover-wrap">
-        <div v-if="post.cover_url" class="cp-cover">
-          <img :src="post.cover_url" alt="" class="cp-cover-img" loading="lazy" />
-        </div>
-        <div v-else class="cp-cover cp-cover--text">
-          <img :src="getTextCover(post)" alt="" class="cp-text-cover-img" loading="lazy" />
+        <div v-if="displayCoverUrl" class="cp-cover">
+          <img
+            :src="displayCoverUrl"
+            alt=""
+            class="cp-cover-img"
+            :class="{ 'cp-cover-img--auto': !hasRealCover }"
+            loading="lazy"
+          />
         </div>
         <!-- 统计数据（右下角） -->
         <div class="cp-cover-stats">
@@ -237,12 +232,12 @@ function handleClick() {
       </div>
 
       <!-- 内容区：有封面 → 文字少；无封面 → 文字多 -->
-      <div :class="['cp-body', { 'cp-body--text-priority': !hasCover }]">
-        <h4 :class="['cp-title', { 'cp-title--compact': hasCover }]">{{ post.title }}</h4>
-        <p v-if="hasCover && shortExcerpt" class="cp-excerpt cp-excerpt--compact">
+      <div :class="['cp-body', { 'cp-body--text-priority': !hasRealCover }]">
+        <h4 :class="['cp-title', { 'cp-title--compact': hasRealCover }]">{{ post.title }}</h4>
+        <p v-if="hasRealCover && shortExcerpt" class="cp-excerpt cp-excerpt--compact">
           {{ shortExcerpt }}
         </p>
-        <p v-if="!hasCover" class="cp-excerpt cp-excerpt--expanded">{{ excerpt }}</p>
+        <p v-if="!hasRealCover" class="cp-excerpt cp-excerpt--expanded">{{ excerpt }}</p>
         <div v-if="displayTags.length > 0" class="cp-tags">
           <ArTag
             v-for="(tag, i) in displayTags"
@@ -800,19 +795,10 @@ function handleClick() {
   object-fit: cover;
 }
 
-/* 无封面：自动生成文字封面，固定比例 */
-.cp-cover--text {
-  width: 100%;
-  aspect-ratio: 16 / 9;
+/* 自动生成文字封面：固定比例，小尺寸展示 */
+.cp-cover-img--auto {
   max-height: 170px;
-  overflow: hidden;
-  background: var(--surface-inset-color);
-}
-
-.cp-text-cover-img {
-  width: 100%;
-  height: 100%;
-  display: block;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
 }
 

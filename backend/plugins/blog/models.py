@@ -31,6 +31,9 @@ class BlogPost(Base, HasSID):
     cover_url: Mapped[str | None] = mapped_column(
         String(1024), nullable=True, default=None
     )
+    auto_cover_url: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     quality_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     views: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -13,6 +13,7 @@ export interface BlogPost {
   intro?: string
   content: string
   cover_url?: string
+  auto_cover_url?: string
   source_url?: string
   source_name?: string
   tags: string[]
@@ -54,14 +55,17 @@ export interface CreatePostPayload {
   tags?: string[]
   required_level?: number
   cover_url?: string
+  auto_cover_url?: string
 }
 
 export interface UpdatePostPayload {
   title?: string
+  intro?: string
   content?: string
   tags?: string[]
   required_level?: number
   cover_url?: string
+  auto_cover_url?: string
 }
 
 export interface CreateCommentPayload {

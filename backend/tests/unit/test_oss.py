@@ -60,6 +60,10 @@ class MockMinIOBackend:
     def __init__(self, *args, **kwargs):
         self.stored = {}
 
+    @property
+    def backend_type(self) -> str:
+        return "minio"
+
     async def upload_stream(self, key, stream, total_bytes):
         data = b""
         async for chunk in stream:

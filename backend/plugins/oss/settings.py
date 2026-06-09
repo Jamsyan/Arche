@@ -20,6 +20,10 @@ class OssSettings(BaseSettings):
     MINIO_ROOT_USER: str = Field(default="veiladmin", description="MinIO 用户名")
     MINIO_ROOT_PASSWORD: str = Field(default="veiladmin123", description="MinIO 密码")
     MINIO_SECURE: bool = Field(default=False, description="MinIO 是否启用 TLS")
+    OSS_STORAGE_DIR: str = Field(
+        default="data/storage",
+        description="本地文件系统后端存储根目录（相对/绝对路径，开发环境无需 MinIO 时使用）",
+    )
 
     class Config:
         extra = "allow"
