@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { NInput, NSelect, NEmpty, NPopconfirm, useMessage } from 'naive-ui'
 import {
-  getBlogPostsApi,
+  getModerationPendingApi,
   approvePostApi,
   rejectPostApi,
   deletePostApi,
@@ -41,7 +41,7 @@ const fetchPosts = async (resetPage = false) => {
     const params: Record<string, unknown> = { page: page.value, page_size: pageSize }
     if (q.value) params.q = q.value
     if (status.value) params.status = status.value
-    const res = await getBlogPostsApi(params, { silent: true })
+    const res = await getModerationPendingApi(params, { silent: true })
     posts.value = (res as unknown as { list: BlogPost[] }).list || []
     total.value = (res as unknown as { total: number }).total || 0
   } catch {
