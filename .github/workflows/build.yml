@@ -13,12 +13,6 @@ env:
   IMAGE_REPO: arche
 
 jobs:
-  # ── 1. 版本路由 ──
-  # 自动版本号：基于 Conventional Commits 计算下一个版本
-  #   - BREAKING CHANGE / !  → major
-  #   - feat:                → minor
-  #   - fix:                 → patch
-  #   tag push (v*): 直接使用 tag 版本（手动发版）
   version:
     runs-on: ubuntu-latest
     outputs:
