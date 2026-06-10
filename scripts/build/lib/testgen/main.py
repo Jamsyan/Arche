@@ -34,8 +34,8 @@ def generate(
         typer.echo(f"错误：文件不存在 - {source_path}", err=True)
         raise typer.Exit(code=1)
 
-    from scripts.testgen.orchestrator import detect_type, generate_test
-    from scripts.testgen.writer import write_test_file
+    from .orchestrator import detect_type, generate_test
+    from .writer import write_test_file
 
     file_type = detect_type(source_path)
     typer.echo(f"检测到文件类型：{file_type}")
@@ -82,12 +82,12 @@ def batch_generate(
         typer.echo(f"错误：目录不存在 - {dir_path}", err=True)
         raise typer.Exit(code=1)
 
-    from scripts.testgen.orchestrator import (
+    from .orchestrator import (
         SUPPORTED_PATTERNS,
         detect_type,
         generate_test,
     )
-    from scripts.testgen.writer import write_test_file
+    from .writer import write_test_file
 
     matched = []
     for pattern in SUPPORTED_PATTERNS.values():
@@ -144,7 +144,7 @@ def clear_cache(
     ),
 ):
     """清除 AST 扫描缓存"""
-    from scripts.testgen.cache import clear
+    from .cache import clear
 
     source_path = Path(source).resolve() if source else None
     clear(source_path, file_type)
@@ -180,7 +180,7 @@ def learn(
 @app.command("list-templates")
 def list_templates():
     """列出支持的文件类型和对应的模板"""
-    from scripts.testgen.orchestrator import SUPPORTED_PATTERNS, FILE_TYPE_LABELS
+    from .orchestrator import SUPPORTED_PATTERNS, FILE_TYPE_LABELS
 
     typer.echo("支持的文件类型：")
     for type_id, pattern in SUPPORTED_PATTERNS.items():

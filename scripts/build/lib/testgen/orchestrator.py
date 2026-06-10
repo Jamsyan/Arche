@@ -2,8 +2,8 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
-from scripts.testgen.cache import load as cache_load, save as cache_save
-from scripts.testgen.learner import learn_from_tests, enhance_with_patterns
+from .cache import load as cache_load, save as cache_save
+from .learner import learn_from_tests, enhance_with_patterns
 
 SUPPORTED_PATTERNS = {
     "frontend_api": "services/api/*.ts",
@@ -108,8 +108,8 @@ def generate_test(source_path: Path, file_type: str) -> GenerateResult:
     output_path = infer_output_path(source_path, file_type)
 
     if file_type == "frontend_api":
-        from scripts.testgen.scanner.ts_ast import scan_api_service
-        from scripts.testgen.templates.frontend_api import render
+        from .scanner.ts_ast import scan_api_service
+        from .templates.frontend_api import render
 
         apis = cache_load(source_path, file_type)
         if apis is None:
@@ -117,8 +117,8 @@ def generate_test(source_path: Path, file_type: str) -> GenerateResult:
             cache_save(source_path, file_type, apis)
         content = render(apis, source_path.stem)
     elif file_type == "frontend_utils":
-        from scripts.testgen.scanner.frontend import scan_utils
-        from scripts.testgen.templates.frontend_utils import render
+        from .scanner.frontend import scan_utils
+        from .templates.frontend_utils import render
 
         funcs = cache_load(source_path, file_type)
         if funcs is None:
@@ -126,8 +126,8 @@ def generate_test(source_path: Path, file_type: str) -> GenerateResult:
             cache_save(source_path, file_type, funcs)
         content = render(funcs, source_path.stem)
     elif file_type == "frontend_composable":
-        from scripts.testgen.scanner.frontend import scan_composable
-        from scripts.testgen.templates.frontend_composable import render
+        from .scanner.frontend import scan_composable
+        from .templates.frontend_composable import render
 
         composable = cache_load(source_path, file_type)
         if composable is None:
@@ -136,8 +136,8 @@ def generate_test(source_path: Path, file_type: str) -> GenerateResult:
                 cache_save(source_path, file_type, composable)
         content = render(composable, source_path.stem)
     elif file_type == "frontend_store":
-        from scripts.testgen.scanner.frontend import scan_store
-        from scripts.testgen.templates.frontend_store import render
+        from .scanner.frontend import scan_store
+        from .templates.frontend_store import render
 
         store_info = cache_load(source_path, file_type)
         if store_info is None:
@@ -146,8 +146,8 @@ def generate_test(source_path: Path, file_type: str) -> GenerateResult:
                 cache_save(source_path, file_type, store_info)
         content = render(store_info, source_path.stem)
     elif file_type == "backend_service":
-        from scripts.testgen.scanner.backend import scan_service
-        from scripts.testgen.templates.backend_service import render
+        from .scanner.backend import scan_service
+        from .templates.backend_service import render
 
         service_info = cache_load(source_path, file_type)
         if service_info is None:
@@ -156,8 +156,8 @@ def generate_test(source_path: Path, file_type: str) -> GenerateResult:
                 cache_save(source_path, file_type, service_info)
         content = render(service_info, source_path, output_path)
     elif file_type == "backend_routes":
-        from scripts.testgen.scanner.backend import scan_routes
-        from scripts.testgen.templates.backend_routes import render
+        from .scanner.backend import scan_routes
+        from .templates.backend_routes import render
 
         routes_info = cache_load(source_path, file_type)
         if routes_info is None:

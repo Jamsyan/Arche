@@ -358,6 +358,7 @@ async def test_app(db_container):
     from backend.core.middleware import register_error_handlers
     from backend.plugins.auth.middleware import AuthMiddleware
 
+    registry.reset()
     discover_plugins()
 
     app = FastAPI(title="Test Arche")

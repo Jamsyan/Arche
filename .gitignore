@@ -43,6 +43,9 @@ htmlcov/
 .pytest_cache/
 .artifacts/
 
+# Testgen cache
+.testgen-cache/
+
 # Storage (local data)
 storage/
 data/

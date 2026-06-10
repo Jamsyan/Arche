@@ -52,6 +52,8 @@ dev = [
     "ruff>=0.15.11",
     "pytest-playwright>=0.8.0",
     "typer>=0.26.7",
+    "tree-sitter>=0.25.2",
+    "tree-sitter-typescript>=0.23.2",
 ]
 
 [tool.coverage.run]
@@ -71,6 +73,7 @@ testpaths = ["backend/tests"]
 pythonpath = ["."]
 norecursedirs = [".venv", "node_modules", "frontend", "scripts"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "module"
 addopts = "-v --strict-markers --tb=short"
 markers = [
     "slow: 标记慢速测试（需要网络）",
