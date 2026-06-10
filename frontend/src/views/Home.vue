@@ -6,6 +6,7 @@ import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import { withFallback, blogMockData } from '@/services/mock'
 import { useUserStore } from '@/store/modules/user'
 import { PostCard, HeroCarousel, TrendingTags, WatchHistoryStack } from '@/components/blog'
+import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
 import type { WatchHistoryItem } from '@/components/blog/WatchHistoryStack.vue'
 
 const route = useRoute()
@@ -81,6 +82,9 @@ const fetchPosts = async () => {
     // mock 数据保持不变
   } finally {
     loading.value = false
+    // 对缺少封面的帖子按需生成文字封面并持久化
+    ensurePostsCovers(posts.value)
+    ensurePostsCovers(hotPosts.value)
   }
 }
 

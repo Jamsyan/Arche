@@ -41,9 +41,10 @@ const authorDisplay = computed(() => `@ ${authorName.value}`)
 const dateStr = computed(() => props.post.created_at?.slice(0, 10) || '-')
 
 const coverStyle = computed(() => {
-  if (props.post.cover_url) {
+  const url = props.post.cover_url || props.post.auto_cover_url
+  if (url) {
     return {
-      backgroundImage: `url(${props.post.cover_url})`,
+      backgroundImage: `url(${url})`,
       backgroundSize: 'cover' as const,
       backgroundPosition: 'center' as const
     }
@@ -70,6 +71,10 @@ const shortExcerpt = computed(() => {
 
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
 
+/** 是否有任何封面（真实封面或自动生成封面） */
+const hasAnyCover = computed(() => !!(props.post.cover_url || props.post.auto_cover_url))
+/** 当前可用的封面 URL（真实封面优先，否则用自动生成的） */
+const anyCoverUrl = computed(() => props.post.cover_url || props.post.auto_cover_url || '')
 /** compact 模式是否是有真实封面（非自动生成）的帖子 */
 const hasRealCover = computed(() => !!props.post.cover_url)
 /** compact 模式使用的封面 URL（真实封面优先，否则用自动生成的） */
@@ -116,9 +121,9 @@ function handleClick() {
 
     <!-- ═══ media: 封面(<img> 自然宽高比) + 内容卡片 ═══ -->
     <template v-if="mode === 'media'">
-      <!-- 有封面 → <img> 保留原始比例，瀑布流下自然产生高矮节奏 -->
-      <div v-if="post.cover_url" class="md-cover">
-        <img :src="post.cover_url" alt="" class="md-cover-img" loading="lazy" />
+      <!-- 有封面（用户上传或自动生成）→ <img> 保留原始比例 -->
+      <div v-if="hasAnyCover" class="md-cover">
+        <img :src="anyCoverUrl" alt="" class="md-cover-img" loading="lazy" />
       </div>
       <!-- 无封面 → 渐变色占位，固定比例 -->
       <div v-else class="md-cover md-cover--fallback" :style="coverStyle" />
@@ -162,7 +167,7 @@ function handleClick() {
 
     <!-- ═══ feed: 紧凑型（极小缩略图 / 纯文字） ═══ -->
     <template v-if="mode === 'feed'">
-      <div v-if="post.cover_url" class="fd-thumb" :style="coverStyle" />
+      <div v-if="hasAnyCover" class="fd-thumb" :style="coverStyle" />
       <div class="fd-body">
         <h4 class="fd-title">{{ post.title }}</h4>
         <div class="fd-meta">

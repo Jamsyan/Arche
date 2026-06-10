@@ -289,6 +289,7 @@ import { uploadOssFileApi } from '@/services/api/oss'
 import { useLocalFiles } from '@/composables/useLocalFiles'
 import { getCoverGradient } from '@/utils/cover'
 import { generateTextCover } from '@/utils/generateTextCover'
+import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
 
 type PostTab = 'all' | 'published' | 'draft'
 
@@ -589,6 +590,8 @@ const fetchData = async () => {
       { silent: true, skipAuthLogout: true }
     )
     posts.value = res.list || []
+    // 对缺少封面的旧帖子按需生成文字封面并持久化
+    ensurePostsCovers(posts.value)
   } catch {
     posts.value = []
   } finally {
