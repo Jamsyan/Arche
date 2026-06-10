@@ -1,9 +1,7 @@
 name: Adversarial Security Tests
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [master]
+  workflow_call:
   schedule:
     # UTC 2:00 = 北京时间 10:00，每日定时扫描
     - cron: "0 2 * * *"

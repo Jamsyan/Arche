@@ -4,26 +4,40 @@ on:
   push:
     branches: [master]
     tags: ["v*"]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".github/**"
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".github/**"
 
 jobs:
-  # ── 代码质量 ──
+  # ── 代码质量（快速，始终跑） ──
   lint:
     uses: ./.github/workflows/lint.yml
 
-  # ── 安全扫描 ──
+  # ── 安全扫描（CodeQL 中等开销，始终跑） ──
   security:
     uses: ./.github/workflows/security.yml
+
+  # ── 对抗性安全测试（重型，仅 push 跑；PR 跳过，有定时任务兜底） ──
+  adversarial:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/adversarial.yml
 
   # ── 测试验证 ──
   test:
     uses: ./.github/workflows/test.yml
 
-  # ── 构建 ──
+  # ── 构建（仅 push/tag 需要构建镜像，PR 不需要） ──
   build:
     needs: [lint, security, test]
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read

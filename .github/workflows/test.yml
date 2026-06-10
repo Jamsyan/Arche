@@ -1,19 +1,6 @@
 name: Test
 
 on:
-  # 推送时只跑核心测试（快速反馈）
-  push:
-    branches: [master]
-    paths-ignore:
-      - "frontend/src/**"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-
-  # PR 时跑全量
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [master]
-
   # 构建触发（构建前确认测试通过）
   workflow_call:
 
