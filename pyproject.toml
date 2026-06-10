@@ -60,12 +60,6 @@ omit = [
     "backend/scripts/*",
 ]
 
-[tool.coverage.html]
-directory = ".artifacts/tests/coverage/html"
-
-[tool.coverage.xml]
-output = ".artifacts/tests/coverage/coverage.xml"
-
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 pythonpath = ["."]
