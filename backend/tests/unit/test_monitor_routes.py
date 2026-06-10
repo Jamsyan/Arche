@@ -57,7 +57,11 @@ def _make_mock_request(user_id: str | None = None) -> Request:
     """创建一个带有认证用户状态和 mock 容器的 Request。"""
     if user_id is None:
         user_id = uuid.uuid4().hex
-    mock_app = type("MockApp", (), {"state": type("MockState", (), {"container": MockContainer()})()})()
+    mock_app = type(
+        "MockApp",
+        (),
+        {"state": type("MockState", (), {"container": MockContainer()})()},
+    )()
     scope = {"type": "http", "app": mock_app}
     request = Request(scope)
     request.state.user = {
