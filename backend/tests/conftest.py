@@ -89,15 +89,11 @@ def anyio_backend():
 # =============================================================================
 
 
-@pytest.fixture
-async def in_memory_db():
-    """内存 SQLite 数据库 fixture，自动建表，测试后清空。
+@pytest.fixture(scope="module")
+async def module_db():
+    """模块级 fixture：创建一次数据库引擎和表，同一模块内的所有测试共享。
 
     返回: {"engine": engine, "session_factory": session_factory}
-
-    使用 StaticPool 让所有 session 共用同一个连接，避免
-    `sqlite+aiosqlite:///:memory:` 默认每连接一份独立 DB 导致
-    `Base.metadata.create_all` 建的表在后续 session 中"看不见"。
     """
     from sqlalchemy.ext.asyncio import (
         create_async_engine,
@@ -131,6 +127,30 @@ async def in_memory_db():
     yield {"engine": engine, "session_factory": session_factory}
 
     await engine.dispose()
+
+
+@pytest.fixture
+async def in_memory_db(module_db):
+    """函数级 fixture：每个测试结束后清理所有数据。
+
+    使用 ``module_db`` 的引擎，测试结束后逐表 DELETE 清空，
+    比事务回滚更可靠（兼容各种 session.commit() 模式）。
+
+    返回: {"engine": engine, "session_factory": session_factory}
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from backend.core.db import Base
+
+    engine = module_db["engine"]
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    yield {"engine": engine, "session_factory": session_factory}
+
+    # 测试结束后清空所有表，保证下一条测试数据隔离
+    async with session_factory() as session:
+        for table in reversed(Base.metadata.sorted_tables):
+            await session.execute(table.delete())
+        await session.commit()
 
 
 @pytest.fixture

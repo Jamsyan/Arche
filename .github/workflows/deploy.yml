@@ -44,7 +44,7 @@ jobs:
     outputs:
       changed: ${{ steps.diff.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -90,7 +90,7 @@ jobs:
     if: needs.validate.outputs.mode == 'ssh' && needs.sync-check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Sync files to server
         uses: appleboy/scp-action@v0.1.7
@@ -134,7 +134,7 @@ jobs:
     if: needs.validate.outputs.mode == 'webhook' && needs.sync-check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Sync files to server
         uses: appleboy/scp-action@v0.1.7
