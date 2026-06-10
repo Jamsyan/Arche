@@ -229,6 +229,11 @@ def create_app() -> FastAPI:
 
         await loop.run_in_executor(None, _run_migrations)
 
+        # 兜底：确保所有 ORM 模型对应的表已创建（处理缺少 migration 的场景）
+        from .db import ensure_tables
+
+        await ensure_tables()
+
         # 校验数据库 schema
         from .db import validate_schema
 

@@ -288,6 +288,8 @@ import {
 import { uploadOssFileApi } from '@/services/api/oss'
 import { useLocalFiles } from '@/composables/useLocalFiles'
 import { getCoverGradient } from '@/utils/cover'
+import { generateTextCover } from '@/utils/generateTextCover'
+import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
 
 type PostTab = 'all' | 'published' | 'draft'
 
@@ -502,6 +504,29 @@ const saveCurrent = async () => {
       }
     }
 
+    // 2.5 没有封面 → 自动生成文字封面并上传 OSS（后续直接引用，无需实时计算）
+    let autoCoverUrl = ''
+    if (!finalCoverUrl && title) {
+      const textCoverDataUrl = generateTextCover(
+        {
+          id: '',
+          slug: '',
+          title,
+          intro: editorRef.value?.intro || undefined,
+          content,
+          tags: editorTags.value
+        } as BlogPost,
+        true
+      )
+      const blob = await fetch(textCoverDataUrl).then((r) => r.blob())
+      const file = new File([blob], 'text-cover.jpg', { type: 'image/jpeg' })
+      const resp = await uploadOssFileApi(file, false)
+      const respData = resp as unknown as { data?: { id: string } }
+      if (respData?.data?.id) {
+        autoCoverUrl = `/api/oss/files/${respData.data.id}`
+      }
+    }
+
     // 3. 替换正文中的 [#N] 为实际 OSS URL
     let finalContent = content
     for (const [index, ossUrl] of refMap) {
@@ -514,6 +539,7 @@ const saveCurrent = async () => {
       title,
       content: finalContent,
       ...(finalCoverUrl ? { cover_url: finalCoverUrl } : {}),
+      ...(autoCoverUrl ? { auto_cover_url: autoCoverUrl } : {}),
       tags: editorTags.value,
       required_level: editorAccess.value
     }
@@ -564,6 +590,8 @@ const fetchData = async () => {
       { silent: true, skipAuthLogout: true }
     )
     posts.value = res.list || []
+    // 对缺少封面的旧帖子按需生成文字封面并持久化
+    ensurePostsCovers(posts.value)
   } catch {
     posts.value = []
   } finally {

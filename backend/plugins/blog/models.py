@@ -24,8 +24,12 @@ class BlogPost(Base, HasSID):
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     slug: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    intro: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     cover_url: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
+    auto_cover_url: Mapped[str | None] = mapped_column(
         String(1024), nullable=True, default=None
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")

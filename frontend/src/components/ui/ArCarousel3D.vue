@@ -167,9 +167,9 @@ watch(animatedIdx, (pos) => {
   const len = N.value
   if (len <= 1) return
   if (pos < len * 1.5) {
-    jump(Math.round(pos) + len)
+    jump(len)
   } else if (pos >= len * (COPIES - 1.5)) {
-    jump(Math.round(pos) - len)
+    jump(-len)
   }
 })
 

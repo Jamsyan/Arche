@@ -1,13 +1,15 @@
-"""Storage backend abstraction — MinIO（本地对象存储）/ 阿里云 OSS 统一接口。"""
+"""存储后端抽象 —— MinIO / 本地文件系统 / 阿里云 OSS 统一接口。"""
 
 from __future__ import annotations
 
 import io
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncIterator
 
 CHUNK_SIZE = 64 * 1024
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from minio import Minio as MinioClient
@@ -160,3 +162,78 @@ class AliyunBackend(StorageBackend):
     @property
     def backend_type(self) -> str:
         return "aliyun"
+
+
+class LocalBackend(StorageBackend):
+    """本地文件系统存储后端（嵌入式，零依赖）。
+
+    直接将文件存储在本地磁盘，无需任何外部服务（MinIO / 云 OSS）。
+    适用于开发环境、单机部署或不方便单独部署 OSS 服务器场景。
+
+    存储结构：base_path/prefix/key — 映射到文件系统目录。
+    """
+
+    def __init__(self, base_path: Path):
+        self._base_path = base_path.resolve()
+        self._base_path.mkdir(parents=True, exist_ok=True)
+
+    def _resolve(self, key: str) -> Path:
+        """安全解析对象键为文件路径，防止路径穿越。"""
+        clean = Path(key).as_posix().lstrip("/")
+        resolved = (self._base_path / clean).resolve()
+        if not str(resolved).startswith(str(self._base_path)):
+            raise ValueError(f"非法路径（路径穿越）: {key}")
+        return resolved
+
+    async def upload_stream(
+        self,
+        key: str,
+        stream: AsyncIterator[bytes],
+        size: int,  # noqa: ARG002
+    ) -> None:
+        path = self._resolve(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        chunks = [chunk async for chunk in stream]
+        path.write_bytes(b"".join(chunks))
+
+    async def download(self, key: str) -> AsyncIterator[bytes]:
+        path = self._resolve(key)
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+
+    async def delete(self, key: str) -> None:
+        path = self._resolve(key)
+        if path.exists():
+            path.unlink()
+
+    async def exists(self, key: str) -> bool:
+        path = self._resolve(key)
+        return path.exists()
+
+    async def list(self, prefix: str = "") -> list[str]:
+        base = self._base_path
+        prefix_path = self._resolve(prefix) if prefix else base
+        if not prefix_path.exists():
+            return []
+        if prefix_path.is_file():
+            return [str(prefix_path.relative_to(base)).replace("\\", "/")]
+        return [
+            str(p.relative_to(base)).replace("\\", "/")
+            for p in prefix_path.rglob("*")
+            if p.is_file()
+        ]
+
+    def get_disk_usage(self) -> int:
+        total = 0
+        for p in self._base_path.rglob("*"):
+            if p.is_file():
+                total += p.stat().st_size
+        return total
+
+    @property
+    def backend_type(self) -> str:
+        return "local"

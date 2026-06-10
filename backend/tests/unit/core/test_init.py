@@ -173,6 +173,9 @@ class TestCreateApp:
         self.patcher_alembic_upgrade = patch("alembic.command.upgrade")
         self.mock_alembic_upgrade = self.patcher_alembic_upgrade.start()
 
+        self.patcher_ensure_tables = patch("backend.core.db.ensure_tables")
+        self.mock_ensure_tables = self.patcher_ensure_tables.start()
+
         self.patcher_validate_schema = patch("backend.core.db.validate_schema")
         self.mock_validate_schema = self.patcher_validate_schema.start()
 
@@ -198,6 +201,7 @@ class TestCreateApp:
         self.patcher_setup_cors.stop()
         self.patcher_register_error_handlers.stop()
         self.patcher_alembic_upgrade.stop()
+        self.patcher_ensure_tables.stop()
         self.patcher_validate_schema.stop()
         self.patcher_seed_default_config.stop()
         self.patcher_registry_on_startup.stop()
@@ -253,6 +257,7 @@ class TestCreateApp:
 
         # 验证步骤执行顺序
         self.mock_alembic_upgrade.assert_called_once()  # 先运行迁移
+        self.mock_ensure_tables.assert_called_once()  # 再兜底建表
         self.mock_validate_schema.assert_called_once()  # 然后校验schema
         self.mock_seed_default_config.assert_called_once()  # 然后初始化配置
         self.mock_registry_on_startup.assert_called_once()  # 最后启动插件

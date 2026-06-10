@@ -6,6 +6,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, AsyncIterator
 
 from sqlalchemy import func, select, true
@@ -69,16 +70,17 @@ class StorageService:
         self._rate_limiter = container.get("oss_rate_limiter")
         self._minio = None
         self._aliyun = None
+        self._local = None
         self._unified_storage = None
 
     # --- 后端初始化 ---
 
     def _get_minio(self):
-        """获取 MinIO 对象存储后端（本地主力）。连接失败时返回 None。"""
+        """获取 MinIO 对象存储后端。连接失败时自动回退到本地文件系统。"""
         if self._minio is not None:
             return self._minio
         if getattr(self, "_minio_failed", False):
-            return None
+            return self._get_local()
 
         try:
             from minio import Minio
@@ -94,9 +96,9 @@ class StorageService:
             self._minio = MinIOBackend(client, bucket="veil-oss")
             return self._minio
         except Exception as e:
-            logger.warning(f"[OSS] MinIO 不可用，文件存储功能受限: {e}")
+            logger.warning(f"[OSS] MinIO 不可用，回退到本地文件存储: {e}")
             self._minio_failed = True
-            return None
+            return self._get_local()
 
     def _get_aliyun(self):
         """获取阿里云 OSS 后端（冷存储/VIP）。"""
@@ -111,6 +113,20 @@ class StorageService:
             cloud = CloudStorageService(self.container)
             self._aliyun = AliyunBackend(cloud)
         return self._aliyun
+
+    def _get_local(self):
+        """获取本地文件系统存储后端（嵌入式，无需任何外部服务）。"""
+        if self._local is not None:
+            return self._local
+
+        from backend.plugins.oss.backends import LocalBackend
+
+        config = self.container.get("config")
+        storage_dir = config.get("OSS_STORAGE_DIR", "data/storage")
+        base_path = Path(storage_dir)
+        self._local = LocalBackend(base_path)
+        logger.info(f"[OSS] 本地文件存储已就绪: {base_path.resolve()}")
+        return self._local
 
     def get_unified_storage(self) -> "UnifiedStorage":
         """获取统一存储服务（OSS无感层）。"""
@@ -199,12 +215,12 @@ class StorageService:
         from backend.plugins.oss.models import OSSFile
 
         key = _key(tenant_id, filename)
-        minio = self._get_minio()
+        backend = self._get_minio()
 
         async def stream():
             yield content
 
-        await minio.upload_stream(key, stream(), len(content))
+        await backend.upload_stream(key, stream(), len(content))
 
         async with self.session_factory() as session:
             oss_file = OSSFile(
@@ -212,7 +228,7 @@ class StorageService:
                 path=key,
                 size=len(content),
                 mime_type=mime_type,
-                storage_type="minio",
+                storage_type=backend.backend_type,
                 is_private=is_private,
             )
             session.add(oss_file)
@@ -270,13 +286,15 @@ class StorageService:
 
         await self._get_minio().upload_stream(key, byte_stream(), total_bytes)
 
+        backend = self._get_minio()
+
         async with self.session_factory() as session:
             oss_file = OSSFile(
                 owner_id=owner_id,
                 path=key,
                 size=total_bytes,
                 mime_type=file.content_type,
-                storage_type="minio",
+                storage_type=backend.backend_type,
                 is_private=is_private,
             )
             session.add(oss_file)
@@ -305,7 +323,8 @@ class StorageService:
                 total_bytes += len(chunk)
                 yield chunk
 
-        await self._get_minio().upload_stream(key, byte_stream(), 0)
+        backend = self._get_minio()
+        await backend.upload_stream(key, byte_stream(), 0)
 
         async with self.session_factory() as session:
             oss_file = OSSFile(
@@ -313,7 +332,7 @@ class StorageService:
                 path=key,
                 size=total_bytes,
                 mime_type=file.content_type,
-                storage_type="minio",
+                storage_type=backend.backend_type,
             )
             session.add(oss_file)
             await session.commit()
