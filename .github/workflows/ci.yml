@@ -14,6 +14,12 @@ jobs:
       contents: read
       security-events: write
 
+  adversarial:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/adversarial.yml
+    permissions:
+      issues: write
+
   test:
     uses: ./.github/workflows/test.yml
 
