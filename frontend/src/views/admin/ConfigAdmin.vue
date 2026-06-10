@@ -10,6 +10,7 @@ import {
   updateConfigItemApi,
   deleteConfigItemApi,
   type ConfigItem,
+  type ConfigListParams,
   type CreateConfigPayload
 } from '@/services/api'
 
@@ -121,10 +122,11 @@ const columns: ArTableColumn[] = [
 async function fetchConfigs() {
   loading.value = true
   try {
-    const res = await getConfigListApi(
-      { group: selectedGroup.value ?? undefined },
-      { silent: true }
-    )
+    const params: ConfigListParams = {}
+    if (selectedGroup.value) {
+      params.group = selectedGroup.value
+    }
+    const res = await getConfigListApi(params, { silent: true })
     configs.value = (res as any)?.data ?? res ?? []
   } catch {
     configs.value = []
