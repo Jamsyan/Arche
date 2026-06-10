@@ -35,8 +35,8 @@ const EXCLUDE_PATTERNS = [
   (f) => f === 'components.d.ts',
 ]
 
-// 测试目录下的文件也不扫描
-const TEST_DIR = relative(SRC, TESTS)
+// 测试目录相对于 ROOT 的路径，用于在 collectFiles 中跳过 tests 目录
+const TEST_DIR = relative(ROOT, TESTS)
 
 function isExcluded(relPath) {
   return EXCLUDE_PATTERNS.some((p) => p(relPath))
@@ -111,6 +111,8 @@ for (const testRel of testFiles) {
 }
 
 // ── 输出 ──
+const coveredCount = totalSource - missing.length
+
 if (missing.length > 0) {
   console.log(`\n⚠️  发现 ${missing.length} 个源文件缺少对应的测试文件:\n`)
   for (const { src, test } of missing) {
@@ -128,7 +130,7 @@ if (orphans.length > 0) {
   }
 }
 
-console.log(`\n📊 源文件: ${totalSource}  测试文件: ${missing.length > 0 ? totalSource - missing.length : totalSource - orphans.length}  缺失: ${missing.length}`)
+console.log(`\n📊 源文件: ${totalSource}  测试文件: ${coveredCount}  缺失: ${missing.length}${orphans.length > 0 ? `  孤儿: ${orphans.length}` : ''}`)
 
 if (strict && missing.length > 0) {
   process.exit(1)
