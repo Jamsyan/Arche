@@ -299,6 +299,10 @@ async def db_container(in_memory_db, fake_container):
             if _auth_cache["instance"] is None:
                 _auth_cache["instance"] = AuthService(fake_container)
             return _auth_cache["instance"]
+        elif name == "blog":
+            from backend.plugins.blog.services import BlogService
+
+            return BlogService(fake_container)
         elif name == "github":
             from backend.plugins.github_proxy.services import GitHubService
 

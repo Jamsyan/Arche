@@ -64,7 +64,6 @@ async def adversarial_app(db_container):
 
     register_error_handlers(app)
     setup_security_headers(app)
-    setup_cors(app, ["*"])
 
     from backend.plugins.auth.routes import router as auth_router
     from backend.plugins.blog.routes import router as blog_router
@@ -82,6 +81,10 @@ async def adversarial_app(db_container):
 
     secret_key = db_container.get("config").get_required("SECRET_KEY")
     app.add_middleware(AuthMiddleware, secret_key=secret_key)
+
+    # CORSMiddleware 在 AuthMiddleware 之后添加，确保它是外层中间件
+    # 这样即使 AuthMiddleware 返回 401，CORS 头也能被正确处理
+    setup_cors(app, ["*"])
 
     yield app
 

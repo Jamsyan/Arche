@@ -5,8 +5,11 @@ class TestCORS:
     """CORS 配置验证测试。"""
 
     async def test_cors_headers_on_api_response(self, client):
-        """API 响应应包含 CORS 头。"""
-        resp = await client.get("/api/blog/posts")
+        """API 响应应包含 CORS 头（当请求带 Origin 时）。"""
+        resp = await client.get(
+            "/api/blog/posts",
+            headers={"Origin": "http://localhost:5173"},
+        )
         assert "access-control-allow-origin" in resp.headers
 
     async def test_cors_allows_localhost_origin(self, client):
