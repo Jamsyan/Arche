@@ -78,7 +78,9 @@ class TestCrawlerAPI:
 
         get_black = await client.get("/api/crawler/blacklist", headers=admin_headers)
         assert get_black.status_code == 200
-        assert "spam.com" in get_black.json()["data"]
+        data = get_black.json()["data"]
+        assert isinstance(data, list)
+        assert "spam.com" in data
 
     async def test_record_query(self, client, admin_headers, crawler_service):
         """查询爬取记录和统计（空数据库场景）。"""
