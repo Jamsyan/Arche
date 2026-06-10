@@ -19,6 +19,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 幂等保护：如果 users 表已存在，说明该迁移已执行过（可能因 alembic_version
+    # 记录丢失导致重复执行），直接跳过避免 "table already exists" 错误。
+    from sqlalchemy import inspect
+
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    if "users" in inspector.get_table_names():
+        return
+
     # === auth ===
     op.create_table(
         "users",

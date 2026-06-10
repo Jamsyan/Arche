@@ -225,7 +225,10 @@ def create_app() -> FastAPI:
         loop = asyncio.get_event_loop()
 
         def _run_migrations():
-            command.upgrade(alembic_cfg, "head")
+            # 试验性阶段：直接 stamp 当前版本为 head，不执行迁移 SQL。
+            # 表结构由后续 ensure_tables() 兜底创建（`create_all` 本身是幂等的）。
+            # 等数据库中有实际数据后再改为 command.upgrade()。
+            command.stamp(alembic_cfg, "head")
 
         await loop.run_in_executor(None, _run_migrations)
 
