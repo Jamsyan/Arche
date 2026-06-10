@@ -50,6 +50,8 @@ jobs:
     needs: [build]
     if: needs.build.outputs.image_tag != ''
     uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
     with:
       image_tag: ${{ needs.build.outputs.image_tag }}
     secrets: inherit
