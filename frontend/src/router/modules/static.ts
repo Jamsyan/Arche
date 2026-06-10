@@ -261,7 +261,7 @@ export const staticRoutes: RouteRecordRaw[] = [
       {
         path: '/admin/ops/config',
         name: 'AdminOpsConfig',
-        component: () => import('@/views/admin/ResourceAdmin.vue'),
+        component: () => import('@/views/admin/ConfigAdmin.vue'),
         meta: {
           title: '运行时配置',
           permission: 'assets:read',
