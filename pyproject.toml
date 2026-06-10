@@ -51,6 +51,7 @@ dev = [
     "pytest-httpx>=0.36.2",
     "ruff>=0.15.11",
     "pytest-playwright>=0.8.0",
+    "typer>=0.26.7",
 ]
 
 [tool.coverage.run]
@@ -70,7 +71,7 @@ testpaths = ["backend/tests"]
 pythonpath = ["."]
 norecursedirs = [".venv", "node_modules", "frontend", "scripts"]
 asyncio_mode = "auto"
-addopts = "-v --strict-markers --tb=short -n auto --dist loadscope --cov=backend --cov-report=term-missing --cov-fail-under=40"
+addopts = "-v --strict-markers --tb=short"
 markers = [
     "slow: 标记慢速测试（需要网络）",
     "integration: 标记集成测试",
@@ -78,3 +79,6 @@ markers = [
     "cli: 标记需要 GitHub CLI 的测试",
     "http: 标记需要 HTTP 连接的测试",
 ]
+
+[project.scripts]
+test = "scripts.run_tests:main"
