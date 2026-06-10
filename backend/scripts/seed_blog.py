@@ -25,7 +25,11 @@ from backend.core.uid import make_sid
 
 # ── 种子用户定义（固定 UUID）──────────────────────
 SEED_USERS = [
-    {"id": "00000000-0000-0000-0000-000000000001", "username": "锦年志编辑部", "level": 0},
+    {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "username": "锦年志编辑部",
+        "level": 0,
+    },
     {"id": "00000000-0000-0000-0000-000000000002", "username": "林深", "level": 5},
     {"id": "00000000-0000-0000-0000-000000000003", "username": "阿野", "level": 5},
     {"id": "00000000-0000-0000-0000-000000000004", "username": "苏河", "level": 5},
@@ -55,7 +59,9 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, object], str]:
             continue
         key, val = kv.group(1), kv.group(2).strip()
         if val.startswith("[") and val.endswith("]"):
-            meta[key] = [v.strip().strip("'\"") for v in val[1:-1].split(",") if v.strip()]
+            meta[key] = [
+                v.strip().strip("'\"") for v in val[1:-1].split(",") if v.strip()
+            ]
         elif val.isdigit():
             meta[key] = int(val)
         else:
@@ -70,7 +76,11 @@ def _parse_date(d: object) -> str:
         return d.isoformat()
     if isinstance(d, str):
         try:
-            return datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat()
+            return (
+                datetime.strptime(d, "%Y-%m-%d")
+                .replace(tzinfo=timezone.utc)
+                .isoformat()
+            )
         except ValueError:
             pass
     return datetime.now(timezone.utc).isoformat()
@@ -102,7 +112,8 @@ async def seed_blog(reset: bool = False):
             await session.execute(text("DELETE FROM blog_posts"))
             for u in SEED_USERS:
                 await session.execute(
-                    text("DELETE FROM users WHERE username = :name"), {"name": u["username"]}
+                    text("DELETE FROM users WHERE username = :name"),
+                    {"name": u["username"]},
                 )
             print("已清空种子数据。")
 
@@ -110,7 +121,8 @@ async def seed_blog(reset: bool = False):
         created_users = 0
         for u in SEED_USERS:
             exists = await session.execute(
-                text("SELECT 1 FROM users WHERE username = :name"), {"name": u["username"]}
+                text("SELECT 1 FROM users WHERE username = :name"),
+                {"name": u["username"]},
             )
             if exists.scalar():
                 continue
@@ -211,13 +223,17 @@ async def seed_blog(reset: bool = False):
                 else:
                     tag_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"tag:{normalized}"))
                     await session.execute(
-                        text("INSERT OR IGNORE INTO blog_tags (id, name) VALUES (:id, :name)"),
+                        text(
+                            "INSERT OR IGNORE INTO blog_tags (id, name) VALUES (:id, :name)"
+                        ),
                         {"id": tag_id, "name": normalized},
                     )
                     created_tags.add(normalized)
 
                 await session.execute(
-                    text("INSERT OR IGNORE INTO blog_post_tags (post_id, tag_id) VALUES (:pid, :tid)"),
+                    text(
+                        "INSERT OR IGNORE INTO blog_post_tags (post_id, tag_id) VALUES (:pid, :tid)"
+                    ),
                     {"pid": post_id, "tid": tag_id},
                 )
 

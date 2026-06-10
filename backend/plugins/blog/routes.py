@@ -17,7 +17,9 @@ router = APIRouter(prefix="/api/blog", tags=["blog"])
 # --- 请求体模型 ---
 class CreatePostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256, description="标题")
-    intro: str | None = Field(None, max_length=512, description="引言（封面文字截取用）")
+    intro: str | None = Field(
+        None, max_length=512, description="引言（封面文字截取用）"
+    )
     content: str = Field(..., min_length=1, description="正文内容")
     tags: list[str] = Field(default_factory=list, description="标签列表")
     required_level: int = Field(
@@ -33,7 +35,9 @@ class CreatePostRequest(BaseModel):
 
 class UpdatePostRequest(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=256, description="标题")
-    intro: str | None = Field(None, max_length=512, description="引言（封面文字截取用）")
+    intro: str | None = Field(
+        None, max_length=512, description="引言（封面文字截取用）"
+    )
     content: str | None = Field(None, min_length=1, description="正文内容")
     required_level: int | None = Field(
         None, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）"
