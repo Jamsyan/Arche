@@ -34,9 +34,22 @@ async def ensure_tables() -> None:
     _initialized = True
 
 
-def init_db(database_url: str) -> tuple:
+def init_db(
+    database_url: str,
+    pool_size: int = 10,
+    max_overflow: int = 20,
+    pool_pre_ping: bool = True,
+    pool_recycle: int = 3600,
+) -> tuple:
     global engine, session_factory
-    engine = create_async_engine(database_url, echo=False)
+    kwargs: dict = {"echo": False}
+    # 连接池参数仅适用于 PostgreSQL（asyncpg），SQLite 不支持 pool_* 参数
+    if database_url.startswith("postgresql"):
+        kwargs["pool_size"] = pool_size
+        kwargs["max_overflow"] = max_overflow
+        kwargs["pool_pre_ping"] = pool_pre_ping
+        kwargs["pool_recycle"] = pool_recycle
+    engine = create_async_engine(database_url, **kwargs)
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
