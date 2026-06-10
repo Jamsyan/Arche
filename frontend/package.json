@@ -16,7 +16,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "test:check": "node scripts/check-test-coverage.mjs"
   },
   "dependencies": {
     "@tiptap/extension-color": "^3.26.0",

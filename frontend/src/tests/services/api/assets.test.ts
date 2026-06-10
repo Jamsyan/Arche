@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('../../request', () => ({
+vi.mock('@/services/request', () => ({
   get: vi.fn()
 }))
 
@@ -10,8 +10,8 @@ beforeEach(() => {
 
 describe('assets API', () => {
   it('getAssetsApi 发送正确 URL', async () => {
-    const { getAssetsApi } = await import('../assets')
-    const { get } = await import('../../request')
+    const { getAssetsApi } = await import('@/services/api/assets')
+    const { get } = await import('@/services/request')
     vi.mocked(get).mockResolvedValue({ items: [], total: 0 })
 
     await getAssetsApi({ page: 1, page_size: 20 })
@@ -19,8 +19,8 @@ describe('assets API', () => {
   })
 
   it('getAssetStatsApi 发送正确 URL', async () => {
-    const { getAssetStatsApi } = await import('../assets')
-    const { get } = await import('../../request')
+    const { getAssetStatsApi } = await import('@/services/api/assets')
+    const { get } = await import('@/services/request')
     vi.mocked(get).mockResolvedValue({ total: 10, by_type: {} })
 
     await getAssetStatsApi()

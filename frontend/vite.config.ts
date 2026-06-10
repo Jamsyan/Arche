@@ -141,12 +141,12 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: false,
       environment: 'jsdom',
-      include: ['src/**/*.{test,spec}.{ts,js}'],
+      include: ['src/tests/**/*.{test,spec}.{ts,js}'],
       css: true,
       setupFiles: ['./vitest.setup.ts'],
       coverage: {
         provider: 'v8',
-        reporter: ['text', 'html', 'lcov'],
+        reporter: ['text'],
         include: ['src/**/*.ts'],
         exclude: [
           'src/**/*.d.ts',
@@ -157,10 +157,10 @@ export default defineConfig(({ mode }) => {
           'src/env.d.ts'
         ],
         thresholds: {
-          statements: 35,
-          branches: 25,
-          functions: 30,
-          lines: 35
+          statements: 45,
+          branches: 40,
+          functions: 40,
+          lines: 45
         }
       }
     },

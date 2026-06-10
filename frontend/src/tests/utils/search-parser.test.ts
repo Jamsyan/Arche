@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseSearchQuery, getFilterValue, hasIdFilter, getSearchText } from '../search-parser'
+import { parseSearchQuery, getFilterValue, hasIdFilter, getSearchText } from '@/utils/search-parser'
 
 describe('parseSearchQuery', () => {
   it('空输入', () => {

@@ -11,7 +11,7 @@ import {
   isChinese,
   hasSpecialChar,
   validatePasswordStrength
-} from '../validate'
+} from '@/utils/validate'
 
 describe('isPhone', () => {
   it('有效的手机号码', () => {

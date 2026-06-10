@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('../../request', () => ({
+vi.mock('@/services/request', () => ({
   get: vi.fn(),
   post: vi.fn()
 }))
@@ -11,8 +11,8 @@ beforeEach(() => {
 
 describe('auth API', () => {
   it('loginApi 发送正确 URL 和参数', async () => {
-    const { loginApi } = await import('../auth')
-    const { post } = await import('../../request')
+    const { loginApi } = await import('@/services/api/auth')
+    const { post } = await import('@/services/request')
     vi.mocked(post).mockResolvedValue({
       token: 'abc',
       userInfo: { id: '1', username: 'u', role: 'user', permissions: [] }
@@ -27,8 +27,8 @@ describe('auth API', () => {
   })
 
   it('getUserInfoApi 发送正确 URL', async () => {
-    const { getUserInfoApi } = await import('../auth')
-    const { get } = await import('../../request')
+    const { getUserInfoApi } = await import('@/services/api/auth')
+    const { get } = await import('@/services/request')
     vi.mocked(get).mockResolvedValue({ id: '1', username: 'admin', level: 0 })
 
     await getUserInfoApi()
@@ -36,8 +36,8 @@ describe('auth API', () => {
   })
 
   it('getUserInfoApi 标准化响应数据', async () => {
-    const { getUserInfoApi } = await import('../auth')
-    const { get } = await import('../../request')
+    const { getUserInfoApi } = await import('@/services/api/auth')
+    const { get } = await import('@/services/request')
     vi.mocked(get).mockResolvedValue({ id: '1', username: 'admin', level: 0 })
 
     const result = await getUserInfoApi()
@@ -49,8 +49,8 @@ describe('auth API', () => {
   })
 
   it('refreshTokenApi 发送正确请求', async () => {
-    const { refreshTokenApi } = await import('../auth')
-    const { post } = await import('../../request')
+    const { refreshTokenApi } = await import('@/services/api/auth')
+    const { post } = await import('@/services/request')
     vi.mocked(post).mockResolvedValue({ access_token: 'new-token' })
 
     await refreshTokenApi('refresh-123')

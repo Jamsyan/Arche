@@ -11,7 +11,7 @@ type BlogPost = {
 
 describe('generateTextCover', () => {
   it('应该返回 data URL', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '1',
       title: '测试文章',
@@ -23,7 +23,7 @@ describe('generateTextCover', () => {
   })
 
   it('使用 intro 作为封面文本', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '2',
       title: '测试',
@@ -36,7 +36,7 @@ describe('generateTextCover', () => {
   })
 
   it('使用 paragraph 内容作为封面文本', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '3',
       title: '测试',
@@ -48,7 +48,7 @@ describe('generateTextCover', () => {
   })
 
   it('没有标题时也能生成封面', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '4',
       content: '只有内容没有标题'
@@ -59,7 +59,7 @@ describe('generateTextCover', () => {
   })
 
   it('缓存相同 id 的帖子', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '5',
       title: '缓存测试'
@@ -74,7 +74,7 @@ describe('generateTextCover', () => {
   })
 
   it('noCache 参数跳过缓存', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '6',
       title: '跳过缓存'
@@ -88,7 +88,7 @@ describe('generateTextCover', () => {
   })
 
   it('处理带标签的帖子', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '7',
       title: '带标签的文章',
@@ -101,7 +101,7 @@ describe('generateTextCover', () => {
   })
 
   it('处理 HTML 内容的段落', async () => {
-    const { generateTextCover } = await import('../generateTextCover')
+    const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '8',
       title: 'HTML测试',
