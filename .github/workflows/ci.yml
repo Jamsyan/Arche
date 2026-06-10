@@ -26,39 +26,15 @@ jobs:
   security:
     uses: ./.github/workflows/security.yml
 
-  # ── 对抗性安全测试（重型，仅 push 跑；PR 跳过，有定时任务兜底） ──
-  adversarial:
-    if: github.event_name != 'pull_request'
-    uses: ./.github/workflows/adversarial.yml
-
   # ── 测试验证 ──
   test:
     uses: ./.github/workflows/test.yml
 
-  # ── 构建（仅 push/tag 需要构建镜像，PR 不需要） ──
+  # ── 构建 ──
   build:
     needs: [lint, security, test]
-    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read
       packages: write
-    secrets: inherit
-
-  # ── 发布（仅 tag 推送时） ──
-  release:
-    needs: [build]
-    if: needs.build.outputs.image_tag != ''
-    uses: ./.github/workflows/release.yml
-    with:
-      image_tag: ${{ needs.build.outputs.image_tag }}
-    secrets: inherit
-
-  # ── 部署 ──
-  deploy:
-    needs: [build]
-    if: needs.build.outputs.image_tag != ''
-    uses: ./.github/workflows/deploy.yml
-    with:
-      image_tag: ${{ needs.build.outputs.image_tag }}
     secrets: inherit
