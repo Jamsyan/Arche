@@ -32,12 +32,12 @@ def crawler_service(db_container):
 class TestCrawlerAPI:
     """爬虫 API 全链路集成测试。"""
 
-    async def test_未登录返回401(self, client):
+    async def test_unauthenticated_returns_401(self, client):
         """未登录访问爬虫接口应返回 401。"""
         response = await client.get("/api/crawler/status")
         assert response.status_code == 401
 
-    async def test_状态_启动_停止(self, client, admin_headers, crawler_service):
+    async def test_status_start_stop(self, client, admin_headers, crawler_service):
         """爬虫状态查询、启动、停止全流程。"""
         status1 = await client.get("/api/crawler/status", headers=admin_headers)
         assert status1.status_code == 200
@@ -54,7 +54,7 @@ class TestCrawlerAPI:
         assert stopped.status_code == 200
         assert stopped.json()["code"] == "ok"
 
-    async def test_种子管理(self, client, admin_headers, crawler_service):
+    async def test_seed_management(self, client, admin_headers, crawler_service):
         """添加种子、查询种子和黑名单。"""
         add_seed = await client.post(
             "/api/crawler/seeds",
@@ -81,7 +81,7 @@ class TestCrawlerAPI:
         assert get_black.status_code == 200
         assert "spam.com" in get_black.json()["data"]
 
-    async def test_记录查询(self, client, admin_headers, crawler_service):
+    async def test_record_query(self, client, admin_headers, crawler_service):
         """查询爬取记录和统计（空数据库场景）。"""
         records = await client.get("/api/crawler/records", headers=admin_headers)
         assert records.status_code == 200
@@ -93,7 +93,7 @@ class TestCrawlerAPI:
         assert stats.status_code == 200
         assert stats.json()["code"] == "ok"
 
-    async def test_记录文件读取(self, client, admin_headers, db_container, tmp_path, monkeypatch):
+    async def test_record_file_read(self, client, admin_headers, db_container, tmp_path, monkeypatch):
         """通过 crawler 记录的文件路径读取文件内容。"""
         monkeypatch.setenv("CRAWLER_STORAGE_ROOT", str(tmp_path))
 

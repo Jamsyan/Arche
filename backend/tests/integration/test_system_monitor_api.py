@@ -95,12 +95,12 @@ async def system_monitor_service(db_container, mock_psutil):
 class TestSystemMonitorAPI:
     """系统监控 API 全链路集成测试。"""
 
-    async def test_未登录返回401(self, client):
+    async def test_unauthenticated_returns_401(self, client):
         """未登录访问系统监控应返回 401。"""
         response = await client.get("/api/system/summary")
         assert response.status_code == 401
 
-    async def test_系统概览(self, client, admin_headers, system_monitor_service):
+    async def test_system_summary(self, client, admin_headers, system_monitor_service):
         """系统概览接口应返回所有关键指标。"""
         response = await client.get("/api/system/summary", headers=admin_headers)
         assert response.status_code == 200
@@ -116,7 +116,7 @@ class TestSystemMonitorAPI:
         assert "platform" in summary
         assert "load_1" in summary
 
-    async def test_CPU详情(self, client, admin_headers, system_monitor_service):
+    async def test_cpu_detail(self, client, admin_headers, system_monitor_service):
         """CPU 详情接口。"""
         response = await client.get("/api/system/cpu", headers=admin_headers)
         assert response.status_code == 200
@@ -127,7 +127,7 @@ class TestSystemMonitorAPI:
         assert cpu["freq_current"] == 2500.0
         assert "load_1" in cpu
 
-    async def test_内存详情(self, client, admin_headers, system_monitor_service):
+    async def test_memory_detail(self, client, admin_headers, system_monitor_service):
         """内存详情接口。"""
         response = await client.get("/api/system/memory", headers=admin_headers)
         assert response.status_code == 200
@@ -138,7 +138,7 @@ class TestSystemMonitorAPI:
         assert mem["total"] == 16 * 1024**3
         assert "swap_percent" in mem
 
-    async def test_磁盘详情(self, client, admin_headers, system_monitor_service):
+    async def test_disk_detail(self, client, admin_headers, system_monitor_service):
         """磁盘详情接口。"""
         response = await client.get("/api/system/disk", headers=admin_headers)
         assert response.status_code == 200
@@ -148,7 +148,7 @@ class TestSystemMonitorAPI:
         assert disk["root_percent"] == 50.0
         assert disk["partitions"] == []
 
-    async def test_网络IO(self, client, admin_headers, system_monitor_service):
+    async def test_network_io(self, client, admin_headers, system_monitor_service):
         """网络 I/O 接口。"""
         response = await client.get("/api/system/network", headers=admin_headers)
         assert response.status_code == 200

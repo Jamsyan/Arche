@@ -25,7 +25,7 @@ def cloud_training_service(db_container):
 class TestCloudRoutesAPI:
     """云训练 API 全链路集成测试。"""
 
-    async def test_未登录返回401(self, client):
+    async def test_unauthenticated_returns_401(self, client):
         """未登录访问云训练接口应返回 401。"""
         for path in [
             "/api/cloud/jobs",
@@ -35,7 +35,7 @@ class TestCloudRoutesAPI:
             response = await client.get(path)
             assert response.status_code == 401
 
-    async def test_创建和列出任务(self, client, admin_headers, cloud_training_service):
+    async def test_create_and_list_jobs(self, client, admin_headers, cloud_training_service):
         """创建训练任务后可在列表中查到。"""
         list1 = await client.get("/api/cloud/jobs", headers=admin_headers)
         assert list1.status_code == 200
@@ -63,7 +63,7 @@ class TestCloudRoutesAPI:
         assert detail.status_code == 200
         assert detail.json()["data"]["name"] == "test-job"
 
-    async def test_任务状态流转(self, client, admin_headers, cloud_training_service):
+    async def test_job_status_transition(self, client, admin_headers, cloud_training_service):
         """任务状态转换：pending → running → completed。"""
         payload = {
             "name": "status-test",

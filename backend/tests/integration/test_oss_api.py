@@ -57,12 +57,12 @@ def oss_service_with_mock_backend(db_container):
 class TestOSSUploadAPI:
     """OSS 上传下载接口全链路测试。"""
 
-    async def test_上传需要登录(self, client):
+    async def test_upload_requires_authentication(self, client):
         """未登录上传应返回 401。"""
         response = await client.post("/api/oss/upload")
         assert response.status_code == 401
 
-    async def test_配额查询(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_quota_query(self, client, auth_headers, oss_service_with_mock_backend):
         """配额查询接口应正常返回配额信息。"""
         response = await client.get("/api/oss/quota", headers=auth_headers)
         assert response.status_code == 200
@@ -71,7 +71,7 @@ class TestOSSUploadAPI:
         assert "used_bytes" in data["data"]
         assert "quota_bytes" in data["data"]
 
-    async def test_文件列表(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_file_list(self, client, auth_headers, oss_service_with_mock_backend):
         """文件列表接口应返回空列表（无文件时）。"""
         response = await client.get("/api/oss/my", headers=auth_headers)
         assert response.status_code == 200
@@ -79,7 +79,7 @@ class TestOSSUploadAPI:
         assert data["code"] == "ok"
         assert data["data"]["files"] == []
 
-    async def test_上传文件(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_upload_file(self, client, auth_headers, oss_service_with_mock_backend):
         """上传文件应成功后可在列表中查到。"""
         svc, backend = oss_service_with_mock_backend
 
@@ -105,7 +105,7 @@ class TestOSSUploadAPI:
         assert len(files) == 1
         assert files[0]["path"].endswith("hello.png")
 
-    async def test_删除文件(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_delete_file(self, client, auth_headers, oss_service_with_mock_backend):
         """删除文件接口应成功并更新列表。"""
         svc, backend = oss_service_with_mock_backend
 
