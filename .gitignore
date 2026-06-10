@@ -56,3 +56,6 @@ data/
 # SSL certificates
 /ssl/
 .claude/settings.local.json
+
+# testgen cache
+.testgen-cache/
