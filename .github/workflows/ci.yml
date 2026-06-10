@@ -9,13 +9,13 @@ on:
     branches: [master]
 
 jobs:
-  # ── 后端代码格式检查 ──
-  backend-lint:
+  # ── 后端：lint + format + 测试（共享 venv，一个 job 搞定） ──
+  backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
 
@@ -31,27 +31,14 @@ jobs:
       - name: Custom lint rules
         run: uv run python scripts/lint_rules.py --fail backend/
 
-  # ── 后端测试 ──
-  backend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --frozen
-
       - name: Run tests
         run: uv run pytest
 
-  # ── 前端检查 ──
-  frontend-check:
+  # ── 前端：typecheck + build + 测试（共享 node_modules，一个 job 搞定） ──
+  frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -71,22 +58,6 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  # ── 前端测试 ──
-  frontend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
       - name: Run tests
         working-directory: frontend
         run: npm run test:run
@@ -102,7 +73,7 @@ jobs:
       matrix:
         language: [python, javascript]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
         if: matrix.language == 'python'
@@ -111,21 +82,21 @@ jobs:
           python-version: '3.12'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
 
   # ── 构建（版本路由在 build.yml 内部处理） ──
   build:
-    needs: [backend-lint, backend-test, frontend-check, frontend-test, security-scan]
+    needs: [backend, frontend, security-scan]
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read
@@ -140,7 +111,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create deployment bundle
         run: |
