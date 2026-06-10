@@ -286,7 +286,7 @@ describe('路由导航守卫', () => {
       helper.setUserInfo({ id: '1', username: 'test', level: 5 })
       helper.setRoutesLoaded(true)
       helper.mockGetUserInfo = vi.fn().mockResolvedValue({ id: '1', username: 'test' })
-      helper.mockHasLevel = vi.fn((v: number) => false)
+      helper.mockHasLevel = vi.fn(() => false)
 
       const result = await runGuard({
         path: '/admin',

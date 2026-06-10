@@ -63,7 +63,7 @@ describe('useApiWithFallback', () => {
   })
 
   it('refresh() 过程中 loading 为 true', async () => {
-    let resolveFn!: (v: string) => void
+    let resolveFn!: (v: string) => void // eslint-disable-line no-unused-vars
     const fetcher = vi.fn().mockReturnValue(
       new Promise<string>((resolve) => {
         resolveFn = resolve

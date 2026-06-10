@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { computed } from 'vue'
 
 // ── Mock vue-router ──
 const mockRoute = { query: {} as Record<string, string> }

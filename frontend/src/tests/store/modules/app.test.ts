@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAppStore } from '@/store/modules/app'
-import type { Theme } from '@/store/modules/app'
 
 // 模拟 window.matchMedia
 function createMatchMediaMock(matches: boolean) {

@@ -1,5 +1,7 @@
 // Vitest 全局 setup 文件
 // 在所有测试文件运行之前执行，提供全局 mock 和辅助函数
+/// <reference lib="dom" />
+/* global FrameRequestCallback, CanvasLineCap, CanvasLineJoin, CanvasTextAlign, CanvasTextBaseline, GlobalCompositeOperation, CanvasDirection, ImageSmoothingQuality */
 import { vi } from 'vitest'
 
 // ════════════════════════════════════════════

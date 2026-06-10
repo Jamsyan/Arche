@@ -152,7 +152,7 @@ describe('useCoverLazyGenerator', () => {
       mockFetch.mockReturnValue(new Promise(() => {}))
 
       // 同时发起两个并发请求（不 await 第一个，让其挂起）
-      const promise1 = ensurePostCover(post)
+      void ensurePostCover(post)
       const promise2 = ensurePostCover(post)
 
       // 第二个请求应该直接返回 null（已在处理中）

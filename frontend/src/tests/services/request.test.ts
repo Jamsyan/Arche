@@ -364,7 +364,7 @@ describe('request.ts', () => {
   describe('导出请求方法', () => {
     it('get 发送 GET 请求', async () => {
       mocks.serviceInstance.current.request.mockResolvedValue('ok')
-      const result = await get('/api/test', { page: 1 })
+      await get('/api/test', { page: 1 })
       expect(mocks.serviceInstance.current.request).toHaveBeenCalledWith(
         expect.objectContaining({ method: 'get', url: '/api/test', params: { page: 1 } })
       )
