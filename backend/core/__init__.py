@@ -90,8 +90,8 @@ async def _seed_default_config(session_factory) -> None:
                 session.add(entry)
 
             await session.commit()
-    except Exception as e:
-        logging.warning(f"Config seed skipped: {e}")
+    except Exception:
+        logging.exception("Config seed skipped")
 
 
 def _setup_logging() -> None:
