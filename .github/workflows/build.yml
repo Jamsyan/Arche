@@ -14,85 +14,46 @@ env:
 
 jobs:
   # ── 1. 版本路由 ──
+  # 自动版本号：基于 Conventional Commits 计算下一个版本
+  #   - BREAKING CHANGE / !  → major
+  #   - feat:                → minor
+  #   - fix:                 → patch
+  #   tag push (v*): 直接使用 tag 版本（手动发版）
   version:
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.route.outputs.image_tag }}
+      image_tag: ${{ steps.set.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Determine version tag
-        id: route
+      # Push to master: 基于 Conventional Commits 自动计算下一个版本
+      - name: Auto version
+        id: auto
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          dry_run: true
+          default_bump: patch
+          commit_format: conventional
+
+      - name: Set image_tag
+        id: set
         run: |
-          REF="${{ github.ref }}"
-          EVENT="${{ github.event_name }}"
-          TAG=""
-
-          echo "Trigger: $EVENT"
-          echo "Ref: $REF"
-
-          # tag push (v*) → 用 tag 版本（手动发版）
-          if [[ "$REF" == refs/tags/v* ]]; then
-            TAG="${REF#refs/tags/v}"
-            echo "Manual tag push → build: $TAG"
-
-          # push 到 master → 按 PR 合并或直接 push 算版本
-          elif [[ "$EVENT" == "push" && "$REF" == refs/heads/master ]]; then
-            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-            if [ -n "$LAST_TAG" ]; then
-              # 计算代码变更行数（最权威的决定因素）
-              STATS=$(git diff --shortstat "$LAST_TAG"...HEAD 2>/dev/null)
-              INSERTIONS=$(echo "$STATS" | sed -n 's/.* \([0-9]*\) insertion.*/\1/p')
-              [ -z "$INSERTIONS" ] && INSERTIONS=0
-
-              # 获取 PR 合并记录（分支名作为辅助信号）
-              MERGES=$(git log "$LAST_TAG"...HEAD --merges --format="%s" 2>/dev/null || echo "")
-
-              # --- 版本判定：行数为主，分支名为辅 ---
-              if [ "$INSERTIONS" -gt 15000 ]; then
-                # 超大变更（>15000 行）→ major
-                BUMP="major"
-              elif [ "$INSERTIONS" -gt 2000 ]; then
-                # 中型变更（2000-15000 行）→ minor
-                BUMP="minor"
-              else
-                # 小变更（<2000 行）：分支名二次判断
-                if echo "$MERGES" | grep -qiE 'from [^ ]+/breaking/'; then
-                  BUMP="major"
-                elif echo "$MERGES" | grep -qiE 'from [^ ]+/refactor/'; then
-                  # 小重构也升 minor
-                  BUMP="minor"
-                else
-                  # 小 feat / 小 fix / style / chore → patch
-                  BUMP="patch"
-                fi
-              fi
-
-              # 解析版本并递增
-              VERSION="${LAST_TAG#v}"
-              MAJOR=$(echo "$VERSION" | cut -d. -f1)
-              MINOR=$(echo "$VERSION" | cut -d. -f2)
-              PATCH=$(echo "$VERSION" | cut -d. -f3)
-
-              case "$BUMP" in
-                major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-                minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-                patch) PATCH=$((PATCH + 1)) ;;
-              esac
-              TAG="${MAJOR}.${MINOR}.${PATCH}"
-              echo "Push → bump ${BUMP}: ${LAST_TAG#v} → $TAG"
-            else
-              TAG="0.0.1"
-              echo "First build → $TAG"
-            fi
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # tag push: 直接使用 tag 版本
+            TAG="${GITHUB_REF#refs/tags/v}"
+            echo "image_tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "Manual tag push → $TAG"
+          elif [ -n "${{ steps.auto.outputs.new_version }}" ]; then
+            # push to master: 使用 auto 计算的版本
+            echo "image_tag=${{ steps.auto.outputs.new_version }}" >> "$GITHUB_OUTPUT"
+            echo "Auto version → ${{ steps.auto.outputs.new_version }}"
           else
-            echo "No build condition met → skip"
+            echo "No version → skip build"
           fi
-
-          echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
 
   # ── 2. 并行构建 ──
   build-backend:
