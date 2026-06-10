@@ -26,6 +26,11 @@ class PluginRegistry:
     def register(self, name: str, plugin: Any) -> None:
         self._plugins[name] = plugin
 
+    def reset(self) -> None:
+        """清空所有已注册和已激活的插件。"""
+        self._plugins.clear()
+        self._active.clear()
+
     def activate(self, name: str, app: FastAPI) -> None:
         if name not in self._plugins:
             raise ValueError(f"Plugin '{name}' not registered")

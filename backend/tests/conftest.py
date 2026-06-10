@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 from pathlib import Path
 
-# 把项目根目录加入 Python path (Arche/)，backend 的父目录
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -14,19 +15,95 @@ from unittest.mock import MagicMock, AsyncMock  # noqa: E402
 
 
 # =============================================================================
-# 自动 marker 分层
+# 自动 marker 分层 + 本地智能测试（按 diff 跳过）
 # =============================================================================
 INTEGRATION_DIR = (Path(__file__).parent / "integration").resolve()
+E2E_DIR = (Path(__file__).parent / "e2e").resolve()
+
+# 测试目录 → 源码目录映射（用于 diff 判断）
+# 改 backend/core/ 中的文件 → 跑 unit/core/
+# 改 backend/plugins/auth/ 中的文件 → 跑 unit/auth/ + 集成测试
+TEST_SOURCE_MAP = {
+    "unit/core/": ["backend/core/"],
+    "unit/auth/": ["backend/plugins/auth/", "backend/core/"],
+    "unit/blog/": ["backend/plugins/blog/", "backend/core/"],
+    "unit/oss/": ["backend/plugins/oss/", "backend/core/"],
+    "unit/github_proxy/": ["backend/plugins/github_proxy/", "backend/core/"],
+    "unit/crawler/": ["backend/plugins/crawler/", "backend/core/"],
+    "unit/cloud_integration/": ["backend/plugins/cloud_integration/", "backend/core/"],
+    "unit/monitor/": ["backend/plugins/monitor/", "backend/core/"],
+    "unit/asset_mgmt/": ["backend/plugins/asset_mgmt/", "backend/core/"],
+    "unit/system_monitor/": ["backend/plugins/system_monitor/", "backend/core/"],
+    "integration/": None,  # 集成测试：任一 backend 文件变化就跑
+    "e2e/": "__never__",  # E2E 永不自动跑
+}
+
+# 总在 diff 模式中包含的测试（核心基础设施变更）
+CORE_DIRS = ["backend/core/", "backend/tests/conftest.py", "pyproject.toml"]
+
+
+def pytest_addoption(parser):
+    """添加自定义选项。"""
+    parser.addoption(
+        "--all",
+        action="store_true",
+        default=False,
+        help="本地全量跑（默认是按 diff 智能跳过）",
+    )
+
+
+def _get_changed_files() -> set[str]:
+    """获取与 master/main 相比有变更的文件列表。"""
+    # 优先用 CI 提供的变更列表
+    if os.environ.get("GITHUB_EVENT_NAME"):
+        return set()
+
+    for branch in ("HEAD~1", "main", "master"):
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", branch],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=PROJECT_ROOT,
+            )
+            files = {f.strip() for f in result.stdout.split("\n") if f.strip()}
+            if files:
+                return files
+        except subprocess.CalledProcessError:
+            continue
+    return set()
+
+
+def _is_test_for_source(test_rel: str, changed: set[str]) -> bool:
+    """判断某个测试是否针对有变更的源码。"""
+    for test_dir, source_dirs in TEST_SOURCE_MAP.items():
+        if test_rel.startswith(test_dir):
+            if source_dirs is None:
+                # 集成测试：只要 backend 源码变了就跑
+                return any(
+                    f.startswith("backend/") and not f.startswith("backend/tests/")
+                    for f in changed
+                )
+            if source_dirs == "__never__":
+                return False
+            # 单元测试：对应源码目录有变更就跑
+            return any(any(f.startswith(s) for f in changed) for s in source_dirs)
+    # 其他测试（不在映射表中）保守跑
+    return True
 
 
 def pytest_collection_modifyitems(config, items):
-    """自动给 backend/tests/integration/ 下的测试加 ``integration`` marker。
+    """自动标记 + 智能跳过。
 
-    这样：
-    - 默认运行不变（仍然采集所有测试，整个套件保持稳定）；
-    - 想跑纯单元测试时可以用 ``uv run pytest -m 'not integration'``
-      获得快速反馈，CI 阶段也可以分层。
+    标记：
+    - integration/ 下的测试自动加 integration marker
+    - e2e/ 下的测试自动加 e2e marker
+
+    智能跳过（本地 diff 模式）：
+    - 没加 --all 且不在 CI 环境时，自动跳过未变更插件的测试
     """
+    # ── 自动打 marker ──
     for item in items:
         try:
             test_path = Path(item.fspath).resolve()
@@ -34,9 +111,45 @@ def pytest_collection_modifyitems(config, items):
             continue
         try:
             test_path.relative_to(INTEGRATION_DIR)
+            item.add_marker(pytest.mark.integration)
         except ValueError:
+            pass
+        try:
+            test_path.relative_to(E2E_DIR)
+            item.add_marker(pytest.mark.e2e)
+        except ValueError:
+            pass
+
+    # ── 智能跳过（本地 diff 模式） ──
+    is_full = config.getoption("--all", default=False) or os.environ.get("CI")
+    if is_full:
+        return
+
+    changed = _get_changed_files()
+    if not changed:
+        return
+
+    # 检查是否有任何核心文件变更（有则全部跑）
+    core_changed = any(any(f.startswith(c) for f in changed) for c in CORE_DIRS)
+    if core_changed:
+        return
+
+    deselected = []
+    for item in items:
+        try:
+            test_rel = Path(item.fspath).resolve().relative_to(Path(__file__).parent)
+            test_rel_str = str(test_rel.as_posix())
+        except (TypeError, ValueError):
             continue
-        item.add_marker(pytest.mark.integration)
+
+        if not _is_test_for_source(test_rel_str, changed):
+            deselected.append(item)
+
+    if deselected:
+        items[:] = [i for i in items if i not in deselected]
+        config.hook.pytest_deselected(items=deselected)
+        print(f"\n🔍 Diff 模式：跳过了 {len(deselected)} 个未变更插件的测试")
+        print("   用 --all 参数运行全量测试\n")
 
 
 # =============================================================================
@@ -89,9 +202,9 @@ def anyio_backend():
 # =============================================================================
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def module_db():
-    """模块级 fixture：创建一次数据库引擎和表，同一模块内的所有测试共享。
+    """创建独立的内存数据库引擎和表，每个测试函数独立使用。
 
     返回: {"engine": engine, "session_factory": session_factory}
     """
@@ -131,13 +244,7 @@ async def module_db():
 
 @pytest.fixture
 async def in_memory_db(module_db):
-    """函数级 fixture：每个测试结束后清理所有数据。
-
-    使用 ``module_db`` 的引擎，测试结束后逐表 DELETE 清空，
-    比事务回滚更可靠（兼容各种 session.commit() 模式）。
-
-    返回: {"engine": engine, "session_factory": session_factory}
-    """
+    """函数级 fixture：每个测试结束后清理所有数据。"""
     from sqlalchemy.ext.asyncio import async_sessionmaker
     from backend.core.db import Base
 
@@ -146,7 +253,6 @@ async def in_memory_db(module_db):
 
     yield {"engine": engine, "session_factory": session_factory}
 
-    # 测试结束后清空所有表，保证下一条测试数据隔离
     async with session_factory() as session:
         for table in reversed(Base.metadata.sorted_tables):
             await session.execute(table.delete())
@@ -178,6 +284,9 @@ async def db_container(in_memory_db, fake_container):
         def invalidate_cache(self, key=None):
             return None
 
+    # get_service 使用的缓存，避免 MagicMock 的 hasattr 总是返回 True
+    _auth_cache = {"instance": None}
+
     def get_service(name):
         if name == "db":
             return in_memory_db
@@ -186,7 +295,14 @@ async def db_container(in_memory_db, fake_container):
         elif name == "auth":
             from backend.plugins.auth.services import AuthService
 
-            return AuthService(fake_container)
+            # 单例：缓存 AuthService 实例，确保限流器/黑名单状态跨请求保持
+            if _auth_cache["instance"] is None:
+                _auth_cache["instance"] = AuthService(fake_container)
+            return _auth_cache["instance"]
+        elif name == "blog":
+            from backend.plugins.blog.services import BlogService
+
+            return BlogService(fake_container)
         elif name == "github":
             from backend.plugins.github_proxy.services import GitHubService
 
@@ -203,7 +319,6 @@ async def db_container(in_memory_db, fake_container):
             limiter = AsyncMock()
             limiter.consume = AsyncMock()
             return limiter
-        # 对于 auth 等其他服务，返回一个 AsyncMock 容器
         service = AsyncMock()
         service.get.return_value = "mock"
         return service
@@ -245,19 +360,7 @@ def mock_subprocess_failure(exit_code: int = 1, stderr: bytes = b"error"):
 
 
 def patch_container_service(container, name: str, service):
-    """把 ``container.get(name)`` 临时替换成 ``service``，其它名字透传旧 get。
-
-    用于 ``db_container`` 这种共享 fixture 中按需注入特定 mock service，
-    替代各测试反复写：
-    ::
-
-        old_get = db_container.get
-        def _get(n): return service if n == name else old_get(n)
-        db_container.get = _get
-
-    Returns:
-        传入的 ``service``，方便链式赋值给 fixture 返回值。
-    """
+    """把 ``container.get(name)`` 临时替换成 ``service``，其它名字透传旧 get。"""
     old_get = container.get
 
     def _get(n: str):
@@ -276,26 +379,25 @@ def patch_container_service(container, name: str, service):
 
 @pytest.fixture
 async def test_app(db_container):
-    """创建真实的 FastAPI 测试应用，带内存数据库。
-
-    与生产 `create_app` 的关键差异说明：
-    - 这里手动挂载 plugin 路由 + AuthMiddleware；
-    - 同时调用 `register_error_handlers`，让 `AppError`/`AuthError`/
-      `PermissionError` 能正确映射成 4xx 响应，而不是被 starlette
-      默认 500 吃掉，否则集成测试只能看到 500 而无法断言业务码。
-    """
+    """创建真实的 FastAPI 测试应用，带内存数据库。"""
     from fastapi import FastAPI
     from backend.core.plugin_registry import registry, discover_plugins
     from backend.core.middleware import register_error_handlers
     from backend.plugins.auth.middleware import AuthMiddleware
 
-    discover_plugins()
+    # 如果已有插件注册（单元测试已导入），不做 reset 以免丢失；
+    # 否则从零发现注册。
+    if not registry.available:
+        registry.reset()
+        discover_plugins()
+    else:
+        # 补充发现尚未注册的插件
+        discover_plugins()
 
     app = FastAPI(title="Test Arche")
     app.state.container = db_container
 
     register_error_handlers(app)
-
     registry.activate_all(app)
     registry.register_services(db_container)
 
@@ -318,42 +420,28 @@ async def client(test_app):
 
 @pytest.fixture
 async def auth_headers(db_container):
-    """获取已认证用户的请求头。
-
-    直接创建用户并生成 token，不走 HTTP 注册流程，更快更稳定。
-    """
+    """获取已认证用户的请求头。"""
     from backend.plugins.auth.services import AuthService
 
     service = AuthService(db_container)
-
-    # 先注册一个管理员（第一个用户）
     await service.register(
         email="admin@example.com", username="admin", password="admin123"
     )
-
-    # 再注册一个普通用户
     result = await service.register(
         email="test@example.com", username="testuser", password="testpass123"
     )
-
     return {"Authorization": f"Bearer {result['access_token']}"}
 
 
 @pytest.fixture
 async def admin_headers(db_container):
-    """获取管理员的请求头。
-
-    第一个注册的用户是 p0 (管理员)。
-    """
+    """获取管理员的请求头。"""
     from backend.plugins.auth.services import AuthService
 
     service = AuthService(db_container)
-
-    # 第一个注册的用户自动成为 p0
     result = await service.register(
         email="admin@example.com", username="admin", password="admin123"
     )
-
     return {"Authorization": f"Bearer {result['access_token']}"}
 
 
@@ -371,9 +459,7 @@ def crawler_sample_url():
 def crawler_sample_html():
     return """
     <html>
-      <head>
-        <title>Test Article</title>
-      </head>
+      <head><title>Test Article</title></head>
       <body>
         <main>
           <p>This is crawler sample content with enough characters for quality checks.</p>

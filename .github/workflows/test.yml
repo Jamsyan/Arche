@@ -1,0 +1,138 @@
+name: Test
+
+on:
+  # 构建触发（构建前确认测试通过）
+  workflow_call:
+
+  # 定时全量（每天 UTC 2:00 = 北京时间 10:00）
+  schedule:
+    - cron: "0 2 * * *"
+
+  # 手动触发
+  workflow_dispatch:
+
+jobs:
+  # ── 后端：单元测试（按插件并行） ──
+  backend-unit:
+    strategy:
+      matrix:
+        plugin: [core, auth, blog, oss, github_proxy, crawler, cloud_integration, monitor, asset_mgmt, system_monitor]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run ${{ matrix.plugin }} unit tests
+        run: uv run pytest backend/tests/unit/${{ matrix.plugin }}/ -n auto --tb=short --no-header
+
+  # ── 后端：集成测试 ──
+  backend-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run integration tests
+        run: uv run pytest backend/tests/integration/ -n auto --tb=short --no-header
+
+  # ── 前端：按目录并行 ──
+  frontend:
+    strategy:
+      matrix:
+        dir:
+          - composables
+          - constants
+          - integration
+          - services
+          - store
+          - utils
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: npm audit
+        working-directory: frontend
+        continue-on-error: true
+        run: npm audit --audit-level=moderate
+      - name: Verify API types
+        working-directory: frontend
+        run: test -f src/services/api/generated.d.ts && echo "API types OK"
+      - name: Run ${{ matrix.dir }} tests
+        working-directory: frontend
+        run: >
+          npx vitest run src/tests/${{ matrix.dir }}/
+          --reporter=verbose
+      - name: Run constants/directives/router tests
+        working-directory: frontend
+        if: matrix.dir == 'constants'
+        run: >
+          npx vitest run src/tests/constants/ src/tests/directives/ src/tests/router/
+          --reporter=verbose
+
+  # ── 覆盖率报告 ──
+  coverage:
+    needs: [backend-unit, backend-integration]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend deps
+        run: uv sync --frozen
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Backend coverage
+        run: uv run pytest --cov=backend --cov-report=term --cov-fail-under=40 --tb=short
+      - name: Frontend coverage
+        working-directory: frontend
+        run: npm run test:coverage
+
+  # ── E2E 测试（仅定时/手动触发） ──
+  e2e:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chromium, firefox]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps ${{ matrix.browser }}
+      - name: Start backend
+        run: |
+          uv run uvicorn backend.main:app --host 127.0.0.1 --port 8000 &
+          sleep 3
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run dev -- --host 127.0.0.1 --port 5173 &
+          sleep 3
+      - name: Run E2E tests
+        run: uv run pytest backend/tests/e2e/ --browser=${{ matrix.browser }} --frontend-url=http://127.0.0.1:5173 --tb=short --no-header

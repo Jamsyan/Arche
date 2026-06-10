@@ -179,6 +179,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
+            # 检查 token 是否已被登出（黑名单）
+            jti = payload.get("jti")
+            if jti:
+                try:
+                    auth_service = request.app.state.container.get("auth")
+                    if auth_service.is_token_blacklisted(jti):
+                        return JSONResponse(
+                            status_code=401,
+                            content={
+                                "code": "auth_error",
+                                "message": "Token 已失效，请重新登录",
+                                "data": {},
+                            },
+                        )
+                except Exception:
+                    pass  # 黑名单检查失败时放行，避免影响正常请求
+
             # 注入用户信息到 request.state
             request.state.user = {
                 "id": payload["sub"],

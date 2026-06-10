@@ -1,7 +1,5 @@
 """数据库模块测试。"""
 
-import pytest
-
 # 不要直接导入变量，导入模块
 import backend.core.db as db_module
 from backend.core.db import (
@@ -55,36 +53,3 @@ class TestDatabase:
 
         # 验证 expire_on_commit=False
         assert session_factory.kw.get("expire_on_commit") is False
-
-    @pytest.mark.skip(reason="Global state issue in test environment")
-    @pytest.mark.asyncio
-    async def test_ensure_tables_not_initialized(self):
-        """数据库未初始化时调用 ensure_tables 抛出 AssertionError。"""
-        pass
-
-    @pytest.mark.skip(reason="Global state issue in test environment")
-    @pytest.mark.asyncio
-    async def test_validate_schema_not_initialized(self):
-        """数据库未初始化时调用 validate_schema 抛出 AssertionError。"""
-        pass
-
-    @pytest.mark.skip(reason="Dynamic model creation causes conflicts in tests")
-    def test_validate_schema_sync_no_tables(self):
-        """没有表时，_validate_schema_sync返回空字符串。"""
-        pass
-
-    @pytest.mark.skip(reason="Dynamic model creation causes conflicts in tests")
-    def test_validate_schema_sync_missing_columns(self):
-        """_validate_schema_sync 正确检测缺少的列。"""
-        pass
-
-    @pytest.mark.skip(reason="Dynamic model creation causes conflicts in tests")
-    def test_validate_schema_sync_no_issues(self):
-        """schema匹配时返回空字符串。"""
-        pass
-
-    @pytest.mark.skip(reason="Mocking async engine is too complex")
-    @pytest.mark.asyncio
-    async def test_ensure_tables_calls_create_all(self):
-        """ensure_tables调用Base.metadata.create_all创建表。"""
-        pass

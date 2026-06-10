@@ -141,8 +141,28 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: false,
       environment: 'jsdom',
-      include: ['src/**/*.{test,spec}.{ts,js}'],
-      css: true
+      include: ['src/tests/**/*.{test,spec}.{ts,js}'],
+      css: true,
+      setupFiles: ['./vitest.setup.ts'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text'],
+        include: ['src/**/*.ts'],
+        exclude: [
+          'src/**/*.d.ts',
+          'src/**/__tests__/**',
+          'src/**/generated.d.ts',
+          'src/auto-imports.d.ts',
+          'src/components.d.ts',
+          'src/env.d.ts'
+        ],
+        thresholds: {
+          statements: 80,
+          branches: 75,
+          functions: 65,
+          lines: 80
+        }
+      }
     },
 
     // CSS预处理器配置

@@ -28,6 +28,7 @@ venv/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/coverage/
 
 # Build output
 dist/
@@ -42,6 +43,9 @@ htmlcov/
 .pytest_cache/
 .artifacts/
 
+# Testgen cache
+.testgen-cache/
+
 # Storage (local data)
 storage/
 data/
@@ -52,3 +56,6 @@ data/
 # SSL certificates
 /ssl/
 .claude/settings.local.json
+
+# testgen cache
+.testgen-cache/

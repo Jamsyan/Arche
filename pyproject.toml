@@ -50,6 +50,11 @@ dev = [
     "pytest-xdist>=3.0",
     "pytest-httpx>=0.36.2",
     "ruff>=0.15.11",
+    "pytest-playwright>=0.8.0",
+    "typer>=0.26.7",
+    "tree-sitter>=0.25.2",
+    "tree-sitter-typescript>=0.23.2",
+    "bandit>=1.8.0",
 ]
 
 [tool.coverage.run]
@@ -60,18 +65,16 @@ omit = [
     "backend/scripts/*",
 ]
 
-[tool.coverage.html]
-directory = ".artifacts/tests/coverage/html"
-
-[tool.coverage.xml]
-output = ".artifacts/tests/coverage/coverage.xml"
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 pythonpath = ["."]
-norecursedirs = [".venv", "node_modules", "frontend", "scripts"]
+norecursedirs = [".venv", "node_modules", "frontend", "scripts", "e2e"]
 asyncio_mode = "auto"
-addopts = "-v --strict-markers --tb=short -n auto --dist loadscope --cov=backend --cov-report=term-missing --cov-fail-under=40"
+addopts = "-v --strict-markers --tb=short"
 markers = [
     "slow: 标记慢速测试（需要网络）",
     "integration: 标记集成测试",
@@ -80,6 +83,5 @@ markers = [
     "http: 标记需要 HTTP 连接的测试",
 ]
 
-[[tool.uv.index]]
-url = "https://mirrors.aliyun.com/pypi/simple/"
-default = true
+[project.scripts]
+test = "scripts.run_tests:main"

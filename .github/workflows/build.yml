@@ -23,9 +23,10 @@ jobs:
           fetch-depth: 0
 
       # Push to master: 基于 Conventional Commits 自动计算下一个版本
+      # 注：CI 调用时 event_name 为 workflow_call，故仅用 ref 判断
       - name: Auto version
         id: auto
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/master'
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
