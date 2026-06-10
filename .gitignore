@@ -28,6 +28,7 @@ venv/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/coverage/
 
 # Build output
 dist/

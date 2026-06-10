@@ -14,7 +14,9 @@
     "generate:api": "node scripts/generate-api-types.mjs",
     "generate:api:check": "node scripts/generate-api-types.mjs && git diff --exit-code src/services/api/generated.d.ts",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@tiptap/extension-color": "^3.26.0",
@@ -45,6 +47,7 @@
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/coverage-v8": "^4.1.8",
     "@vue/test-utils": "^2.4.10",
     "@vue/tsconfig": "^0.9.1",
     "esbuild": "^0.28.0",
