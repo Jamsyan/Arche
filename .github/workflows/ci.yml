@@ -1,6 +1,20 @@
 name: CI
 
 on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".github/**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - ".github/**"
   workflow_dispatch:
 
 jobs:
@@ -35,6 +49,14 @@ jobs:
     needs: [build]
     if: needs.build.outputs.image_tag != ''
     uses: ./.github/workflows/release.yml
+    with:
+      image_tag: ${{ needs.build.outputs.image_tag }}
+    secrets: inherit
+
+  deploy:
+    needs: [build]
+    if: needs.build.outputs.image_tag != ''
+    uses: ./.github/workflows/deploy.yml
     with:
       image_tag: ${{ needs.build.outputs.image_tag }}
     secrets: inherit
