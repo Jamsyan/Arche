@@ -19,12 +19,12 @@ class TestParameterPollution:
         ("float_for_int", 3.14),
         ("empty_object", {}),
         ("empty_array", []),
-        ("min_int", -2**31),
+        ("min_int", -(2**31)),
         ("max_int", 2**31 - 1),
         ("nested_object_deep", {"a": {"b": {"c": {"d": {"e": "deep"}}}}}),
         ("proto_pollution", {"__proto__": {"admin": True}}),
         ("constructor_pollution", {"constructor": {"prototype": {"admin": True}}}),
-        ("unicode_overlong", "\u0100\u017F" * 100),
+        ("unicode_overlong", "\u0100\u017f" * 100),
     ]
 
     @pytest.fixture(autouse=True)
@@ -126,8 +126,12 @@ class TestParameterPollution:
                 payload["title"] = value
             elif desc in ("float_for_int", "min_int", "max_int"):
                 payload["required_level"] = value
-            elif desc in ("empty_object", "empty_array", "nested_object_deep",
-                          "unicode_overlong"):
+            elif desc in (
+                "empty_object",
+                "empty_array",
+                "nested_object_deep",
+                "unicode_overlong",
+            ):
                 payload["title"] = value
             elif desc in ("proto_pollution", "constructor_pollution"):
                 payload["title"] = "test"

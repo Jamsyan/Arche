@@ -18,6 +18,7 @@ class TestResourceExhaustion:
 
     async def test_deeply_nested_json_rejected(self, client):
         """深度嵌套的 JSON 应被拒绝不导致崩溃。"""
+
         def make_nested(depth):
             if depth <= 0:
                 return "x"
@@ -54,10 +55,16 @@ class TestResourceExhaustion:
 
         # 使用 mock storage 避免依赖 MinIO
         mock_storage = AsyncMock()
-        mock_storage.upload_file = AsyncMock(return_value={
-            "id": "mock-id", "owner_id": "test", "path": "test",
-            "size": 0, "mime_type": "image/png", "storage_type": "local",
-        })
+        mock_storage.upload_file = AsyncMock(
+            return_value={
+                "id": "mock-id",
+                "owner_id": "test",
+                "path": "test",
+                "size": 0,
+                "mime_type": "image/png",
+                "storage_type": "local",
+            }
+        )
         patch_container_service(db_container, "storage", mock_storage)
 
         huge_content = b"x" * (5 * 1024 * 1024)  # 5MB

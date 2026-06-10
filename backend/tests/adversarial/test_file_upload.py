@@ -117,8 +117,8 @@ class TestFileUploadSecurity:
         svg_xss = (
             b'<?xml version="1.0" encoding="UTF-8"?>'
             b'<svg xmlns="http://www.w3.org/2000/svg">'
-            b'<script>alert(1)</script>'
-            b'<text>hello</text></svg>'
+            b"<script>alert(1)</script>"
+            b"<text>hello</text></svg>"
         )
         resp = await client.post(
             "/api/oss/upload",
@@ -144,10 +144,10 @@ class TestFileUploadSecurity:
     async def test_unicode_normalization_attack(self, client, auth_headers):
         """Unicode 规范化绕过测试。"""
         unicode_names = [
-            "shell\u2024png",        # 使用 U+2024 ONE DOT LEADER 代替 .
-            "shell\uFF0Ephp",        # 使用全角 .
-            "a\u0000b.png",          # null byte injection
-            "..%252f..%252fetc",     # double URL encoding
+            "shell\u2024png",  # 使用 U+2024 ONE DOT LEADER 代替 .
+            "shell\uff0ephp",  # 使用全角 .
+            "a\u0000b.png",  # null byte injection
+            "..%252f..%252fetc",  # double URL encoding
         ]
         for name in unicode_names:
             resp = await client.post(

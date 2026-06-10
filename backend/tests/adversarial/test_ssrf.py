@@ -95,9 +95,7 @@ class TestSSRF:
         data = resp.json()
         assert data["code"] in ("error", "not_found")
 
-    async def test_crawler_seeds_rejects_malformed_urls(
-        self, client, admin_headers
-    ):
+    async def test_crawler_seeds_rejects_malformed_urls(self, client, admin_headers):
         """种子 URL 应经过验证。"""
         malicious_seeds = [
             "http://127.0.0.1:8000",
@@ -111,6 +109,4 @@ class TestSSRF:
                 json={"url": url},
                 headers=admin_headers,
             )
-            assert resp.status_code != 500, (
-                f"Malicious seed URL caused 500: {url}"
-            )
+            assert resp.status_code != 500, f"Malicious seed URL caused 500: {url}"

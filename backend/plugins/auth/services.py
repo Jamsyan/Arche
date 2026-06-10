@@ -154,7 +154,9 @@ class AuthService:
         self._cleanup_blacklist()
         try:
             payload = jwt.decode(
-                token, self.secret_key, algorithms=["HS256"],
+                token,
+                self.secret_key,
+                algorithms=["HS256"],
                 options={"verify_exp": False},
             )
             jti = payload.get("jti")

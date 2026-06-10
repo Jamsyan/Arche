@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import jwt
 import uuid
-from datetime import datetime, timedelta, timezone
 
 
 class TestTokenLifecycle:
@@ -72,17 +70,18 @@ class TestTokenLifecycle:
 
     async def test_jti_uniqueness(self):
         """每个 token 的 jti 应唯一。"""
-        from backend.plugins.auth.services import AuthService
 
         # 构造一个最小 payload 来测试理论
         payloads = []
         for _ in range(100):
-            payloads.append({
-                "jti": str(uuid.uuid4()),
-                "sub": str(uuid.uuid4()),
-                "level": 5,
-                "exp": 9999999999,
-            })
+            payloads.append(
+                {
+                    "jti": str(uuid.uuid4()),
+                    "sub": str(uuid.uuid4()),
+                    "level": 5,
+                    "exp": 9999999999,
+                }
+            )
         jtis = [p["jti"] for p in payloads]
         assert len(jtis) == len(set(jtis)), "Duplicate jti values detected"
 
@@ -113,6 +112,4 @@ class TestTokenLifecycle:
             json={"refresh_token": refresh_token_val},
         )
         # 目前可能返回 200（无 refresh token rotation），这里只确认不会 500
-        assert refresh_resp2.status_code != 500, (
-            "Reused refresh token caused 500"
-        )
+        assert refresh_resp2.status_code != 500, "Reused refresh token caused 500"

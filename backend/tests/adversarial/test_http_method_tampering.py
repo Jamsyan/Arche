@@ -19,7 +19,11 @@ class TestHTTPMethodTampering:
         """注册端点拒绝 PUT 请求。"""
         resp = await client.put(
             "/api/auth/register",
-            json={"email": "test@test.com", "username": "test", "password": "testpass123"},
+            json={
+                "email": "test@test.com",
+                "username": "test",
+                "password": "testpass123",
+            },
         )
         assert resp.status_code in (405, 404), (
             f"Register endpoint accepted PUT: status {resp.status_code}"
@@ -46,4 +50,7 @@ class TestHTTPMethodTampering:
             f"OPTIONS request failed: status {resp.status_code}"
         )
         if resp.status_code == 200:
-            assert "allow" in resp.headers or "access-control-allow-methods" in resp.headers
+            assert (
+                "allow" in resp.headers
+                or "access-control-allow-methods" in resp.headers
+            )

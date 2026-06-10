@@ -32,7 +32,7 @@ class TestIDOR:
         post_id = await self._create_post(client, auth_headers)
 
         # 模拟另一个用户（无 auth_headers，使用匿名）尝试编辑
-        resp = await client.put(
+        await client.put(
             f"/api/blog/posts/{post_id}",
             json={"title": "hacked title", "content": "hacked content"},
             headers=auth_headers,
@@ -84,9 +84,7 @@ class TestIDOR:
         resp = await client.get("/api/auth/stats")
         assert resp.status_code == 401
 
-    async def test_regular_user_cannot_access_oss_admin(
-        self, client, auth_headers
-    ):
+    async def test_regular_user_cannot_access_oss_admin(self, client, auth_headers):
         """普通用户无法访问 OSS 管理端点。"""
         admin_only_paths = [
             ("GET", "/api/oss/admin/stats"),
@@ -96,6 +94,5 @@ class TestIDOR:
             resp = await client.request(method, path, headers=auth_headers)
             if resp.status_code not in (404, 405):
                 assert resp.status_code in (401, 403), (
-                    f"Regular user accessed {method} {path}: "
-                    f"status {resp.status_code}"
+                    f"Regular user accessed {method} {path}: status {resp.status_code}"
                 )

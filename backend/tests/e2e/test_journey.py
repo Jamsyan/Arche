@@ -123,9 +123,7 @@ class TestUserJourney:
         password = "TestPass123"
 
         # 注册用户
-        await self._register_user(
-            page, backend_url, email, username, password
-        )
+        await self._register_user(page, backend_url, email, username, password)
 
         # UI 登录
         await page.goto(f"{frontend_url}/login", wait_until="networkidle")

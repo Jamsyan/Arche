@@ -20,7 +20,6 @@ class TestMassAssignment:
         data = resp.json()
         assert data["code"] == "ok"
         # 验证注册的用户并不是 P0（除非是第一个用户）
-        user = data["data"]["user"]
         # 如果数据库已有用户，level 应为 5（P5）
         # 注意：如果此测试在空数据库运行，仍可能为 P0
         # 这里只验证响应正常即可
@@ -69,7 +68,9 @@ class TestMassAssignment:
         assert resp.status_code in (200, 401)
         assert resp.status_code != 500
 
-    async def test_create_post_rejects_unexpected_admin_fields(self, client, auth_headers):
+    async def test_create_post_rejects_unexpected_admin_fields(
+        self, client, auth_headers
+    ):
         """创建帖子时无法注入管理字段。"""
         resp = await client.post(
             "/api/blog/posts",

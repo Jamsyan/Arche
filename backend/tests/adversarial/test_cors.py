@@ -29,7 +29,6 @@ class TestCORS:
             "/api/blog/posts",
             headers={"Origin": "https://evil.com"},
         )
-        origin = resp.headers.get("access-control-allow-origin", "")
         # 如果 CORS 配置允许 *，则不会拒绝
         # 这里只确认响应不会因为 CORS 检查而崩溃
         assert resp.status_code != 500

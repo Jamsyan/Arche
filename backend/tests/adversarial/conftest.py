@@ -56,7 +56,11 @@ JWT_WRONG_SECRET = (
 @pytest.fixture
 async def adversarial_app(db_container):
     from fastapi import FastAPI
-    from backend.core.middleware import register_error_handlers, setup_security_headers, setup_cors
+    from backend.core.middleware import (
+        register_error_handlers,
+        setup_security_headers,
+        setup_cors,
+    )
     from backend.plugins.auth.middleware import AuthMiddleware
 
     app = FastAPI(title="Test Arche")
