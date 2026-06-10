@@ -19,9 +19,9 @@ class TestSmoke:
         body_text = await page.inner_text("body")
         assert len(body_text.strip()) > 0
 
-    async def test_backend_health(self, page):
+    async def test_backend_health(self, page, backend_url):
         """后端 API 健康检查。"""
-        response = await page.request.get("http://localhost:8000/api/ping")
+        response = await page.request.get(f"{backend_url}/api/ping")
         assert response.ok
 
     async def test_page_not_crash(self, page, frontend_url):

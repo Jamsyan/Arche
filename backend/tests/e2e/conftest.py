@@ -11,6 +11,11 @@ def pytest_addoption(parser):
         help="前端开发服务器地址",
     )
     parser.addoption(
+        "--backend-url",
+        default="http://localhost:8000",
+        help="后端 API 服务器地址",
+    )
+    parser.addoption(
         "--chrome-path",
         default=None,
         help="Chrome/Chromium 可执行文件路径，不指定则用 Playwright 自带的",
@@ -20,6 +25,11 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def frontend_url(request):
     return request.config.getoption("--frontend-url")
+
+
+@pytest.fixture(scope="session")
+def backend_url(request):
+    return request.config.getoption("--backend-url")
 
 
 @pytest.fixture(scope="session")

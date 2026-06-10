@@ -46,7 +46,7 @@ class TestUserJourney:
         assert body["code"] == "ok", f"登录失败: {body}"
         return body["data"]
 
-    async def test_user_registration_and_login(self, page, frontend_url):
+    async def test_user_registration_and_login(self, page, frontend_url, backend_url):
         """用户注册 → 登录 → 验证登录态 → 登出。"""
         tag = self.unique
         email = f"journey_{tag}@test.com"
@@ -78,25 +78,19 @@ class TestUserJourney:
 
         # ── 验证登录态 ──
         await page.wait_for_timeout(1000)
-        me_resp = await page.request.get(
-            f"{frontend_url.replace(':5173', ':8000')}/api/auth/me"
-        )
+        me_resp = await page.request.get(f"{backend_url}/api/auth/me")
         assert me_resp.ok
         me_body = await me_resp.json()
         assert me_body["code"] == "ok"
         assert me_body["data"]["email"] == email
 
         # ── 登出 ──
-        await page.request.post(
-            f"{frontend_url.replace(':5173', ':8000')}/api/auth/logout"
-        )
+        await page.request.post(f"{backend_url}/api/auth/logout")
         await page.goto(frontend_url, wait_until="networkidle")
         await page.wait_for_timeout(500)
 
         # 登出后 /me 应返回未认证
-        me_resp2 = await page.request.get(
-            f"{frontend_url.replace(':5173', ':8000')}/api/auth/me"
-        )
+        me_resp2 = await page.request.get(f"{backend_url}/api/auth/me")
         assert me_resp2.status == 401 or me_resp2.status == 403
 
     async def test_browse_blog_posts_as_guest(self, page, frontend_url):
@@ -121,7 +115,7 @@ class TestUserJourney:
         comments = page.locator(".comment-list, [class*=comment]")
         await comments.first.wait_for(state="visible", timeout=5000)
 
-    async def test_create_blog_post(self, page, frontend_url):
+    async def test_create_blog_post(self, page, frontend_url, backend_url):
         """登录用户 → 创作页面 → 填写内容 → 发布 → 验证。"""
         tag = self.unique
         email = f"creator_{tag}@test.com"
@@ -130,7 +124,7 @@ class TestUserJourney:
 
         # 注册用户
         await self._register_user(
-            page, frontend_url.replace(":5173", ":8000"), email, username, password
+            page, backend_url, email, username, password
         )
 
         # UI 登录
@@ -192,9 +186,8 @@ class TestUserJourney:
             f"发布后未正确跳转，当前 URL: {current}"
         )
 
-    async def test_admin_moderation_flow(self, page, frontend_url):
+    async def test_admin_moderation_flow(self, page, frontend_url, backend_url):
         """管理员登录 → 审核面板 → 查看待审帖子 → 通过。"""
-        backend_url = frontend_url.replace(":5173", ":8000")
         tag = self.unique
         admin_email = f"admin_{tag}@test.com"
         admin_user = f"admin_{tag}"
