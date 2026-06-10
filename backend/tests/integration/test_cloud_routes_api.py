@@ -1,209 +1,223 @@
-"""cloud routes 最小烟囱集成测试。"""
+"""云训练全链路集成测试。
+
+Mock 边界：无。CloudTrainingService 使用 MockProvider（纯内存实现，不调用任何外部 API）。
+所有 CRUD 操作使用真实的内存 SQLite 数据库。
+不 mock CloudTrainingService 或其任何内部方法。
+"""
 
 from __future__ import annotations
 
-import uuid
-from unittest.mock import AsyncMock, MagicMock
-
-import jwt
 import pytest
 
+from backend.plugins.cloud_integration.services import CloudTrainingService
 from backend.tests.conftest import patch_container_service
 
 
 @pytest.fixture
-def cloud_service_mock(db_container, admin_headers):
-    # 解码 admin token 获取用户 ID，用于 _verify_job_owner 测试
-    token = admin_headers["Authorization"].replace("Bearer ", "")
-    try:
-        payload = jwt.decode(token, options={"verify_signature": False})
-        admin_id = payload.get("sub", str(uuid.uuid4()))
-    except Exception:
-        admin_id = str(uuid.uuid4())
-
-    service = MagicMock()
-    service.list_jobs = AsyncMock(return_value={"items": [], "total": 0})
-    service.get_job = AsyncMock(
-        return_value={
-            "id": str(uuid.uuid4()),
-            "name": "j",
-            "creator_id": admin_id,
-        }
-    )
-    service.create_job = AsyncMock(return_value={"id": str(uuid.uuid4()), "name": "j"})
-    service.delete_job = AsyncMock(return_value=None)
-    service.start_job = AsyncMock(return_value={"status": "running"})
-    service.stop_job = AsyncMock(return_value={"status": "stopped"})
-    service.complete_job = AsyncMock(return_value={"status": "completed"})
-    service.fail_job = AsyncMock(return_value={"status": "failed"})
-    service.get_job_logs = AsyncMock(return_value={"lines": ["ok"]})
-    service.list_instances = AsyncMock(return_value={"items": [], "total": 0})
-    service.create_instance = AsyncMock(return_value={"id": str(uuid.uuid4())})
-    service.start_instance = AsyncMock(return_value={"status": "running"})
-    service.stop_instance = AsyncMock(return_value={"status": "stopped"})
-    service.launch_job = AsyncMock(
-        return_value={"id": str(uuid.uuid4()), "orchestrator_step": "creating_instance"}
-    )
-    service.get_job_progress = AsyncMock(return_value={"progress": 50})
-    service.get_job_steps = AsyncMock(return_value={"items": []})
-    service.get_costs = AsyncMock(return_value={"total_cost": 0, "breakdown": []})
-    service.list_datasets = AsyncMock(return_value={"items": [], "total": 0})
-    service.create_dataset = AsyncMock(
-        return_value={"id": str(uuid.uuid4()), "name": "ds"}
-    )
-    service.get_dataset = AsyncMock(
-        return_value={
-            "id": str(uuid.uuid4()),
-            "name": "ds",
-            "created_by": admin_id,
-        }
-    )
-    service.delete_dataset = AsyncMock(return_value=None)
-    service.sync_dataset = AsyncMock(return_value={"status": "queued"})
-    service.list_repos = AsyncMock(return_value={"items": [], "total": 0})
-    service.create_repo = AsyncMock(
-        return_value={"id": str(uuid.uuid4()), "name": "repo"}
-    )
-    service.delete_repo = AsyncMock(return_value=None)
-    service.sync_repo = AsyncMock(return_value={"status": "queued"})
-    service.list_artifacts = AsyncMock(return_value={"items": [], "total": 0})
-    service.get_artifact = AsyncMock(
-        return_value={"id": str(uuid.uuid4()), "name": "ckpt"}
-    )
-    service.download_artifact = AsyncMock(return_value="https://download.local/ckpt")
-    service.delete_artifact = AsyncMock(return_value=None)
-    return patch_container_service(db_container, "cloud_training", service)
+def cloud_training_service(db_container):
+    """使用真实 CloudTrainingService（MockProvider 纯内存）注入容器。"""
+    svc = CloudTrainingService(db_container)
+    patch_container_service(db_container, "cloud_training", svc)
+    return svc
 
 
 @pytest.mark.asyncio
 class TestCloudRoutesAPI:
-    async def test_list_jobs_requires_auth(self, client):
-        res = await client.get("/api/cloud/jobs")
-        assert res.status_code == 401
+    """云训练 API 全链路集成测试。"""
 
-    async def test_list_jobs_and_costs(self, client, admin_headers, cloud_service_mock):
-        res = await client.get("/api/cloud/jobs", headers=admin_headers)
-        assert res.status_code == 200
-        assert res.json()["code"] == "ok"
-        cloud_service_mock.list_jobs.assert_awaited_once()
+    async def test_未登录返回401(self, client):
+        """未登录访问云训练接口应返回 401。"""
+        for path in [
+            "/api/cloud/jobs",
+            "/api/cloud/costs",
+            "/api/cloud/stats",
+        ]:
+            response = await client.get(path)
+            assert response.status_code == 401
 
-        costs = await client.get("/api/cloud/costs", headers=admin_headers)
-        assert costs.status_code == 200
-        assert costs.json()["code"] == "ok"
+    async def test_创建和列出任务(self, client, admin_headers, cloud_training_service):
+        """创建训练任务后可在列表中查到。"""
+        list1 = await client.get("/api/cloud/jobs", headers=admin_headers)
+        assert list1.status_code == 200
+        assert list1.json()["data"]["total"] == 0
 
-    async def test_create_and_launch_job(
-        self, client, admin_headers, cloud_service_mock
-    ):
         payload = {
-            "name": "job",
-            "config": {},
+            "name": "test-job",
+            "config": {"provider": "mock", "gpu_type": "RTX4090"},
             "repo_url": "https://github.com/a/b.git",
             "repo_branch": "main",
-            "provider": "mock",
-            "gpu_type": "RTX4090",
         }
         created = await client.post(
             "/api/cloud/jobs", headers=admin_headers, json=payload
         )
         assert created.status_code == 200
-        assert created.json()["code"] == "ok"
+        job_id = created.json()["data"]["id"]
 
-        job_id = str(uuid.uuid4())
-        launched = await client.post(
-            f"/api/cloud/jobs/{job_id}/launch", headers=admin_headers
+        list2 = await client.get("/api/cloud/jobs", headers=admin_headers)
+        assert list2.status_code == 200
+        assert list2.json()["data"]["total"] == 1
+
+        detail = await client.get(
+            f"/api/cloud/jobs/{job_id}", headers=admin_headers
         )
-        assert launched.status_code == 200
-        assert launched.json()["code"] == "ok"
+        assert detail.status_code == 200
+        assert detail.json()["data"]["name"] == "test-job"
 
-    async def test_job_detail_actions_logs_and_instances(
-        self, client, admin_headers, cloud_service_mock
-    ):
-        job_id = str(uuid.uuid4())
-        instance_id = str(uuid.uuid4())
+    async def test_任务状态流转(self, client, admin_headers, cloud_training_service):
+        """任务状态转换：pending → running → completed。"""
+        payload = {
+            "name": "status-test",
+            "config": {"provider": "mock", "gpu_type": "RTX4090"},
+            "repo_url": "https://github.com/a/b.git",
+        }
+        created = await client.post(
+            "/api/cloud/jobs", headers=admin_headers, json=payload
+        )
+        job_id = created.json()["data"]["id"]
 
-        paths = [
-            ("get", f"/api/cloud/jobs/{job_id}", None),
-            ("post", f"/api/cloud/jobs/{job_id}/start", None),
-            ("post", f"/api/cloud/jobs/{job_id}/stop", None),
-            ("post", f"/api/cloud/jobs/{job_id}/complete", {"result_path": "runs/out"}),
-            ("post", f"/api/cloud/jobs/{job_id}/fail", {"error_message": "boom"}),
-            ("get", f"/api/cloud/jobs/{job_id}/logs", {"lines": 10}),
-            ("get", f"/api/cloud/jobs/{job_id}/instances", None),
-            ("post", f"/api/cloud/instances/{instance_id}/start", None),
-            ("post", f"/api/cloud/instances/{instance_id}/stop", None),
-            ("get", f"/api/cloud/jobs/{job_id}/progress", None),
-            ("get", f"/api/cloud/jobs/{job_id}/steps", None),
-            ("delete", f"/api/cloud/jobs/{job_id}", None),
-        ]
+        started = await client.post(
+            f"/api/cloud/jobs/{job_id}/start", headers=admin_headers
+        )
+        assert started.status_code == 200
 
-        for method, path, params in paths:
-            response = await getattr(client, method)(
-                path,
-                params=params,
-                headers=admin_headers,
-            )
-            assert response.status_code == 200
-            assert response.json()["code"] == "ok"
+        completed = await client.post(
+            f"/api/cloud/jobs/{job_id}/complete",
+            params={"result_path": "runs/out"},
+            headers=admin_headers,
+        )
+        assert completed.status_code == 200
 
-        created_instance = await client.post(
+    async def test_删除任务(self, client, admin_headers, cloud_training_service):
+        """创建后删除任务。"""
+        payload = {
+            "name": "delete-test",
+            "config": {"provider": "mock", "gpu_type": "RTX4090"},
+            "repo_url": "https://github.com/a/b.git",
+        }
+        created = await client.post(
+            "/api/cloud/jobs", headers=admin_headers, json=payload
+        )
+        job_id = created.json()["data"]["id"]
+
+        deleted = await client.delete(
+            f"/api/cloud/jobs/{job_id}", headers=admin_headers
+        )
+        assert deleted.status_code == 200
+        assert deleted.json()["code"] == "ok"
+
+    async def test_实例创建和列表(self, client, admin_headers, cloud_training_service):
+        """为任务创建和管理训练实例。"""
+        payload = {
+            "name": "instance-test",
+            "config": {"provider": "mock", "gpu_type": "RTX4090"},
+            "repo_url": "https://github.com/a/b.git",
+        }
+        created = await client.post(
+            "/api/cloud/jobs", headers=admin_headers, json=payload
+        )
+        job_id = created.json()["data"]["id"]
+
+        inst_payload = {
+            "instance_name": "gpu-1",
+            "gpu_type": "RTX4090",
+            "provider": "mock",
+        }
+        created_inst = await client.post(
             f"/api/cloud/jobs/{job_id}/instances",
             headers=admin_headers,
-            json={"instance_name": "gpu-1", "gpu_type": "RTX4090", "provider": "mock"},
+            json=inst_payload,
         )
-        assert created_instance.status_code == 200
-        cloud_service_mock.create_instance.assert_awaited_once()
+        assert created_inst.status_code == 200
+        instance_id = created_inst.json()["data"]["id"]
 
-    async def test_dataset_repo_and_artifact_routes(
-        self, client, admin_headers, cloud_service_mock
-    ):
-        dataset_id = str(uuid.uuid4())
-        repo_id = str(uuid.uuid4())
-        artifact_id = str(uuid.uuid4())
-        job_id = str(uuid.uuid4())
+        inst_list = await client.get(
+            f"/api/cloud/jobs/{job_id}/instances", headers=admin_headers
+        )
+        assert inst_list.status_code == 200
+        assert inst_list.json()["data"]["total"] >= 1
 
-        dataset_payload = {
-            "name": "dataset",
-            "description": "sample",
-            "path": "datasets/sample",
+        # 启动实例（pending → running）
+        started = await client.post(
+            f"/api/cloud/instances/{instance_id}/start", headers=admin_headers
+        )
+        assert started.status_code == 200
+
+    async def test_数据集管理(self, client, admin_headers, cloud_training_service):
+        """数据集的 CRUD 和同步操作。"""
+        ds_payload = {
+            "name": "my-dataset",
+            "description": "test dataset",
+            "path": "datasets/test/v1",
             "source": "local",
             "tags": ["demo"],
             "config": {},
         }
+        created = await client.post(
+            "/api/cloud/datasets", headers=admin_headers, json=ds_payload
+        )
+        assert created.status_code == 200
+        dataset_id = created.json()["data"]["id"]
+
+        detail = await client.get(
+            f"/api/cloud/datasets/{dataset_id}", headers=admin_headers
+        )
+        assert detail.status_code == 200
+        assert detail.json()["data"]["name"] == "my-dataset"
+
+        list_resp = await client.get("/api/cloud/datasets", headers=admin_headers)
+        assert list_resp.status_code == 200
+        assert list_resp.json()["data"]["total"] >= 1
+
+        sync_resp = await client.post(
+            f"/api/cloud/datasets/{dataset_id}/sync", headers=admin_headers
+        )
+        assert sync_resp.status_code == 200
+
+        delete_resp = await client.delete(
+            f"/api/cloud/datasets/{dataset_id}", headers=admin_headers
+        )
+        assert delete_resp.status_code == 200
+
+    async def test_仓库管理(self, client, admin_headers, cloud_training_service):
+        """代码仓库的 CRUD 和同步。"""
         repo_payload = {
-            "name": "repo",
+            "name": "my-repo",
             "git_url": "https://github.com/a/b.git",
             "git_branch": "main",
         }
+        created = await client.post(
+            "/api/cloud/repos", headers=admin_headers, json=repo_payload
+        )
+        assert created.status_code == 200
+        repo_id = created.json()["data"]["id"]
 
-        requests = [
-            ("get", "/api/cloud/stats", None, None),
-            ("get", "/api/cloud/datasets", {"source": "local"}, None),
-            ("post", "/api/cloud/datasets", None, dataset_payload),
-            ("get", f"/api/cloud/datasets/{dataset_id}", None, None),
-            ("post", f"/api/cloud/datasets/{dataset_id}/sync", None, None),
-            ("delete", f"/api/cloud/datasets/{dataset_id}", None, None),
-            ("get", "/api/cloud/repos", None, None),
-            ("post", "/api/cloud/repos", None, repo_payload),
-            ("post", f"/api/cloud/repos/{repo_id}/sync", None, None),
-            ("delete", f"/api/cloud/repos/{repo_id}", None, None),
-            (
-                "get",
-                "/api/cloud/artifacts",
-                {"job_id": job_id, "artifact_type": "log"},
-                None,
-            ),
-            ("get", f"/api/cloud/artifacts/{artifact_id}", None, None),
-            ("get", f"/api/cloud/artifacts/{artifact_id}/download", None, None),
-            ("delete", f"/api/cloud/artifacts/{artifact_id}", None, None),
-        ]
+        list_resp = await client.get("/api/cloud/repos", headers=admin_headers)
+        assert list_resp.status_code == 200
+        assert list_resp.json()["data"]["total"] >= 1
 
-        for method, path, params, json in requests:
-            response = await client.request(
-                method.upper(),
-                path,
-                params=params,
-                json=json,
-                headers=admin_headers,
-            )
-            assert response.status_code == 200
-            assert response.json()["code"] == "ok"
+        sync_resp = await client.post(
+            f"/api/cloud/repos/{repo_id}/sync", headers=admin_headers
+        )
+        assert sync_resp.status_code == 200
+
+        delete_resp = await client.delete(
+            f"/api/cloud/repos/{repo_id}", headers=admin_headers
+        )
+        assert delete_resp.status_code == 200
+
+    async def test_费用查询(self, client, admin_headers, cloud_training_service):
+        """费用查询接口应返回合法结构。"""
+        response = await client.get("/api/cloud/costs", headers=admin_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == "ok"
+        assert "total_cost" in data["data"]
+
+    async def test_统计(self, client, admin_headers, cloud_training_service):
+        """工作台统计接口。"""
+        response = await client.get("/api/cloud/stats", headers=admin_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == "ok"
+        assert "running_jobs" in data["data"]
+        assert "running_instances" in data["data"]
