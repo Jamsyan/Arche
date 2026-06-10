@@ -143,7 +143,7 @@ describe('request.ts', () => {
     del = mod.del
     upload = mod.upload
     cancelAllPendingRequests = mod.cancelAllPendingRequests
-    $message = (await import('@/utils/message')).$message as unknown as Mock
+    $message = (await import('@/utils/message')).$message as unknown as { error: Mock }
     AUTH_UNAUTHORIZED_EVENT = (await import('@/constants/auth')).AUTH_UNAUTHORIZED_EVENT
   })
 

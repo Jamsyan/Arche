@@ -46,7 +46,7 @@ describe('search API', () => {
 
     const result = await getSearchSuggestionsApi('文章')
     expect(result.data.items).toHaveLength(1)
-    expect(result.data.items[0].label).toBe('文章1')
-    expect(result.data.items[0].url).toBe('/blog/post-1')
+    expect(result.data.items[0]!.label).toBe('文章1')
+    expect(result.data.items[0]!.url).toBe('/blog/post-1')
   })
 })

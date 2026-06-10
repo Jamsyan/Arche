@@ -143,7 +143,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn(function (
     return createMockCanvasContext()
   }
   return originalGetContext.call(this, contextId as any, options)
-})
+}) as unknown as HTMLCanvasElement['getContext']
 
 // toDataURL 也需要 mock
 HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/jpeg;base64,mocked')

@@ -80,7 +80,7 @@ class TestCrawlerAPI:
         assert get_black.status_code == 200
         data = get_black.json()["data"]
         assert isinstance(data, list)
-        assert "spam.com" in data
+        assert any(item == "spam.com" for item in data)
 
     async def test_record_query(self, client, admin_headers, crawler_service):
         """查询爬取记录和统计（空数据库场景）。"""

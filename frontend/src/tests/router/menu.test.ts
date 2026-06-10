@@ -56,7 +56,7 @@ describe('buildLayoutMenus', () => {
 
     const menus = buildLayoutMenus(routes, 'user')
     expect(menus).toHaveLength(1)
-    expect(menus[0].title).toBe('可见菜单')
+    expect(menus[0]!.title).toBe('可见菜单')
   })
 
   it('没有 title 的路由不加入菜单', async () => {
@@ -100,8 +100,8 @@ describe('buildLayoutMenus', () => {
     ]
 
     const menus = buildLayoutMenus(routes, 'user')
-    expect(menus[0].icon).toBeDefined()
-    expect(menus[0].icon).toMatchObject({ name: 'HomeOutline' })
+    expect(menus[0]!.icon).toBeDefined()
+    expect(menus[0]!.icon).toMatchObject({ name: 'HomeOutline' })
   })
 
   it('无 icon 配置时 icon 为 undefined', async () => {
@@ -116,7 +116,7 @@ describe('buildLayoutMenus', () => {
     ]
 
     const menus = buildLayoutMenus(routes, 'user')
-    expect(menus[0].icon).toBeUndefined()
+    expect(menus[0]!.icon).toBeUndefined()
   })
 
   it('递归处理子路由', async () => {
@@ -139,10 +139,10 @@ describe('buildLayoutMenus', () => {
 
     const menus = buildLayoutMenus(routes, 'user')
     expect(menus).toHaveLength(2)
-    expect(menus[0].title).toBe('父级')
-    expect(menus[0].path).toBe('/parent')
-    expect(menus[1].title).toBe('子级')
-    expect(menus[1].path).toBe('/parent/child')
+    expect(menus[0]!.title).toBe('父级')
+    expect(menus[0]!.path).toBe('/parent')
+    expect(menus[1]!.title).toBe('子级')
+    expect(menus[1]!.path).toBe('/parent/child')
   })
 
   it('子路由以 / 开头时直接拼接', async () => {
@@ -164,7 +164,7 @@ describe('buildLayoutMenus', () => {
     ]
 
     const menus = buildLayoutMenus(routes, 'user')
-    expect(menus[1].path).toBe('/absolute-child')
+    expect(menus[1]!.path).toBe('/absolute-child')
   })
 
   it('子路由 path 为空时继承父路径', async () => {
@@ -186,7 +186,7 @@ describe('buildLayoutMenus', () => {
     ]
 
     const menus = buildLayoutMenus(routes, 'user')
-    expect(menus[1].path).toBe('/parent')
+    expect(menus[1]!.path).toBe('/parent')
   })
 
   it('父路径以 / 结尾时正常拼接', async () => {
@@ -208,6 +208,6 @@ describe('buildLayoutMenus', () => {
     ]
 
     const menus = buildLayoutMenus(routes, 'user')
-    expect(menus[1].path).toBe('/parent/child')
+    expect(menus[1]!.path).toBe('/parent/child')
   })
 })

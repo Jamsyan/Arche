@@ -28,7 +28,7 @@ describe('animateSpring', () => {
     // 验证运动过程：值在从 0 向 100 变化（具体值取决于物理参数）
     expect(values.length).toBeGreaterThan(0)
     // 第一帧应该已经离开起始点
-    expect(values[0]).toBeGreaterThan(0)
+    expect(values[0]!).toBeGreaterThan(0)
     // 值应该单调递增
     for (let i = 1; i < values.length; i++) {
       expect(values[i]).toBeGreaterThanOrEqual(values[i - 1])
@@ -76,7 +76,7 @@ describe('animateSpring', () => {
     cancel()
 
     // 最终值应该接近目标值 10.1
-    const lastValue = values[values.length - 1]
+    const lastValue = values[values.length - 1]!
     expect(Math.abs(lastValue - 10.1)).toBeLessThan(0.5)
   })
 

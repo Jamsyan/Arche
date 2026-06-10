@@ -6,6 +6,7 @@ type BlogPost = {
   content?: string
   intro?: string
   tags?: string[]
+  slug?: string
   paragraphs?: { content: string }[]
 }
 

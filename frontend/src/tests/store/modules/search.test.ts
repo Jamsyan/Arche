@@ -142,7 +142,7 @@ describe('useSearchStore', () => {
       await vi.waitFor(() => {
         expect(store.loading).toBe(false)
         expect(store.suggestions).toHaveLength(1)
-        expect(store.suggestions[0].label).toBe('Test Post')
+        expect(store.suggestions[0]!.label).toBe('Test Post')
       })
     })
 

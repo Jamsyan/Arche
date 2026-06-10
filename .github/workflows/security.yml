@@ -17,8 +17,8 @@ jobs:
         run: >
           uv run bandit -r backend/
           --skip B101,B311
-          --confidence high
-          --severity high
+          --confidence-level high
+          --severity-level high
           --quiet
 
   codeql:
