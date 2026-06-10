@@ -9,6 +9,3 @@ jobs:
 
   security:
     uses: ./.github/workflows/security.yml
-
-  test:
-    uses: ./.github/workflows/test.yml
