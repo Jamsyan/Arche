@@ -127,6 +127,9 @@ jobs:
   build:
     needs: [backend-lint, backend-test, frontend-check, frontend-test, security-scan]
     uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      packages: write
     secrets: inherit
 
   # ── 发布（创建 Tag + GitHub Release + 上传部署包） ──
