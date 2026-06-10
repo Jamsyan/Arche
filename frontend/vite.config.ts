@@ -157,10 +157,10 @@ export default defineConfig(({ mode }) => {
           'src/env.d.ts'
         ],
         thresholds: {
-          statements: 45,
-          branches: 40,
-          functions: 40,
-          lines: 45
+          statements: 80,
+          branches: 75,
+          functions: 65,
+          lines: 80
         }
       }
     },
