@@ -284,12 +284,12 @@ class TestUserManagement:
         service = AuthService(db_container)
         result = await service.list_users(page=1, page_size=10)
 
-        assert "items" in result
+        assert "list" in result
         assert "total" in result
         assert result["total"] == 5
         assert result["page"] == 1
         assert result["page_size"] == 10
-        assert len(result["items"]) == 5
+        assert len(result["list"]) == 5
 
     @pytest.mark.asyncio
     async def test_list_users_pagination_works(self, db_container, test_users):
@@ -298,15 +298,15 @@ class TestUserManagement:
 
         # 第一页
         page1 = await service.list_users(page=1, page_size=2)
-        assert len(page1["items"]) == 2
+        assert len(page1["list"]) == 2
 
         # 第二页
         page2 = await service.list_users(page=2, page_size=2)
-        assert len(page2["items"]) == 2
+        assert len(page2["list"]) == 2
 
         # 第三页（剩余）
         page3 = await service.list_users(page=3, page_size=2)
-        assert len(page3["items"]) == 1
+        assert len(page3["list"]) == 1
 
     @pytest.mark.asyncio
     async def test_list_users_active_filter(self, db_container, test_users):

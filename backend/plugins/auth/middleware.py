@@ -7,11 +7,15 @@
 
 from __future__ import annotations
 
+import logging
+
 import jwt
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+logger = logging.getLogger(__name__)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -82,81 +86,125 @@ class AuthMiddleware(BaseHTTPMiddleware):
         user = mock_users.get(role, mock_users["user"])
         request.state.user = user
         self._refresh_session(request, user["id"])
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except Exception as e:
+            logger.error(
+                "Mock token handler 未捕获异常: %s %s - %s",
+                request.method,
+                request.url.path,
+                str(e),
+                exc_info=True,
+            )
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": "internal_error",
+                    "message": "内部服务器错误",
+                    "data": {},
+                },
+            )
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
         method = request.method
 
-        # 公开路由和 FastAPI 内置路由直接放行
-        if path in self.PUBLIC_PATHS or path.startswith(self.INTERNAL_PREFIXES):
-            return await call_next(request)
-
-        # 博客公开 GET 路由：允许未认证访问，但如果有 token 就解析注入用户信息
-        if method == "GET" and path.startswith(self.BLOG_PUBLIC_PREFIXES):
-            auth_header = request.headers.get("Authorization", "")
-            if auth_header.startswith("Bearer "):
-                token = auth_header[7:]
-                # 开发模式：接受 mock-token-*
-                if token.startswith("mock-token-"):
-                    return await self._handle_mock_token(request, call_next, token)
-                try:
-                    payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
-                    request.state.user = {
-                        "id": payload["sub"],
-                        "email": payload.get("email", ""),
-                        "username": payload.get("username", ""),
-                        "level": payload["level"],
-                        "blog_quality_level": payload.get("blog_quality_level", 0),
-                    }
-                except Exception:
-                    pass  # token 无效，当作匿名用户
-                else:
-                    self._refresh_session(request, payload["sub"])
-            return await call_next(request)
-
-        # 提取 Authorization header
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                status_code=401,
-                content={"code": "auth_error", "message": "缺少认证信息", "data": {}},
-            )
-
-        token = auth_header[7:]  # 去掉 "Bearer " 前缀
-
-        # 开发模式：接受 mock-token-* 作为测试用登录令牌
-        if token.startswith("mock-token-"):
-            return await self._handle_mock_token(request, call_next, token)
-
-        # 解析 token
         try:
-            payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
-        except jwt.ExpiredSignatureError:
+            # 公开路由和 FastAPI 内置路由直接放行
+            if path in self.PUBLIC_PATHS or path.startswith(self.INTERNAL_PREFIXES):
+                return await call_next(request)
+
+            # 博客公开 GET 路由：允许未认证访问，但如果有 token 就解析注入用户信息
+            if method == "GET" and path.startswith(self.BLOG_PUBLIC_PREFIXES):
+                auth_header = request.headers.get("Authorization", "")
+                if auth_header.startswith("Bearer "):
+                    token = auth_header[7:]
+                    # 开发模式：接受 mock-token-*
+                    if token.startswith("mock-token-"):
+                        return await self._handle_mock_token(request, call_next, token)
+                    try:
+                        payload = jwt.decode(
+                            token, self.secret_key, algorithms=["HS256"]
+                        )
+                        request.state.user = {
+                            "id": payload["sub"],
+                            "email": payload.get("email", ""),
+                            "username": payload.get("username", ""),
+                            "level": payload["level"],
+                            "blog_quality_level": payload.get("blog_quality_level", 0),
+                        }
+                    except Exception:
+                        pass  # token 无效，当作匿名用户
+                    else:
+                        self._refresh_session(request, payload["sub"])
+                return await call_next(request)
+
+            # 提取 Authorization header
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "code": "auth_error",
+                        "message": "缺少认证信息",
+                        "data": {},
+                    },
+                )
+
+            token = auth_header[7:]  # 去掉 "Bearer " 前缀
+
+            # 开发模式：接受 mock-token-* 作为测试用登录令牌
+            if token.startswith("mock-token-"):
+                return await self._handle_mock_token(request, call_next, token)
+
+            # 解析 token
+            try:
+                payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
+            except jwt.ExpiredSignatureError:
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "code": "token_expired",
+                        "message": "Token 已过期",
+                        "data": {},
+                    },
+                )
+            except jwt.InvalidTokenError:
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "code": "invalid_token",
+                        "message": "无效 Token",
+                        "data": {},
+                    },
+                )
+
+            # 注入用户信息到 request.state
+            request.state.user = {
+                "id": payload["sub"],
+                "email": payload.get("email", ""),
+                "username": payload.get("username", ""),
+                "level": payload["level"],
+                "blog_quality_level": payload.get("blog_quality_level", 0),
+            }
+
+            # 刷新在线会话（隐式心跳）
+            self._refresh_session(request, payload["sub"])
+
+            return await call_next(request)
+        except Exception as e:
+            logger.error(
+                "AuthMiddleware 未捕获异常: %s %s - %s",
+                request.method,
+                request.url.path,
+                str(e),
+                exc_info=True,
+            )
             return JSONResponse(
-                status_code=401,
+                status_code=500,
                 content={
-                    "code": "token_expired",
-                    "message": "Token 已过期",
+                    "code": "internal_error",
+                    "message": "内部服务器错误",
                     "data": {},
                 },
             )
-        except jwt.InvalidTokenError:
-            return JSONResponse(
-                status_code=401,
-                content={"code": "invalid_token", "message": "无效 Token", "data": {}},
-            )
-
-        # 注入用户信息到 request.state
-        request.state.user = {
-            "id": payload["sub"],
-            "email": payload.get("email", ""),
-            "username": payload.get("username", ""),
-            "level": payload["level"],
-            "blog_quality_level": payload.get("blog_quality_level", 0),
-        }
-
-        # 刷新在线会话（隐式心跳）
-        self._refresh_session(request, payload["sub"])
-
-        return await call_next(request)

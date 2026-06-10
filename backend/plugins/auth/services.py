@@ -253,7 +253,7 @@ class AuthService:
             users = result.scalars().all()
 
             return {
-                "items": [self._user_to_dict(u) for u in users],
+                "list": [self._user_to_dict(u) for u in users],
                 "total": total,
                 "page": page,
                 "page_size": page_size,
