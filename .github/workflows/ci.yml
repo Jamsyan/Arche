@@ -32,6 +32,7 @@ jobs:
     if: github.event_name != 'pull_request'
     uses: ./.github/workflows/adversarial.yml
     permissions:
+      contents: read
       issues: write
 
   test:
