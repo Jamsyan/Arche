@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-
-# 把项目根目录加入 Python path (Arche/)，backend 的父目录
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -17,14 +15,16 @@ from unittest.mock import MagicMock, AsyncMock  # noqa: E402
 # 自动 marker 分层
 # =============================================================================
 INTEGRATION_DIR = (Path(__file__).parent / "integration").resolve()
+E2E_DIR = (Path(__file__).parent / "e2e").resolve()
 
 
 def pytest_collection_modifyitems(config, items):
-    """自动给 backend/tests/integration/ 下的测试加 ``integration`` marker。
+    """自动给 backend/tests/integration/ 下的测试加 ``integration`` marker，
+    backend/tests/e2e/ 下的测试加 ``e2e`` marker。
 
     这样：
     - 默认运行不变（仍然采集所有测试，整个套件保持稳定）；
-    - 想跑纯单元测试时可以用 ``uv run pytest -m 'not integration'``
+    - 想跑纯单元测试时可以用 ``uv run pytest -m 'not integration and not e2e'``
       获得快速反馈，CI 阶段也可以分层。
     """
     for item in items:
@@ -34,9 +34,14 @@ def pytest_collection_modifyitems(config, items):
             continue
         try:
             test_path.relative_to(INTEGRATION_DIR)
+            item.add_marker(pytest.mark.integration)
         except ValueError:
-            continue
-        item.add_marker(pytest.mark.integration)
+            pass
+        try:
+            test_path.relative_to(E2E_DIR)
+            item.add_marker(pytest.mark.e2e)
+        except ValueError:
+            pass
 
 
 # =============================================================================

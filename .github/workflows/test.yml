@@ -127,4 +127,4 @@ jobs:
           npm run dev -- --host 127.0.0.1 --port 5173 &
           sleep 3
       - name: Run E2E tests
-        run: uv run pytest backend/tests/e2e/ --browser=${{ matrix.browser }} --tb=short --no-header
+        run: uv run pytest backend/tests/e2e/ --browser=${{ matrix.browser }} --frontend-url=http://127.0.0.1:5173 --tb=short --no-header

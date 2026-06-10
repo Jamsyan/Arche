@@ -50,6 +50,7 @@ dev = [
     "pytest-xdist>=3.0",
     "pytest-httpx>=0.36.2",
     "ruff>=0.15.11",
+    "pytest-playwright>=0.8.0",
 ]
 
 [tool.coverage.run]
@@ -59,6 +60,10 @@ omit = [
     "backend/*/__init__.py",
     "backend/scripts/*",
 ]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
@@ -73,7 +78,3 @@ markers = [
     "cli: 标记需要 GitHub CLI 的测试",
     "http: 标记需要 HTTP 连接的测试",
 ]
-
-[[tool.uv.index]]
-url = "https://mirrors.aliyun.com/pypi/simple/"
-default = true
