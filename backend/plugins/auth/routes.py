@@ -50,9 +50,12 @@ async def login(req: LoginRequest, request: Request):
     """用户登录，返回 JWT token。"""
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
+    # 获取客户端 IP 用于限流
+    client_ip = request.client.host if request.client else ""
     result = await auth_service.login(
         identity=req.identity,
         password=req.password,
+        client_ip=client_ip,
     )
 
     # 标记用户在线

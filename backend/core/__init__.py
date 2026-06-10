@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import config_manager as config_manager
 from .container import ServiceContainer
 from .db import init_db
-from .middleware import register_error_handlers, setup_cors
+from .middleware import register_error_handlers, setup_cors, setup_security_headers
 from .plugin_registry import registry
 
 
@@ -189,6 +189,7 @@ def create_app() -> FastAPI:
     )
     setup_cors(app, [o.strip() for o in cors_origins.split(",")])
     register_error_handlers(app)
+    setup_security_headers(app)
 
     # 添加 API 请求统计中间件
     @app.middleware("http")

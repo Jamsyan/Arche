@@ -111,3 +111,50 @@ class TestFileUploadSecurity:
             assert data["code"] == "ok"
         else:
             assert "code" in data
+
+    async def test_svg_with_embedded_xss(self, client, auth_headers):
+        """SVG 文件中嵌入 XSS 脚本应被安全处理。"""
+        svg_xss = (
+            b'<?xml version="1.0" encoding="UTF-8"?>'
+            b'<svg xmlns="http://www.w3.org/2000/svg">'
+            b'<script>alert(1)</script>'
+            b'<text>hello</text></svg>'
+        )
+        resp = await client.post(
+            "/api/oss/upload",
+            files={"file": ("evil.svg", svg_xss, "image/svg+xml")},
+            headers=auth_headers,
+        )
+        # SVG 可能不在 ALLOWED_MIME_TYPES 中，所以可能被拒绝
+        # 关键是不要返回 500
+        assert resp.status_code != 500, "SVG XSS file caused 500"
+
+    async def test_oversized_filename(self, client, auth_headers):
+        """超长文件名应被拒绝或安全处理。"""
+        long_name = "x" * 500 + ".png"
+        resp = await client.post(
+            "/api/oss/upload",
+            files={"file": (long_name, b"test content", "image/png")},
+            headers=auth_headers,
+        )
+        assert resp.status_code != 500, "Oversized filename caused 500"
+        data = resp.json()
+        assert "code" in data
+
+    async def test_unicode_normalization_attack(self, client, auth_headers):
+        """Unicode 规范化绕过测试。"""
+        unicode_names = [
+            "shell\u2024png",        # 使用 U+2024 ONE DOT LEADER 代替 .
+            "shell\uFF0Ephp",        # 使用全角 .
+            "a\u0000b.png",          # null byte injection
+            "..%252f..%252fetc",     # double URL encoding
+        ]
+        for name in unicode_names:
+            resp = await client.post(
+                "/api/oss/upload",
+                files={"file": (name, b"test", "image/png")},
+                headers=auth_headers,
+            )
+            assert resp.status_code != 500, (
+                f"Unicode filename attack caused 500: {name}"
+            )

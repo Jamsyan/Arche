@@ -284,6 +284,9 @@ async def db_container(in_memory_db, fake_container):
         def invalidate_cache(self, key=None):
             return None
 
+    # get_service 使用的缓存，避免 MagicMock 的 hasattr 总是返回 True
+    _auth_cache = {"instance": None}
+
     def get_service(name):
         if name == "db":
             return in_memory_db
@@ -292,7 +295,10 @@ async def db_container(in_memory_db, fake_container):
         elif name == "auth":
             from backend.plugins.auth.services import AuthService
 
-            return AuthService(fake_container)
+            # 单例：缓存 AuthService 实例，确保限流器/黑名单状态跨请求保持
+            if _auth_cache["instance"] is None:
+                _auth_cache["instance"] = AuthService(fake_container)
+            return _auth_cache["instance"]
         elif name == "github":
             from backend.plugins.github_proxy.services import GitHubService
 

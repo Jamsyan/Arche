@@ -9,6 +9,23 @@ on:
   workflow_call:
 
 jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run Bandit security scan
+        run: >
+          uv run bandit -r backend/
+          --skip B101,B311
+          --confidence high
+          --severity high
+          --quiet
+
   codeql:
     runs-on: ubuntu-latest
     permissions:

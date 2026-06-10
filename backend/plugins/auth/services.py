@@ -10,6 +10,7 @@ import jwt
 from sqlalchemy import func, select
 
 from backend.core.middleware import AppError, AuthError
+from backend.core.rate_limiter import RateLimiter
 
 
 class AuthService:
@@ -23,6 +24,10 @@ class AuthService:
         # token 有效期：access_token 2 小时，refresh_token 7 天
         self.access_token_expire_hours = 2
         self.refresh_token_expire_days = 7
+        # 登录限流：每 IP+identity 每分钟最多 5 次尝试
+        self._login_limiter = RateLimiter(max_attempts=5, window_seconds=60)
+        # Token 黑名单：{jti: expiry_timestamp}，内存实现
+        self._token_blacklist: dict[str, float] = {}
 
     # --- 用户注册 ---
     async def register(
@@ -90,9 +95,18 @@ class AuthService:
             }
 
     # --- 用户登录 ---
-    async def login(self, identity: str, password: str) -> dict:
+    async def login(self, identity: str, password: str, client_ip: str = "") -> dict:
         """验证邮箱或用户名+密码，返回 JWT token。"""
         from backend.plugins.auth.models import User
+
+        # 暴力破解防护：基于 identity + IP 的限流检查
+        limiter_key = f"{identity}-{client_ip}" if client_ip else identity
+        if self._login_limiter.is_limited(limiter_key):
+            raise AppError(
+                "登录尝试次数过多，请 60 秒后再试",
+                code="rate_limited",
+                status_code=429,
+            )
 
         async with self.session_factory() as session:
             # 先按 email 查，再按 username 查
@@ -104,16 +118,22 @@ class AuthService:
             )
             user = result.scalar_one_or_none()
             if not user:
+                self._login_limiter.record_attempt(limiter_key)
                 raise AuthError("邮箱/用户名或密码错误")
 
             # 验证密码
             if not bcrypt.checkpw(
                 password.encode("utf-8"), user.password_hash.encode("utf-8")
             ):
+                self._login_limiter.record_attempt(limiter_key)
                 raise AuthError("邮箱/用户名或密码错误")
 
             if not user.is_active:
+                self._login_limiter.record_attempt(limiter_key)
                 raise AuthError("账号已被禁用，请联系管理员")
+
+            # 登录成功，重置限流计数
+            self._login_limiter.reset(limiter_key)
 
             access_token = self._create_token(
                 user, expires_hours=self.access_token_expire_hours
@@ -130,9 +150,31 @@ class AuthService:
 
     # --- 登出 ---
     async def logout(self, token: str) -> None:
-        """登出。当前版本无 token 黑名单机制，登出由客户端清除本地 token 实现。"""
-        # 后续可接入 Redis 实现 token 黑名单
-        pass
+        """登出：将 token 的 jti 加入黑名单，使其立即失效。"""
+        self._cleanup_blacklist()
+        try:
+            payload = jwt.decode(
+                token, self.secret_key, algorithms=["HS256"],
+                options={"verify_exp": False},
+            )
+            jti = payload.get("jti")
+            exp = payload.get("exp", 0)
+            if jti:
+                self._token_blacklist[jti] = exp
+        except jwt.InvalidTokenError:
+            pass  # 无效 token 无需加入黑名单
+
+    def is_token_blacklisted(self, jti: str) -> bool:
+        """检查 token 的 jti 是否在黑名单中。"""
+        self._cleanup_blacklist()
+        return jti in self._token_blacklist
+
+    def _cleanup_blacklist(self) -> None:
+        """清理已过期的黑名单条目（懒清理）。"""
+        now = datetime.now(timezone.utc).timestamp()
+        expired = [jti for jti, exp in self._token_blacklist.items() if exp < now]
+        for jti in expired:
+            self._token_blacklist.pop(jti, None)
 
     # --- 获取当前用户 ---
     async def get_user_by_id(self, user_id: uuid.UUID) -> dict | None:
@@ -172,7 +214,7 @@ class AuthService:
     def _create_token(
         self, user, expires_hours: int | None = None, expires_days: int | None = None
     ) -> str:
-        """签发 JWT token。"""
+        """签发 JWT token，含 jti 用于登出黑名单。"""
         now = datetime.now(timezone.utc)
         if expires_hours is not None:
             exp = now + timedelta(hours=expires_hours)
@@ -182,6 +224,7 @@ class AuthService:
             exp = now + timedelta(hours=self.access_token_expire_hours)
 
         payload = {
+            "jti": str(uuid.uuid4()),
             "sub": str(user.id),
             "email": user.email,
             "username": user.username,

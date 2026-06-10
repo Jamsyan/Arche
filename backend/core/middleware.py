@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,26 @@ def setup_cors(app: FastAPI, origins: list[str]) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """安全响应头中间件：为所有响应添加安全相关的 HTTP 头。"""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
+        return response
+
+
+def setup_security_headers(app: FastAPI) -> None:
+    """注册安全响应头中间件。"""
+    app.add_middleware(SecurityHeadersMiddleware)
 
 
 def get_current_user(request: Request) -> dict[str, Any] | None:

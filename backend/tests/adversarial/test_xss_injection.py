@@ -98,3 +98,20 @@ class TestXSSInjections:
         for payload in self.PAYLOADS:
             resp = await self._create_report(client, auth_headers, payload, post_id)
             assert resp.status_code in (200, 400, 422), f"XSS report failed: {payload}"
+
+    async def test_markdown_image_xss(self, client, auth_headers):
+        """Markdown 图片语法中的 XSS 尝试。"""
+        md_xss_payloads = [
+            "![](javascript:alert(1))",
+            "![x](http://evil.com/steal?cookie=x)",
+            "[click me](javascript:alert(1))",
+            "[x](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)",
+        ]
+        for payload in md_xss_payloads:
+            resp = await self._create_post(client, auth_headers, payload, "content")
+            assert resp.status_code in (200, 400, 422), (
+                f"Markdown XSS payload failed: {payload}"
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                assert data["code"] == "ok"
