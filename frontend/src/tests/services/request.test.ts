@@ -13,25 +13,35 @@ const mocks = vi.hoisted(() => {
   const serviceInstance: { current: any } = { current: null }
 
   class MockAxiosError extends Error {
-    code?: string; config?: any; request?: any; response?: any; name = 'AxiosError'
-    constructor(msg: string, opts?: { code?: string; config?: any; request?: any; response?: any }) {
-      super(msg); if (opts) Object.assign(this, opts)
+    code?: string
+    config?: any
+    request?: any
+    response?: any
+    name = 'AxiosError'
+    constructor(
+      msg: string,
+      opts?: { code?: string; config?: any; request?: any; response?: any }
+    ) {
+      super(msg)
+      if (opts) Object.assign(this, opts)
     }
   }
 
-  class MockCanceledError extends Error { name = 'CanceledError' }
+  class MockCanceledError extends Error {
+    name = 'CanceledError'
+  }
 
   function createMockAxiosInstance() {
     return {
       interceptors: {
         request: { use: vi.fn(), eject: vi.fn() },
-        response: { use: vi.fn(), eject: vi.fn() },
+        response: { use: vi.fn(), eject: vi.fn() }
       },
       request: vi.fn(),
       post: vi.fn(),
       get: vi.fn(),
       put: vi.fn(),
-      delete: vi.fn(),
+      delete: vi.fn()
     }
   }
 
@@ -39,17 +49,31 @@ const mocks = vi.hoisted(() => {
   const store: Record<string, string> = {}
   const localStore = {
     getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value },
-    removeItem: (key: string) => { delete store[key] },
-    clear: () => { Object.keys(store).forEach(k => delete store[k]) },
-    get length() { return Object.keys(store).length },
-    key: (i: number) => Object.keys(store)[i] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = value
+    },
+    removeItem: (key: string) => {
+      delete store[key]
+    },
+    clear: () => {
+      Object.keys(store).forEach((k) => delete store[k])
+    },
+    get length() {
+      return Object.keys(store).length
+    },
+    key: (i: number) => Object.keys(store)[i] ?? null
   }
 
   return {
-    capturedReqHandler, capturedResHandler, capturedErrHandler, serviceInstance,
-    MockAxiosError, MockCanceledError, createMockAxiosInstance,
-    store, localStore,
+    capturedReqHandler,
+    capturedResHandler,
+    capturedErrHandler,
+    serviceInstance,
+    MockAxiosError,
+    MockCanceledError,
+    createMockAxiosInstance,
+    store,
+    localStore
   }
 })
 
@@ -57,7 +81,7 @@ const mocks = vi.hoisted(() => {
 Object.defineProperty(window, 'localStorage', {
   value: mocks.localStore,
   configurable: true,
-  writable: true,
+  writable: true
 })
 
 // ── axios mock ──
@@ -87,15 +111,15 @@ vi.mock('axios', () => {
   return {
     default: {
       create: vi.fn(() => createInstance()),
-      isCancel: (e: any) => e instanceof mocks.MockCanceledError,
+      isCancel: (e: any) => e instanceof mocks.MockCanceledError
     },
     AxiosError: mocks.MockAxiosError,
-    CanceledError: mocks.MockCanceledError,
+    CanceledError: mocks.MockCanceledError
   }
 })
 
 vi.mock('@/utils/message', () => ({
-  $message: { error: vi.fn() },
+  $message: { error: vi.fn() }
 }))
 
 // ══════════════════════════════════════════════
@@ -125,7 +149,7 @@ describe('request.ts', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    Object.keys(mocks.store).forEach(k => delete mocks.store[k])
+    Object.keys(mocks.store).forEach((k) => delete mocks.store[k])
   })
 
   // ── 请求拦截器 ──
@@ -182,8 +206,11 @@ describe('request.ts', () => {
   describe('响应成功拦截器', () => {
     function makeResponse(data: any, config?: any): AxiosResponse {
       return {
-        data, status: 200, statusText: 'OK', headers: {},
-        config: config ?? { requestOptions: {} },
+        data,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: config ?? { requestOptions: {} }
       } as AxiosResponse
     }
 
@@ -206,13 +233,19 @@ describe('request.ts', () => {
     })
 
     it('非成功 code 时 reject + 弹错误提示', async () => {
-      const res = makeResponse({ code: 400, message: '参数错误', data: null }, { requestOptions: {} })
+      const res = makeResponse(
+        { code: 400, message: '参数错误', data: null },
+        { requestOptions: {} }
+      )
       await expect(mocks.capturedResHandler.current(res)).rejects.toThrow('参数错误')
       expect($message.error).toHaveBeenCalledWith('参数错误')
     })
 
     it('silent 模式下不弹错误提示', async () => {
-      const res = makeResponse({ code: 400, message: '参数错误', data: null }, { requestOptions: { silent: true } })
+      const res = makeResponse(
+        { code: 400, message: '参数错误', data: null },
+        { requestOptions: { silent: true } }
+      )
       await expect(mocks.capturedResHandler.current(res)).rejects.toThrow()
       expect($message.error).not.toHaveBeenCalled()
     })
@@ -227,11 +260,16 @@ describe('request.ts', () => {
       expect(mocks.store.token).toBeUndefined()
       expect(mocks.store.refresh_token).toBeUndefined()
       expect(mocks.store.userInfo).toBeUndefined()
-      expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_UNAUTHORIZED_EVENT }))
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: AUTH_UNAUTHORIZED_EVENT })
+      )
     })
 
     it('403 时弹权限不足提示', async () => {
-      const res = makeResponse({ code: 403, message: '权限不足', data: null }, { requestOptions: {} })
+      const res = makeResponse(
+        { code: 403, message: '权限不足', data: null },
+        { requestOptions: {} }
+      )
       await expect(mocks.capturedResHandler.current(res)).rejects.toThrow()
       expect($message.error).toHaveBeenCalledWith('权限不足，无法访问')
     })
@@ -261,7 +299,7 @@ describe('request.ts', () => {
       mocks.store.token = 'old'
       const err = new mocks.MockAxiosError('Unauthorized', {
         config: { url: '/api/data', requestOptions: {} },
-        response: { status: 401, data: {} },
+        response: { status: 401, data: {} }
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
       expect(mocks.store.token).toBeUndefined()
@@ -271,7 +309,7 @@ describe('request.ts', () => {
       mocks.store.refresh_token = 'xxx'
       const err = new mocks.MockAxiosError('Unauthorized', {
         config: { url: '/api/auth/refresh', requestOptions: {} },
-        response: { status: 401, data: {} },
+        response: { status: 401, data: {} }
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
     })
@@ -279,7 +317,7 @@ describe('request.ts', () => {
     it('400 时提示参数错误', async () => {
       const err = new mocks.MockAxiosError('Bad Request', {
         config: { url: '/api/data', requestOptions: {} },
-        response: { status: 400, data: {} },
+        response: { status: 400, data: {} }
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
       expect($message.error).toHaveBeenCalledWith('请求参数错误')
@@ -288,7 +326,7 @@ describe('request.ts', () => {
     it('404 时提示资源不存在', async () => {
       const err = new mocks.MockAxiosError('Not Found', {
         config: { url: '/api/data', requestOptions: {} },
-        response: { status: 404, data: {} },
+        response: { status: 404, data: {} }
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
       expect($message.error).toHaveBeenCalledWith('请求的资源不存在')
@@ -297,7 +335,7 @@ describe('request.ts', () => {
     it('500 时提示服务器内部错误', async () => {
       const err = new mocks.MockAxiosError('Server Error', {
         config: { url: '/api/data', requestOptions: {} },
-        response: { status: 500, data: {} },
+        response: { status: 500, data: {} }
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
       expect($message.error).toHaveBeenCalledWith('服务器内部错误')
@@ -306,7 +344,7 @@ describe('request.ts', () => {
     it('silent 模式下不弹错误提示', async () => {
       const err = new mocks.MockAxiosError('Not Found', {
         config: { url: '/api/data', requestOptions: { silent: true } },
-        response: { status: 404, data: {} },
+        response: { status: 404, data: {} }
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
       expect($message.error).not.toHaveBeenCalled()
@@ -315,7 +353,7 @@ describe('request.ts', () => {
     it('网络异常时提示网络错误', async () => {
       const err = new mocks.MockAxiosError('Network Error', {
         config: { url: '/api/data', requestOptions: {} },
-        code: 'ERR_NETWORK',
+        code: 'ERR_NETWORK'
       })
       await expect(mocks.capturedErrHandler.current(err)).rejects.toThrow()
       expect($message.error).toHaveBeenCalled()
@@ -362,14 +400,20 @@ describe('request.ts', () => {
       await upload('/api/upload', file)
       expect(mocks.serviceInstance.current.request).toHaveBeenCalledWith(
         expect.objectContaining({
-          method: 'post', url: '/api/upload',
-          headers: { 'Content-Type': 'multipart/form-data' },
+          method: 'post',
+          url: '/api/upload',
+          headers: { 'Content-Type': 'multipart/form-data' }
         })
       )
     })
 
     it('cancelAllPendingRequests 不抛异常', () => {
-      mocks.capturedReqHandler.current({ url: '/api/test', method: 'post', data: '{}', headers: {} })
+      mocks.capturedReqHandler.current({
+        url: '/api/test',
+        method: 'post',
+        data: '{}',
+        headers: {}
+      })
       cancelAllPendingRequests()
     })
   })

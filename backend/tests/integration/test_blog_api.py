@@ -142,7 +142,9 @@ class TestCreateAndViewPosts:
 class TestModeration:
     """管理员审核测试。"""
 
-    async def test_non_admin_cannot_access_moderation(self, client, user_and_admin_tokens):
+    async def test_non_admin_cannot_access_moderation(
+        self, client, user_and_admin_tokens
+    ):
         """普通用户无法访问审核接口。"""
         response = await client.get(
             "/api/blog/moderation/pending",
@@ -158,7 +160,11 @@ class TestModeration:
         # 普通用户发帖
         create_resp = await client.post(
             "/api/blog/posts",
-            json={"title": "等待审核", "content": "这是一篇需要审核的文章。", "tags": []},
+            json={
+                "title": "等待审核",
+                "content": "这是一篇需要审核的文章。",
+                "tags": [],
+            },
             headers=user_headers,
         )
         post_id = create_resp.json()["data"]["id"]

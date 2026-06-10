@@ -43,7 +43,9 @@ def monitor_global_db(in_memory_db):
 class TestMonitorAPI:
     """监控模板 CRUD 测试。"""
 
-    async def test_templates_require_admin(self, client, auth_headers, monitor_global_db):
+    async def test_templates_require_admin(
+        self, client, auth_headers, monitor_global_db
+    ):
         """普通用户无法访问监控模板接口。"""
         response = await client.get("/api/monitor/templates", headers=auth_headers)
         assert response.status_code == 403

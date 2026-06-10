@@ -18,18 +18,31 @@ const helper = vi.hoisted(() => {
     capturedAfterEach,
 
     // 共享状态控制
-    setToken: (v: string | null) => { _token = v },
-    setUserInfo: (v: any) => { _userInfo = v },
-    setRoutesLoaded: (v: boolean) => { _routesLoaded = v },
-    setIsAdmin: (v: boolean) => { _isAdmin = v },
-    setLevel: (v: number) => { _level = v },
+    setToken: (v: string | null) => {
+      _token = v
+    },
+    setUserInfo: (v: any) => {
+      _userInfo = v
+    },
+    setRoutesLoaded: (v: boolean) => {
+      _routesLoaded = v
+    },
+    setIsAdmin: (v: boolean) => {
+      _isAdmin = v
+    },
+    setLevel: (v: number) => {
+      _level = v
+    },
 
     // mock 函数（可被 spy/mocked 追踪）
     mockRouterPush: vi.fn(),
     mockInitUserState: vi.fn(),
     mockGetUserInfo: vi.fn().mockRejectedValue(new Error('not initialized')),
     mockRefreshAccessToken: vi.fn().mockRejectedValue(new Error('no token')),
-    mockClearUserState: vi.fn(() => { _token = null; _userInfo = null }),
+    mockClearUserState: vi.fn(() => {
+      _token = null
+      _userInfo = null
+    }),
     mockResetPermission: vi.fn(),
     mockGenerateRoutes: vi.fn().mockRejectedValue(new Error('not initialized')),
     mockHasPermission: vi.fn(),
@@ -43,32 +56,40 @@ const helper = vi.hoisted(() => {
     getUserInfo: () => _userInfo,
     getRoutesLoaded: () => _routesLoaded,
     getIsAdmin: () => _isAdmin,
-    getLevel: () => _level,
+    getLevel: () => _level
   }
 })
 
 // ===== Mock 所有依赖 =====
 vi.mock('@/store/modules/user', () => ({
   useUserStore: vi.fn(() => ({
-    get token() { return helper.getToken() },
-    get userInfo() { return helper.getUserInfo() },
+    get token() {
+      return helper.getToken()
+    },
+    get userInfo() {
+      return helper.getUserInfo()
+    },
     initUserState: helper.mockInitUserState,
     getUserInfo: helper.mockGetUserInfo,
     refreshAccessToken: helper.mockRefreshAccessToken,
-    clearUserState: helper.mockClearUserState,
+    clearUserState: helper.mockClearUserState
   }))
 }))
 
 vi.mock('@/store/modules/permission', () => ({
   usePermissionStore: vi.fn(() => ({
     whiteList: ['/login', '/404', '/403'],
-    get routesLoaded() { return helper.getRoutesLoaded() },
-    get level() { return helper.getLevel() },
+    get routesLoaded() {
+      return helper.getRoutesLoaded()
+    },
+    get level() {
+      return helper.getLevel()
+    },
     hasPermission: helper.mockHasPermission,
     isAdmin: helper.mockIsAdmin,
     hasLevel: helper.mockHasLevel,
     resetPermission: helper.mockResetPermission,
-    generateRoutes: helper.mockGenerateRoutes,
+    generateRoutes: helper.mockGenerateRoutes
   }))
 }))
 
@@ -92,8 +113,12 @@ vi.mock('@/router/index', () => ({
   default: {
     currentRoute: { value: { path: '/', meta: {}, fullPath: '/' } },
     push: helper.mockRouterPush,
-    beforeEach: (fn: Function) => { helper.capturedBeforeEach.push(fn) },
-    afterEach: (fn: Function) => { helper.capturedAfterEach.push(fn) },
+    beforeEach: (fn: Function) => {
+      helper.capturedBeforeEach.push(fn)
+    },
+    afterEach: (fn: Function) => {
+      helper.capturedAfterEach.push(fn)
+    }
   }
 }))
 
@@ -101,10 +126,7 @@ vi.mock('@/router/index', () => ({
 await import('@/router/guard')
 
 // 创建一个辅助函数用于调用 beforeEach 守卫
-function runGuard(
-  to: any,
-  from: any = { path: '/', meta: {} }
-): Promise<any> {
+function runGuard(to: any, from: any = { path: '/', meta: {} }): Promise<any> {
   return new Promise((resolve) => {
     const handler = helper.capturedBeforeEach[0]
     handler(to, from, (redirect?: any) => {
@@ -134,7 +156,11 @@ describe('路由导航守卫', () => {
 
   describe('公开页面访问', () => {
     it('白名单页面（/login）允许匿名访问', async () => {
-      const result = await runGuard({ path: '/login', meta: { requiresAuth: false }, fullPath: '/login' })
+      const result = await runGuard({
+        path: '/login',
+        meta: { requiresAuth: false },
+        fullPath: '/login'
+      })
       expect(result).toBeUndefined()
     })
 
@@ -348,10 +374,7 @@ describe('路由导航守卫', () => {
       helper.mockHasLevel = vi.fn(() => true)
       helper.mockHasPermission = vi.fn(() => true)
 
-      await runGuard(
-        { path: '/same', meta: {}, fullPath: '/same' },
-        { path: '/same', meta: {} }
-      )
+      await runGuard({ path: '/same', meta: {}, fullPath: '/same' }, { path: '/same', meta: {} })
       expect(helper.mockCancelAllPendingRequests).not.toHaveBeenCalled()
     })
   })

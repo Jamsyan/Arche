@@ -148,8 +148,6 @@ class TestConfigMgmtAPI:
 
     async def test_reload_config(self, client, admin_headers, config_entries):
         """重载配置缓存成功。"""
-        reloaded = await client.post(
-            "/api/admin/config/reload", headers=admin_headers
-        )
+        reloaded = await client.post("/api/admin/config/reload", headers=admin_headers)
         assert reloaded.status_code == 200
         assert reloaded.json()["code"] == "ok"

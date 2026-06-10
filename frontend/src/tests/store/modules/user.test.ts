@@ -235,7 +235,10 @@ describe('useUserStore', () => {
       // 先设一些值
       localStorage.setItem('token', 'test-token')
       localStorage.setItem('refresh_token', 'test-refresh')
-      localStorage.setItem('userInfo', JSON.stringify({ id: '1', username: 'test', nickname: 'Test', permissions: [] }))
+      localStorage.setItem(
+        'userInfo',
+        JSON.stringify({ id: '1', username: 'test', nickname: 'Test', permissions: [] })
+      )
 
       const store = useUserStore()
       store.token = 'test-token'
@@ -280,7 +283,13 @@ describe('useUserStore', () => {
 
   describe('initUserState', () => {
     it('从 localStorage 恢复用户状态', () => {
-      const userInfoData = { id: '1', username: 'test', nickname: 'Test', permissions: ['blog:read'], level: 5 }
+      const userInfoData = {
+        id: '1',
+        username: 'test',
+        nickname: 'Test',
+        permissions: ['blog:read'],
+        level: 5
+      }
       localStorage.setItem('token', 'saved-token')
       localStorage.setItem('refresh_token', 'saved-refresh')
       localStorage.setItem('userInfo', JSON.stringify(userInfoData))
@@ -296,7 +305,10 @@ describe('useUserStore', () => {
 
     it('无 token 时清除所有残留状态', () => {
       localStorage.setItem('token', '')
-      localStorage.setItem('userInfo', JSON.stringify({ id: '1', username: 'test', nickname: 'Test', permissions: [] }))
+      localStorage.setItem(
+        'userInfo',
+        JSON.stringify({ id: '1', username: 'test', nickname: 'Test', permissions: [] })
+      )
 
       const store = useUserStore()
       store.token = 'stale-token'

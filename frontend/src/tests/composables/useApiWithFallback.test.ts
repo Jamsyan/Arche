@@ -34,7 +34,9 @@ describe('useApiWithFallback', () => {
 
   it('refresh() 网络错误时 fallback 到 mockData，isFallback 为 true', async () => {
     // 模拟网络错误：withFallback 内部捕获网络错误并返回 mockData
-    const fetcher = vi.fn().mockRejectedValue({ isAxiosError: true, response: undefined, code: 'ERR_NETWORK' })
+    const fetcher = vi
+      .fn()
+      .mockRejectedValue({ isAxiosError: true, response: undefined, code: 'ERR_NETWORK' })
     const result = useApiWithFallback(fetcher, 'fallback-data')
 
     await result.refresh()
@@ -62,7 +64,11 @@ describe('useApiWithFallback', () => {
 
   it('refresh() 过程中 loading 为 true', async () => {
     let resolveFn!: (v: string) => void
-    const fetcher = vi.fn().mockReturnValue(new Promise<string>((resolve) => { resolveFn = resolve }))
+    const fetcher = vi.fn().mockReturnValue(
+      new Promise<string>((resolve) => {
+        resolveFn = resolve
+      })
+    )
     const result = useApiWithFallback(fetcher, 'mock')
 
     const promise = result.refresh()

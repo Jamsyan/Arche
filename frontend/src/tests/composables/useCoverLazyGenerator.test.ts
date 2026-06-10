@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Mock 依赖（使用 vi.hoisted 确保在 hoisting 阶段可用）──
-const { mockGenerateTextCover, mockUploadOssFileApi, mockUpdatePostApi, mockFetch } = vi.hoisted(() => {
-  return {
-    mockGenerateTextCover: vi.fn(),
-    mockUploadOssFileApi: vi.fn(),
-    mockUpdatePostApi: vi.fn(),
-    mockFetch: vi.fn()
+const { mockGenerateTextCover, mockUploadOssFileApi, mockUpdatePostApi, mockFetch } = vi.hoisted(
+  () => {
+    return {
+      mockGenerateTextCover: vi.fn(),
+      mockUploadOssFileApi: vi.fn(),
+      mockUpdatePostApi: vi.fn(),
+      mockFetch: vi.fn()
+    }
   }
-})
+)
 
 vi.mock('@/utils/generateTextCover', () => ({
   generateTextCover: mockGenerateTextCover
@@ -115,7 +117,9 @@ describe('useCoverLazyGenerator', () => {
       expect(uploadedFile.name).toBe('text-cover.jpg')
       expect(mockUploadOssFileApi.mock.calls[0][1]).toBe(false)
       // 检查持久化到后端
-      expect(mockUpdatePostApi).toHaveBeenCalledWith('post-1', { auto_cover_url: '/api/oss/files/oss-file-1' })
+      expect(mockUpdatePostApi).toHaveBeenCalledWith('post-1', {
+        auto_cover_url: '/api/oss/files/oss-file-1'
+      })
       // 检查更新了本地对象
       expect(post.auto_cover_url).toBe('/api/oss/files/oss-file-1')
     })
@@ -170,10 +174,7 @@ describe('useCoverLazyGenerator', () => {
       mockUploadOssFileApi.mockResolvedValue({ data: { id: 'f' } })
       mockUpdatePostApi.mockResolvedValue(undefined)
 
-      const posts = [
-        createPost({ id: 'p1', cover_url: '/exists.jpg' }),
-        createPost({ id: 'p2' })
-      ]
+      const posts = [createPost({ id: 'p1', cover_url: '/exists.jpg' }), createPost({ id: 'p2' })]
 
       await ensurePostsCovers(posts)
 

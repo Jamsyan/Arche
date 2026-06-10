@@ -77,7 +77,15 @@ function createMockCanvasContext(): CanvasRenderingContext2D {
     strokeRect: vi.fn(),
     fillText: vi.fn(),
     strokeText: vi.fn(),
-    measureText: vi.fn(() => ({ width: 50, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0, actualBoundingBoxLeft: 0, actualBoundingBoxRight: 0, fontBoundingBoxAscent: 0, fontBoundingBoxDescent: 0 })),
+    measureText: vi.fn(() => ({
+      width: 50,
+      actualBoundingBoxAscent: 0,
+      actualBoundingBoxDescent: 0,
+      actualBoundingBoxLeft: 0,
+      actualBoundingBoxRight: 0,
+      fontBoundingBoxAscent: 0,
+      fontBoundingBoxDescent: 0
+    })),
     beginPath: vi.fn(),
     closePath: vi.fn(),
     moveTo: vi.fn(),
@@ -102,10 +110,10 @@ function createMockCanvasContext(): CanvasRenderingContext2D {
     resetTransform: vi.fn(),
     drawImage: vi.fn(),
     createLinearGradient: vi.fn(() => ({
-      addColorStop: vi.fn(),
+      addColorStop: vi.fn()
     })),
     createRadialGradient: vi.fn(() => ({
-      addColorStop: vi.fn(),
+      addColorStop: vi.fn()
     })),
     createPattern: vi.fn(() => null),
     getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(0), width: 0, height: 0 })),
@@ -117,7 +125,7 @@ function createMockCanvasContext(): CanvasRenderingContext2D {
     isPointInStroke: vi.fn(() => false),
     canvas: document.createElement('canvas'),
     getContextAttributes: vi.fn(() => null),
-    reset: vi.fn(),
+    reset: vi.fn()
   } as unknown as CanvasRenderingContext2D
   return ctx
 }

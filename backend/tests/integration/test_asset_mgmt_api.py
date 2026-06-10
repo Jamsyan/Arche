@@ -79,9 +79,7 @@ async def asset_admin_headers(db_container, seed_blog_posts):
     from backend.plugins.auth.services import AuthService
 
     svc = AuthService(db_container)
-    result = await svc.login(
-        identity="asset_admin@example.com", password="password123"
-    )
+    result = await svc.login(identity="asset_admin@example.com", password="password123")
     return {"Authorization": f"Bearer {result['access_token']}"}
 
 
@@ -105,7 +103,9 @@ class TestAssetMgmtAPI:
         assert "资产测试文章1" in titles
         assert "资产测试文章2" in titles
 
-    async def test_list_assets_with_pagination(self, client, asset_admin_headers, seed_blog_posts):
+    async def test_list_assets_with_pagination(
+        self, client, asset_admin_headers, seed_blog_posts
+    ):
         """资产管理支持分页参数。"""
         response = await client.get(
             "/api/assets",

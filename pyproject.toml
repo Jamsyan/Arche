@@ -71,9 +71,8 @@ default = true
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 pythonpath = ["."]
-norecursedirs = [".venv", "node_modules", "frontend", "scripts"]
+norecursedirs = [".venv", "node_modules", "frontend", "scripts", "e2e"]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "module"
 addopts = "-v --strict-markers --tb=short"
 markers = [
     "slow: 标记慢速测试（需要网络）",

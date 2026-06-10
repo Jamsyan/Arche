@@ -35,7 +35,9 @@ class TestCloudRoutesAPI:
             response = await client.get(path)
             assert response.status_code == 401
 
-    async def test_create_and_list_jobs(self, client, admin_headers, cloud_training_service):
+    async def test_create_and_list_jobs(
+        self, client, admin_headers, cloud_training_service
+    ):
         """创建训练任务后可在列表中查到。"""
         list1 = await client.get("/api/cloud/jobs", headers=admin_headers)
         assert list1.status_code == 200
@@ -57,13 +59,13 @@ class TestCloudRoutesAPI:
         assert list2.status_code == 200
         assert list2.json()["data"]["total"] == 1
 
-        detail = await client.get(
-            f"/api/cloud/jobs/{job_id}", headers=admin_headers
-        )
+        detail = await client.get(f"/api/cloud/jobs/{job_id}", headers=admin_headers)
         assert detail.status_code == 200
         assert detail.json()["data"]["name"] == "test-job"
 
-    async def test_job_status_transition(self, client, admin_headers, cloud_training_service):
+    async def test_job_status_transition(
+        self, client, admin_headers, cloud_training_service
+    ):
         """任务状态转换：pending → running → completed。"""
         payload = {
             "name": "status-test",

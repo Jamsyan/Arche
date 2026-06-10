@@ -59,9 +59,14 @@ describe('animateSpring', () => {
 
     // 使用很大的 stiffness 让弹簧快速稳定
     const values: number[] = []
-    const cancel = animateSpring(10, 10.1, (v) => {
-      values.push(v)
-    }, { stiffness: 1000, damping: 100, precision: 0.5 })
+    const cancel = animateSpring(
+      10,
+      10.1,
+      (v) => {
+        values.push(v)
+      },
+      { stiffness: 1000, damping: 100, precision: 0.5 }
+    )
 
     // 推进足够多的帧让动画自然停止
     for (let i = 0; i < 60; i++) {

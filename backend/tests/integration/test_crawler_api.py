@@ -11,7 +11,6 @@ Mock 边界：无（所有操作都是内存操作或真实 DB 查询）。
 from __future__ import annotations
 
 import json
-import uuid
 
 import pytest
 
@@ -93,7 +92,9 @@ class TestCrawlerAPI:
         assert stats.status_code == 200
         assert stats.json()["code"] == "ok"
 
-    async def test_record_file_read(self, client, admin_headers, db_container, tmp_path, monkeypatch):
+    async def test_record_file_read(
+        self, client, admin_headers, db_container, tmp_path, monkeypatch
+    ):
         """通过 crawler 记录的文件路径读取文件内容。"""
         monkeypatch.setenv("CRAWLER_STORAGE_ROOT", str(tmp_path))
 

@@ -14,37 +14,45 @@ const { mockLoginApi, mockLogoutApi, mockGetUserInfoApi, mockRefreshTokenApi } =
   mockLoginApi: vi.fn(),
   mockLogoutApi: vi.fn(),
   mockGetUserInfoApi: vi.fn(),
-  mockRefreshTokenApi: vi.fn(),
+  mockRefreshTokenApi: vi.fn()
 }))
 
 vi.mock('@/services/api/auth', () => ({
   loginApi: mockLoginApi,
   logoutApi: mockLogoutApi,
   getUserInfoApi: mockGetUserInfoApi,
-  refreshTokenApi: mockRefreshTokenApi,
+  refreshTokenApi: mockRefreshTokenApi
 }))
 
 // 模拟 localStorage
 const store: Record<string, string> = {}
 const mockLocalStorage = {
   getItem: vi.fn((key: string) => store[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => { store[key] = value }),
-  removeItem: vi.fn((key: string) => { delete store[key] }),
-  clear: vi.fn(() => { Object.keys(store).forEach(k => delete store[k]) }),
-  get length() { return Object.keys(store).length },
-  key: vi.fn((i: number) => Object.keys(store)[i] ?? null),
+  setItem: vi.fn((key: string, value: string) => {
+    store[key] = value
+  }),
+  removeItem: vi.fn((key: string) => {
+    delete store[key]
+  }),
+  clear: vi.fn(() => {
+    Object.keys(store).forEach((k) => delete store[k])
+  }),
+  get length() {
+    return Object.keys(store).length
+  },
+  key: vi.fn((i: number) => Object.keys(store)[i] ?? null)
 }
 Object.defineProperty(window, 'localStorage', {
   value: mockLocalStorage,
   configurable: true,
-  writable: true,
+  writable: true
 })
 
 describe('user store 集成测试', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    Object.keys(store).forEach(k => delete store[k])
+    Object.keys(store).forEach((k) => delete store[k])
   })
 
   describe('login', () => {
@@ -52,7 +60,13 @@ describe('user store 集成测试', () => {
       mockLoginApi.mockResolvedValue({
         token: 'access-token-123',
         refresh_token: 'refresh-token-456',
-        userInfo: { id: '1', username: 'testuser', email: 'test@example.com', level: 5, permissions: [] },
+        userInfo: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@example.com',
+          level: 5,
+          permissions: []
+        }
       })
 
       const userStore = useUserStore()
@@ -73,11 +87,19 @@ describe('user store 集成测试', () => {
     it('登录返回缺少 token 时抛异常', async () => {
       mockLoginApi.mockResolvedValue({
         token: null,
-        userInfo: { id: '1', username: 'testuser', email: 'test@example.com', level: 5, permissions: [] },
+        userInfo: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@example.com',
+          level: 5,
+          permissions: []
+        }
       })
 
       const userStore = useUserStore()
-      await expect(userStore.login({ identity: 'testuser', password: 'testpass' })).rejects.toThrow('登录返回缺少 token')
+      await expect(userStore.login({ identity: 'testuser', password: 'testpass' })).rejects.toThrow(
+        '登录返回缺少 token'
+      )
       expect(userStore.isLoggedIn).toBe(false)
     })
 
@@ -85,7 +107,9 @@ describe('user store 集成测试', () => {
       mockLoginApi.mockRejectedValue(new Error('用户名或密码错误'))
 
       const userStore = useUserStore()
-      await expect(userStore.login({ identity: 'testuser', password: 'wrong' })).rejects.toThrow('用户名或密码错误')
+      await expect(userStore.login({ identity: 'testuser', password: 'wrong' })).rejects.toThrow(
+        '用户名或密码错误'
+      )
       expect(userStore.isLoggedIn).toBe(false)
     })
   })
@@ -96,7 +120,13 @@ describe('user store 集成测试', () => {
       const userStore = useUserStore()
       userStore.token = 'valid-token'
 
-      const userData = { id: '1', username: 'testuser', email: 'test@example.com', level: 3, permissions: ['blog:create'] }
+      const userData = {
+        id: '1',
+        username: 'testuser',
+        email: 'test@example.com',
+        level: 3,
+        permissions: ['blog:create']
+      }
       mockGetUserInfoApi.mockResolvedValue(userData)
 
       await userStore.getUserInfo()
@@ -112,7 +142,13 @@ describe('user store 集成测试', () => {
       store.token = 'valid-token'
       const userStore = useUserStore()
       userStore.token = 'valid-token'
-      userStore.userInfo = { id: '1', username: 'testuser', email: 'test@example.com', level: 5, permissions: [] }
+      userStore.userInfo = {
+        id: '1',
+        username: 'testuser',
+        email: 'test@example.com',
+        level: 5,
+        permissions: []
+      }
 
       mockLogoutApi.mockResolvedValue({})
 
@@ -128,7 +164,13 @@ describe('user store 集成测试', () => {
       store.token = 'valid-token'
       const userStore = useUserStore()
       userStore.token = 'valid-token'
-      userStore.userInfo = { id: '1', username: 'testuser', email: 'test@example.com', level: 5, permissions: [] }
+      userStore.userInfo = {
+        id: '1',
+        username: 'testuser',
+        email: 'test@example.com',
+        level: 5,
+        permissions: []
+      }
 
       mockLogoutApi.mockRejectedValue(new Error('网络错误'))
 
@@ -178,7 +220,13 @@ describe('user store 集成测试', () => {
     it('有完整 localStorage 时恢复状态', () => {
       store.token = 'stored-token'
       store.refresh_token = 'stored-refresh'
-      store.userInfo = JSON.stringify({ id: '1', username: 'testuser', email: 'test@example.com', level: 5, permissions: [] })
+      store.userInfo = JSON.stringify({
+        id: '1',
+        username: 'testuser',
+        email: 'test@example.com',
+        level: 5,
+        permissions: []
+      })
 
       const userStore = useUserStore()
       userStore.initUserState()
@@ -190,7 +238,13 @@ describe('user store 集成测试', () => {
     })
 
     it('无 token 时清除所有状态', () => {
-      store.userInfo = JSON.stringify({ id: '1', username: 'testuser', email: 'test@example.com', level: 5, permissions: [] })
+      store.userInfo = JSON.stringify({
+        id: '1',
+        username: 'testuser',
+        email: 'test@example.com',
+        level: 5,
+        permissions: []
+      })
 
       const userStore = useUserStore()
       userStore.initUserState()

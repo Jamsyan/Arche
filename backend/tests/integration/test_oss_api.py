@@ -29,11 +29,14 @@ def _make_mock_backend():
     backend = AsyncMock()
     backend.upload_stream = AsyncMock()
     backend.download = AsyncMock()
+
     # download 需要返回 AsyncIterator 供 StreamingResponse 消费
     async def _download(*args, **kwargs):
         async def _gen():
             yield b"test file content"
+
         return _gen()
+
     backend.download.side_effect = _download
     backend.delete = AsyncMock()
     backend.exists = AsyncMock(return_value=True)
@@ -62,7 +65,9 @@ class TestOSSUploadAPI:
         response = await client.post("/api/oss/upload")
         assert response.status_code == 401
 
-    async def test_quota_query(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_quota_query(
+        self, client, auth_headers, oss_service_with_mock_backend
+    ):
         """配额查询接口应正常返回配额信息。"""
         response = await client.get("/api/oss/quota", headers=auth_headers)
         assert response.status_code == 200
@@ -79,7 +84,9 @@ class TestOSSUploadAPI:
         assert data["code"] == "ok"
         assert data["data"]["files"] == []
 
-    async def test_upload_file(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_upload_file(
+        self, client, auth_headers, oss_service_with_mock_backend
+    ):
         """上传文件应成功后可在列表中查到。"""
         svc, backend = oss_service_with_mock_backend
 
@@ -105,7 +112,9 @@ class TestOSSUploadAPI:
         assert len(files) == 1
         assert files[0]["path"].endswith("hello.png")
 
-    async def test_delete_file(self, client, auth_headers, oss_service_with_mock_backend):
+    async def test_delete_file(
+        self, client, auth_headers, oss_service_with_mock_backend
+    ):
         """删除文件接口应成功并更新列表。"""
         svc, backend = oss_service_with_mock_backend
 
@@ -140,7 +149,9 @@ class TestOSSUploadAPI:
 class TestOSSAdminAPI:
     """OSS 管理员端全链路测试。"""
 
-    async def test_管理员统计(self, client, admin_headers, oss_service_with_mock_backend):
+    async def test_管理员统计(
+        self, client, admin_headers, oss_service_with_mock_backend
+    ):
         """管理员统计接口应返回完整统计结构。"""
         response = await client.get("/api/oss/admin/stats", headers=admin_headers)
         assert response.status_code == 200
@@ -151,7 +162,9 @@ class TestOSSAdminAPI:
         assert "total_users" in data["data"]
         assert "by_type" in data["data"]
 
-    async def test_管理员文件和配额(self, client, admin_headers, oss_service_with_mock_backend):
+    async def test_管理员文件和配额(
+        self, client, admin_headers, oss_service_with_mock_backend
+    ):
         """管理员文件列表和配额管理接口。"""
         files_resp = await client.get("/api/oss/admin/files", headers=admin_headers)
         assert files_resp.status_code == 200
@@ -204,7 +217,9 @@ class TestOSSAdminAPI:
         assert user_rate_resp.status_code == 200
         assert limiter.set_user_multiplier.called
 
-    async def test_管理员删除文件(self, client, admin_headers, oss_service_with_mock_backend):
+    async def test_管理员删除文件(
+        self, client, admin_headers, oss_service_with_mock_backend
+    ):
         """管理员删除任意文件。"""
         svc, backend = oss_service_with_mock_backend
 

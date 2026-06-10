@@ -32,7 +32,7 @@ const EXCLUDE_PATTERNS = [
   (f) => f === 'main.ts',
   (f) => f === 'env.d.ts',
   (f) => f === 'auto-imports.d.ts',
-  (f) => f === 'components.d.ts',
+  (f) => f === 'components.d.ts'
 ]
 
 // 测试目录相对于 ROOT 的路径，用于在 collectFiles 中跳过 tests 目录
@@ -65,7 +65,9 @@ function collectFiles(dir, baseDir) {
         result.push(rel)
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return result
 }
 
@@ -104,7 +106,10 @@ for (const srcRel of sourceFiles) {
 const testFiles = collectFiles(TESTS, ROOT)
 const orphans = []
 for (const testRel of testFiles) {
-  const expectedSource = testRel.replace(/\\/g, '/').replace(/src\/tests\//, 'src/').replace(/\.test\.ts$/, '.ts')
+  const expectedSource = testRel
+    .replace(/\\/g, '/')
+    .replace(/src\/tests\//, 'src/')
+    .replace(/\.test\.ts$/, '.ts')
   if (!existsSync(join(ROOT, expectedSource))) {
     orphans.push(testRel)
   }
@@ -130,7 +135,9 @@ if (orphans.length > 0) {
   }
 }
 
-console.log(`\n📊 源文件: ${totalSource}  测试文件: ${coveredCount}  缺失: ${missing.length}${orphans.length > 0 ? `  孤儿: ${orphans.length}` : ''}`)
+console.log(
+  `\n📊 源文件: ${totalSource}  测试文件: ${coveredCount}  缺失: ${missing.length}${orphans.length > 0 ? `  孤儿: ${orphans.length}` : ''}`
+)
 
 if (strict && missing.length > 0) {
   process.exit(1)

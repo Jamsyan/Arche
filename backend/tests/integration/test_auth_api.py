@@ -27,6 +27,7 @@ def real_auth_service(db_container):
     patch_container_service(db_container, "auth", auth_service)
     # session_tracker 需要 mock，避免异步清理任务干扰
     from unittest.mock import AsyncMock
+
     patch_container_service(db_container, "session_tracker", AsyncMock())
 
 
@@ -134,7 +135,9 @@ class TestLoginAPI:
 
     async def test_login_with_email_success(self, client):
         """使用邮箱登录成功。"""
-        await self._register_user(client, "login@example.com", "loginuser", "testpass123")
+        await self._register_user(
+            client, "login@example.com", "loginuser", "testpass123"
+        )
         response = await client.post(
             "/api/auth/login",
             json={"identity": "login@example.com", "password": "testpass123"},
@@ -147,7 +150,9 @@ class TestLoginAPI:
 
     async def test_login_with_username_success(self, client):
         """使用用户名登录成功。"""
-        await self._register_user(client, "login2@example.com", "loginuser2", "testpass123")
+        await self._register_user(
+            client, "login2@example.com", "loginuser2", "testpass123"
+        )
         response = await client.post(
             "/api/auth/login",
             json={"identity": "loginuser2", "password": "testpass123"},
@@ -156,7 +161,9 @@ class TestLoginAPI:
 
     async def test_login_wrong_password_returns_401(self, client):
         """密码错误返回 401。"""
-        await self._register_user(client, "wrongpass@example.com", "wrongpassuser", "correctpass")
+        await self._register_user(
+            client, "wrongpass@example.com", "wrongpassuser", "correctpass"
+        )
         response = await client.post(
             "/api/auth/login",
             json={"identity": "wrongpassuser", "password": "wrongpass"},

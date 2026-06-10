@@ -11,11 +11,11 @@ import { useSearchStore } from '@/store/modules/search'
 
 // ── Mock API 层 ──
 const { mockGetSuggestions } = vi.hoisted(() => ({
-  mockGetSuggestions: vi.fn(),
+  mockGetSuggestions: vi.fn()
 }))
 
 vi.mock('@/services/api/search', () => ({
-  getSearchSuggestionsApi: mockGetSuggestions,
+  getSearchSuggestionsApi: mockGetSuggestions
 }))
 
 describe('search store 集成测试', () => {
@@ -37,10 +37,8 @@ describe('search store 集成测试', () => {
       mockGetSuggestions.mockResolvedValue({
         code: 'ok',
         data: {
-          items: [
-            { type: 'post', sid: '1', label: '测试文章', sublabel: '技术', url: '/posts/1' },
-          ],
-        },
+          items: [{ type: 'post', sid: '1', label: '测试文章', sublabel: '技术', url: '/posts/1' }]
+        }
       })
 
       searchStore.setKeyword('测试')
@@ -115,7 +113,9 @@ describe('search store 集成测试', () => {
     it('清除搜索后重置所有状态', () => {
       const searchStore = useSearchStore()
       searchStore.keyword = 'test'
-      searchStore.suggestions = [{ type: 'post', sid: '1', label: 'Test', sublabel: '', url: '/test' }]
+      searchStore.suggestions = [
+        { type: 'post', sid: '1', label: 'Test', sublabel: '', url: '/test' }
+      ]
       searchStore.loading = true
       searchStore.active = true
 
@@ -135,10 +135,8 @@ describe('search store 集成测试', () => {
       mockGetSuggestions.mockResolvedValue({
         code: 'ok',
         data: {
-          items: [
-            { type: 'tag', sid: 't1', label: 'Vue.js', sublabel: '框架', url: '/tags/vue' },
-          ],
-        },
+          items: [{ type: 'tag', sid: 't1', label: 'Vue.js', sublabel: '框架', url: '/tags/vue' }]
+        }
       })
 
       await searchStore.fetchSuggestions('Vue')

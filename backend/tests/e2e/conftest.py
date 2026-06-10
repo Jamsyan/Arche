@@ -1,7 +1,5 @@
 """E2E 测试共享配置。"""
 
-import os
-from pathlib import Path
 import pytest
 
 

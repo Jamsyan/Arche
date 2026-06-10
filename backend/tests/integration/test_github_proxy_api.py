@@ -28,7 +28,9 @@ def github_service(db_container):
 def mock_http_client(github_service):
     """替换 GitHub HttpProxyService 内部的 httpx 客户端为 mock。"""
 
-    def _make(json_data: dict | None = None, content: bytes = b"", status_code: int = 200):
+    def _make(
+        json_data: dict | None = None, content: bytes = b"", status_code: int = 200
+    ):
         http_svc = github_service.http_service
         mock_client = AsyncMock()
 
@@ -62,9 +64,7 @@ def mock_subprocess():
         mock_proc.communicate.return_value = (stdout_bytes, stderr_bytes)
         mock_proc.wait.return_value = returncode
 
-        patcher = patch(
-            "asyncio.create_subprocess_exec", new_callable=AsyncMock
-        )
+        patcher = patch("asyncio.create_subprocess_exec", new_callable=AsyncMock)
         mock_exec = patcher.start()
         mock_exec.return_value = mock_proc
 
@@ -100,7 +100,8 @@ class TestGitHubProxyAPI:
         """GET 代理接口应返回数据。"""
         mock_http_client(json_data={"login": "testuser", "id": 123})
         response = await client.get(
-            "/api/github/user", headers=admin_headers,
+            "/api/github/user",
+            headers=admin_headers,
         )
         assert response.status_code == 200
         data = response.json()
@@ -109,7 +110,8 @@ class TestGitHubProxyAPI:
     async def test_代理POST请求(self, client, admin_headers, mock_http_client):
         """POST 代理接口应转发 body 给 GitHub API。"""
         mock_client = mock_http_client(
-            json_data={"id": 1, "name": "new-repo"}, status_code=201,
+            json_data={"id": 1, "name": "new-repo"},
+            status_code=201,
         )
         response = await client.post(
             "/api/github/user/repos",
@@ -149,19 +151,23 @@ class TestGitHubProxyAPI:
 
         with patch.object(httpx, "AsyncClient", return_value=mock_client):
             response = await client.get(
-                "/api/github/raw/owner/repo/main/README.md", headers=admin_headers,
+                "/api/github/raw/owner/repo/main/README.md",
+                headers=admin_headers,
             )
         assert response.status_code == 200
         assert response.content == test_content
 
-    async def test_健康检查(self, client, admin_headers, mock_subprocess, github_service):
+    async def test_健康检查(
+        self, client, admin_headers, mock_subprocess, github_service
+    ):
         """健康检查接口应返回 CLI 和 HTTP 状态。"""
         mock_exec, stop = mock_subprocess(
             stdout_bytes=b'{"rate": {"limit": 5000, "used": 10}}'
         )
         try:
             response = await client.get(
-                "/api/github/health/status", headers=admin_headers,
+                "/api/github/health/status",
+                headers=admin_headers,
             )
             assert response.status_code == 200
             data = response.json()
@@ -174,7 +180,8 @@ class TestGitHubProxyAPI:
     async def test_清空缓存(self, client, admin_headers):
         """清空缓存接口（纯内存操作，无需 mock）。"""
         response = await client.post(
-            "/api/github/cache/clear", headers=admin_headers,
+            "/api/github/cache/clear",
+            headers=admin_headers,
         )
         assert response.status_code == 200
         data = response.json()
@@ -190,15 +197,21 @@ class TestGitHubProxyAPI:
             "/api/github/cache/clear",
         ]:
             response = await client.get(path)
-            assert response.status_code == 401, f"期望 401，实际 {response.status_code}：{path}"
+            assert response.status_code == 401, (
+                f"期望 401，实际 {response.status_code}：{path}"
+            )
 
-    async def test_proxy_mode参数传递(self, client, admin_headers, mock_http_client, mock_subprocess, github_service):
+    async def test_proxy_mode参数传递(
+        self, client, admin_headers, mock_http_client, mock_subprocess, github_service
+    ):
         """mode 参数应被正确传递。"""
         # mode=cli —— 需要 mock subprocess
         mock_exec, stop = mock_subprocess(stdout_bytes=b'{"ok": true}')
         try:
             resp = await client.get(
-                "/api/github/user", params={"mode": "cli"}, headers=admin_headers,
+                "/api/github/user",
+                params={"mode": "cli"},
+                headers=admin_headers,
             )
             assert resp.status_code == 200
         finally:
@@ -207,7 +220,9 @@ class TestGitHubProxyAPI:
         # mode=http
         mock_http_client(json_data={})
         resp = await client.get(
-            "/api/github/user", params={"mode": "http"}, headers=admin_headers,
+            "/api/github/user",
+            params={"mode": "http"},
+            headers=admin_headers,
         )
         assert resp.status_code == 200
 
@@ -215,6 +230,7 @@ class TestGitHubProxyAPI:
         """缺失查询参数时不应抛出异常。"""
         mock_http_client(json_data={"total_count": 0, "items": []})
         response = await client.get(
-            "/api/github/search/repositories", headers=admin_headers,
+            "/api/github/search/repositories",
+            headers=admin_headers,
         )
         assert response.status_code == 200

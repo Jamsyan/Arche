@@ -62,7 +62,9 @@ def _get_changed_files() -> set[str]:
         try:
             result = subprocess.run(
                 ["git", "diff", "--name-only", branch],
-                capture_output=True, text=True, check=True,
+                capture_output=True,
+                text=True,
+                check=True,
                 cwd=PROJECT_ROOT,
             )
             files = {f.strip() for f in result.stdout.split("\n") if f.strip()}
@@ -79,7 +81,10 @@ def _is_test_for_source(test_rel: str, changed: set[str]) -> bool:
         if test_rel.startswith(test_dir):
             if source_dirs is None:
                 # 集成测试：只要 backend 源码变了就跑
-                return any(f.startswith("backend/") and not f.startswith("backend/tests/") for f in changed)
+                return any(
+                    f.startswith("backend/") and not f.startswith("backend/tests/")
+                    for f in changed
+                )
             if source_dirs == "__never__":
                 return False
             # 单元测试：对应源码目录有变更就跑
@@ -125,9 +130,7 @@ def pytest_collection_modifyitems(config, items):
         return
 
     # 检查是否有任何核心文件变更（有则全部跑）
-    core_changed = any(
-        any(f.startswith(c) for f in changed) for c in CORE_DIRS
-    )
+    core_changed = any(any(f.startswith(c) for f in changed) for c in CORE_DIRS)
     if core_changed:
         return
 
@@ -146,7 +149,7 @@ def pytest_collection_modifyitems(config, items):
         items[:] = [i for i in items if i not in deselected]
         config.hook.pytest_deselected(items=deselected)
         print(f"\n🔍 Diff 模式：跳过了 {len(deselected)} 个未变更插件的测试")
-        print(f"   用 --all 参数运行全量测试\n")
+        print("   用 --all 参数运行全量测试\n")
 
 
 # =============================================================================
@@ -199,9 +202,9 @@ def anyio_backend():
 # =============================================================================
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def module_db():
-    """模块级 fixture：创建一次数据库引擎和表，同一模块内的所有测试共享。
+    """创建独立的内存数据库引擎和表，每个测试函数独立使用。
 
     返回: {"engine": engine, "session_factory": session_factory}
     """
@@ -259,6 +262,7 @@ async def in_memory_db(module_db):
 @pytest.fixture
 async def db_container(in_memory_db, fake_container):
     """带有真实内存数据库的 fake container。"""
+
     class FakeConfigWithDb:
         _values = {
             "GITHUB_TOKEN": "test_token",
@@ -287,15 +291,19 @@ async def db_container(in_memory_db, fake_container):
             return FakeConfigWithDb()
         elif name == "auth":
             from backend.plugins.auth.services import AuthService
+
             return AuthService(fake_container)
         elif name == "github":
             from backend.plugins.github_proxy.services import GitHubService
+
             return GitHubService(fake_container)
         elif name == "storage":
             from backend.plugins.oss.services import StorageService
+
             return StorageService(fake_container)
         elif name == "asset_mgmt":
             from backend.plugins.asset_mgmt.services import AssetMgmtService
+
             return AssetMgmtService(fake_container)
         elif name == "oss_rate_limiter":
             limiter = AsyncMock()
@@ -316,31 +324,40 @@ async def db_container(in_memory_db, fake_container):
 
 def mock_subprocess_success(stdout: bytes = b'{"ok": true}', stderr: bytes = b""):
     """创建成功的 subprocess mock。"""
+
     class MockProc:
         returncode = 0
+
         async def communicate(self, input=None):
             return stdout, stderr
+
         async def wait(self):
             return 0
+
     return MockProc()
 
 
 def mock_subprocess_failure(exit_code: int = 1, stderr: bytes = b"error"):
     """创建失败的 subprocess mock。"""
+
     class MockProc:
         returncode = exit_code
+
         async def communicate(self, input=None):
             return b"", stderr
+
     return MockProc()
 
 
 def patch_container_service(container, name: str, service):
     """把 ``container.get(name)`` 临时替换成 ``service``，其它名字透传旧 get。"""
     old_get = container.get
+
     def _get(n: str):
         if n == name:
             return service
         return old_get(n)
+
     container.get = _get
     return service
 
@@ -358,8 +375,14 @@ async def test_app(db_container):
     from backend.core.middleware import register_error_handlers
     from backend.plugins.auth.middleware import AuthMiddleware
 
-    registry.reset()
-    discover_plugins()
+    # 如果已有插件注册（单元测试已导入），不做 reset 以免丢失；
+    # 否则从零发现注册。
+    if not registry.available:
+        registry.reset()
+        discover_plugins()
+    else:
+        # 补充发现尚未注册的插件
+        discover_plugins()
 
     app = FastAPI(title="Test Arche")
     app.state.container = db_container

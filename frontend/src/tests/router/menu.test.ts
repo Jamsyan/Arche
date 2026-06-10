@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 vi.mock(import('@/icons'), async (importOriginal) => {
-  const mod = await importOriginal() as Record<string, Component>
+  const mod = (await importOriginal()) as Record<string, Component>
   return {
     ...mod,
     HomeOutline: { name: 'HomeOutline' } as Component,
