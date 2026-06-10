@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create deployment bundle
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          BUNDLE="arche-v${TAG}"
+          mkdir -p "${BUNDLE}"
+
+          [ -f docker-compose.yml ] && cp docker-compose.yml "${BUNDLE}/"
+          [ -d nginx ]            && cp -r nginx "${BUNDLE}/"
+          [ -f .env.example ]     && cp .env.example "${BUNDLE}/"
+          [ -d scripts ]          && cp -r scripts "${BUNDLE}/"
+
+          cat > "${BUNDLE}/README.txt" <<-EOM
+          Arche v${TAG} 部署包
+          ====================
+          镜像版本: backend-${TAG}, frontend-${TAG}
+          部署方式: docker-compose up -d
+          EOM
+
+          zip -r "arche-v${TAG}.zip" "${BUNDLE}/"
+          echo "Created: arche-v${TAG}.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.image_tag }}
+          name: v${{ inputs.image_tag }}
+          body: |
+            镜像标签：`backend-${{ inputs.image_tag }}` / `frontend-${{ inputs.image_tag }}`
+
+            ### 部署
+            ```bash
+            docker-compose pull
+            docker-compose up -d
+            ```
+          files: arche-v${{ inputs.image_tag }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
