@@ -164,13 +164,49 @@ async def delete_template(template_id: str, request: Request) -> dict[str, str]:
         return {"message": "Template deleted"}
 
 
+# component_id 到 system_monitor 方法的映射
+_COMPONENT_METHOD_MAP: dict[str, str] = {
+    "summary": "get_summary",
+    "cpu": "get_cpu_detail",
+    "memory": "get_memory_detail",
+    "disk": "get_disk_detail",
+    "network": "get_network_io",
+    "processes": "get_processes",
+    "history": "get_history",
+}
+
+
 @router.get("/components/{component_id}/data")
 @require_level(0)
 async def get_component_data(component_id: str, request: Request) -> dict[str, Any]:
-    """获取组件数据。"""
-    # TODO: 实现各组件的数据获取
-    # 目前返回模拟数据
-    return {
-        "value": 0,
-        "timestamp": None,
-    }
+    """获取组件数据。
+
+    根据 component_id 从 system_monitor 服务获取对应的系统实时指标。
+    支持的 component_id: summary, cpu, memory, disk, network, processes, history
+    """
+    method_name = _COMPONENT_METHOD_MAP.get(component_id)
+    if not method_name:
+        valid = ", ".join(_COMPONENT_METHOD_MAP)
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的组件类型 '{component_id}'，有效值: {valid}",
+        )
+
+    container = request.app.state.container
+    if not container.is_available("system_monitor"):
+        raise HTTPException(
+            status_code=503,
+            detail="系统监控服务不可用",
+        )
+
+    svc = container.get("system_monitor")
+    method = getattr(svc, method_name)
+
+    if component_id == "processes":
+        data = method(sort_by="cpu_percent")
+    elif component_id == "history":
+        data = method(page=1, page_size=50)
+    else:
+        data = method()
+
+    return data

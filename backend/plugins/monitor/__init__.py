@@ -21,7 +21,7 @@ class MonitorPlugin(BasePlugin):
     name = "monitor"
     version = "0.1.0"
     requires = []
-    optional = []
+    optional = ["system_monitor"]
 
     def setup(self, app: "FastAPI") -> None:
         """注册路由。"""

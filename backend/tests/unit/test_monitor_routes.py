@@ -10,11 +10,55 @@ import pytest
 from backend.plugins.monitor import routes
 
 
+class MockSystemMonitorService:
+    @staticmethod
+    def get_summary():
+        return {"cpu_percent": 45.5, "memory_percent": 62.3, "disk_percent": 55.0}
+
+    @staticmethod
+    def get_cpu_detail():
+        return {"count_logical": 8, "count_physical": 4, "per_cpu_pct": [45.5, 30.2]}
+
+    @staticmethod
+    def get_memory_detail():
+        return {"total": 16777216000, "percent": 62.3}
+
+    @staticmethod
+    def get_disk_detail():
+        return {"root_percent": 55.0, "partitions": []}
+
+    @staticmethod
+    def get_network_io():
+        return {"bytes_sent": 1000, "bytes_recv": 2000}
+
+    @staticmethod
+    def get_processes(sort_by="cpu_percent"):
+        return {"items": [], "total": 0, "limit": 50}
+
+    @staticmethod
+    def get_history(page=1, page_size=50):
+        return {"items": [], "total": 0, "page": 1, "page_size": 50}
+
+
+class MockContainer:
+    @staticmethod
+    def is_available(name):
+        return name == "system_monitor"
+
+    @staticmethod
+    def get(name):
+        if name == "system_monitor":
+            return MockSystemMonitorService()
+        msg = f"Service '{name}' not found"
+        raise KeyError(msg)
+
+
 def _make_mock_request(user_id: str | None = None) -> Request:
-    """创建一个带有认证用户状态的 mock Request。"""
+    """创建一个带有认证用户状态和 mock 容器的 Request。"""
     if user_id is None:
         user_id = uuid.uuid4().hex
-    scope = {"type": "http"}
+    mock_app = type("MockApp", (), {"state": type("MockState", (), {"container": MockContainer()})()})()
+    scope = {"type": "http", "app": mock_app}
     request = Request(scope)
     request.state.user = {
         "id": user_id,
@@ -68,8 +112,8 @@ class TestMonitorRoutes:
         assert updated["refresh_interval"] == 20
 
         comp = await routes.get_component_data("cpu", request=request)
-        assert "value" in comp
-        assert "timestamp" in comp
+        assert comp["count_logical"] == 8
+        assert comp["count_physical"] == 4
 
         deleted = await routes.delete_template(tid, request=request)
         assert deleted["message"] == "Template deleted"
