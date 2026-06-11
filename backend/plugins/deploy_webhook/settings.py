@@ -14,5 +14,4 @@ class DeployWebhookSettings(BaseSettings):
     )
     DEPLOY_TOKEN: str = Field(default="", description="部署 Webhook Token")
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}

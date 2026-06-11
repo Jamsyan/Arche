@@ -11,5 +11,4 @@ class BlogSettings(BaseSettings):
 
     SENSITIVE_WORDS: str = Field(default="", description="敏感词列表 (逗号分隔)")
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}

@@ -22,5 +22,4 @@ class GitHubProxySettings(BaseSettings):
         default="auto", description="默认模式: auto/http/cli"
     )
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}

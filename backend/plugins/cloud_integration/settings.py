@@ -31,5 +31,4 @@ class CloudIntegrationSettings(BaseSettings):
     CLOUD_API_KEY: str = Field(default="", description="通用云 API Key")
     CLOUD_API_SECRET: str = Field(default="", description="通用云 API Secret")
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}
