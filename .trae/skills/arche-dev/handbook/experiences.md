@@ -191,3 +191,23 @@
 - 自建组件减少外部依赖，提升可控性
 
 **教训：** 对于追求 UI 一致性的项目，自建组件库虽然初期成本高，但长期维护更可控。迁移过程需要渐进式进行，避免大范围一次性替换。
+
+---
+
+### 2026-06-12: 从 PyTorch 基础设施中学到的治理模式
+
+**背景：** 分析了 PyTorch 项目的 CI/CD（151 个工作流）、.github 配置（labeler、nitpicks、merge_rules）和 14 个 Claude Code skill。
+
+**关键发现：**
+
+1. **PR 自动标签** — PyTorch 用 `labeler.yml` 按文件路径自动打 `module:*` 标签。省去手动打标签的成本，且不会遗漏。
+2. **敏感文件提醒** — PyTorch 的 `nitpicks.yml` 在改关键文件时自动评论。类似"代码审查 guard"。
+3. **Skill 体系** — PyTorch 有 14 个专业 skill（triage、pr-review、fix-issue 等），每个 skill 职责单一、边界清晰。
+4. **Hooks 机制** — PyTorch 的 skill 支持 Pre/Post tool use hooks，在操作前后自动执行验证脚本。
+
+**借鉴到 Arche 的实践：**
+- 增加 `labeler.yml` + `pr-labeler.yml` 工作流实现 PR 自动标签
+- 增加 `nitpicks.yml` 工作流实现敏感文件自动提醒
+- 保持现有的 skill 结构，未来按需扩展
+
+**教训：** 大型项目的治理模式可以降维借鉴。不需要复制 151 个工作流，但 PR 自动标签和 Nitpicks 是低成本高收益的基础设施，适合任何规模的项目。

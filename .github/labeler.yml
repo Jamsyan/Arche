@@ -1,0 +1,22 @@
+# PR auto-labeler: applies labels based on changed file paths
+# Used by .github/workflows/pr-labeler.yml
+# Reference: https://github.com/actions/labeler
+
+"area: backend":
+  - backend/**/*
+
+"area: frontend":
+  - frontend/src/**/*
+
+"area: ci-cd":
+  - .github/workflows/**/*
+  - Dockerfile*
+  - docker-compose*.yml
+  - nginx/**/*
+
+"type: docs":
+  - docs/**/*
+  - README.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - AGENTS.md
