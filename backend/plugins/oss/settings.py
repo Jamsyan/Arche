@@ -25,5 +25,4 @@ class OssSettings(BaseSettings):
         description="本地文件系统后端存储根目录（相对/绝对路径，开发环境无需 MinIO 时使用）",
     )
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}

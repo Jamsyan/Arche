@@ -154,7 +154,8 @@ export default defineConfig(({ mode }) => {
           'src/**/generated.d.ts',
           'src/auto-imports.d.ts',
           'src/components.d.ts',
-          'src/env.d.ts'
+          'src/env.d.ts',
+          'src/**/index.ts'
         ],
         thresholds: {
           statements: 80,

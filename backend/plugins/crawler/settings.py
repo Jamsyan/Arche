@@ -12,5 +12,4 @@ class CrawlerSettings(BaseSettings):
     CRAWLER_SEEDS: str = Field(default="", description="爬虫种子 URL (逗号分隔)")
     CRAWLER_STORAGE_ROOT: str = Field(default="", description="爬虫存储目录")
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}

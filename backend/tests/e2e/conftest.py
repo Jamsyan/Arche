@@ -1,5 +1,7 @@
 """E2E 测试共享配置。"""
 
+import asyncio
+
 import pytest
 
 
@@ -20,6 +22,19 @@ def pytest_addoption(parser):
         default=None,
         help="Chrome/Chromium 可执行文件路径，不指定则用 Playwright 自带的",
     )
+
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """为每个 E2E 测试函数创建独立的事件循环。
+
+    pytest-asyncio 1.x + Python 3.12 的 asyncio.Runner 与
+    pytest-playwright 的事件循环管理存在冲突，需要显式管理 event loop 生命周期。
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
 
 
 @pytest.fixture(scope="session")

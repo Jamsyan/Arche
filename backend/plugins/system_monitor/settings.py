@@ -12,5 +12,4 @@ class SystemMonitorSettings(BaseSettings):
     MONITOR_COLLECT_INTERVAL: int = Field(default=10, description="监控采集间隔 (秒)")
     CPU_WARN_THRESHOLD: int = Field(default=80, description="CPU 预警阈值 (%)")
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}
