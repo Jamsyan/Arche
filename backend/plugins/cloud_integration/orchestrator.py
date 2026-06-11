@@ -688,11 +688,13 @@ class TrainingOrchestrator:
 
     @property
     def _session_factory(self):
-        if self._engine is None:
-            raise RuntimeError("orchestrator 引擎未初始化，请先调用 start()")
-        return async_sessionmaker(
-            self._engine, class_=AsyncSession, expire_on_commit=False
-        )
+        if self._engine is not None:
+            return async_sessionmaker(
+                self._engine, class_=AsyncSession, expire_on_commit=False
+            )
+        # 回退到容器的 session factory（用于测试或未调用 start 的场景）
+        db = self.container.get("db")
+        return db["session_factory"]
 
     def _get_service(self):
         return self.container.get("cloud_training")
