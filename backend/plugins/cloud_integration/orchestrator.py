@@ -10,6 +10,12 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from backend.plugins.cloud_integration.log_parser import LogParser
 from backend.plugins.cloud_integration.models import (
@@ -79,6 +85,7 @@ class TrainingOrchestrator:
         self.container = container
         self._running = False
         self._task: asyncio.Task | None = None
+        self._engine: AsyncEngine | None = None
 
     # --- 公开接口 ---
 
@@ -86,6 +93,15 @@ class TrainingOrchestrator:
         if self._running:
             return
         self._running = True
+        config = self.container.get("config")
+        url = config.get_required("DATABASE_URL")
+        self._engine = create_async_engine(
+            url,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            pool_size=2,
+            max_overflow=4,
+        )
         self._task = asyncio.create_task(self._daemon_loop())
         logger.info("训练编排器已启动")
 
@@ -97,6 +113,8 @@ class TrainingOrchestrator:
                 await self._task
             except asyncio.CancelledError:
                 pass
+        if self._engine:
+            await self._engine.dispose()
         logger.info("训练编排器已停止")
 
     # --- Daemon Loop ---
@@ -683,8 +701,11 @@ class TrainingOrchestrator:
 
     @property
     def _session_factory(self):
-        db = self.container.get("db")
-        return db["session_factory"]
+        if self._engine is None:
+            raise RuntimeError("orchestrator 引擎未初始化，请先调用 start()")
+        return async_sessionmaker(
+            self._engine, class_=AsyncSession, expire_on_commit=False
+        )
 
     def _get_service(self):
         return self.container.get("cloud_training")
