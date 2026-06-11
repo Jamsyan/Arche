@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # --- 请求体模型 ---
 class RegisterRequest(BaseModel):
     email: str = Field(..., min_length=1, max_length=128, description="邮箱")
-    username: str = Field(..., min_length=3, max_length=64, description="用户名")
+    username: str = Field(..., min_length=2, max_length=64, description="用户名")
     password: str = Field(..., min_length=6, max_length=128, description="密码")
 
 
@@ -217,7 +217,7 @@ async def reset_password(
 
 class CreateUserRequest(BaseModel):
     email: str = Field(..., min_length=1, max_length=128, description="邮箱")
-    username: str = Field(..., min_length=3, max_length=64, description="用户名")
+    username: str = Field(..., min_length=2, max_length=64, description="用户名")
     password: str = Field(..., min_length=6, max_length=128, description="密码")
     level: int | None = Field(None, ge=0, le=10, description="用户等级（默认 5）")
 
