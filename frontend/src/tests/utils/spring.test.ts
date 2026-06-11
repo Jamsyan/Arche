@@ -31,7 +31,7 @@ describe('animateSpring', () => {
     expect(values[0]!).toBeGreaterThan(0)
     // 值应该单调递增
     for (let i = 1; i < values.length; i++) {
-      expect(values[i]).toBeGreaterThanOrEqual(values[i - 1])
+      expect(values[i]!).toBeGreaterThanOrEqual(values[i - 1]!)
     }
   })
 
