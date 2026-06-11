@@ -3,10 +3,10 @@ import { describe, it, expect } from 'vitest'
 type BlogPost = {
   id: string
   slug: string
-  title?: string
-  content?: string
+  title: string
+  content: string
+  tags: string[]
   intro?: string
-  tags?: string[]
   paragraphs?: { content: string }[]
 }
 
@@ -44,6 +44,8 @@ describe('generateTextCover', () => {
       id: '3',
       slug: 'test-3',
       title: '测试',
+      content: '',
+      tags: [],
       paragraphs: [{ content: '段落内容' }]
     }
 
@@ -56,7 +58,9 @@ describe('generateTextCover', () => {
     const post: BlogPost = {
       id: '4',
       slug: 'test-4',
-      content: '只有内容没有标题'
+      title: '',
+      content: '只有内容没有标题',
+      tags: []
     }
 
     const result = generateTextCover(post, true)
@@ -68,7 +72,9 @@ describe('generateTextCover', () => {
     const post: BlogPost = {
       id: '5',
       slug: 'test-5',
-      title: '缓存测试'
+      title: '缓存测试',
+      content: '',
+      tags: []
     }
 
     // 第一次调用
@@ -84,7 +90,9 @@ describe('generateTextCover', () => {
     const post: BlogPost = {
       id: '6',
       slug: 'test-6',
-      title: '跳过缓存'
+      title: '跳过缓存',
+      content: '',
+      tags: []
     }
 
     const result1 = generateTextCover(post, true)
@@ -114,6 +122,8 @@ describe('generateTextCover', () => {
       id: '8',
       slug: 'test-8',
       title: 'HTML测试',
+      content: '',
+      tags: [],
       paragraphs: [{ content: '<p>这是<strong>HTML</strong>内容</p>' }]
     }
 

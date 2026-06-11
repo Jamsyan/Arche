@@ -113,9 +113,9 @@ describe('useCoverLazyGenerator', () => {
       expect(mockGenerateTextCover).toHaveBeenCalledWith(post, true)
       // 检查上传了 OSS
       expect(mockUploadOssFileApi).toHaveBeenCalledTimes(1)
-      const uploadedFile = mockUploadOssFileApi.mock.calls[0][0] as File
+      const uploadedFile = mockUploadOssFileApi.mock.calls[0]![0] as File
       expect(uploadedFile.name).toBe('text-cover.jpg')
-      expect(mockUploadOssFileApi.mock.calls[0][1]).toBe(false)
+      expect(mockUploadOssFileApi.mock.calls[0]![1]).toBe(false)
       // 检查持久化到后端
       expect(mockUpdatePostApi).toHaveBeenCalledWith('post-1', {
         auto_cover_url: '/api/oss/files/oss-file-1'
