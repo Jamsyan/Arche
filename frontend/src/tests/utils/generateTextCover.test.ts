@@ -7,7 +7,7 @@ type BlogPost = {
   content: string
   tags: string[]
   intro?: string
-  paragraphs?: { content: string }[]
+  paragraphs?: { index: number; content: string }[]
 }
 
 describe('generateTextCover', () => {
@@ -17,7 +17,8 @@ describe('generateTextCover', () => {
       id: '1',
       slug: 'test-1',
       title: '测试文章',
-      content: '这是一篇测试文章的内容'
+      content: '这是一篇测试文章的内容',
+      tags: []
     }
 
     const result = generateTextCover(post, true)
@@ -31,7 +32,8 @@ describe('generateTextCover', () => {
       slug: 'test-2',
       title: '测试',
       intro: '自定义引言',
-      content: '正文内容'
+      content: '正文内容',
+      tags: []
     }
 
     const result = generateTextCover(post, true)
@@ -46,7 +48,7 @@ describe('generateTextCover', () => {
       title: '测试',
       content: '',
       tags: [],
-      paragraphs: [{ content: '段落内容' }]
+      paragraphs: [{ index: 0, content: '段落内容' }]
     }
 
     const result = generateTextCover(post, true)
@@ -124,7 +126,7 @@ describe('generateTextCover', () => {
       title: 'HTML测试',
       content: '',
       tags: [],
-      paragraphs: [{ content: '<p>这是<strong>HTML</strong>内容</p>' }]
+      paragraphs: [{ index: 0, content: '<p>这是<strong>HTML</strong>内容</p>' }]
     }
 
     const result = generateTextCover(post, true)
