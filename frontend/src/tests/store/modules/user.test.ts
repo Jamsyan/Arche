@@ -132,6 +132,7 @@ describe('useUserStore', () => {
     it('登录返回缺少 token 时抛出错误', async () => {
       vi.mocked(loginApi).mockResolvedValueOnce({
         token: undefined as unknown as string,
+        refresh_token: undefined,
         userInfo: { id: '1', username: 'test', nickname: 'Test', permissions: [] }
       })
 

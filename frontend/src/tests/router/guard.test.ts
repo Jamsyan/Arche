@@ -50,6 +50,7 @@ const helper = vi.hoisted(() => {
     mockResetAllStores: vi.fn(),
     mockMessageError: vi.fn(),
     mockCancelAllPendingRequests: vi.fn(),
+    mockIsAdmin: vi.fn(),
 
     // 供 mock factory 使用的 getter
     getToken: () => _token,
@@ -128,7 +129,7 @@ await import('@/router/guard')
 // 创建一个辅助函数用于调用 beforeEach 守卫
 function runGuard(to: any, from: any = { path: '/', meta: {} }): Promise<any> {
   return new Promise((resolve) => {
-    const handler = helper.capturedBeforeEach[0]
+    const handler = helper.capturedBeforeEach[0]!
     handler(to, from, (redirect?: any) => {
       resolve(redirect ?? undefined)
     })
@@ -331,13 +332,13 @@ describe('路由导航守卫', () => {
 
   describe('afterEach', () => {
     it('设置页面标题', () => {
-      const handler = helper.capturedAfterEach[0]
+      const handler = helper.capturedAfterEach[0]!
       handler({ meta: { title: '测试页面' } })
       expect(document.title).toBe('测试页面')
     })
 
     it('无 title 时使用默认标题', () => {
-      const handler = helper.capturedAfterEach[0]
+      const handler = helper.capturedAfterEach[0]!
       handler({ meta: {} })
       expect(document.title).toBe('Arche')
     })

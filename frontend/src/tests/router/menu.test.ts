@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 
-vi.mock(import('@/icons'), async (importOriginal) => {
+vi.mock('@/icons', async (importOriginal) => {
   const mod = (await importOriginal()) as Record<string, Component>
   return {
     ...mod,

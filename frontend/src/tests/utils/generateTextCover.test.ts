@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 
 type BlogPost = {
   id: string
-  title?: string
-  content?: string
+  slug: string
+  title: string
+  content: string
+  tags: string[]
   intro?: string
-  tags?: string[]
-  slug?: string
-  paragraphs?: { content: string }[]
+  paragraphs?: { index: number; content: string }[]
 }
 
 describe('generateTextCover', () => {
@@ -15,8 +15,10 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '1',
+      slug: 'test-1',
       title: '测试文章',
-      content: '这是一篇测试文章的内容'
+      content: '这是一篇测试文章的内容',
+      tags: []
     }
 
     const result = generateTextCover(post, true)
@@ -27,9 +29,11 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '2',
+      slug: 'test-2',
       title: '测试',
       intro: '自定义引言',
-      content: '正文内容'
+      content: '正文内容',
+      tags: []
     }
 
     const result = generateTextCover(post, true)
@@ -40,8 +44,11 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '3',
+      slug: 'test-3',
       title: '测试',
-      paragraphs: [{ content: '段落内容' }]
+      content: '',
+      tags: [],
+      paragraphs: [{ index: 0, content: '段落内容' }]
     }
 
     const result = generateTextCover(post, true)
@@ -52,7 +59,10 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '4',
-      content: '只有内容没有标题'
+      slug: 'test-4',
+      title: '',
+      content: '只有内容没有标题',
+      tags: []
     }
 
     const result = generateTextCover(post, true)
@@ -63,7 +73,10 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '5',
-      title: '缓存测试'
+      slug: 'test-5',
+      title: '缓存测试',
+      content: '',
+      tags: []
     }
 
     // 第一次调用
@@ -78,7 +91,10 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '6',
-      title: '跳过缓存'
+      slug: 'test-6',
+      title: '跳过缓存',
+      content: '',
+      tags: []
     }
 
     const result1 = generateTextCover(post, true)
@@ -92,6 +108,7 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '7',
+      slug: 'test-7',
       title: '带标签的文章',
       tags: ['技术', '前端'],
       content: '这是一篇技术文章'
@@ -105,8 +122,11 @@ describe('generateTextCover', () => {
     const { generateTextCover } = await import('@/utils/generateTextCover')
     const post: BlogPost = {
       id: '8',
+      slug: 'test-8',
       title: 'HTML测试',
-      paragraphs: [{ content: '<p>这是<strong>HTML</strong>内容</p>' }]
+      content: '',
+      tags: [],
+      paragraphs: [{ index: 0, content: '<p>这是<strong>HTML</strong>内容</p>' }]
     }
 
     const result = generateTextCover(post, true)
