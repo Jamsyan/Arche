@@ -4,7 +4,55 @@ on:
   workflow_call:
 
 jobs:
+  # ── 变更检测 ──
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      languages: ${{ steps.build.outputs.languages }}
+      run-bandit: ${{ steps.build.outputs.bandit }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect code changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            python:
+              - 'backend/**/*.py'
+              - 'scripts/**/*.py'
+              - 'pyproject.toml'
+              - 'backend/pyproject.toml'
+            javascript:
+              - 'frontend/src/**/*.{ts,js,vue}'
+              - 'frontend/src/**/*.{tsx,jsx}'
+              - 'frontend/package.json'
+              - 'frontend/tsconfig*.json'
+              - 'frontend/vite.config.ts'
+
+      - name: Build language matrix
+        id: build
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo 'languages=["python","javascript"]' >> $GITHUB_OUTPUT
+            echo "bandit=true" >> $GITHUB_OUTPUT
+          else
+            CHANGES='${{ steps.filter.outputs.changes }}'
+            echo "languages=$CHANGES" >> $GITHUB_OUTPUT
+
+            if echo "$CHANGES" | jq -e 'contains(["python"])' > /dev/null 2>&1; then
+              echo "bandit=true" >> $GITHUB_OUTPUT
+            else
+              echo "bandit=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # ── Bandit ──
   bandit:
+    needs: [changes]
+    if: needs.changes.outputs.run-bandit == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -21,15 +69,17 @@ jobs:
           --severity-level high
           --quiet
 
+  # ── CodeQL（按语言过滤） ──
   codeql:
+    needs: [changes]
+    strategy:
+      matrix:
+        language: ${{ fromJSON(needs.changes.outputs.languages) }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
-    strategy:
-      matrix:
-        language: [python, javascript]
     steps:
       - uses: actions/checkout@v6
 

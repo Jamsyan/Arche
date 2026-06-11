@@ -12,11 +12,130 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ── 变更检测 ──
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend-plugins: ${{ steps.build-backend.outputs.matrix }}
+      run-integration: ${{ steps.build-backend.outputs.integration }}
+      frontend-dirs: ${{ steps.build-frontend.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend changes
+        id: filter-backend
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            trigger-full:
+              - 'backend/core/**'
+              - 'backend/tests/conftest.py'
+              - 'backend/tests/unit/conftest.py'
+              - 'pyproject.toml'
+              - 'backend/pyproject.toml'
+              - 'uv.lock'
+            auth:
+              - 'backend/plugins/auth/**'
+              - 'backend/tests/unit/auth/**'
+            blog:
+              - 'backend/plugins/blog/**'
+              - 'backend/tests/unit/blog/**'
+            oss:
+              - 'backend/plugins/oss/**'
+              - 'backend/tests/unit/oss/**'
+            github_proxy:
+              - 'backend/plugins/github_proxy/**'
+              - 'backend/tests/unit/github_proxy/**'
+            crawler:
+              - 'backend/plugins/crawler/**'
+              - 'backend/tests/unit/crawler/**'
+            cloud_integration:
+              - 'backend/plugins/cloud_integration/**'
+              - 'backend/tests/unit/cloud_integration/**'
+            monitor:
+              - 'backend/plugins/monitor/**'
+              - 'backend/tests/unit/monitor/**'
+            asset_mgmt:
+              - 'backend/plugins/asset_mgmt/**'
+              - 'backend/tests/unit/asset_mgmt/**'
+            system_monitor:
+              - 'backend/plugins/system_monitor/**'
+              - 'backend/tests/unit/system_monitor/**'
+            search:
+              - 'backend/plugins/search/**'
+              - 'backend/tests/unit/search/**'
+
+      - name: Build backend test matrix
+        id: build-backend
+        run: |
+          ALL_PLUGINS='["auth","blog","oss","github_proxy","crawler","cloud_integration","monitor","asset_mgmt","system_monitor","search","core"]'
+
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "matrix=$ALL_PLUGINS" >> $GITHUB_OUTPUT
+            echo "integration=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ steps.filter-backend.outputs.trigger-full }}" == "true" ]]; then
+            echo "matrix=$ALL_PLUGINS" >> $GITHUB_OUTPUT
+            echo "integration=true" >> $GITHUB_OUTPUT
+          else
+            CHANGES='${{ steps.filter-backend.outputs.changes }}'
+            PLUGINS=$(echo "$CHANGES" | jq -c '[.[] | select(. != "trigger-full")]')
+            echo "matrix=$PLUGINS" >> $GITHUB_OUTPUT
+            if [[ "$PLUGINS" != "[]" ]]; then
+              echo "integration=true" >> $GITHUB_OUTPUT
+            else
+              echo "integration=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Detect frontend changes
+        id: filter-frontend
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            composables:
+              - 'frontend/src/composables/**'
+              - 'frontend/src/tests/composables/**'
+            constants:
+              - 'frontend/src/constants/**'
+              - 'frontend/src/tests/constants/**'
+              - 'frontend/src/directives/**'
+              - 'frontend/src/tests/directives/**'
+              - 'frontend/src/router/**'
+              - 'frontend/src/tests/router/**'
+            integration:
+              - 'frontend/src/tests/integration/**'
+              - 'frontend/src/store/**'
+              - 'frontend/src/services/**'
+            services:
+              - 'frontend/src/services/**'
+              - 'frontend/src/tests/services/**'
+            store:
+              - 'frontend/src/store/**'
+              - 'frontend/src/tests/store/**'
+            utils:
+              - 'frontend/src/utils/**'
+              - 'frontend/src/tests/utils/**'
+
+      - name: Build frontend test matrix
+        id: build-frontend
+        run: |
+          ALL_DIRS='["composables","constants","integration","services","store","utils"]'
+
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "matrix=$ALL_DIRS" >> $GITHUB_OUTPUT
+          else
+            CHANGES='${{ steps.filter-frontend.outputs.changes }}'
+            echo "matrix=$CHANGES" >> $GITHUB_OUTPUT
+          fi
+
   # ── 后端：单元测试（按插件并行） ──
   backend-unit:
+    needs: [changes]
     strategy:
       matrix:
-        plugin: [core, auth, blog, oss, github_proxy, crawler, cloud_integration, monitor, asset_mgmt, system_monitor]
+        plugin: ${{ fromJSON(needs.changes.outputs.backend-plugins) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,8 +147,10 @@ jobs:
       - name: Run ${{ matrix.plugin }} unit tests
         run: uv run pytest backend/tests/unit/${{ matrix.plugin }}/ -n auto --tb=short --no-header
 
-  # ── 后端：集成测试 ──
+  # ── 后端：集成测试（仅当后端有变更时运行）──
   backend-integration:
+    needs: [changes]
+    if: needs.changes.outputs.run-integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -43,15 +164,10 @@ jobs:
 
   # ── 前端：按目录并行 ──
   frontend:
+    needs: [changes]
     strategy:
       matrix:
-        dir:
-          - composables
-          - constants
-          - integration
-          - services
-          - store
-          - utils
+        dir: ${{ fromJSON(needs.changes.outputs.frontend-dirs) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
