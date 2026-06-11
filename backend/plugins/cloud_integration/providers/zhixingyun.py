@@ -34,7 +34,7 @@ _STATUS_MAP = {
 def _md5(s: str) -> str:
     # lgtm[py/weak-sensitive-data-hashing]
     # 智星云 API 签名算法明确要求 MD5（参考 docs/zhixingyun_api/03_接口签名.md）
-    return hashlib.md5(s.encode("utf-8")).hexdigest()
+    return hashlib.md5(s.encode("utf-8")).hexdigest()  # nosec B324
 
 
 def _build_sign(params: dict, secret: str) -> str:
