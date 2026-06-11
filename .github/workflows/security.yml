@@ -17,7 +17,7 @@ jobs:
 
       - name: Detect code changes
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4.0.1
         with:
           filters: |
             python:
@@ -72,6 +72,7 @@ jobs:
   # ── CodeQL（按语言过滤） ──
   codeql:
     needs: [changes]
+    if: needs.changes.outputs.languages != '[]'
     strategy:
       matrix:
         language: ${{ fromJSON(needs.changes.outputs.languages) }}

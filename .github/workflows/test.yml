@@ -26,7 +26,7 @@ jobs:
 
       - name: Detect backend changes
         id: filter-backend
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4.0.1
         with:
           filters: |
             trigger-full:
@@ -91,7 +91,7 @@ jobs:
 
       - name: Detect frontend changes
         id: filter-frontend
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4.0.1
         with:
           filters: |
             composables:
@@ -133,6 +133,7 @@ jobs:
   # ── 后端：单元测试（按插件并行） ──
   backend-unit:
     needs: [changes]
+    if: needs.changes.outputs.backend-plugins != '[]'
     strategy:
       matrix:
         plugin: ${{ fromJSON(needs.changes.outputs.backend-plugins) }}
@@ -165,13 +166,14 @@ jobs:
   # ── 前端：按目录并行 ──
   frontend:
     needs: [changes]
+    if: needs.changes.outputs.frontend-dirs != '[]'
     strategy:
       matrix:
         dir: ${{ fromJSON(needs.changes.outputs.frontend-dirs) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: "22"
           cache: "npm"
@@ -208,7 +210,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.0.0
         with:
           enable-cache: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: "22"
           cache: "npm"
