@@ -5,6 +5,7 @@
   { "name": "type: refactor",   "color": "fbca04", "description": "代码重构" },
   { "name": "type: docs",       "color": "7057ff", "description": "文档变更" },
   { "name": "type: chore",      "color": "bfdadc", "description": "杂项" },
+  { "name": "type: ui",         "color": "d4c5f9", "description": "样式/显示问题" },
 
   { "name": "area: backend",    "color": "000000", "description": "后端相关" },
   { "name": "area: frontend",   "color": "1d76db", "description": "前端相关" },
@@ -16,6 +17,7 @@
 
   { "name": "good first issue", "color": "7057ff", "description": "新手友好" },
   { "name": "help wanted",      "color": "008672", "description": "需要帮助" },
+  { "name": "heavy",            "color": "000000", "description": "重型任务，需专门规划" },
   { "name": "question",         "color": "d876e3", "description": "疑问/讨论" },
 
   { "name": "needs-info",      "color": "f9d71c", "description": "信息不完整，需要补充" },

@@ -1,38 +1,45 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Bug 报告
+about: 提交 Bug 以帮助我们改进
 title: ''
-labels: ''
+labels: 'type: bug'
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## 问题描述
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+<!-- 清晰简洁地描述这个 Bug 是什么 -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## 复现步骤
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+1. 前往 '...'
+2. 点击 '...'
+3. 滚动到 '...'
+4. 看到错误
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## 期望行为
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+<!-- 你期望应该发生什么 -->
 
-**Additional context**
-Add any other context about the problem here.
+## 实际表现
+
+<!-- 实际发生了什么，可以贴截图 -->
+
+## 环境信息
+
+- **部署方式**: 本地开发 / Docker / 生产服务器
+- **操作系统**: Windows / macOS / Linux
+- **浏览器**（前端问题必填）: Chrome / Firefox / Safari / Edge
+- **后端日志**（如有）:
+
+## 建议标签
+
+<!-- 创建后请添加以下标签（由维护者处理） -->
+
+- **area**: `area: backend` / `area: frontend` / `area: ci-cd`
+- **priority**: `priority: high` / `priority: medium` / `priority: low`
+
+## 补充说明
+
+<!-- 任何其他有助于排查的上下文 -->

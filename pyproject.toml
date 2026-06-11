@@ -82,6 +82,3 @@ markers = [
     "cli: 标记需要 GitHub CLI 的测试",
     "http: 标记需要 HTTP 连接的测试",
 ]
-
-[project.scripts]
-test = "scripts.run_tests:main"
