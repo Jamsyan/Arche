@@ -145,6 +145,7 @@ describe('user store 集成测试', () => {
       userStore.userInfo = {
         id: '1',
         username: 'testuser',
+        nickname: 'testuser',
         email: 'test@example.com',
         level: 5,
         permissions: []
@@ -167,6 +168,7 @@ describe('user store 集成测试', () => {
       userStore.userInfo = {
         id: '1',
         username: 'testuser',
+        nickname: 'testuser',
         email: 'test@example.com',
         level: 5,
         permissions: []
