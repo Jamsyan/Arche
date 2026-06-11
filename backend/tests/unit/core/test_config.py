@@ -1,6 +1,7 @@
 """ConfigManager 配置管理器测试。"""
 
 import os
+import tempfile
 import time
 from pathlib import Path
 import pytest
@@ -61,7 +62,9 @@ class TestConfigManager:
     def setup_method(self):
         """每个测试用例前重置单例状态，避免互相影响。"""
         ConfigManager._instance = None
-        self.test_env_file = Path("test.env")
+        # 使用临时目录避免 xdist 并行执行时的文件竞争
+        self._tmp_dir = Path(tempfile.mkdtemp(prefix="arche-test-config-"))
+        self.test_env_file = self._tmp_dir / "test.env"
         self.test_env_file.write_text(
             """
 # Test config
@@ -76,8 +79,10 @@ LOG_LEVEL=INFO
 
     def teardown_method(self):
         """测试后清理临时文件。"""
-        if self.test_env_file.exists():
-            self.test_env_file.unlink()
+        if self._tmp_dir.exists():
+            import shutil
+
+            shutil.rmtree(self._tmp_dir)
         # 重置单例
         ConfigManager._instance = None
         # 恢复环境变量
