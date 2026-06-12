@@ -93,6 +93,8 @@ class StorageService:
                 secret_key=config.get("MINIO_ROOT_PASSWORD", "veiladmin123"),
                 secure=config.get("MINIO_SECURE", "false").lower() == "true",
             )
+            # list_buckets 发起真实网络请求，验证连接可用性
+            client.list_buckets()
             self._minio = MinIOBackend(client, bucket="veil-oss")
             return self._minio
         except Exception as e:
