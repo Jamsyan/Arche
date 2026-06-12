@@ -10,25 +10,57 @@ export interface LoginParams {
 export interface RegisterParams {
   email: string
   username: string
+  nickname: string
   password: string
 }
 
-// 用户信息（level 唯一决定权限：0=管理员，其他=普通用户）
+// 用户信息
 export interface UserInfo {
   id: string
   username: string
   nickname: string
+  email: string
   avatar?: string
-  permissions: string[]
-  level?: number
-  created_at?: string
   bio?: string
-  email?: string
-  birthday?: string
+  links?: string[]
+  badges?: string[]
+  level: number
+  blog_quality_level?: number
+  is_active?: boolean
+  deletion_status?: string
+  deletion_reason?: string
+  deletion_expires_at?: string | null
+  deleted_at?: string | null
+  login_count?: number
+  last_login_at?: string | null
+  last_login_ip?: string | null
+  last_active_at?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
-interface RawUserInfo extends Partial<UserInfo> {
-  level?: number
+interface RawUserInfo {
+  id: string
+  username: string
+  nickname: string
+  email: string
+  level: number
+  blog_quality_level?: number
+  avatar?: string
+  bio?: string
+  links?: string[]
+  badges?: string[]
+  is_active?: boolean
+  deletion_status?: string
+  deletion_reason?: string
+  deletion_expires_at?: string | null
+  deleted_at?: string | null
+  login_count?: number
+  last_login_at?: string | null
+  last_login_ip?: string | null
+  last_active_at?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
 // 登录响应
@@ -43,17 +75,29 @@ export interface LoginResponse {
 const normalizeLoginResponse = (raw: LoginResponse) => {
   const token = raw.token || raw.access_token || ''
   const baseUser = raw.userInfo || raw.user
-  const userLevel = baseUser?.level ?? 5
-  const userInfoBase = {
+  const userInfo: UserInfo = {
     id: baseUser?.id || '',
     username: baseUser?.username || '',
     nickname: baseUser?.nickname || baseUser?.username || '',
-    level: userLevel,
-    permissions: baseUser?.permissions || []
+    email: baseUser?.email || '',
+    level: baseUser?.level ?? 5,
+    blog_quality_level: baseUser?.blog_quality_level ?? 0,
+    avatar: baseUser?.avatar,
+    bio: baseUser?.bio,
+    links: baseUser?.links,
+    badges: baseUser?.badges,
+    is_active: baseUser?.is_active,
+    deletion_status: baseUser?.deletion_status,
+    deletion_reason: baseUser?.deletion_reason,
+    deletion_expires_at: baseUser?.deletion_expires_at ?? null,
+    deleted_at: baseUser?.deleted_at ?? null,
+    login_count: baseUser?.login_count,
+    last_login_at: baseUser?.last_login_at ?? null,
+    last_login_ip: baseUser?.last_login_ip,
+    last_active_at: baseUser?.last_active_at ?? null,
+    created_at: baseUser?.created_at,
+    updated_at: baseUser?.updated_at
   }
-  const userInfo: UserInfo = baseUser?.avatar
-    ? { ...userInfoBase, avatar: baseUser.avatar }
-    : userInfoBase
 
   return {
     token,
@@ -82,16 +126,30 @@ export const logoutApi = (config?: RequestConfig) => post<void>('/auth/logout', 
 // 获取当前用户信息
 export const getUserInfoApi = (config?: RequestConfig) =>
   get<Record<string, any>>('/auth/me', undefined, config).then((raw) => {
-    const userLevel = raw.level ?? 5
-    const base = {
+    const base: UserInfo = {
       id: String(raw.id || ''),
       username: String(raw.username || ''),
       nickname: String(raw.nickname || raw.username || ''),
-      level: userLevel,
-      permissions: userLevel === 0 ? ['*'] : raw.permissions || [],
-      created_at: raw.created_at as string | undefined
+      email: String(raw.email || ''),
+      level: raw.level ?? 5,
+      blog_quality_level: raw.blog_quality_level ?? 0,
+      avatar: raw.avatar as string | undefined,
+      bio: raw.bio as string | undefined,
+      links: raw.links as string[] | undefined,
+      badges: raw.badges as string[] | undefined,
+      is_active: raw.is_active as boolean | undefined,
+      deletion_status: raw.deletion_status as string | undefined,
+      deletion_reason: raw.deletion_reason as string | undefined,
+      deletion_expires_at: raw.deletion_expires_at as string | null | undefined,
+      deleted_at: raw.deleted_at as string | null | undefined,
+      login_count: raw.login_count as number | undefined,
+      last_login_at: raw.last_login_at as string | null | undefined,
+      last_login_ip: raw.last_login_ip as string | undefined,
+      last_active_at: raw.last_active_at as string | null | undefined,
+      created_at: raw.created_at as string | undefined,
+      updated_at: raw.updated_at as string | undefined
     }
-    return raw.avatar ? { ...base, avatar: raw.avatar as string } : base
+    return base
   })
 
 // ── 用户管理统计（P0） ──

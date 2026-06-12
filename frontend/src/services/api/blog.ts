@@ -11,7 +11,6 @@ export interface BlogPost {
   slug: string
   title: string
   cover_url?: string
-  auto_cover_url?: string
   introduction?: {
     abstract?: string
     background?: string
@@ -24,8 +23,14 @@ export interface BlogPost {
   tags: string[]
   required_level?: number
   status?: string
+  is_pinned?: boolean
+  is_featured?: boolean
+  category_id?: string
+  like_count?: number
+  comment_count?: number
   created_at?: string
   updated_at?: string
+  published_at?: string | null
   author_username?: string
   likes?: number
   views?: number
@@ -49,12 +54,16 @@ export interface BlogComment {
   author_id: string
   author_username?: string
   paragraph_pid?: string
+  status?: string
+  like_count?: number
   created_at?: string
+  updated_at?: string
 }
 
 export interface BlogTag {
   id?: string
   name: string
+  color?: string
   count?: number
 }
 
