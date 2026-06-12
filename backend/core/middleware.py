@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -60,10 +61,30 @@ def error_response(
     )
 
 
+def _format_validation_errors(errors: list[dict]) -> str:
+    field_messages = []
+    for err in errors:
+        loc = err.get("loc", [])
+        field_name = loc[-1] if len(loc) > 1 else loc[0] if loc else ""
+        msg = err.get("msg", "校验失败")
+        field_messages.append(f"{field_name}: {msg}")
+    return "；".join(field_messages)
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         return error_response(exc.message, exc.code, exc.status_code, exc.data)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        errors = exc.errors()
+        message = _format_validation_errors(errors)
+        return error_response(
+            message, "validation_error", status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
