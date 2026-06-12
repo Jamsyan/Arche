@@ -302,13 +302,27 @@ class BlogService:
 
     @staticmethod
     def _split_paragraphs(content: str) -> list[dict]:
-        """将正文按双换行分割为段落列表。"""
+        """将正文按双换行分割为段落列表，保留 blockquote 完整性。"""
         paragraphs = []
         raw = re.split(r"\n\n+", content.strip())
-        for i, p in enumerate(raw, start=1):
+        buffer = []
+        for p in raw:
             stripped = p.strip()
-            if stripped:
-                paragraphs.append({"index": i, "content": stripped})
+            if not stripped:
+                continue
+            if buffer and (stripped.startswith(">") or "<blockquote>" in stripped):
+                buffer.append(stripped)
+            else:
+                if buffer:
+                    paragraphs.append(
+                        {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
+                    )
+                    buffer = []
+                paragraphs.append({"index": len(paragraphs) + 1, "content": stripped})
+        if buffer:
+            paragraphs.append(
+                {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
+            )
         return paragraphs
 
     async def get_post_by_id(self, post_id: uuid.UUID) -> BlogPost:
