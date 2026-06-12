@@ -95,6 +95,18 @@ Keep it tight — one or two sentences per field:
 
 ---
 
+### 2026-06-12: Remove custom `event_loop` fixture for Python 3.13 E2E tests
+
+**What:** Remove the custom function-scoped `event_loop` fixture from E2E conftest.py that called `asyncio.set_event_loop()`.
+
+**When:** Python 3.13+ with pytest-asyncio 1.x in E2E tests using pytest-playwright (sync API).
+
+**Why:** Python 3.13's `asyncio.Runner` has an internal state machine (`IDLE → RUNNING → IDLE`). The custom fixture's `asyncio.set_event_loop()` interfered with the Runner's loop management, causing `Runner.run()` to raise `RuntimeError: Runner.run() cannot be called from a running event loop`. The default fixture behavior (without `set_event_loop`) works correctly.
+
+**Lesson:** Avoid overriding `event_loop` fixture with `asyncio.set_event_loop()` in Python 3.13+. Let pytest-asyncio manage the loop. This is a common pitfall when upgrading from Python 3.12 to 3.13.
+
+---
+
 ### 2026-06-12: Don't restrict `pull_request.branches` in CI for branch-based workflows
 
 **What:** Remove `branches: [master]` from `pull_request` trigger in CI workflow — or use a broader branch pattern like `branches: ['*']`.
