@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import urllib3
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -87,11 +88,15 @@ class StorageService:
             from backend.plugins.oss.backends import MinIOBackend
 
             config = self.container.get("config")
+            http_client = urllib3.PoolManager(
+                timeout=urllib3.Timeout(connect=5, read=10)
+            )
             client = Minio(
                 config.get("MINIO_ENDPOINT", "localhost:9000"),
                 access_key=config.get("MINIO_ROOT_USER", "veiladmin"),
                 secret_key=config.get("MINIO_ROOT_PASSWORD", "veiladmin123"),
                 secure=config.get("MINIO_SECURE", "false").lower() == "true",
+                http_client=http_client,
             )
             # list_buckets 发起真实网络请求，验证连接可用性
             client.list_buckets()

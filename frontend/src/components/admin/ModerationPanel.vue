@@ -187,7 +187,7 @@ onMounted(() => fetchPosts())
             <span>创建：{{ selectedPost.created_at?.slice(0, 10) }}</span>
           </div>
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div class="detail-content" v-html="renderContent(selectedPost.content)" />
+          <div class="detail-content" v-html="renderContent(selectedPost.content || '')" />
         </template>
         <template v-else>
           <div class="empty-state">

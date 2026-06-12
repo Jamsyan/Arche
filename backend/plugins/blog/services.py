@@ -8,19 +8,21 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from sqlalchemy import delete, func, select, or_, text
+from sqlalchemy import delete, func, select, text
 from fastapi import UploadFile
 
 from backend.core.middleware import AppError
 
 from .models import (
     BlogPost,
+    BlogParagraph,
     BlogComment,
     BlogLike,
     BlogReport,
     BlogTag,
     BlogPostTag,
     BlogFavorite,
+    ModerationRecord,
     PostFile,
 )
 
@@ -94,13 +96,10 @@ class BlogService:
                 query = query.where(BlogPost.status == status_filter)
                 count_query = count_query.where(BlogPost.status == status_filter)
 
-            # 搜索过滤（标题或内容）
+            # 搜索过滤（按标题）
             if search_query:
                 search_pattern = f"%{search_query}%"
-                search_filter = or_(
-                    BlogPost.title.ilike(search_pattern),
-                    BlogPost.content.ilike(search_pattern),
-                )
+                search_filter = BlogPost.title.ilike(search_pattern)
                 query = query.where(search_filter)
                 count_query = count_query.where(search_filter)
 
@@ -297,33 +296,7 @@ class BlogService:
 
             post_dict = self._post_to_dict(post, author_username=author_username)
             post_dict["tags"] = await self.get_post_tags(post.id)
-            post_dict["paragraphs"] = self._split_paragraphs(post.content)
             return post_dict
-
-    @staticmethod
-    def _split_paragraphs(content: str) -> list[dict]:
-        """将正文按双换行分割为段落列表，保留 blockquote 完整性。"""
-        paragraphs = []
-        raw = re.split(r"\n\n+", content.strip())
-        buffer = []
-        for p in raw:
-            stripped = p.strip()
-            if not stripped:
-                continue
-            if buffer and (stripped.startswith(">") or "<blockquote>" in stripped):
-                buffer.append(stripped)
-            else:
-                if buffer:
-                    paragraphs.append(
-                        {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
-                    )
-                    buffer = []
-                paragraphs.append({"index": len(paragraphs) + 1, "content": stripped})
-        if buffer:
-            paragraphs.append(
-                {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
-            )
-        return paragraphs
 
     async def get_post_by_id(self, post_id: uuid.UUID) -> BlogPost:
         """根据 ID 获取帖子模型对象。"""
@@ -368,18 +341,17 @@ class BlogService:
 
         post_dict = self._post_to_dict(post, author_username=author_username)
         post_dict["tags"] = await self.get_post_tags(post.id)
-        post_dict["paragraphs"] = self._split_paragraphs(post.content)
         return post_dict
 
     async def create_post(
         self,
         author_id: uuid.UUID,
         title: str,
-        content: str,
-        intro: str | None = None,
+        introduction: dict | None = None,
+        paragraphs_data: list[dict] | None = None,
         tags: list[str] | None = None,
+        cover_url: str | None = None,
         required_level: int = 5,
-        auto_cover_url: str | None = None,
         user_level: int = 5,
     ) -> dict:
         """创建帖子，默认进入审核队列（status=pending）。"""
@@ -396,20 +368,16 @@ class BlogService:
 
         # 敏感词检查
         word_filter = get_filter()
-        passed, matched_words = word_filter.check(title + " " + content)
+        text_to_check = title
+        if paragraphs_data:
+            text_to_check += " " + " ".join(
+                p.get("content", "") for p in paragraphs_data
+            )
+        passed, matched_words = word_filter.check(text_to_check)
         if not passed:
             raise AppError(
                 f"内容包含敏感词: {', '.join(matched_words)}",
                 code="sensitive_word",
-                status_code=400,
-            )
-
-        # 校验正文引用
-        errors = await self.validate_content(content, author_id)
-        if errors:
-            raise AppError(
-                "、".join(errors),
-                code="content_validation_error",
                 status_code=400,
             )
 
@@ -439,18 +407,32 @@ class BlogService:
                 author_id=author_id,
                 title=title,
                 slug=slug,
-                intro=intro,
-                content=content,
-                auto_cover_url=auto_cover_url,
+                cover_url=cover_url,
+                introduction=introduction,
                 status="pending",
                 required_level=required_level,
             )
             session.add(post)
             await session.flush()  # 获取 post.id
 
-            # 扫描文件引用（新建时 post.id 已通过 flush 获取）
-            if content:
-                await self.scan_and_clean_post_files(post.id, content)
+            # 创建段落
+            if paragraphs_data:
+                paragraph_ids = []
+                for i, pdata in enumerate(paragraphs_data):
+                    pid = f"{str(post.id)[:8]}_{str(i + 1).zfill(3)}"
+                    paragraph_ids.append(pid)
+                    paragraph = BlogParagraph(
+                        pid=pid,
+                        post_id=post.id,
+                        content=pdata.get("content", ""),
+                        type=pdata.get("type", "text"),
+                        heading=pdata.get("heading"),
+                        media_url=pdata.get("media_url"),
+                        caption=pdata.get("caption"),
+                        word_count=len(pdata.get("content", "")),
+                    )
+                    session.add(paragraph)
+                post.paragraph_ids = paragraph_ids
 
             # 处理标签（同一 session）
             if tags:
@@ -500,11 +482,11 @@ class BlogService:
         post_id: uuid.UUID,
         author_id: uuid.UUID,
         title: str | None = None,
-        intro: str | None = None,
-        content: str | None = None,
+        introduction: dict | None = None,
+        paragraphs_data: list[dict] | None = None,
         required_level: int | None = None,
         tags: list[str] | None = None,
-        auto_cover_url: str | None = None,
+        cover_url: str | None = None,
         user_level: int = 5,
     ) -> dict:
         """编辑帖子（仅作者本人）。"""
@@ -524,22 +506,32 @@ class BlogService:
                 post.title = title
                 # 重新生成 slug
                 post.slug = await self.generate_slug(title, exclude_slug=post.slug)
-            if intro is not None:
-                post.intro = intro
-            if auto_cover_url is not None:
-                post.auto_cover_url = auto_cover_url
-            if content is not None:
-                # 校验正文引用
-                errors = await self.validate_content(content, post.author_id)
-                if errors:
-                    raise AppError(
-                        "、".join(errors),
-                        code="content_validation_error",
-                        status_code=400,
+            if introduction is not None:
+                post.introduction = introduction
+            if cover_url is not None:
+                post.cover_url = cover_url
+            if paragraphs_data is not None:
+                # 删除旧段落
+                await session.execute(
+                    delete(BlogParagraph).where(BlogParagraph.post_id == post_id)
+                )
+                # 创建新段落
+                paragraph_ids = []
+                for i, pdata in enumerate(paragraphs_data):
+                    pid = f"{str(post.id)[:8]}_{str(i + 1).zfill(3)}"
+                    paragraph_ids.append(pid)
+                    paragraph = BlogParagraph(
+                        pid=pid,
+                        post_id=post.id,
+                        content=pdata.get("content", ""),
+                        type=pdata.get("type", "text"),
+                        heading=pdata.get("heading"),
+                        media_url=pdata.get("media_url"),
+                        caption=pdata.get("caption"),
+                        word_count=len(pdata.get("content", "")),
                     )
-                post.content = content
-                # 扫描文件引用
-                await self.scan_and_clean_post_files(post.id, content)
+                    session.add(paragraph)
+                post.paragraph_ids = paragraph_ids
             if required_level is not None:
                 # 权限等级验证：用户不能设置高于自身等级的可见门槛
                 if required_level < user_level:
@@ -549,8 +541,41 @@ class BlogService:
                         status_code=403,
                     )
                 post.required_level = required_level
-            # 仅标题或正文变更才重新进入审核；权限/标签等非内容改动不触发
-            if title is not None or content is not None:
+            # 处理标签更新
+            if tags is not None:
+                # 删除旧的标签关联
+                await session.execute(
+                    delete(BlogPostTag).where(BlogPostTag.post_id == post_id)
+                )
+                # 创建新的标签关联
+                for tag_name in tags[:MAX_TAGS_PER_POST]:
+                    normalized_name = tag_name.strip().lower()
+                    if not normalized_name:
+                        continue
+                    tag_result = await session.execute(
+                        select(BlogTag).where(
+                            func.lower(BlogTag.name) == normalized_name
+                        )
+                    )
+                    tag = tag_result.scalar_one_or_none()
+                    if not tag:
+                        try:
+                            tag = BlogTag(name=normalized_name)
+                            session.add(tag)
+                            await session.flush()
+                        except Exception:
+                            await session.rollback()
+                            tag_result = await session.execute(
+                                select(BlogTag).where(
+                                    func.lower(BlogTag.name) == normalized_name
+                                )
+                            )
+                            tag = tag_result.scalar_one_or_none()
+                            if not tag:
+                                continue
+                    session.add(BlogPostTag(post_id=post.id, tag_id=tag.id))
+            # 仅标题变更才重新进入审核
+            if title is not None:
                 post.status = "pending"
 
             await session.commit()
@@ -580,6 +605,9 @@ class BlogService:
 
             # 删除关联数据
             await session.execute(
+                delete(BlogParagraph).where(BlogParagraph.post_id == post_id)
+            )
+            await session.execute(
                 delete(BlogComment).where(BlogComment.post_id == post_id)
             )
             await session.execute(delete(BlogLike).where(BlogLike.post_id == post_id))
@@ -591,6 +619,51 @@ class BlogService:
             )
             await session.delete(post)
             await session.commit()
+
+    # --- 段落查询 ---
+
+    async def get_post_paragraphs(
+        self,
+        post_id: uuid.UUID,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[dict]:
+        """获取帖子的段落列表，按 paragraph_ids 顺序返回。"""
+        async with self.session_factory() as session:
+            post_result = await session.execute(
+                select(BlogPost.paragraph_ids).where(BlogPost.id == post_id)
+            )
+            row = post_result.one_or_none()
+            if not row:
+                return []
+            paragraph_ids = row[0] or []
+
+            if offset > 0 or limit is not None:
+                paragraph_ids = paragraph_ids[
+                    offset : offset + limit if limit else None
+                ]
+
+            if not paragraph_ids:
+                return []
+
+            result = await session.execute(
+                select(BlogParagraph).where(BlogParagraph.pid.in_(paragraph_ids))
+            )
+            para_map = {p.pid: p for p in result.scalars().all()}
+
+            return [
+                {
+                    "pid": pid,
+                    "content": para_map[pid].content if pid in para_map else "",
+                    "type": para_map[pid].type if pid in para_map else "text",
+                    "word_count": para_map[pid].word_count if pid in para_map else 0,
+                    "heading": para_map[pid].heading if pid in para_map else None,
+                    "media_url": para_map[pid].media_url if pid in para_map else None,
+                    "caption": para_map[pid].caption if pid in para_map else None,
+                }
+                for pid in paragraph_ids
+                if pid in para_map
+            ]
 
     # --- 评论 ---
 
@@ -677,6 +750,16 @@ class BlogService:
                 parent_id=parent_id,
             )
             session.add(comment)
+
+            post_result = await session.execute(
+                select(BlogPost).where(BlogPost.id == post_id)
+            )
+            post = post_result.scalar_one_or_none()
+            if post:
+                current = getattr(post, "comment_count", 0) or 0
+                post.comment_count = current + 1
+                session.add(post)
+
             await session.commit()
             await session.refresh(comment)
 
@@ -687,7 +770,7 @@ class BlogService:
     async def get_paragraph_comments(
         self,
         post_id: uuid.UUID,
-        paragraph_index: int,
+        paragraph_pid: str,
         page: int = 1,
         page_size: int = 50,
     ) -> dict:
@@ -700,7 +783,7 @@ class BlogService:
             count_result = await session.execute(
                 select(func.count()).where(
                     BlogComment.post_id == post_id,
-                    BlogComment.paragraph_index == paragraph_index,
+                    BlogComment.paragraph_pid == paragraph_pid,
                 )
             )
             total = count_result.scalar_one()
@@ -709,7 +792,7 @@ class BlogService:
                 select(BlogComment)
                 .where(
                     BlogComment.post_id == post_id,
-                    BlogComment.paragraph_index == paragraph_index,
+                    BlogComment.paragraph_pid == paragraph_pid,
                 )
                 .order_by(BlogComment.created_at.asc())
                 .offset(offset)
@@ -741,7 +824,7 @@ class BlogService:
     async def create_paragraph_comment(
         self,
         post_id: uuid.UUID,
-        paragraph_index: int,
+        paragraph_pid: str,
         author_id: uuid.UUID,
         content: str,
     ) -> dict:
@@ -753,9 +836,19 @@ class BlogService:
                 post_id=post_id,
                 author_id=author_id,
                 content=content,
-                paragraph_index=paragraph_index,
+                paragraph_pid=paragraph_pid,
             )
             session.add(comment)
+
+            post_result = await session.execute(
+                select(BlogPost).where(BlogPost.id == post_id)
+            )
+            post = post_result.scalar_one_or_none()
+            if post:
+                current = getattr(post, "comment_count", 0) or 0
+                post.comment_count = current + 1
+                session.add(post)
+
             await session.commit()
             await session.refresh(comment)
 
@@ -811,12 +904,28 @@ class BlogService:
             if existing:
                 # 取消点赞
                 await session.delete(existing)
+                post_result = await session.execute(
+                    select(BlogPost).where(BlogPost.id == post_id)
+                )
+                post = post_result.scalar_one_or_none()
+                if post:
+                    current = getattr(post, "like_count", 0) or 0
+                    post.like_count = max(0, current - 1)
+                    session.add(post)
                 await session.commit()
                 return {"action": "unliked"}
 
             # 点赞
             like = BlogLike(post_id=post_id, user_id=user_id)
             session.add(like)
+            post_result = await session.execute(
+                select(BlogPost).where(BlogPost.id == post_id)
+            )
+            post = post_result.scalar_one_or_none()
+            if post:
+                current = getattr(post, "like_count", 0) or 0
+                post.like_count = current + 1
+                session.add(post)
             await session.commit()
             return {"action": "liked"}
 
@@ -867,7 +976,9 @@ class BlogService:
                 "page_size": page_size,
             }
 
-    async def approve_post(self, post_id: uuid.UUID) -> dict:
+    async def approve_post(
+        self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None
+    ) -> dict:
         """通过审核（P0）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -884,13 +995,30 @@ class BlogService:
                 )
 
             post.status = "published"
-            post.quality_score += 1
+
+            from datetime import datetime, timezone
+            from uuid import uuid4
+
+            record = ModerationRecord(
+                id=uuid4(),
+                target_type="post",
+                target_id=str(post.id),
+                submitter_id=post.author_id,
+                reviewer_id=reviewer_id,
+                status="approved",
+                reviewed_at=datetime.now(timezone.utc),
+            )
+            record.generate_sid("modr")
+            session.add(record)
+
             await session.commit()
             await session.refresh(post)
 
             return self._post_to_dict(post)
 
-    async def reject_post(self, post_id: uuid.UUID) -> dict:
+    async def reject_post(
+        self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None
+    ) -> dict:
         """拒绝审核（P0）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -907,7 +1035,22 @@ class BlogService:
                 )
 
             post.status = "rejected"
-            post.quality_score = max(0, post.quality_score - 1)
+
+            from datetime import datetime, timezone
+            from uuid import uuid4
+
+            record = ModerationRecord(
+                id=uuid4(),
+                target_type="post",
+                target_id=str(post.id),
+                submitter_id=post.author_id,
+                reviewer_id=reviewer_id,
+                status="rejected",
+                reviewed_at=datetime.now(timezone.utc),
+            )
+            record.generate_sid("modr")
+            session.add(record)
+
             await session.commit()
             await session.refresh(post)
 
@@ -1757,6 +1900,7 @@ class BlogService:
         return {
             "id": str(tag.id),
             "name": tag.name,
+            "color": tag.color,
             "created_at": tag.created_at.isoformat() if tag.created_at else None,
         }
 
@@ -1773,18 +1917,23 @@ class BlogService:
             "author_username": author_username or str(post.author_id)[:8],
             "title": post.title,
             "slug": post.slug,
-            "intro": post.intro,
-            "content": post.content,
             "cover_url": post.cover_url,
-            "auto_cover_url": post.auto_cover_url,
-            "source_url": post.source_url,
-            "source_name": post.source_name,
+            "introduction": post.introduction,
+            "paragraph_ids": post.paragraph_ids,
             "status": post.status,
-            "quality_score": post.quality_score,
             "views": post.views,
             "likes": likes_count,
+            "like_count": post.like_count,
+            "comment_count": post.comment_count,
             "required_level": post.required_level,
+            "is_pinned": post.is_pinned,
+            "is_featured": post.is_featured,
+            "category_id": post.category_id,
             "created_at": post.created_at.isoformat() if post.created_at else None,
+            "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+            "published_at": post.published_at.isoformat()
+            if post.published_at
+            else None,
         }
 
     def _comment_to_dict(
@@ -1797,9 +1946,14 @@ class BlogService:
             "author_username": author_username or str(comment.author_id)[:8],
             "content": comment.content,
             "parent_id": str(comment.parent_id) if comment.parent_id else None,
-            "paragraph_index": comment.paragraph_index,
+            "paragraph_pid": comment.paragraph_pid,
+            "status": comment.status,
+            "like_count": comment.like_count,
             "created_at": comment.created_at.isoformat()
             if comment.created_at
+            else None,
+            "updated_at": comment.updated_at.isoformat()
+            if comment.updated_at
             else None,
         }
 

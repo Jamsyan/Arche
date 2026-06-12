@@ -425,10 +425,16 @@ async def auth_headers(db_container):
 
     service = AuthService(db_container)
     await service.register(
-        email="admin@example.com", username="admin", password="admin123"
+        email="admin@example.com",
+        username="admin",
+        nickname="test_user",
+        password="admin123",
     )
     result = await service.register(
-        email="test@example.com", username="testuser", password="testpass123"
+        email="test@example.com",
+        username="testuser",
+        nickname="test_user",
+        password="testpass123",
     )
     return {"Authorization": f"Bearer {result['access_token']}"}
 
@@ -440,7 +446,10 @@ async def admin_headers(db_container):
 
     service = AuthService(db_container)
     result = await service.register(
-        email="admin@example.com", username="admin", password="admin123"
+        email="admin@example.com",
+        username="admin",
+        nickname="test_user",
+        password="admin123",
     )
     return {"Authorization": f"Bearer {result['access_token']}"}
 

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import {
   getPostBySlugApi,
+  getPostParagraphsApi,
   getPostCommentsApi,
   getParagraphCommentsApi,
   createPostCommentApi,
@@ -15,7 +16,7 @@ import {
   getLikeStatusApi,
   type BlogPost,
   type BlogComment,
-  type Paragraph
+  type ParagraphData
 } from '@/services/api'
 import { useUserStore } from '@/store/modules/user'
 import PostDetail from '@/components/blog/PostDetail.vue'
@@ -33,6 +34,7 @@ const message = useMessage()
 const userStore = useUserStore()
 
 const post = ref<BlogPost | null>(null)
+const paragraphs = ref<ParagraphData[]>([])
 const comments = ref<BlogComment[]>([])
 const liked = ref(false)
 const favorited = ref(false)
@@ -48,7 +50,7 @@ const canInteract = computed(() => isLoggedIn.value && isPostPublished.value)
 // --- 段落评论面板状态 ---
 const paragraphPanel = ref({
   visible: false,
-  paragraph: null as Paragraph | null,
+  paragraph: null as ParagraphData | null,
   comments: [] as BlogComment[],
   loading: false,
   posting: false
@@ -60,27 +62,42 @@ const fetchPost = async () => {
     const detail = await getPostBySlugApi(String(route.params.slug || ''))
     post.value = detail
 
-    const [commentsRes] = await Promise.all([
-      getPostCommentsApi(detail.id, { page: 1, page_size: 50 }, { silent: true })
-    ])
-    comments.value = commentsRes.list || []
+    // 并行获取段落、评论和登录态数据
+    const tasks: Promise<unknown>[] = [
+      getPostCommentsApi(detail.id, { page: 1, page_size: 50 }, { silent: true }).then(
+        (commentsRes) => {
+          comments.value = commentsRes.list || []
+        }
+      ),
+      getPostParagraphsApi(detail.id, { limit: 100, offset: 0 }, { silent: true }).then((data) => {
+        paragraphs.value = data
+      })
+    ]
 
-    // 并行获取登录态相关数据
     if (isLoggedIn.value) {
-      const [favStatus, likeStatus] = await Promise.all([
+      tasks.push(
         getFavoriteStatusApi(detail.id, {
           silent: true,
           skipAuthLogout: true
+        }).then((favStatus) => {
+          favorited.value = favStatus.favorited
         }),
         getLikeStatusApi(detail.id, {
           silent: true,
           skipAuthLogout: true
-        }).catch(() => ({ liked: false, count: 0 }))
-      ])
-      favorited.value = favStatus.favorited
-      liked.value = likeStatus.liked
-      likeCount.value = likeStatus.count
+        })
+          .then((likeStatus) => {
+            liked.value = likeStatus.liked
+            likeCount.value = likeStatus.count
+          })
+          .catch(() => {
+            liked.value = false
+            likeCount.value = 0
+          })
+      )
     }
+
+    await Promise.all(tasks)
   } catch (err) {
     console.error('[PostDetail] 加载帖子失败:', err)
     message.error('加载帖子失败')
@@ -156,7 +173,7 @@ const submitComment = async (content: string) => {
 }
 
 // --- 段落评论 ---
-const openParagraphComment = async (paragraph: Paragraph) => {
+const openParagraphComment = async (paragraph: ParagraphData) => {
   if (!post.value) return
 
   paragraphPanel.value.visible = false
@@ -167,7 +184,7 @@ const openParagraphComment = async (paragraph: Paragraph) => {
   try {
     const res = await getParagraphCommentsApi(
       post.value.id,
-      paragraph.index,
+      paragraph.pid,
       { page: 1, page_size: 50 },
       { silent: true }
     )
@@ -186,7 +203,7 @@ const submitParagraphComment = async (content: string) => {
   try {
     await createParagraphCommentApi(
       post.value.id,
-      paragraphPanel.value.paragraph.index,
+      paragraphPanel.value.paragraph.pid,
       { content },
       { silent: true }
     )
@@ -194,7 +211,7 @@ const submitParagraphComment = async (content: string) => {
     // 重新加载段落评论
     const res = await getParagraphCommentsApi(
       post.value.id,
-      paragraphPanel.value.paragraph.index,
+      paragraphPanel.value.paragraph.pid,
       { page: 1, page_size: 50 },
       { silent: true }
     )
@@ -245,13 +262,24 @@ onMounted(fetchPost)
       <!-- 分隔线 -->
       <div class="title-divider" />
 
+      <!-- 引言区域（结构化） -->
+      <div v-if="post.introduction?.abstract" class="intro-section">
+        <p class="intro-abstract">{{ post.introduction.abstract }}</p>
+        <div v-if="post.introduction.key_points?.length" class="intro-key-points">
+          <span v-for="point in post.introduction.key_points" :key="point" class="key-point">{{
+            point
+          }}</span>
+        </div>
+        <div v-if="post.introduction.reading_time" class="intro-meta">
+          <span class="intro-reading-time">{{ post.introduction.reading_time }} 分钟阅读</span>
+          <span v-if="post.introduction.difficulty_level" class="intro-difficulty">{{
+            post.introduction.difficulty_level
+          }}</span>
+        </div>
+      </div>
+
       <!-- 作者信息行 -->
-      <AuthorBar
-        :post-id="post.id"
-        :author-username="post.author_username ?? ''"
-        :source-url="post.source_url ?? ''"
-        :source-name="post.source_name ?? ''"
-      />
+      <AuthorBar :post-id="post.id" :author-username="post.author_username ?? ''" />
 
       <!-- 正文区域（含左侧浮动操作栏） -->
       <div class="content-wrapper">
@@ -266,7 +294,7 @@ onMounted(fetchPost)
         />
 
         <div class="content-main">
-          <PostDetail :post="post" @paragraph-click="openParagraphComment" />
+          <PostDetail :paragraphs="paragraphs" @paragraph-click="openParagraphComment" />
         </div>
       </div>
 
@@ -373,6 +401,54 @@ onMounted(fetchPost)
     transparent 100%
   );
   opacity: 0.5;
+}
+
+/* ── 引言区域 ── */
+.intro-section {
+  margin: var(--spacing-md) 0 var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--surface-hover-color, rgba(128, 128, 128, 0.04));
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary-color, #667eea);
+}
+
+.intro-abstract {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.intro-key-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.key-point {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--primary-color);
+  background: var(--primary-light-color, rgba(102, 126, 234, 0.08));
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-medium);
+}
+
+.intro-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.intro-reading-time,
+.intro-difficulty {
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ── 正文区域 ── */

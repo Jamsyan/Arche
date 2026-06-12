@@ -3,12 +3,12 @@ import { ref, watch } from 'vue'
 import CommentForm from './CommentForm.vue'
 import CommentList from './CommentList.vue'
 import type { BlogComment } from '@/services/api'
-import type { Paragraph } from '@/services/api'
+import type { ParagraphData } from '@/services/api'
 
 const props = withDefaults(
   defineProps<{
     visible?: boolean
-    paragraph?: Paragraph | null
+    paragraph?: ParagraphData | null
     comments?: BlogComment[]
     loading?: boolean
     posting?: boolean
@@ -61,7 +61,7 @@ function handleSubmit(content: string) {
         <!-- 头部 -->
         <div class="panel-header">
           <h3 class="panel-title">
-            段落评论 <span class="panel-index">#{{ paragraph.index }}</span>
+            段落评论 <span class="panel-index">#{{ paragraph.pid }}</span>
           </h3>
           <button class="panel-close" @click="emit('close')" aria-label="关闭">&times;</button>
         </div>

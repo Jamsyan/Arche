@@ -22,6 +22,7 @@ SID_PREFIXES = {
     "asse": "asse",  # 资产（帖子/文件/标签等所有可存储实体）
     "task": "task",  # 任务（运行时态，在内存中）
     "log": "log",  # 日志/记录
+    "modr": "modr",  # 审核记录
 }
 
 # 所有注册前缀的列表，用于 parse_sid 匹配

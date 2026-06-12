@@ -46,7 +46,7 @@ class AssetMgmtService:
                             "asset_type": "blog_post",
                             "source_id": str(post.id),
                             "title": post.title,
-                            "description": post.content[:200] if post.content else None,
+                            "description": post.title[:200] if post.title else None,
                             "tags": [],
                             "created_at": post.created_at.isoformat()
                             if post.created_at

@@ -32,42 +32,46 @@ jobs:
 
             // Rule 1: pyproject.toml changed -> remind about uv lock
             if (changedFiles.some(f => f === 'pyproject.toml')) {
-              comments.push(`**注意：\`pyproject.toml\` 已变更**
-
-修改依赖后请运行 \`uv lock\` 更新锁文件，确保 CI 使用 \`uv sync --frozen\` 时能通过。`);
+              comments.push(
+                '**注意：`pyproject.toml` 已变更**\n\n' +
+                '修改依赖后请运行 `uv lock` 更新锁文件，确保 CI 使用 `uv sync --frozen` 时能通过。'
+              );
             }
 
             // Rule 2: frontend/package.json changed -> remind about npm install
             if (changedFiles.some(f => f === 'frontend/package.json')) {
-              comments.push(`**注意：\`frontend/package.json\` 已变更**
-
-修改依赖后请运行 \`cd frontend && npm install\` 更新 \`package-lock.json\`。`);
+              comments.push(
+                '**注意：`frontend/package.json` 已变更**\n\n' +
+                '修改依赖后请运行 `cd frontend && npm install` 更新 `package-lock.json`。'
+              );
             }
 
             // Rule 3: labels.json changed -> remind about label-sync
             if (changedFiles.some(f => f === '.github/labels.json')) {
-              comments.push(`**注意：\`.github/labels.json\` 已变更**
-
-标签定义已更新，请手动触发 label-sync 工作流同步到仓库：
-\`\`\`bash
-gh workflow run label-sync.yml
-\`\`\`
-
-或等待每周一的自动同步。`);
+              comments.push(
+                '**注意：`.github/labels.json` 已变更**\n\n' +
+                '标签定义已更新，请手动触发 label-sync 工作流同步到仓库：\n' +
+                '```bash\n' +
+                'gh workflow run label-sync.yml\n' +
+                '```\n\n' +
+                '或等待每周一的自动同步。'
+              );
             }
 
             // Rule 4: Alembic migration files changed
             if (changedFiles.some(f => f.includes('alembic') && f.endsWith('.sql'))) {
-              comments.push(`**注意：数据库迁移文件已变更**
-
-Alembic 迁移文件是基础设施的一部分，请勿手动删除。如需回滚请创建新的迁移文件。`);
+              comments.push(
+                '**注意：数据库迁移文件已变更**\n\n' +
+                'Alembic 迁移文件是基础设施的一部分，请勿手动删除。如需回滚请创建新的迁移文件。'
+              );
             }
 
             // Rule 5: Plugin models changed -> remind about migration
             if (changedFiles.some(f => /backend\/plugins\/.*\/models\.py/.test(f))) {
-              comments.push(`**注意：插件模型文件已变更**
-
-修改数据模型后请生成对应的 Alembic 迁移文件。`);
+              comments.push(
+                '**注意：插件模型文件已变更**\n\n' +
+                '修改数据模型后请生成对应的 Alembic 迁移文件。'
+              );
             }
 
             if (comments.length > 0) {

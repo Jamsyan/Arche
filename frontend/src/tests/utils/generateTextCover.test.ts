@@ -1,14 +1,5 @@
 import { describe, it, expect } from 'vitest'
-
-type BlogPost = {
-  id: string
-  slug: string
-  title: string
-  content: string
-  tags: string[]
-  intro?: string
-  paragraphs?: { index: number; content: string }[]
-}
+import type { BlogPost, ParagraphData } from '@/services/api/blog'
 
 describe('generateTextCover', () => {
   it('应该返回 data URL', async () => {
@@ -31,7 +22,7 @@ describe('generateTextCover', () => {
       id: '2',
       slug: 'test-2',
       title: '测试',
-      intro: '自定义引言',
+      introduction: { abstract: '自定义引言' },
       content: '正文内容',
       tags: []
     }
@@ -48,7 +39,9 @@ describe('generateTextCover', () => {
       title: '测试',
       content: '',
       tags: [],
-      paragraphs: [{ index: 0, content: '段落内容' }]
+      paragraphs: [
+        { pid: 'p1', index: 0, content: '段落内容', type: 'text', word_count: 4 } as ParagraphData
+      ]
     }
 
     const result = generateTextCover(post, true)
@@ -79,9 +72,7 @@ describe('generateTextCover', () => {
       tags: []
     }
 
-    // 第一次调用
     const result1 = generateTextCover(post)
-    // 第二次调用（走缓存）
     const result2 = generateTextCover(post)
 
     expect(result1).toBe(result2)
@@ -100,8 +91,7 @@ describe('generateTextCover', () => {
     const result1 = generateTextCover(post, true)
     const result2 = generateTextCover(post, true)
 
-    // noCache 每次都重新生成
-    expect(result1).toBe(result2) // 因为 canvas mock 返回固定值
+    expect(result1).toBe(result2)
   })
 
   it('处理带标签的帖子', async () => {
@@ -126,7 +116,15 @@ describe('generateTextCover', () => {
       title: 'HTML测试',
       content: '',
       tags: [],
-      paragraphs: [{ index: 0, content: '<p>这是<strong>HTML</strong>内容</p>' }]
+      paragraphs: [
+        {
+          pid: 'p2',
+          index: 0,
+          content: '<p>这是<strong>HTML</strong>内容</p>',
+          type: 'text',
+          word_count: 4
+        } as ParagraphData
+      ]
     }
 
     const result = generateTextCover(post, true)

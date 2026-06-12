@@ -5,9 +5,21 @@ import { NIcon, NTag } from 'naive-ui'
 import { PersonOutline, PricetagOutline } from '@vicons/ionicons5'
 import { PostCard } from '@/components/blog'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
-import { withFallback, blogMockData } from '@/services/mock'
+import { withFallback } from '@/services/mock'
 import { useSearchStore } from '@/store/modules/search'
-import type { MockExploreItem } from '@/services/mock/types'
+
+interface ExploreItem {
+  id: number
+  title: string
+  author: string
+  tags: string[]
+  date: string
+  likes: number
+  favorites: number
+  content: string
+  excerpt: string
+  cover: string
+}
 
 type ExploreFilterMode = 'tag' | 'author'
 
@@ -19,12 +31,12 @@ const router = useRouter()
 const route = useRoute()
 const searchStore = useSearchStore()
 
-const exploreItems = ref<MockExploreItem[]>([])
+const exploreItems = ref<ExploreItem[]>([])
 const allTags = ref<string[]>([])
 const allAuthors = ref<string[]>([])
 const loading = ref(false)
 
-const convertBlogPostToExploreItem = (post: BlogPost, index: number): MockExploreItem => {
+const convertBlogPostToExploreItem = (post: BlogPost, index: number): ExploreItem => {
   const gradientCovers = [
     'linear-gradient(135deg, #f2dfc7, #dcbca0)',
     'linear-gradient(135deg, #d9c8b0, #9f8169)',
@@ -39,25 +51,14 @@ const convertBlogPostToExploreItem = (post: BlogPost, index: number): MockExplor
     date: (post.created_at || '').slice(0, 10),
     likes: post.likes || 0,
     favorites: Math.max(1, Math.round((post.likes || 0) * 0.65)),
-    content: post.content || '',
-    excerpt: (post.content || '').slice(0, 60) || '',
+    content: post.introduction?.abstract ?? '',
+    excerpt: (post.introduction?.abstract ?? '').slice(0, 60),
     cover: gradientCovers[index % gradientCovers.length] ?? ''
   }
 }
 
 const fetchExploreData = async () => {
   loading.value = true
-
-  // 先以 mock 数据保底
-  exploreItems.value = blogMockData.posts.map(convertBlogPostToExploreItem)
-  const tagSet = new Set<string>()
-  const authorSet = new Set<string>()
-  blogMockData.posts.forEach((post) => {
-    ;(post.tags || []).forEach((tag) => tagSet.add(tag))
-    if (post.author_username) authorSet.add(post.author_username)
-  })
-  allTags.value = ['全部', ...Array.from(tagSet)]
-  allAuthors.value = ['全部作者', ...Array.from(authorSet)]
 
   try {
     const params: Record<string, unknown> = { page: 1, page_size: 20, sort_by: 'created_at' }
@@ -70,19 +71,20 @@ const fetchExploreData = async () => {
       { list: [], total: 0, page: 0, page_size: 0 },
       { silent: true }
     )
-    if (result.list && result.list.length >= 4) {
-      exploreItems.value = result.list.map(convertBlogPostToExploreItem)
-      const newTagSet = new Set<string>()
-      const newAuthorSet = new Set<string>()
-      result.list.forEach((post) => {
-        ;(post.tags || []).forEach((tag) => newTagSet.add(tag))
-        if (post.author_username) newAuthorSet.add(post.author_username)
-      })
-      allTags.value = ['全部', ...Array.from(newTagSet)]
-      allAuthors.value = ['全部作者', ...Array.from(newAuthorSet)]
-    }
+    const list = result.list || []
+    exploreItems.value = list.map(convertBlogPostToExploreItem)
+    const tagSet = new Set<string>()
+    const authorSet = new Set<string>()
+    list.forEach((post) => {
+      ;(post.tags || []).forEach((tag) => tagSet.add(tag))
+      if (post.author_username) authorSet.add(post.author_username)
+    })
+    allTags.value = ['全部', ...Array.from(tagSet)]
+    allAuthors.value = ['全部作者', ...Array.from(authorSet)]
   } catch {
-    // mock 数据保持不变
+    exploreItems.value = []
+    allTags.value = ['全部']
+    allAuthors.value = ['全部作者']
   } finally {
     loading.value = false
   }
@@ -167,12 +169,12 @@ const activeCompoundFilters = computed<CompoundFilterChip[]>(() => [
     : [])
 ])
 
-function toBlogPost(item: MockExploreItem): BlogPost {
+function toBlogPost(item: ExploreItem): BlogPost {
   return {
     id: String(item.id),
     slug: item.title,
     title: item.title,
-    content: item.content || item.excerpt,
+    introduction: { abstract: item.content || item.excerpt },
     tags: item.tags,
     author_username: item.author,
     created_at: item.date,

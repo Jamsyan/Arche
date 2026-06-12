@@ -312,7 +312,7 @@ class TestBlogServicePostCRUD:
             await service.create_post(
                 author_id=uuid.uuid4(),
                 title="Test Post",
-                content="This contains 敏感词",
+                paragraphs_data=[{"content": "This contains 敏感词"}],
             )
         assert "敏感词" in str(excinfo.value)
 
@@ -324,7 +324,6 @@ class TestBlogServicePostCRUD:
             await service.create_post(
                 author_id=uuid.uuid4(),
                 title="Test Post",
-                content="Test content",
                 required_level=0,
                 user_level=2,
             )
@@ -347,7 +346,6 @@ class TestBlogServicePostCRUD:
                 post_id=post_id,
                 author_id=author_id,
                 title="New Title",
-                content="New content",
             )
         assert mock_post.status == "pending"
 
@@ -527,7 +525,9 @@ class TestBlogServiceLikes:
         post_id = uuid.uuid4()
         user_id = uuid.uuid4()
         mock_post = MagicMock()
+        mock_post.like_count = 1
         mock_like = MagicMock()
+        mock_like.like_count = 1
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_like
 
@@ -551,13 +551,11 @@ class TestBlogServiceModeration:
 
         mock_post = MagicMock()
         mock_post.status = "pending"
-        mock_post.quality_score = 0
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
         await service.approve_post(post_id=uuid.uuid4())
         assert mock_post.status == "published"
-        assert mock_post.quality_score == 1
 
     async def test_reject_post(self, blog_container):
         """拒绝帖子审核。"""
@@ -565,13 +563,11 @@ class TestBlogServiceModeration:
 
         mock_post = MagicMock()
         mock_post.status = "pending"
-        mock_post.quality_score = 1
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_post
 
         await service.reject_post(post_id=uuid.uuid4())
         assert mock_post.status == "rejected"
-        assert mock_post.quality_score == 0
 
     async def test_approve_post_wrong_status(self, blog_container):
         """审核已发布帖子应失败。"""
