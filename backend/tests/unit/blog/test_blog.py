@@ -525,7 +525,9 @@ class TestBlogServiceLikes:
         post_id = uuid.uuid4()
         user_id = uuid.uuid4()
         mock_post = MagicMock()
+        mock_post.like_count = 1
         mock_like = MagicMock()
+        mock_like.like_count = 1
 
         blog_container._mock_result.scalar_one_or_none.return_value = mock_like
 

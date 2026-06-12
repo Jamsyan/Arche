@@ -369,7 +369,8 @@ async def approve_post(post_id: str, request: Request):
     """通过审核（P0）。"""
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
-    result = await blog_service.approve_post(uuid.UUID(post_id))
+    user = require_user(request)
+    result = await blog_service.approve_post(uuid.UUID(post_id), reviewer_id=uuid.UUID(user["id"]))
     return {"code": "ok", "message": "审核通过", "data": result}
 
 
@@ -379,7 +380,8 @@ async def reject_post(post_id: str, request: Request):
     """拒绝审核（P0）。"""
     container: ServiceContainer = request.app.state.container
     blog_service = container.get("blog")
-    result = await blog_service.reject_post(uuid.UUID(post_id))
+    user = require_user(request)
+    result = await blog_service.reject_post(uuid.UUID(post_id), reviewer_id=uuid.UUID(user["id"]))
     return {"code": "ok", "message": "审核拒绝", "data": result}
 
 

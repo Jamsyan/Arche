@@ -22,6 +22,7 @@ from .models import (
     BlogTag,
     BlogPostTag,
     BlogFavorite,
+    ModerationRecord,
     PostFile,
 )
 
@@ -749,6 +750,15 @@ class BlogService:
                 parent_id=parent_id,
             )
             session.add(comment)
+
+            post_result = await session.execute(
+                select(BlogPost).where(BlogPost.id == post_id)
+            )
+            post = post_result.scalar_one_or_none()
+            if post:
+                current = getattr(post, "comment_count", 0) or 0
+                post.comment_count = current + 1
+
             await session.commit()
             await session.refresh(comment)
 
@@ -828,10 +838,20 @@ class BlogService:
                 paragraph_pid=paragraph_pid,
             )
             session.add(comment)
+
+            post_result = await session.execute(
+                select(BlogPost).where(BlogPost.id == post_id)
+            )
+            post = post_result.scalar_one_or_none()
+            if post:
+                current = getattr(post, "comment_count", 0) or 0
+                post.comment_count = current + 1
+
             await session.commit()
             await session.refresh(comment)
 
             return self._comment_to_dict(comment)
+
 
     # --- 点赞 ---
 
@@ -883,12 +903,26 @@ class BlogService:
             if existing:
                 # 取消点赞
                 await session.delete(existing)
+                post_result = await session.execute(
+                    select(BlogPost).where(BlogPost.id == post_id)
+                )
+                post = post_result.scalar_one_or_none()
+                if post:
+                    current = getattr(post, "like_count", 0) or 0
+                    post.like_count = max(0, current - 1)
                 await session.commit()
                 return {"action": "unliked"}
 
             # 点赞
             like = BlogLike(post_id=post_id, user_id=user_id)
             session.add(like)
+            post_result = await session.execute(
+                select(BlogPost).where(BlogPost.id == post_id)
+            )
+            post = post_result.scalar_one_or_none()
+            if post:
+                current = getattr(post, "like_count", 0) or 0
+                post.like_count = current + 1
             await session.commit()
             return {"action": "liked"}
 
@@ -939,7 +973,7 @@ class BlogService:
                 "page_size": page_size,
             }
 
-    async def approve_post(self, post_id: uuid.UUID) -> dict:
+    async def approve_post(self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None) -> dict:
         """通过审核（P0）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -956,12 +990,28 @@ class BlogService:
                 )
 
             post.status = "published"
+
+            from datetime import datetime, timezone
+            from uuid import uuid4
+
+            record = ModerationRecord(
+                id=uuid4(),
+                target_type="post",
+                target_id=str(post.id),
+                submitter_id=post.author_id,
+                reviewer_id=reviewer_id,
+                status="approved",
+                reviewed_at=datetime.now(timezone.utc),
+            )
+            record.generate_sid("modr")
+            session.add(record)
+
             await session.commit()
             await session.refresh(post)
 
             return self._post_to_dict(post)
 
-    async def reject_post(self, post_id: uuid.UUID) -> dict:
+    async def reject_post(self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None) -> dict:
         """拒绝审核（P0）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -978,6 +1028,22 @@ class BlogService:
                 )
 
             post.status = "rejected"
+
+            from datetime import datetime, timezone
+            from uuid import uuid4
+
+            record = ModerationRecord(
+                id=uuid4(),
+                target_type="post",
+                target_id=str(post.id),
+                submitter_id=post.author_id,
+                reviewer_id=reviewer_id,
+                status="rejected",
+                reviewed_at=datetime.now(timezone.utc),
+            )
+            record.generate_sid("modr")
+            session.add(record)
+
             await session.commit()
             await session.refresh(post)
 
