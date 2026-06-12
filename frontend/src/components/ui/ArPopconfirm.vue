@@ -48,14 +48,6 @@ function toggle() {
   }
 }
 
-function show() {
-  if (props.disabled) return
-  visible.value = true
-  nextTick(() => {
-    wrapperRef.value?.focus()
-  })
-}
-
 function hide() {
   visible.value = false
 }
