@@ -1,9 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "arche"
+version = "0.4.0"
 description = "Personal modular platform - microkernel architecture"
 license = "Apache-2.0"
 requires-python = ">=3.10"
-
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
@@ -16,29 +20,21 @@ dependencies = [
     "httpx>=0.27",
     "apscheduler>=3.10",
     "python-multipart>=0.0.26",
-    # System monitoring
-    "psutil>=5.9",
-    # Aliyun ECS SDK (cloud training provider)
-    "aliyun-python-sdk-core>=2.13",
+    "psutil>=5.9",  # System monitoring
+    "aliyun-python-sdk-core>=2.13",  # Aliyun ECS SDK (cloud training provider)
     "aliyun-python-sdk-ecs>=4.24",
-    # Aliyun OSS SDK
-    "oss2>=2.18",
-    # MinIO SDK (local object storage)
-    "minio>=7.2",
-    # SSH/SFTP (cloud training remote deployment)
-    "asyncssh>=2.14",
-    # Async file operations
-    "aiofiles>=23.0",
-    # HTML parsing (crawler link extraction)
-    "beautifulsoup4>=4.12",
-    # DOCX parsing (blog import)
-    "python-docx>=1.1",
-    # SQLite async driver (dev default)
-    "aiosqlite>=0.20",
-    # PostgreSQL async driver (production)
-    "asyncpg>=0.30",
+    "oss2>=2.18",  # Aliyun OSS SDK
+    "minio>=7.2",  # MinIO SDK (local object storage)
+    "asyncssh>=2.14",  # SSH/SFTP (cloud training remote deployment)
+    "python-docx>=1.1",  # DOCX parsing (blog import)
+    "aiosqlite>=0.20",  # SQLite async driver (dev default)
+    "asyncpg>=0.30",  # PostgreSQL async driver (production)
     "pydantic-settings>=2.14.0",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/"]
+exclude = ["backend/tests", "backend/scripts", "**/__pycache__"]
 
 [dependency-groups]
 dev = [
@@ -81,3 +77,4 @@ markers = [
     "cli: 标记需要 GitHub CLI 的测试",
     "http: 标记需要 HTTP 连接的测试",
 ]
+

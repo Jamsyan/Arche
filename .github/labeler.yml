@@ -3,20 +3,26 @@
 # Reference: https://github.com/actions/labeler
 
 "area: backend":
-  - backend/**/*
+  - changed-files:
+      - any-glob-to-any-file: "backend/**/*"
 
 "area: frontend":
-  - frontend/src/**/*
+  - changed-files:
+      - any-glob-to-any-file: "frontend/src/**/*"
 
 "area: ci-cd":
-  - .github/workflows/**/*
-  - Dockerfile*
-  - docker-compose*.yml
-  - nginx/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**/*"
+          - "Dockerfile*"
+          - "docker-compose*.yml"
+          - "nginx/**/*"
 
 "type: docs":
-  - docs/**/*
-  - README.md
-  - CONTRIBUTING.md
-  - SECURITY.md
-  - AGENTS.md
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**/*"
+          - "README.md"
+          - "CONTRIBUTING.md"
+          - "SECURITY.md"
+          - "AGENTS.md"

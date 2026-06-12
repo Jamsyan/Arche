@@ -259,7 +259,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NModal, NIcon, useMessage } from 'naive-ui'
 import {
@@ -287,6 +287,7 @@ import {
 } from '@/services/api'
 import { uploadOssFileApi } from '@/services/api/oss'
 import { useLocalFiles } from '@/composables/useLocalFiles'
+import { marked } from 'marked'
 import { getCoverGradient } from '@/utils/cover'
 import { generateTextCover } from '@/utils/generateTextCover'
 import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
@@ -312,6 +313,7 @@ const editorAccess = ref<number>(5)
 const coverUrl = ref('')
 const coverFile = ref<File | null>(null) // 用户通过 CoverUploader 选择的本地文件
 const { stagedFiles, stageFiles, getReferencedFiles, clearStaged } = useLocalFiles()
+const pendingImport = ref<any>(null) // 文件导入后待填充到编辑器的数据
 const statsPost = ref<BlogPost | null>(null)
 const showStatsModal = ref(false)
 const hoveredPost = ref<BlogPost | null>(null)
@@ -384,37 +386,39 @@ const handleFileSelected = async (e: Event) => {
 
   try {
     const result = await uploadPostFileApi(file, { silent: true })
-    // 上传成功后，打开编辑器并填充内容
     isCreatingNew.value = true
     editingPost.value = null
     editorTags.value = (result as any)?.tags || []
     editorAccess.value = 5
     isEditorOpen.value = true
-    // 填充内容到编辑器
-    // 由于 PostEditor 通过 ref 暴露了 title 和 content
-    await nextTick()
-    if (editorRef.value && result) {
-      // result 是后端返回的 BlogPost 对象
-      editorRef.value.title = (result as any).title || ''
-      editorRef.value.content = (result as any).content || ''
-      // 无封面时自动生成渐变色封面
-      if ((result as any).cover_url) {
-        coverUrl.value = (result as any).cover_url
-      } else {
-        coverUrl.value = getCoverGradient({
-          title: (result as any).title,
-          tags: (result as any).tags
-        })
-      }
-    }
+    // 存储导入数据，由 watch(editorRef) 在编辑器挂载后自动填充
+    pendingImport.value = result
     message.success('文件导入成功')
   } catch {
     message.error('文件导入失败，请重试')
   } finally {
-    // 重置文件输入
     input.value = ''
   }
 }
+
+// 编辑器挂载后填充导入的 MD 文件内容
+watch(editorRef, (editor) => {
+  if (editor && pendingImport.value) {
+    const data = pendingImport.value as any
+    editor.title = data.title || ''
+    const rawContent = data.content || ''
+    editor.content = rawContent ? (marked.parse(rawContent, { gfm: true }) as string) : ''
+    if (data.cover_url) {
+      coverUrl.value = data.cover_url
+    } else {
+      coverUrl.value = getCoverGradient({
+        title: data.title,
+        tags: data.tags
+      })
+    }
+    pendingImport.value = null
+  }
+})
 
 const handleOpenPost = (post: BlogPost) => router.push(`/blog/${post.slug}`)
 

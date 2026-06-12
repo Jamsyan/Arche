@@ -64,7 +64,7 @@ class TestParameterPollution:
                 f"Param pollution {desc} not rejected: got {resp.status_code}"
             )
             data = resp.json()
-            assert "detail" in data
+            assert data["code"] == "validation_error"
 
     async def test_register_param_pollution(self, client):
         register_payloads = [

@@ -210,7 +210,7 @@ async def get_notifications(request: Request):
                         "id": "disk-warning",
                         "type": "danger",
                         "icon": "\U0001f4be",
-                        "title": f"磁盘使用率 {disk}%",
+                        "title": f"磁盘使用率 {round(disk)}%",
                         "desc": "磁盘即将写满",
                         "route": "/admin/ops/system",
                         "count": 1,

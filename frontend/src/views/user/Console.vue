@@ -314,8 +314,8 @@ const systemBars = computed(() => {
   if (!s) return []
   return [
     { label: 'CPU', percent: Math.round(s.cpu_percent ?? 0), color: '#9a5a2f' },
-    { label: '内存', percent: s.memory_percent ?? 0, color: '#4f7a57' },
-    { label: '磁盘', percent: s.disk_percent ?? 0, color: '#1890ff' }
+    { label: '内存', percent: Math.round(s.memory_percent ?? 0), color: '#4f7a57' },
+    { label: '磁盘', percent: Math.round(s.disk_percent ?? 0), color: '#1890ff' }
   ]
 })
 
