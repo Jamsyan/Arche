@@ -10,7 +10,7 @@ export interface LoginParams {
 export interface RegisterParams {
   email: string
   username: string
-  nickname?: string
+  nickname: string
   password: string
 }
 
