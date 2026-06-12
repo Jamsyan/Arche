@@ -5,6 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "arche"
 version = "0.2.0"
+version = "0.1.0"
 description = "Personal modular platform - microkernel architecture"
 license = "Apache-2.0"
 requires-python = ">=3.10"
@@ -89,3 +90,6 @@ markers = [
     "cli: 标记需要 GitHub CLI 的测试",
     "http: 标记需要 HTTP 连接的测试",
 ]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
