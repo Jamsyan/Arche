@@ -310,7 +310,7 @@ class BlogService:
             stripped = p.strip()
             if not stripped:
                 continue
-            if buffer and (stripped.startswith(">") or "<blockquote>" in stripped):
+            if stripped.startswith(">") or "<blockquote>" in stripped:
                 buffer.append(stripped)
             else:
                 if buffer:
