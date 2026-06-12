@@ -117,7 +117,13 @@ describe('generateTextCover', () => {
       content: '',
       tags: [],
       paragraphs: [
-        { pid: 'p2', index: 0, content: '<p>这是<strong>HTML</strong>内容</p>', type: 'text', word_count: 4 } as ParagraphData
+        {
+          pid: 'p2',
+          index: 0,
+          content: '<p>这是<strong>HTML</strong>内容</p>',
+          type: 'text',
+          word_count: 4
+        } as ParagraphData
       ]
     }
 
