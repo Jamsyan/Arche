@@ -211,3 +211,17 @@
 - 保持现有的 skill 结构，未来按需扩展
 
 **教训：** 大型项目的治理模式可以降维借鉴。不需要复制 151 个工作流，但 PR 自动标签和 Nitpicks 是低成本高收益的基础设施，适合任何规模的项目。
+
+---
+
+### 2026-06-12: Windows PowerShell 下 gh issue create 含特殊字符的 body 会失败
+
+**背景：** 在 Windows PowerShell 中通过 `gh issue create --body` 创建 Issue，body 包含反引号、中文引号、换行等特殊字符。
+
+**问题：** PowerShell 将 body 参数中的特殊字符（如 `` ` ``、`"`、`'`）解释为 PowerShell 语法，导致报错 `unknown argument`。
+
+**根因分析：** PowerShell 对命令行参数的解析规则与 bash 不同。即使使用单引号包裹，body 中的反引号和嵌套引号仍会导致解析错误。
+
+**解决：** 改用 `--body-file <file>` 参数，将 body 内容写入临时文件再传入。这种方式完全绕过了 PowerShell 的命令行解析问题。
+
+**教训：** 在 Windows PowerShell 环境下，`gh issue create` 涉及多行含特殊字符的 body 时，始终用 `--body-file` 替代 `--body`。临时文件用完记得清理。

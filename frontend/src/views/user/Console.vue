@@ -313,7 +313,7 @@ const systemBars = computed(() => {
   const s = dashboard.value.system
   if (!s) return []
   return [
-    { label: 'CPU', percent: s.cpu_percent ?? 0, color: '#9a5a2f' },
+    { label: 'CPU', percent: Math.round(s.cpu_percent ?? 0), color: '#9a5a2f' },
     { label: '内存', percent: s.memory_percent ?? 0, color: '#4f7a57' },
     { label: '磁盘', percent: s.disk_percent ?? 0, color: '#1890ff' }
   ]

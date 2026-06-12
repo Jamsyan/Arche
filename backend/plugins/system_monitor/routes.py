@@ -197,7 +197,7 @@ async def get_notifications(request: Request):
                         "id": "cpu-warning",
                         "type": "danger",
                         "icon": "\U0001f534",
-                        "title": f"CPU 负载 {cpu}%",
+                        "title": f"CPU 负载 {round(cpu)}%",
                         "desc": f"系统 CPU 使用率超过 {cpu_warn_threshold}% 警戒线",
                         "route": "/admin/ops/system",
                         "count": 1,
