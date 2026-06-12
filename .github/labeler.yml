@@ -3,20 +3,13 @@
 # Reference: https://github.com/actions/labeler
 
 "area: backend":
-  - backend/**/*
+  - any: ["backend/**/*"]
 
 "area: frontend":
-  - frontend/src/**/*
+  - any: ["frontend/src/**/*"]
 
 "area: ci-cd":
-  - .github/workflows/**/*
-  - Dockerfile*
-  - docker-compose*.yml
-  - nginx/**/*
+  - any: [".github/workflows/**/*", "Dockerfile*", "docker-compose*.yml", "nginx/**/*"]
 
 "type: docs":
-  - docs/**/*
-  - README.md
-  - CONTRIBUTING.md
-  - SECURITY.md
-  - AGENTS.md
+  - any: ["docs/**/*", "README.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md"]
