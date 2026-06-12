@@ -10,6 +10,7 @@
   { "name": "area: backend",    "color": "000000", "description": "后端相关" },
   { "name": "area: frontend",   "color": "1d76db", "description": "前端相关" },
   { "name": "area: ci/cd",      "color": "5319e7", "description": "CI/CD 相关" },
+  { "name": "area: bot",       "color": "006b75", "description": "规则引擎机器人系统" },
 
   { "name": "priority: high",   "color": "e11d21", "description": "高优先级" },
   { "name": "priority: medium", "color": "eb6420", "description": "中优先级" },
