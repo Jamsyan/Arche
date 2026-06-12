@@ -1,9 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "arche"
+version = "0.2.0"
 version = "0.1.0"
 description = "Personal modular platform - microkernel architecture"
 license = "Apache-2.0"
 requires-python = ">=3.10"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/"]
 
 dependencies = [
     "fastapi>=0.110",
