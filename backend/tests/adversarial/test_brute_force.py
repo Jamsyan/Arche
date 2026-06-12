@@ -28,6 +28,7 @@ class TestBruteForceProtection:
                 "email": unique_email,
                 "username": unique_email.split("@")[0],
                 "password": "testpass123",
+                "nickname": "testuser",
             },
         )
         assert register_resp.status_code == 200
@@ -56,6 +57,7 @@ class TestBruteForceProtection:
                 "email": "empty-pass@test.com",
                 "username": "emptypasstest",
                 "password": "",
+                "nickname": "testuser",
             },
         )
         assert resp.status_code == 422
@@ -67,6 +69,7 @@ class TestBruteForceProtection:
                 "email": "short-pass@test.com",
                 "username": "shortpasstest",
                 "password": "a",
+                "nickname": "testuser",
             },
         )
         assert resp.status_code == 422
@@ -79,6 +82,7 @@ class TestBruteForceProtection:
                 "email": "long-pass@test.com",
                 "username": "longpasstest",
                 "password": long_password,
+                "nickname": "testuser",
             },
         )
         assert resp.status_code == 422

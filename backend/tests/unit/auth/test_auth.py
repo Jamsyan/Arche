@@ -29,7 +29,7 @@ class TestRegister:
     async def test_register_success_returns_user_and_tokens(self, db_container):
         """正常注册应返回用户信息和 token。"""
         service = AuthService(db_container)
-        result = await service.register("test@example.com", "testuser", "password123")
+        result = await service.register("test@example.com", "testuser", nickname="test_user", password="password123")
 
         assert "user" in result
         assert "access_token" in result
@@ -41,7 +41,7 @@ class TestRegister:
     async def test_first_user_is_p0(self, db_container):
         """第一个注册用户自动为 P0 等级。"""
         service = AuthService(db_container)
-        result = await service.register("admin@example.com", "admin", "password123")
+        result = await service.register("admin@example.com", "admin", nickname="test_user", password="password123")
         assert result["user"]["level"] == 0
 
     @pytest.mark.asyncio
@@ -49,9 +49,9 @@ class TestRegister:
         """后续注册用户默认为 P5 等级。"""
         service = AuthService(db_container)
         # 第一个用户
-        await service.register("admin@example.com", "admin", "password123")
+        await service.register("admin@example.com", "admin", nickname="test_user", password="password123")
         # 第二个用户
-        result = await service.register("user@example.com", "user", "password123")
+        result = await service.register("user@example.com", "user", nickname="test_user", password="password123")
         assert result["user"]["level"] == 5
 
     @pytest.mark.asyncio
@@ -60,7 +60,7 @@ class TestRegister:
         service = AuthService(db_container)
 
         with pytest.raises(AppError) as excinfo:
-            await service.register("not-an-email", "testuser", "password123")
+            await service.register("not-an-email", "testuser", nickname="test_user", password="password123")
 
         assert excinfo.value.code == "invalid_email"
         assert excinfo.value.status_code == 400
@@ -71,7 +71,7 @@ class TestRegister:
         service = AuthService(db_container)
 
         with pytest.raises(AppError) as excinfo:
-            await service.register("   ", "testuser", "password123")
+            await service.register("   ", "testuser", nickname="test_user", password="password123")
 
         assert excinfo.value.code == "invalid_email"
 
@@ -79,10 +79,10 @@ class TestRegister:
     async def test_duplicate_email_raises_error(self, db_container):
         """邮箱已被使用应抛出错误。"""
         service = AuthService(db_container)
-        await service.register("test@example.com", "user1", "password123")
+        await service.register("test@example.com", "user1", nickname="test_user", password="password123")
 
         with pytest.raises(AppError) as excinfo:
-            await service.register("test@example.com", "user2", "password123")
+            await service.register("test@example.com", "user2", nickname="test_user", password="password123")
 
         assert excinfo.value.code == "email_exists"
         assert excinfo.value.status_code == 409
@@ -91,10 +91,10 @@ class TestRegister:
     async def test_duplicate_email_case_insensitive(self, db_container):
         """邮箱大小写不敏感，TEST@example.com 视为与 test@example.com 相同。"""
         service = AuthService(db_container)
-        await service.register("test@example.com", "user1", "password123")
+        await service.register("test@example.com", "user1", nickname="test_user", password="password123")
 
         with pytest.raises(AppError) as excinfo:
-            await service.register("TEST@example.com", "user2", "password123")
+            await service.register("TEST@example.com", "user2", nickname="test_user", password="password123")
 
         assert excinfo.value.code == "email_exists"
 
@@ -102,10 +102,10 @@ class TestRegister:
     async def test_duplicate_username_raises_error(self, db_container):
         """用户名已存在应抛出错误。"""
         service = AuthService(db_container)
-        await service.register("user1@example.com", "sameuser", "password123")
+        await service.register("user1@example.com", "sameuser", nickname="test_user", password="password123")
 
         with pytest.raises(AppError) as excinfo:
-            await service.register("user2@example.com", "sameuser", "password123")
+            await service.register("user2@example.com", "sameuser", nickname="test_user", password="password123")
 
         assert excinfo.value.code == "username_exists"
         assert excinfo.value.status_code == 409
@@ -123,7 +123,7 @@ class TestLogin:
     async def test_user(self, db_container):
         """创建一个测试用户供登录测试使用。"""
         service = AuthService(db_container)
-        result = await service.register("login@example.com", "loginuser", "password123")
+        result = await service.register("login@example.com", "loginuser", nickname="test_user", password="password123")
         return result["user"]
 
     @pytest.mark.asyncio
@@ -193,7 +193,7 @@ class TestToken:
     async def test_user_tokens(self, db_container):
         """创建测试用户并获取 token。"""
         service = AuthService(db_container)
-        result = await service.register("token@example.com", "tokenuser", "password123")
+        result = await service.register("token@example.com", "tokenuser", nickname="test_user", password="password123")
         return result
 
     @pytest.mark.asyncio
@@ -273,7 +273,7 @@ class TestUserManagement:
         users = []
         for i in range(5):
             result = await service.register(
-                f"user{i}@example.com", f"user{i}", "password123"
+                f"user{i}@example.com", f"user{i}", nickname="test_user", password="password123"
             )
             users.append(result["user"])
         return users
@@ -404,7 +404,7 @@ class TestAdminCreateUser:
         """管理员创建用户应成功。"""
         service = AuthService(db_container)
         result = await service.admin_create_user(
-            "admin@example.com", "adminuser", "password123"
+            "admin@example.com", "adminuser", nickname="test_user", password="password123"
         )
 
         assert result["email"] == "admin@example.com"
@@ -416,7 +416,7 @@ class TestAdminCreateUser:
         """管理员创建用户可以指定等级。"""
         service = AuthService(db_container)
         result = await service.admin_create_user(
-            "admin@example.com", "adminuser", "password123", level=1
+            "admin@example.com", "adminuser", nickname="test_user", password="password123", level=1
         )
 
         assert result["level"] == 1
@@ -426,7 +426,7 @@ class TestAdminCreateUser:
         """管理员创建的第一个用户不会自动变成 P0。"""
         service = AuthService(db_container)
         result = await service.admin_create_user(
-            "admin@example.com", "adminuser", "password123"
+            "admin@example.com", "adminuser", nickname="test_user", password="password123"
         )
 
         assert result["level"] == 5  # 不是 P0

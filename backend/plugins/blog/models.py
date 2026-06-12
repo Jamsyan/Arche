@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, JSON, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,8 +36,24 @@ class BlogPost(Base, HasSID):
     paragraph_ids: Mapped[list | None] = mapped_column(
         JSON, nullable=True, default=None
     )
+    # 功能标记
+    is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    category_id: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+    # 反范式计数（避免频繁 COUNT 查询）
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    comment_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
     )
 
 
@@ -85,8 +101,16 @@ class BlogComment(Base, HasSID):
     paragraph_pid: Mapped[str | None] = mapped_column(
         String(64), nullable=True, default=None
     )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="visible"
+    )  # visible / hidden / deleted
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -134,6 +158,9 @@ class BlogTag(Base, HasSID):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    color: Mapped[str | None] = mapped_column(
+        String(8), nullable=True, default=None
+    )  # 十六进制，如 #FF6B6B
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -187,6 +214,62 @@ class PostFile(Base, HasSID):
     file_index: Mapped[int] = mapped_column(Integer, nullable=False)  # #N 编号
     # temp: 临时上传，persisted: 已持久化（被引用），orphaned: 未被引用待清理
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="temp")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ModerationRecord(Base, HasSID):
+    """审核记录表：追踪内容审核全流程。"""
+
+    __tablename__ = "moderation_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    target_type: Mapped[str] = mapped_column(
+        String(32), nullable=False
+    )  # post / comment / user
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    submitter_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    reviewer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, default=None
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pending"
+    )  # pending / approved / rejected
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+
+class ChangeLog(Base, HasSID):
+    """变更审计日志表：记录字段级别的改前/改后。"""
+
+    __tablename__ = "change_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    target_type: Mapped[str] = mapped_column(
+        String(32), nullable=False
+    )  # post / comment / user
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    operator_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    operation: Mapped[str] = mapped_column(
+        String(32), nullable=False
+    )  # create / update / delete / review
+    changes: Mapped[dict] = mapped_column(
+        JSON, nullable=False
+    )  # {"field": {"old": "", "new": ""}}
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

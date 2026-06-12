@@ -37,6 +37,7 @@ async def seed_blog_posts(in_memory_db, db_container):
     result = await svc.register(
         email="asset_admin@example.com",
         username="asset_admin",
+        nickname="test_user",
         password="password123",
     )
     admin_id = uuid.UUID(result["user"]["id"])
@@ -50,7 +51,6 @@ async def seed_blog_posts(in_memory_db, db_container):
             author_id=admin_id,
             title="资产测试文章1",
             slug="asset-test-post-1",
-            content="这是资产测试文章的内容。",
             status="published",
             required_level=5,
         )
@@ -62,7 +62,6 @@ async def seed_blog_posts(in_memory_db, db_container):
             author_id=admin_id,
             title="资产测试文章2",
             slug="asset-test-post-2",
-            content="Python 相关技术文章。",
             status="pending",
             required_level=5,
         )

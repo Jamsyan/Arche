@@ -43,6 +43,7 @@ class TestRegisterAPI:
                 "email": "newuser@example.com",
                 "username": "newuser",
                 "password": "password123",
+                "nickname": "testuser",
             },
         )
         assert response.status_code == 200
@@ -62,6 +63,7 @@ class TestRegisterAPI:
                 "email": "first@example.com",
                 "username": "firstuser",
                 "password": "password123",
+                "nickname": "testuser",
             },
         )
         assert response.status_code == 200
@@ -75,6 +77,7 @@ class TestRegisterAPI:
                 "email": "admin2@example.com",
                 "username": "admin2",
                 "password": "password123",
+                "nickname": "testuser",
             },
         )
         response = await client.post(
@@ -83,6 +86,7 @@ class TestRegisterAPI:
                 "email": "normal@example.com",
                 "username": "normaluser",
                 "password": "password123",
+                "nickname": "testuser",
             },
         )
         assert response.status_code == 200
@@ -96,6 +100,7 @@ class TestRegisterAPI:
                 "email": "dupe@example.com",
                 "username": "user1",
                 "password": "password123",
+                "nickname": "testuser",
             },
         )
         response = await client.post(
@@ -104,6 +109,7 @@ class TestRegisterAPI:
                 "email": "dupe@example.com",
                 "username": "user2",
                 "password": "password123",
+                "nickname": "testuser2",
             },
         )
         assert response.status_code == 409
@@ -117,6 +123,7 @@ class TestRegisterAPI:
                 "email": "not-an-email",
                 "username": "testuser",
                 "password": "password123",
+                "nickname": "testuser",
             },
         )
         assert response.status_code == 400
@@ -130,7 +137,7 @@ class TestLoginAPI:
         """辅助函数：注册用户并返回响应。"""
         return await client.post(
             "/api/auth/register",
-            json={"email": email, "username": username, "password": password},
+            json={"email": email, "username": username, "password": password, "nickname": "testuser"},
         )
 
     async def test_login_with_email_success(self, client):
@@ -211,6 +218,7 @@ class TestMeAndRefreshAPI:
         result = await svc.register(
             email="refreshme@example.com",
             username="refreshuser",
+            nickname="test_user",
             password="password123",
         )
         refresh_token = result["refresh_token"]
@@ -265,6 +273,7 @@ class TestUserManagementAPI:
                 "email": "createdbyadmin@example.com",
                 "username": "admincreated",
                 "password": "password123",
+                "nickname": "admincreated",
                 "level": 3,
             },
             headers=admin_headers,
@@ -282,6 +291,7 @@ class TestUserManagementAPI:
         user_result = await svc.register(
             email="target@example.com",
             username="targetuser",
+            nickname="test_user",
             password="password123",
         )
         target_user_id = user_result["user"]["id"]

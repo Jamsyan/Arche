@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 class RegisterRequest(BaseModel):
     email: str = Field(..., min_length=1, max_length=128, description="邮箱")
     username: str = Field(..., min_length=2, max_length=64, description="用户名")
+    nickname: str = Field(..., min_length=1, max_length=64, description="昵称")
     password: str = Field(..., min_length=6, max_length=128, description="密码")
 
 
@@ -31,6 +32,53 @@ class RefreshRequest(BaseModel):
     refresh_token: str = Field(..., description="Refresh token")
 
 
+class UpdateUserRequest(BaseModel):
+    level: int | None = Field(None, ge=0, le=10, description="用户等级")
+    is_active: bool | None = Field(None, description="是否启用")
+    nickname: str | None = Field(None, min_length=1, max_length=64, description="昵称")
+    avatar: str | None = Field(None, max_length=1024, description="头像 URL")
+    bio: str | None = Field(None, description="个人简介")
+    links: list[str] | None = Field(None, description="个人链接列表")
+
+
+class UpdateUserSettingsRequest(BaseModel):
+    default_post_permission: str | None = Field(None, description="发帖默认权限等级")
+    language: str | None = Field(None, description="界面语言偏好")
+    theme: str | None = Field(None, description="界面主题")
+    notify_comment_reply: bool | None = Field(None, description="评论回复通知")
+    notify_like: bool | None = Field(None, description="点赞通知")
+    notify_system: bool | None = Field(None, description="系统公告通知")
+    privacy_show_online: bool | None = Field(None, description="展示在线状态")
+    privacy_show_login_history: bool | None = Field(None, description="公开登录历史")
+    privacy_show_badges: bool | None = Field(None, description="展示徽章")
+    default_post_status: str | None = Field(None, description="发帖默认状态")
+    auto_save_interval: int | None = Field(None, description="自动保存间隔（秒）")
+    extras: dict | None = Field(None, description="扩展设置")
+
+
+class CreateUserRequest(BaseModel):
+    email: str = Field(..., min_length=1, max_length=128, description="邮箱")
+    username: str = Field(..., min_length=2, max_length=64, description="用户名")
+    nickname: str = Field(..., min_length=1, max_length=64, description="昵称")
+    password: str = Field(..., min_length=6, max_length=128, description="密码")
+    level: int | None = Field(None, ge=0, le=10, description="用户等级（默认 5）")
+
+
+class SoftDeleteUserRequest(BaseModel):
+    reason: str = Field(
+        ...,
+        pattern=r"^(violation|user_request)$",
+        description="删号原因: violation(违规) / user_request(用户主动注销)",
+    )
+    expires_in_days: int = Field(
+        ..., ge=30, le=90, description="永久清理过期天数: 30/60/90"
+    )
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=6, max_length=128, description="新密码")
+
+
 # --- 路由 ---
 @router.post("/register")
 async def register(req: RegisterRequest, request: Request):
@@ -40,6 +88,7 @@ async def register(req: RegisterRequest, request: Request):
     result = await auth_service.register(
         email=req.email,
         username=req.username,
+        nickname=req.nickname,
         password=req.password,
     )
     return {"code": "ok", "message": "注册成功", "data": result}
@@ -103,12 +152,48 @@ async def refresh(req: RefreshRequest, request: Request):
     return {"code": "ok", "message": "刷新成功", "data": result}
 
 
+# --- 用户设置 ---
+@router.get("/settings")
+async def get_my_settings(request: Request):
+    """获取当前用户设置。"""
+    user = require_user(request)
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    result = await auth_service.get_user_settings(uuid.UUID(user["id"]))
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
+@router.put("/settings")
+async def update_my_settings(req: UpdateUserSettingsRequest, request: Request):
+    """更新当前用户设置。"""
+    user = require_user(request)
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    result = await auth_service.update_user_settings(
+        uuid.UUID(user["id"]), updates
+    )
+    return {"code": "ok", "message": "更新成功", "data": result}
+
+
+# --- 登录历史 ---
+@router.get("/login-history")
+async def get_my_login_history(
+    request: Request,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+):
+    """获取当前用户登录历史。"""
+    user = require_user(request)
+    container: ServiceContainer = request.app.state.container
+    auth_service = container.get("auth")
+    result = await auth_service.get_login_history(
+        uuid.UUID(user["id"]), page=page, page_size=page_size
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
 # --- 管理端点（P0） ---
-class UpdateUserRequest(BaseModel):
-    level: int | None = Field(None, ge=0, le=10, description="用户等级")
-    is_active: bool | None = Field(None, description="是否启用")
-
-
 @router.get("/users")
 @require_level(0)
 async def list_users(
@@ -141,12 +226,17 @@ async def get_user(user_id: str, request: Request):
 @router.put("/users/{user_id}")
 @require_level(0)
 async def update_user(user_id: str, req: UpdateUserRequest, request: Request):
-    """修改用户等级/状态（P0）。"""
-
+    """修改用户信息（P0）。"""
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.update_user(
-        uuid.UUID(user_id), level=req.level, is_active=req.is_active
+        uuid.UUID(user_id),
+        level=req.level,
+        is_active=req.is_active,
+        nickname=req.nickname,
+        avatar=req.avatar,
+        bio=req.bio,
+        links=req.links,
     )
     return {"code": "ok", "message": "修改成功", "data": result}
 
@@ -155,7 +245,6 @@ async def update_user(user_id: str, req: UpdateUserRequest, request: Request):
 @require_level(0)
 async def delete_user(user_id: str, request: Request):
     """禁用用户（P0）。"""
-
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     await auth_service.disable_user(uuid.UUID(user_id))
@@ -166,7 +255,6 @@ async def delete_user(user_id: str, request: Request):
 @require_level(0)
 async def disable_user(user_id: str, request: Request):
     """禁用用户（P0）。不能禁用自己。"""
-
     current_user = require_user(request)
     if str(current_user["id"]) == user_id:
         return {"code": "forbidden", "message": "不能禁用自己", "data": {}}
@@ -181,7 +269,6 @@ async def disable_user(user_id: str, request: Request):
 @require_level(0)
 async def enable_user(user_id: str, request: Request):
     """启用用户（P0）。"""
-
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.enable_user(uuid.UUID(user_id))
@@ -192,7 +279,6 @@ async def enable_user(user_id: str, request: Request):
 @require_level(0)
 async def soft_delete_user(user_id: str, req: SoftDeleteUserRequest, request: Request):
     """软删除用户（P0）：标记删除状态、原因和过期时间。"""
-
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     result = await auth_service.soft_delete_user(
@@ -215,28 +301,6 @@ async def reset_password(
     return {"code": "ok", "message": "密码重置成功", "data": result}
 
 
-class CreateUserRequest(BaseModel):
-    email: str = Field(..., min_length=1, max_length=128, description="邮箱")
-    username: str = Field(..., min_length=2, max_length=64, description="用户名")
-    password: str = Field(..., min_length=6, max_length=128, description="密码")
-    level: int | None = Field(None, ge=0, le=10, description="用户等级（默认 5）")
-
-
-class SoftDeleteUserRequest(BaseModel):
-    reason: str = Field(
-        ...,
-        pattern=r"^(violation|user_request)$",
-        description="删号原因: violation(违规) / user_request(用户主动注销)",
-    )
-    expires_in_days: int = Field(
-        ..., ge=30, le=90, description="永久清理过期天数: 30/60/90"
-    )
-
-
-class ResetPasswordRequest(BaseModel):
-    new_password: str = Field(..., min_length=6, max_length=128, description="新密码")
-
-
 @router.post("/admin/users")
 @require_level(0)
 async def admin_create_user(req: CreateUserRequest, request: Request):
@@ -246,6 +310,7 @@ async def admin_create_user(req: CreateUserRequest, request: Request):
     result = await auth_service.admin_create_user(
         email=req.email,
         username=req.username,
+        nickname=req.nickname,
         password=req.password,
         level=req.level if req.level is not None else 5,
     )

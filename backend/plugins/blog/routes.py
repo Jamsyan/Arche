@@ -24,6 +24,7 @@ class CreatePostRequest(BaseModel):
         None, description="段落列表，每项含 content/type/heading/media_url/caption"
     )
     tags: list[str] = Field(default_factory=list, description="标签列表")
+    cover_url: str | None = Field(None, max_length=1024, description="封面图片 URL")
     required_level: int = Field(
         default=5,
         ge=0,
@@ -36,6 +37,7 @@ class UpdatePostRequest(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=256, description="标题")
     introduction: dict | None = Field(None, description="引言 JSON")
     paragraphs: list[dict] | None = Field(None, description="段落列表")
+    cover_url: str | None = Field(None, max_length=1024, description="封面图片 URL")
     required_level: int | None = Field(
         None, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）"
     )
@@ -138,6 +140,7 @@ async def create_post(req: CreatePostRequest, request: Request):
         introduction=req.introduction,
         paragraphs_data=req.paragraphs,
         tags=req.tags,
+        cover_url=req.cover_url,
         required_level=req.required_level,
         user_level=user["level"],
     )
@@ -184,6 +187,7 @@ async def update_post(post_id: str, req: UpdatePostRequest, request: Request):
         title=req.title,
         introduction=req.introduction,
         paragraphs_data=req.paragraphs,
+        cover_url=req.cover_url,
         required_level=req.required_level,
         tags=req.tags,
         user_level=user["level"],

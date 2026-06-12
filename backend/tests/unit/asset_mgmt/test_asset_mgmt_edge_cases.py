@@ -26,14 +26,12 @@ async def asset_seed_data(db_container):
                     author_id=owner_id,
                     title="Model Notes",
                     slug="model-notes",
-                    content="notes about training and deployment",
                     created_at=now,
                 ),
                 BlogPost(
                     author_id=other_owner_id,
                     title="Other Notes",
                     slug="other-notes",
-                    content="not visible to owner",
                     created_at=now,
                 ),
                 OSSFile(

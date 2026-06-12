@@ -349,6 +349,7 @@ class BlogService:
         introduction: dict | None = None,
         paragraphs_data: list[dict] | None = None,
         tags: list[str] | None = None,
+        cover_url: str | None = None,
         required_level: int = 5,
         user_level: int = 5,
     ) -> dict:
@@ -405,6 +406,7 @@ class BlogService:
                 author_id=author_id,
                 title=title,
                 slug=slug,
+                cover_url=cover_url,
                 introduction=introduction,
                 status="pending",
                 required_level=required_level,
@@ -483,6 +485,7 @@ class BlogService:
         paragraphs_data: list[dict] | None = None,
         required_level: int | None = None,
         tags: list[str] | None = None,
+        cover_url: str | None = None,
         user_level: int = 5,
     ) -> dict:
         """编辑帖子（仅作者本人）。"""
@@ -504,6 +507,8 @@ class BlogService:
                 post.slug = await self.generate_slug(title, exclude_slug=post.slug)
             if introduction is not None:
                 post.introduction = introduction
+            if cover_url is not None:
+                post.cover_url = cover_url
             if paragraphs_data is not None:
                 # 删除旧段落
                 await session.execute(
@@ -535,6 +540,39 @@ class BlogService:
                         status_code=403,
                     )
                 post.required_level = required_level
+            # 处理标签更新
+            if tags is not None:
+                # 删除旧的标签关联
+                await session.execute(
+                    delete(BlogPostTag).where(BlogPostTag.post_id == post_id)
+                )
+                # 创建新的标签关联
+                for tag_name in tags[:MAX_TAGS_PER_POST]:
+                    normalized_name = tag_name.strip().lower()
+                    if not normalized_name:
+                        continue
+                    tag_result = await session.execute(
+                        select(BlogTag).where(
+                            func.lower(BlogTag.name) == normalized_name
+                        )
+                    )
+                    tag = tag_result.scalar_one_or_none()
+                    if not tag:
+                        try:
+                            tag = BlogTag(name=normalized_name)
+                            session.add(tag)
+                            await session.flush()
+                        except Exception:
+                            await session.rollback()
+                            tag_result = await session.execute(
+                                select(BlogTag).where(
+                                    func.lower(BlogTag.name) == normalized_name
+                                )
+                            )
+                            tag = tag_result.scalar_one_or_none()
+                            if not tag:
+                                continue
+                    session.add(BlogPostTag(post_id=post.id, tag_id=tag.id))
             # 仅标题变更才重新进入审核
             if title is not None:
                 post.status = "pending"
@@ -565,6 +603,9 @@ class BlogService:
                 )
 
             # 删除关联数据
+            await session.execute(
+                delete(BlogParagraph).where(BlogParagraph.post_id == post_id)
+            )
             await session.execute(
                 delete(BlogComment).where(BlogComment.post_id == post_id)
             )
@@ -1786,6 +1827,7 @@ class BlogService:
         return {
             "id": str(tag.id),
             "name": tag.name,
+            "color": tag.color,
             "created_at": tag.created_at.isoformat() if tag.created_at else None,
         }
 
@@ -1808,8 +1850,15 @@ class BlogService:
             "status": post.status,
             "views": post.views,
             "likes": likes_count,
+            "like_count": post.like_count,
+            "comment_count": post.comment_count,
             "required_level": post.required_level,
+            "is_pinned": post.is_pinned,
+            "is_featured": post.is_featured,
+            "category_id": post.category_id,
             "created_at": post.created_at.isoformat() if post.created_at else None,
+            "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+            "published_at": post.published_at.isoformat() if post.published_at else None,
         }
 
     def _comment_to_dict(
@@ -1823,8 +1872,13 @@ class BlogService:
             "content": comment.content,
             "parent_id": str(comment.parent_id) if comment.parent_id else None,
             "paragraph_pid": comment.paragraph_pid,
+            "status": comment.status,
+            "like_count": comment.like_count,
             "created_at": comment.created_at.isoformat()
             if comment.created_at
+            else None,
+            "updated_at": comment.updated_at.isoformat()
+            if comment.updated_at
             else None,
         }
 

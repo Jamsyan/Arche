@@ -38,6 +38,7 @@ class TestTokenLifecycle:
                 "email": email,
                 "username": email.split("@")[0],
                 "password": "testpass123",
+                "nickname": "testuser",
             },
         )
         assert reg_resp.status_code == 200
@@ -94,6 +95,7 @@ class TestTokenLifecycle:
                 "email": email,
                 "username": email.split("@")[0],
                 "password": "testpass123",
+                "nickname": "testuser",
             },
         )
         assert reg_resp.status_code == 200
