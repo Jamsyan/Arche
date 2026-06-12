@@ -99,12 +99,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    ref="wrapperRef"
-    class="ar-popconfirm"
-    tabindex="-1"
-    @click.stop="toggle"
-  >
+  <div ref="wrapperRef" class="ar-popconfirm" tabindex="-1" @click.stop="toggle">
     <div class="ar-popconfirm__trigger">
       <slot name="trigger" />
     </div>
@@ -128,18 +123,10 @@ onUnmounted(() => {
           </div>
           <div class="ar-popconfirm__actions">
             <slot name="action">
-              <ArButton
-                :type="negativeType"
-                size="sm"
-                @click="handleNegative"
-              >
+              <ArButton :type="negativeType" size="sm" @click="handleNegative">
                 {{ negativeText }}
               </ArButton>
-              <ArButton
-                :type="positiveType"
-                size="sm"
-                @click="handlePositive"
-              >
+              <ArButton :type="positiveType" size="sm" @click="handlePositive">
                 {{ positiveText }}
               </ArButton>
             </slot>
