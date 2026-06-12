@@ -10,7 +10,7 @@ export interface LoginParams {
 export interface RegisterParams {
   email: string
   username: string
-  nickname: string
+  nickname?: string
   password: string
 }
 
@@ -20,23 +20,25 @@ export interface UserInfo {
   username: string
   nickname: string
   email: string
-  avatar?: string
-  bio?: string
-  links?: string[]
-  badges?: string[]
+  avatar?: string | undefined
+  bio?: string | undefined
+  links?: string[] | undefined
+  badges?: string[] | undefined
   level: number
-  blog_quality_level?: number
-  is_active?: boolean
-  deletion_status?: string
-  deletion_reason?: string
-  deletion_expires_at?: string | null
-  deleted_at?: string | null
-  login_count?: number
-  last_login_at?: string | null
-  last_login_ip?: string | null
-  last_active_at?: string | null
-  created_at?: string
-  updated_at?: string
+  blog_quality_level?: number | undefined
+  is_active?: boolean | undefined
+  deletion_status?: string | undefined
+  deletion_reason?: string | undefined
+  deletion_expires_at?: string | null | undefined
+  deleted_at?: string | null | undefined
+  login_count?: number | undefined
+  last_login_at?: string | null | undefined
+  last_login_ip?: string | null | undefined
+  last_active_at?: string | null | undefined
+  created_at?: string | undefined
+  updated_at?: string | undefined
+  permissions?: string[]
+  birthday?: string
 }
 
 interface RawUserInfo {

@@ -43,7 +43,7 @@ export interface UpdateUserPayload {
 export interface CreateAdminUserPayload {
   email: string
   username: string
-  nickname: string
+  nickname?: string
   password: string
   level?: number
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import type { ParagraphData } from '@/services/api'
 
 defineProps<{
@@ -12,10 +13,12 @@ const emit = defineEmits<{
 }>()
 
 function renderContent(text: string): string {
-  return marked.parse(text, { gfm: true }) as string
+  const html = marked.parse(text, { gfm: true }) as string
+  return DOMPurify.sanitize(html)
 }
 </script>
 
+<!-- eslint-disable vue/no-v-html -->
 <template>
   <div
     class="paragraph-component"
@@ -45,6 +48,7 @@ function renderContent(text: string): string {
     <div v-else class="paragraph-text" v-html="renderContent(paragraph.content)" />
   </div>
 </template>
+<!-- eslint-enable vue/no-v-html -->
 
 <style scoped>
 .paragraph-component {

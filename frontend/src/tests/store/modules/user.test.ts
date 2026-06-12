@@ -46,7 +46,7 @@ describe('useUserStore', () => {
     it('有 token 和 userInfo 时为 true', () => {
       const store = useUserStore()
       store.token = 'mock-token'
-      store.userInfo = { id: '1', username: 'test', nickname: 'Test', permissions: [] }
+      store.userInfo = { id: '1', username: 'test', nickname: 'Test', email: 'test@test.com', level: 5, permissions: [] }
       expect(store.isLoggedIn).toBe(true)
     })
 
@@ -109,6 +109,7 @@ describe('useUserStore', () => {
         id: '1',
         username: 'testuser',
         nickname: '测试用户',
+        email: 'test@test.com',
         permissions: ['blog:read'],
         level: 5
       }
@@ -133,7 +134,7 @@ describe('useUserStore', () => {
       vi.mocked(loginApi).mockResolvedValueOnce({
         token: undefined as unknown as string,
         refresh_token: undefined,
-        userInfo: { id: '1', username: 'test', nickname: 'Test', permissions: [] }
+        userInfo: { id: '1', username: 'test', nickname: 'Test', email: 'test@test.com', level: 5, permissions: [] }
       })
 
       const store = useUserStore()
@@ -150,7 +151,7 @@ describe('useUserStore', () => {
       // 先登录
       const store = useUserStore()
       store.token = 'mock-token'
-      store.userInfo = { id: '1', username: 'test', nickname: 'Test', permissions: [] }
+      store.userInfo = { id: '1', username: 'testuser', nickname: 'Test', email: 'test@test.com', level: 5, permissions: [] }
       localStorage.setItem('token', 'mock-token')
 
       await store.logout()
@@ -166,7 +167,7 @@ describe('useUserStore', () => {
 
       const store = useUserStore()
       store.token = 'mock-token'
-      store.userInfo = { id: '1', username: 'test', nickname: 'Test', permissions: [] }
+      store.userInfo = { id: '1', username: 'test', nickname: 'Test', email: 'test@test.com', level: 5, permissions: [] }
 
       // logout 的 try/finally 中 finally 先执行，然后错误继续传播
       await expect(store.logout()).rejects.toThrow('Network error')
@@ -244,7 +245,7 @@ describe('useUserStore', () => {
       const store = useUserStore()
       store.token = 'test-token'
       store.refreshToken = 'test-refresh'
-      store.userInfo = { id: '1', username: 'test', nickname: 'Test', permissions: [] }
+      store.userInfo = { id: '1', username: 'test', nickname: 'Test', email: 'test@test.com', level: 5, permissions: [] }
 
       store.clearUserState()
 
@@ -273,7 +274,7 @@ describe('useUserStore', () => {
     it('调用 clearUserState 清除所有状态', () => {
       const store = useUserStore()
       store.token = 'test-token'
-      store.userInfo = { id: '1', username: 'test', nickname: 'Test', permissions: [] }
+      store.userInfo = { id: '1', username: 'test', nickname: 'Test', email: 'test@test.com', level: 5, permissions: [] }
 
       store.resetState()
 
