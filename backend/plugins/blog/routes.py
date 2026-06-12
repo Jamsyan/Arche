@@ -17,10 +17,12 @@ router = APIRouter(prefix="/api/blog", tags=["blog"])
 # --- 请求体模型 ---
 class CreatePostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256, description="标题")
-    intro: str | None = Field(
-        None, max_length=512, description="引言（封面文字截取用）"
+    introduction: dict | None = Field(
+        None, description="引言 JSON（含 abstract, background, purpose, key_points 等）"
     )
-    content: str = Field(..., min_length=1, description="正文内容")
+    paragraphs: list[dict] | None = Field(
+        None, description="段落列表，每项含 content/type/heading/media_url/caption"
+    )
     tags: list[str] = Field(default_factory=list, description="标签列表")
     required_level: int = Field(
         default=5,
@@ -28,24 +30,16 @@ class CreatePostRequest(BaseModel):
         le=5,
         description="阅读所需最低 P 等级（0-5，数字越小权限越高）",
     )
-    auto_cover_url: str | None = Field(
-        None, max_length=1024, description="自动生成封面 URL（无 cover_url 时使用）"
-    )
 
 
 class UpdatePostRequest(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=256, description="标题")
-    intro: str | None = Field(
-        None, max_length=512, description="引言（封面文字截取用）"
-    )
-    content: str | None = Field(None, min_length=1, description="正文内容")
+    introduction: dict | None = Field(None, description="引言 JSON")
+    paragraphs: list[dict] | None = Field(None, description="段落列表")
     required_level: int | None = Field(
         None, ge=0, le=5, description="阅读所需最低 P 等级（0-5，数字越小权限越高）"
     )
     tags: list[str] | None = Field(None, description="标签列表")
-    auto_cover_url: str | None = Field(
-        None, max_length=1024, description="自动生成封面 URL"
-    )
 
 
 class CreateCommentRequest(BaseModel):
@@ -141,11 +135,10 @@ async def create_post(req: CreatePostRequest, request: Request):
     result = await blog_service.create_post(
         author_id=author_id,
         title=req.title,
-        intro=req.intro,
-        content=req.content,
+        introduction=req.introduction,
+        paragraphs_data=req.paragraphs,
         tags=req.tags,
         required_level=req.required_level,
-        auto_cover_url=req.auto_cover_url,
         user_level=user["level"],
     )
     return {"code": "ok", "message": "发帖成功，等待审核", "data": result}
@@ -189,11 +182,10 @@ async def update_post(post_id: str, req: UpdatePostRequest, request: Request):
         post_id=uuid.UUID(post_id),
         author_id=author_id,
         title=req.title,
-        intro=req.intro,
-        content=req.content,
+        introduction=req.introduction,
+        paragraphs_data=req.paragraphs,
         required_level=req.required_level,
         tags=req.tags,
-        auto_cover_url=req.auto_cover_url,
         user_level=user["level"],
     )
     return {"code": "ok", "message": "编辑成功，重新进入审核", "data": result}
@@ -256,11 +248,32 @@ async def create_comment(post_id: str, req: CreateCommentRequest, request: Reque
     return {"code": "ok", "message": "评论成功", "data": result}
 
 
+# --- 段落查询（支持懒加载：limit/offset 控制） ---
+@router.get("/posts/{post_id}/paragraphs")
+async def get_post_paragraphs(
+    post_id: str,
+    request: Request,
+    limit: int | None = Query(
+        None, ge=1, le=100, description="限制段落数量（可选，用于懒加载）"
+    ),
+    offset: int = Query(0, ge=0, description="跳过的段落数（可选）"),
+):
+    """获取帖子的段落列表（按 paragraph_ids 顺序返回）。"""
+    container: ServiceContainer = request.app.state.container
+    blog_service = container.get("blog")
+    result = await blog_service.get_post_paragraphs(
+        post_id=uuid.UUID(post_id),
+        limit=limit,
+        offset=offset,
+    )
+    return {"code": "ok", "message": "获取成功", "data": result}
+
+
 # --- 段落评论（公开读，登录写） ---
-@router.get("/posts/{post_id}/paragraph-comments/{paragraph_index}")
+@router.get("/posts/{post_id}/paragraph-comments/{paragraph_pid}")
 async def get_paragraph_comments(
     post_id: str,
-    paragraph_index: int,
+    paragraph_pid: str,
     request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
@@ -270,16 +283,16 @@ async def get_paragraph_comments(
     blog_service = container.get("blog")
     result = await blog_service.get_paragraph_comments(
         post_id=uuid.UUID(post_id),
-        paragraph_index=paragraph_index,
+        paragraph_pid=paragraph_pid,
         page=page,
         page_size=page_size,
     )
     return {"code": "ok", "message": "获取成功", "data": result}
 
 
-@router.post("/posts/{post_id}/paragraph-comments/{paragraph_index}")
+@router.post("/posts/{post_id}/paragraph-comments/{paragraph_pid}")
 async def create_paragraph_comment(
-    post_id: str, paragraph_index: int, req: CreateCommentRequest, request: Request
+    post_id: str, paragraph_pid: str, req: CreateCommentRequest, request: Request
 ):
     """段落评论（需登录）。"""
     user = require_user(request)
@@ -289,7 +302,7 @@ async def create_paragraph_comment(
     blog_service = container.get("blog")
     result = await blog_service.create_paragraph_comment(
         post_id=uuid.UUID(post_id),
-        paragraph_index=paragraph_index,
+        paragraph_pid=paragraph_pid,
         author_id=author_id,
         content=req.content,
     )

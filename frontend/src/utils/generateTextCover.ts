@@ -26,17 +26,16 @@ function stripHtml(html: string): string {
 
 /** 从 post 中提取用于封面的文本片段 */
 function extractText(post: BlogPost): string {
-  // 优先级 1：用户手写的引言
-  if (post.intro?.trim()) return post.intro.trim()
+  // 优先级 1：引言 abstract
+  if (post.introduction?.abstract?.trim()) return post.introduction.abstract.trim()
 
-  // 优先级 2：分段数据第一段
+  // 优先级 2：段落数据第一段
   if (post.paragraphs?.length && post.paragraphs[0]?.content?.trim()) {
     return stripHtml(post.paragraphs[0].content).trim()
   }
 
-  // 优先级 3：正文前 60 字
-  const text = stripHtml(post.content || '')
-  return text.slice(0, 60).trim()
+  // 优先级 3：标题兜底
+  return post.title?.trim() || ''
 }
 
 /** 在 3-5 之间随机取一个模糊像素值 */

@@ -72,8 +72,14 @@ const fetchPosts = async () => {
     hotPosts.value = []
   } finally {
     loading.value = false
-    ensurePostsCovers(posts.value)
-    ensurePostsCovers(hotPosts.value)
+    // 合并 latest 和 hot 列表，按 post.id 去重后统一触发封面生成
+    const seen = new Set<string>()
+    const allPosts = [...posts.value, ...hotPosts.value].filter((p) => {
+      if (!p || !p.id || seen.has(p.id)) return false
+      seen.add(p.id)
+      return true
+    })
+    ensurePostsCovers(allPosts)
   }
 }
 

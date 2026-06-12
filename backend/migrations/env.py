@@ -18,6 +18,7 @@ from backend.core.models import ConfigEntry  # noqa: F401
 from backend.plugins.auth.models import User  # noqa: F401
 from backend.plugins.blog.models import (  # noqa: F401
     BlogPost,
+    BlogParagraph,
     BlogComment,
     BlogLike,
     BlogReport,

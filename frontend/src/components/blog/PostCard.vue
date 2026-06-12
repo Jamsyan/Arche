@@ -52,21 +52,15 @@ const coverStyle = computed(() => {
   return { background: getCoverGradient(props.post) }
 })
 
-function stripHtml(html: string): string {
-  const el = document.createElement('div')
-  el.innerHTML = html
-  return el.textContent || ''
-}
-
 const excerpt = computed(() => {
-  const text = props.post.content ? stripHtml(props.post.content) : ''
-  return text.slice(0, 120) || ''
+  const text = props.post.introduction?.abstract ?? ''
+  return text.slice(0, 120)
 })
 
 // compact/dense 模式用更短的摘要
 const shortExcerpt = computed(() => {
-  const text = props.post.content ? stripHtml(props.post.content) : ''
-  return text.slice(0, 50) || ''
+  const text = props.post.introduction?.abstract ?? ''
+  return text.slice(0, 50)
 })
 
 const displayTags = computed(() => (props.post.tags || []).slice(0, 3))
