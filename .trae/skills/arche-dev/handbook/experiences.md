@@ -95,6 +95,18 @@ Keep it tight — one or two sentences per field:
 
 ---
 
+### 2026-06-12: Don't restrict `pull_request.branches` in CI for branch-based workflows
+
+**What:** Remove `branches: [master]` from `pull_request` trigger in CI workflow — or use a broader branch pattern like `branches: ['*']`.
+
+**When:** A multi-level branching strategy (upstream/downstream) where downstream fix branches create PRs targeting an upstream branch, not `master`.
+
+**Why:** `pull_request`'s `branches` filter matches the **target** branch of the PR, not the source. If downstream PRs target an upstream branch (not `master`), the CI workflow silently skips them. This causes a false sense of security — no check run appears, no failure notification.
+
+**Lesson:** Unless there's a strong reason to restrict, omit `branches` from `pull_request` triggers entirely. Downstream jobs with `image_tag` guards already prevent accidental builds/deploys on non-master PRs. If you do need restrictions, use `branches: ['*']` to be explicit that all target branches are included.
+
+---
+
 ### 2026-06-12: Prefer self-built ArPopconfirm over NPopconfirm workarounds
 
 **What:** Build `ArPopconfirm` as a `src/components/ui/` component to replace `NPopconfirm`.
