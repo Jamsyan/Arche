@@ -1,6 +1,6 @@
 ---
 name: "arche-dev"
-description: "Arche project development handbook. Covers architecture, plugin development, frontend/backend conventions, testing, CI/CD, issue management, and experience distillation. Triggered when working with Arche codebase or project conventions. IMPORTANT: proactively read experiences.md before starting tasks, and distill new lessons into it after completing tasks."
+description: "Arche project development handbook. Covers architecture, plugin development, frontend/backend conventions, testing, CI/CD, issue management, project standards, and experience distillation. Triggered when working with Arche codebase or project conventions. IMPORTANT: proactively read experiences.md and standards.md before starting tasks, and distill new lessons into experiences.md after completing tasks."
 ---
 
 # Arche Development Skill
@@ -12,8 +12,9 @@ You are an AI assistant specialized in the Arche project. This skill provides th
 Before starting any task, you MUST:
 
 1. **Read [experiences.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/experiences.md)** — check for relevant lessons and pitfalls
-2. **Read the relevant handbook page(s)** from the index below based on the task at hand
-3. After completing the task, **distill any new lessons** into `experiences.md`
+2. **Read [standards.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/standards.md)** — review project conventions (labels, templates, format policies)
+3. **Read the relevant handbook page(s)** from the index below based on the task at hand
+4. After completing the task, **distill any new lessons** into `experiences.md`
 
 ## Core Identity
 
@@ -62,5 +63,6 @@ All detailed documentation is in the `handbook/` subdirectory:
 | [frontend.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/frontend.md) | Write frontend code — components, API calls, routing, design system |
 | [testing.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/testing.md) | Write or run tests — pytest/vitest patterns, fixtures, coverage |
 | [cicd.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/cicd.md) | Understand CI/CD pipeline, build, deploy, versioning |
-| [experiences.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/experiences.md) | **Experience distillation** — lessons learned, design decisions, pitfalls. MUST read before any task |
+| [experiences.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/experiences.md) | **Experience log** — non-obvious pitfalls and reusable insights (English, compact format). MUST read before any task |
+| [standards.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/standards.md) | **Project standards** — label system, Epic format, template policies. MUST read before any task |
 | [issue-management.md](file:///d:/Project/Arche/.trae/skills/arche-dev/handbook/issue-management.md) | Issue labels, templates, Epic + Sub-issue structure, creation workflow, management flow |

@@ -1,22 +1,117 @@
-# AGENTS.md
+# AGENTS.md — AI Agent Operating Manual
 
-## Project layout
+This document is the operating manual for AI agents working on the Arche project. It defines the language protocol, available skills, rule files, standard operating procedures, and project reference.
 
-Two independent packages, no workspace tooling:
+---
 
-| Package | Dir | Package manager | Entry |
-|---|---|---|---|
-| Backend | `backend/` | `uv` ([pyproject.toml](file:///d:/Project/Arche/pyproject.toml) at repo root) | `backend/main.py` → `uvicorn backend.main:app` |
-| Frontend | `frontend/` | `npm` ([package.json](file:///d:/Project/Arche/frontend/package.json)) | `frontend/src/main.ts` → `npm run dev` |
+## 1. Language Protocol
 
-All commands below run from repo root unless `frontend/` is specified.
+Arche spans multiple language contexts. Adhere strictly to the following:
 
-## Essential commands
+| Context | Language | Notes |
+|---------|----------|-------|
+| User communication | **Follow the user's language** | If the user writes Chinese, respond in Chinese. If English, respond in English. |
+| Skill files (SKILL.md) | **English** | AI-facing instructions — English is more stable and precise |
+| Experience log (experiences.md) | **English** | Structured entries, AI-friendly |
+| Project standards (standards.md) | **English** | Policy declarations, AI-friendly |
+| Technical handbooks (handbook/*.md) | **English** | Consistent with the skill ecosystem |
+| Code comments | **Chinese** | Project immutable rule |
+| Git commit messages | **Chinese** | Conventional Commits convention |
+| AGENTS.md | **English** | Consistent with the rest of the skill ecosystem |
+
+---
+
+## 2. Skill Directory
+
+Skills are registered under `.trae/skills/`. The agent should determine which skill to load based on the task context.
+
+| Skill | File | Trigger |
+|-------|------|---------|
+| **arche-dev** | `.trae/skills/arche-dev/SKILL.md` | **Default skill** — every Arche development task (architecture, coding, testing, CI/CD, docs, etc.) must load this skill first |
+| **commands** | `.trae/skills/commans/SKILL.md` | User issues a slash-command-style request (e.g., "fix this function", "explain this code", "generate tests") |
+
+> **Note**: `arche-dev` is the primary skill — **load it at the start of every task**. `commands` is a quick-command registry, triggered only when the user gives a slash-command-style instruction.
+
+---
+
+## 3. Rule Index
+
+Workflow rules are defined under `.trae/rules/`. The agent must follow them in the applicable scenarios.
+
+| Rule File | When to Apply |
+|-----------|---------------|
+| `git-commit-message.md` | **Every commit** — Conventional Commits format, type/scope list, language requirement |
+| `issue-fix-workflow.md` | **Picking up an Issue for code fix** — full workflow from reading the Issue to submitting a PR |
+| `issues-management-workflow.md` | **Managing Issues without writing code** — Code Review, triage, close/split decisions |
+
+---
+
+## 4. Standard Operating Procedure (SOP)
+
+### 4.1 General Development Task
+
+```
+Step 1: Load the arche-dev skill
+          └─ Read SKILL.md for immutable rules and handbook index
+
+Step 2: Pre-read mandatory documents
+          ├─ experiences.md  — check for relevant lessons and pitfalls
+          └─ standards.md    — review project conventions (labels, templates, formats)
+
+Step 3: Read the relevant handbook based on task type
+          ├─ Architecture/startup  →  architecture.md
+          ├─ Backend development   →  backend.md
+          ├─ Frontend development  →  frontend.md
+          ├─ Plugin development    →  plugin-dev.md
+          ├─ Testing               →  testing.md
+          ├─ CI/CD                 →  cicd.md
+          └─ Issue management      →  issue-management.md
+
+Step 4: Execute the task (follow applicable rule files)
+
+Step 5: Distill experience
+          └─ If something worth remembering was learned, append to experiences.md
+```
+
+### 4.2 Issue Fix Task
+
+In addition to 4.1:
+
+```
+Step 2.5: Read issue-fix-workflow.md
+           ├─ gh issue view <N> to read the full Issue
+           ├─ Code Review to verify the problem
+           ├─ Check branch environment (create fix/issue-* from master)
+           └─ Submit PR per convention after fixing
+```
+
+### 4.3 Issue Management Task (no code)
+
+```
+Step 1: Read issues-management-workflow.md
+Step 2: Code Review → triage
+          ├─ Already fixed → close Issue and comment
+          ├─ Deeper issue found → comment with analysis
+          └─ Compound issue → split into sub-issues
+```
+
+---
+
+## 5. Project Reference
+
+### 5.1 Layout
+
+| Package | Directory | Package Manager | Entry |
+|---------|-----------|-----------------|-------|
+| Backend | `backend/` | `uv` (root `pyproject.toml`) | `backend/main.py` → `uvicorn backend.main:app` |
+| Frontend | `frontend/` | `npm` (`frontend/package.json`) | `frontend/src/main.ts` → `npm run dev` |
+
+### 5.2 Essential Commands
 
 ```bash
 # ── Install ──
-uv sync                        # backend deps (pyproject.toml at repo root)
-cd frontend && npm install     # frontend deps
+uv sync                        # backend
+cd frontend && npm install     # frontend
 
 # ── Dev servers ──
 uv run uvicorn backend.main:app --reload   # backend (port 8000)
@@ -24,89 +119,66 @@ cd frontend && npm run dev                 # frontend (port 5173)
 
 # ── Lint / format ──
 uv run ruff check backend/                 # backend lint
-uv run ruff format --check backend/        # backend format check
 uv run ruff format backend/                # backend format (apply)
-uv run python scripts/lint_rules.py --fail backend/   # custom lint (no lambda, no nested comprehensions)
+uv run python scripts/lint_rules.py --fail backend/   # custom lint
 cd frontend && npm run lint                # frontend lint
-cd frontend && npm run format              # frontend format (prettier)
+cd frontend && npm run format              # frontend format
 
 # ── Type-check ──
 cd frontend && npm run type-check          # vue-tsc --noEmit
-# (pyright runs via IDE; no standalone backend typecheck script)
 
 # ── Build ──
-cd frontend && npm run build               # typecheck + vite build → frontend/dist/
+cd frontend && npm run build               # frontend → frontend/dist/
 
 # ── Tests ──
-uv run pytest                              # all backend tests (cov gate: 40%)
-uv run pytest --no-cov -ra --tb=short      # quick run, no coverage
-uv run pytest -m "not integration"         # unit only
-uv run pytest backend/tests/unit/ -v       # unit dir only
-uv run pytest backend/tests/integration/ -v   # integration dir
-uv run pytest -k "auth" -v                 # keyword match
-uv run pytest backend/tests/unit/test_auth.py -v   # single file
-cd frontend && npm run test                # frontend tests (vitest, watch mode)
+uv run pytest                              # all backend tests
+uv run pytest --no-cov -ra --tb=short      # quick backend test
 cd frontend && npm run test:run            # frontend tests (single run)
 
 # ── API type generation ──
-cd frontend && npm run generate:api                    # fetch OpenAPI schema → src/services/api/generated.d.ts
-cd frontend && npm run generate:api:check              # generate + check git diff (for CI)
+cd frontend && npm run generate:api        # OpenAPI → TS types
 ```
 
-## Architecture: microkernel + plugins
+### 5.3 Architecture: Microkernel + Plugins
 
-`backend/core/` is the "never-changing" kernel. All features live under `backend/plugins/`.
+- **`backend/core/`** — the never-changing kernel. Boot sequence: Logging → DB init → ServiceContainer → Plugin activation (DAG-sorted) → Middleware → Startup hooks (Alembic auto-migration, schema validation, config seeding)
+- **`backend/plugins/`** — all features are self-contained plugins, auto-discovered at startup. Each has its own `__init__.py` / `routes.py` / `services.py` / `models.py`
 
-Boot sequence in `backend/core/__init__.py` `create_app()`:
-1. Logging → 2. DB init → 3. ServiceContainer → 4. Plugin activation (DAG-sorted by `requires`/`optional`) → 5. Plugin services registered → 6. Middleware → 7. Startup hooks (Alembic migrations auto-run, schema validation, config seeding) → 8. Mount `frontend/dist/` as static files if it exists
+### 5.4 Key Quirks
 
-Plugins auto-discovered from `backend/plugins/` (no manual registration). Each is self-contained with its own `__init__.py` (plugin class + self-registration), `routes.py`, `services.py`, `models.py`.
+- **Alembic migrations run automatically at startup** — no separate CLI step
+- **Database**: SQLite + aiosqlite (dev), PostgreSQL + asyncpg (production)
+- **Config layering**: `.env` < environment variables < database (with TTL cache)
+- **Frontend code splitting by role**: `blog/` (public), `platform/` (authenticated), `admin/` (admin)
+- **Backend serves frontend**: dev via reverse proxy, production via Nginx
+- **No lambda, no nested comprehensions** — enforced by custom lint
 
-## Key quirks
-
-- **Alembic migrations run automatically at startup** — no separate CLI step. Runs in the `on_event("startup")` hook.
-- **uv.lock is in .gitignore** — it's regenerated locally, not committed. CI uses `uv sync --frozen` which requires the lockfile; make sure to generate it once before CI-relevant changes.
-- **Custom lint rules** (`scripts/lint_rules.py`): no `lambda` (3 whitelisted patterns: SQLAlchemy defaults, `iter()` sentinel, DI container factories) and no nested comprehensions deeper than 1 level.
-- **No lambda, use named functions** — enforced by the custom lint. Plan for this when writing callbacks.
-- **Database**: SQLite + aiosqlite for dev, PostgreSQL + asyncpg for production. In-memory SQLite tests use `StaticPool` to share the connection across sessions.
-- **Config layering**: `.env` file < environment variables < database (with TTL cache). Dynamic config via `config_mgmt` plugin.
-- **Chinese comments/docs**: all code comments and documentation are in Chinese. Commit messages follow Conventional Commits (`feat:`, `fix:`, etc.).
-- **Frontend code splitting by role**: `blog/` (public), `platform/` (authenticated), `admin/` (admin). Vite dynamic imports per role; unauthenticated users never load admin chunks.
-- **Backend serves frontend**: if `frontend/dist/` exists, FastAPI mounts `StaticFiles` at `/`. Production uses Nginx reverse proxy instead.
-- **Container registry**: Docker images pushed to GitHub Container Registry (`ghcr.io`). PyPI uses Aliyun mirror.
-- **API type sync**: `npm run generate:api` fetches the running backend's OpenAPI schema and generates TypeScript type definitions into `src/services/api/generated.d.ts`. CI verifies the generated file is up-to-date.
-- **Online session tracking**: `auth` plugin includes a 3-layer online session tracker (event-driven login/logout, implicit heartbeat via API requests, background timeout sweep) — see [`session.py`](file:///d:/Project/Arche/backend/plugins/auth/session.py).
-
-## Frontend component architecture
-
-The frontend has migrated from `naive-ui`-heavy components (`ProTable`, `ProForm`, `AdminLayout`) to a self-built design system:
+### 5.5 Frontend Component Layers
 
 | Layer | Directory | Purpose |
-|---|---|---|
-| UI primitives | `src/components/ui/` | `ArButton`, `ArCard`, `ArTable`, `ArInput`, `ArAvatar`, `ArBadge`, `ArDivider`, `ArPagination`, `ArTag`, `ArWheelPicker` |
-| Blog components | `src/components/blog/` | `PostCard`, `PostEditor`, `PostDetail`, `RichTextEditor` (TipTap), `CommentForm`, `CommentList`, `ParagraphCommentPanel`, `LikeButton`, `FavoriteButton`, `ShareButton`, `CoverUploader`, `FloatingActions`, `AuthorBar`, `TagList`, `AssetSidebar` |
-| Admin components | `src/components/admin/` | `ModerationPanel`, `PostTable`, `SystemMetrics`, `UserTable` |
-| User components | `src/components/user/` | `UserCard`, `UserMenu` |
-| Layouts | `src/layouts/` | `BaseLayout` (header+sidebar+footer), `BaseHeader`, `BaseSidebar`, `FooterBar`, `GuestLayout`, `UserLayout`, `PlatformShell`, `BlogShell`, `ConsoleLayout` |
+|-------|-----------|---------|
+| UI primitives | `src/components/ui/` | ArButton, ArCard, ArTable, ArInput, etc. |
+| Blog components | `src/components/blog/` | PostCard, PostEditor, CommentList, RichTextEditor, etc. |
+| Admin components | `src/components/admin/` | ModerationPanel, PostTable, UserTable, etc. |
+| Layouts | `src/layouts/` | BaseLayout, BlogShell, PlatformShell, ConsoleLayout, etc. |
 
-## CI (`.github/workflows/ci.yml`)
+### 5.6 CI Pipeline
 
-Pipeline stages: `backend-lint` → `backend-test` → `frontend-check` → `frontend-test` → `security-scan` → `gate` → (`build` → `deploy` + `tag-release`)
+`backend-lint` → `backend-test` → `frontend-check` → `frontend-test` → `security-scan` → `gate` → (`build` → `deploy` + `tag-release`)
 
-- Tags `v*` trigger build+deploy
-- PR merges to `master` auto-increment patch version, then build+deploy
-- Plain pushes to `master` (no tag) run lint/test only, no build
-- **`tag-release` job**: on successful push-to-master build, auto-creates and pushes the version tag
-- Build and deploy jobs are defined in separate workflow files: [`build.yml`](file:///d:/Project/Arche/.github/workflows/build.yml) and [`deploy.yml`](file:///d:/Project/Arche/.github/workflows/deploy.yml)
-- Frontend CI now actually runs tests (`npm run test:run`) — vitest with jsdom environment
-- Frontend CI also verifies generated API types exist (`test -f src/services/api/generated.d.ts`)
+- Tags `v*` trigger build + deploy
+- PR merges to `master` auto-increment patch version, then build + deploy
+- Plain pushes to `master` (no tag) run lint/test only
 
-## References
+---
 
-- `backend/tests/TEST_STRATEGY.md` — full test documentation and fixture inventory
-- `frontend/docs/api-call-policy.md` — frontend API error handling conventions
-- `frontend/src/README.md` — frontend module structure rules
-- `docs/` — Chinese architecture/design documents
-- `docs/blog/wheel-picker-physics-engine.md` — technical deep-dive on the custom WheelPicker component
-- `README.md` — project overview, plugin table, quick start
-- `CONTRIBUTING.md` — commit conventions, PR flow
+## 6. Related Documents
+
+| Document | Path |
+|----------|------|
+| Project overview | `README.md` |
+| Contributing guide | `CONTRIBUTING.md` |
+| Backend test strategy | `backend/tests/TEST_STRATEGY.md` |
+| Frontend API call policy | `frontend/docs/api-call-policy.md` |
+| Frontend module structure | `frontend/src/README.md` |
+| Architecture docs | `docs/` (Chinese) |

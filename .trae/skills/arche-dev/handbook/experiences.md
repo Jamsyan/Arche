@@ -1,249 +1,106 @@
-# 经验沉淀 (Experiences & Lessons Learned)
+# Experience Log
 
-本文件累积开发过程中遇到的非平凡问题、设计决策、踩过的坑和可复用的经验。它是项目不断成长的"避坑指南"。
+Lessons learned during Arche development — non-obvious pitfalls, design rationale, and reusable insights.
 
----
+## How to Contribute
 
-## 蒸馏文化：如何贡献
+Log an entry immediately when you encounter something worth remembering.
 
-**核心原则**：每当遇到值得记住的事，就把它写下来。不要等"有空再整理"——当场记。
+### Entry Criteria
 
-### 何时添加条目
+All four must apply:
 
-| 场景 | 例子 | 动作 |
-|------|------|------|
-| 修了一个隐蔽的 Bug | 递归溢出、竞态条件、边界情况 | 记根因和修复方案 |
-| 做了一个设计决策 | 为什么选 A 不选 B | 记决策上下文和取舍 |
-| 发现一个重复踩坑的模式 | 每次部署都忘记 X | 记检查清单 |
-| 改动了 CI/CD 流程 | 新增了某个 job、调整了构建参数 | 记改动内容和原因 |
-| 调整了项目规范 | 标签体系、模板、commit 格式 | 记变更和理由 |
-| 发现了工具/框架的坑 | SQLAlchemy 某个行为不符合直觉 | 记具体表现和规避方式 |
+- **Actual pain** — a bug we fixed, a mistake we made, an ambiguity that caused rework
+- **Actionable** — the reader knows exactly what to do differently
+- **Non-obvious** — common sense doesn't belong here
+- **Reusable** — the same situation could plausibly recur
 
-### 条目格式
+### Format
 
-每条经验按以下结构记录，保持简洁：
+Keep it tight — one or two sentences per field:
 
 ```
-### YYYY-MM-DD: 简短标题
+### YYYY-MM-DD: Short imperative title
 
-**背景：** 什么场景？涉及哪个模块？
+**What:** What to do (or what went wrong).
 
-**问题/决策：** 出了什么问题？或需要做什么决定？
+**When:** Context — module, trigger, preconditions.
 
-**根因分析：** 为什么会发生？
+**Why:** Root cause or rationale — the insight behind the fix.
 
-**解决/方案：** 怎么修的？或选了什么方案？为什么？
-
-**教训：** 未来如何避免？或应该坚持什么？
+**Lesson:** How to avoid this in the future.
 ```
 
-### 谁来做
+---
 
-- **AI 助手**：在完成任务时，如果发现值得记录的经验，自动追加到本文件
-- **开发者**：手动添加自己遇到的坑和决策
+## Entries
+
+### 2026-06-12: Use `--body-file` in PowerShell for `gh issue create`
+
+**What:** Pass issue body via a temp file (`--body-file`) instead of inline `--body`.
+
+**When:** Creating GitHub Issues from Windows PowerShell with multi-line bodies containing backticks, quotes, or other special characters.
+
+**Why:** PowerShell parses CLI arguments differently from bash — backticks and nested quotes in `--body` trigger syntax errors. `--body-file` bypasses argument parsing entirely.
+
+**Lesson:** On Windows, always use `--body-file <tempfile>` for `gh issue create` with non-trivial bodies. Clean up the temp file afterward.
 
 ---
 
-## 经验条目
+### 2026-06-12: Verify parent status before adding a GitHub Sub-issue
 
-### 2026-06-12: GitHub Sub-issues 只能有一个父级
+**What:** Check that an issue has no existing parent before adding it as a sub-issue.
 
-**背景：** Issues 重组时，试图将 `#120` 同时关联到 `#113`（Bug Epic）和 `#114`（样式 Epic）。
+**When:** Restructuring issues with GitHub Sub-issues — especially when migrating from an old parent to a new one.
 
-**问题：** GraphQL API 返回 `"Sub issue may only have one parent"`。
+**Why:** GitHub enforces one parent per sub-issue. Adding an issue that already has a parent returns `"Sub issue may only have one parent"`. Closing the old parent does NOT release the relationship.
 
-**根因分析：** GitHub Sub-issues 设计上限制每个子 Issue 只能有一个父级。这是一个硬性约束，不是配置问题。
-
-**解决：** 将 `#120` 只保留在 `#113` 下，`#114` 的 body 中通过 checklist 引用但不建立 sub-issue 关系。
-
-**教训：** 创建 sub-issue 前先确认该 Issue 是否已有父级。如果有，要么放弃关联，要么先解除旧关系再建立新关系。
+**Lesson:** Before `addSubIssue`, run `removeSubIssue` from the old parent first. Design the issue hierarchy upfront to avoid mass migration.
 
 ---
 
-### 2026-06-12: 旧版 Epic 已通过 GraphQL 建立了 sub-issue 关系
+### 2026-06-10: Never manually delete Alembic migration files
 
-**背景：** 关闭旧版 Epic（`#78`、`#79`、`#80`、`#81`）后，尝试将它们的子 Issue 迁移到新版 Epic `#116`。
+**What:** Don't delete `.sql` migration files under `backend/plugins/*/alembic/`.
 
-**问题：** 迁移时大量 Issue 报 `"Sub issue may only have one parent"`，但实际上旧 Epic 已关闭。
+**When:** Cleaning up files — migration directories can look like "old" or "generated" files that seem safe to remove.
 
-**根因分析：** 旧 Epic 在创建时就已经通过 GraphQL API 建立了 sub-issue 关系。关闭父 Issue 并不会自动解除这些关系。子 Issue 仍然"属于"已关闭的父级。
+**Why:** Alembic relies on a complete migration chain to reach the current database version. Missing any file breaks the version chain and prevents startup.
 
-**解决：** 先用 `removeSubIssue` mutation 从旧父级解除关系，再 `addSubIssue` 到新父级。
-
-**教训：** 关闭旧 Epic 前应先迁移/解除其 sub-issue 关系。或者在设计时就规划好 Epic 结构，避免后续大规模迁移。
+**Lesson:** Migration files are infrastructure, not cache. Use Alembic's own squashing/merging commands if cleanup is needed.
 
 ---
 
-### 2026-06-12: 标签体系统一 —— 从 `bug`/`enhancement` 迁移到 `type:*`
+### 2026-06-10: CI can't run `generate:api` without a live backend
 
-**背景：** 项目早期标签不规范，同时存在 `bug`、`enhancement`、`type: bug`、`type: enhancement` 等混合使用。
+**What:** In CI, verify `generated.d.ts` exists instead of re-running `npm run generate:api`.
 
-**问题：** 标签不统一导致筛选困难，CI 标签同步脚本也无法正确管理。
+**When:** Frontend CI pipeline — the step that ensures API types are in sync.
 
-**根因分析：** 没有在一开始就定义标签规范，不同时期添加的标签风格不一致。
+**Why:** `npm run generate:api` requires a running backend on port 8000 to fetch the OpenAPI schema. CI doesn't run the backend, so the command would fail. The committed file is the source of truth.
 
-**解决：** 
-1. 定义标准化标签体系：`type:*` / `area:*` / `priority:*`
-2. 移除旧标签 `bug`、`enhancement`、`javascript`
-3. 通过 `labels.json` + `label-sync.yml` 确保标签定义即源码
-
-**教训：** 标签体系应该在项目初期就定义好。用 `type:*` 前缀避免与 GitHub 默认标签冲突，方便脚本化管理。
+**Lesson:** Build-time code generation that depends on external services needs a CI fallback strategy. File-existence checks are simple and effective.
 
 ---
 
-### 2026-06-12: Epic Body 格式规范 —— 去 emoji，标准化 checklist
+### 2026-06-05: Replace naive-ui components with self-built Ar components
 
-**背景：** 创建 Epic Issue 时，旧版 Epic 标题和 body 中使用了 emoji（如 `🐛 Bug 修复`、`🚀 基础设施增强`），新版统一去掉了 emoji。
+**What:** Build custom Ar* components (ArButton, ArCard, etc.) instead of wrapping or patching naive-ui components.
 
-**问题：** emoji 在 GitHub 不同客户端（Web、Mobile、CLI）中渲染不一致，且不利于严肃的项目管理。
+**When:** A third-party library's rendering behavior (slot wrappers, opinionated CSS, undocumented DOM structure) conflicts with the project's design system.
 
-**根因分析：** 早期习惯性添加 emoji 作为视觉区分，但没有考虑到跨平台一致性和专业度。
+**Why:** naive-ui's extra wrapper elements cause hard-to-fix layout bugs (e.g., `<span>` wrappers breaking flex alignment). Self-built components give full control over rendering and design language.
 
-**解决：** Epic 标题统一使用 `[Epic] 类别名称` 格式，body 中去除所有 emoji，使用纯文本分级标题。
-
-**教训：** 项目管理文档避免使用 emoji，保持专业和一致的渲染效果。
+**Lesson:** For UI-consistent projects, a self-built component library pays off in the long run. Migrate incrementally — one component at a time, not a big bang.
 
 ---
 
-### 2026-06-12: Issue 模板数量控制 —— 4 个模板覆盖全部场景
+### 2026-06-12: Prefer self-built ArPopconfirm over NPopconfirm workarounds
 
-**背景：** 考虑是否需要为每个 `type` 标签创建独立的 Issue 模板。
+**What:** Build `ArPopconfirm` as a `src/components/ui/` component to replace `NPopconfirm`.
 
-**决策：** 只保留 4 个模板（Bug / Feature / Task / Epic），不按 type 细分。
+**When:** A third-party component has a structural rendering issue that can't be cleanly fixed with CSS.
 
-**理由：**
-- 模板解决的是"怎么写"的问题，标签解决的是"是什么"的问题
-- `type: ui`、`type: refactor`、`type: chore`、`type: docs` 等本质上都是"任务"，用 Task 模板 + 对应标签即可
-- 模板越多维护成本越高，用户选择也越困惑
-- GitHub 创建 Issue 时通过 labels 预填可以进一步简化
+**Why:** CSS hacks for naive-ui's DOM structure are fragile and don't fix the root cause. A self-built component (`position: absolute` + `transform` + Vue `Transition`) is fully controllable and matches the glassmorphism design system.
 
-**教训：** 模板数量控制在 3-5 个最佳，不要为每个标签建模板。
-
----
-
-### 2026-06-12: label-sync.yml 的边界情况处理
-
-**背景：** `label-sync.yml` 工作流只创建/更新 `labels.json` 中定义的标签，但不删除仓库中多余的标签。
-
-**决策：** 不自动删除未在 `labels.json` 中定义的标签。
-
-**理由：**
-- 删除是危险操作，可能影响已关闭 Issue 的历史标签
-- 多余的标签可以通过手动清理
-- 自动删除可能导致意外的数据丢失
-
-**教训：** 自动化工具应该偏向保守，尤其涉及删除操作时。可以通过定期手动审查来清理冗余标签。
-
----
-
-### 2026-06-12: GitHub 支持多 PR 模板但本项目无需
-
-**背景：** 考虑是否要为不同变更类型（Bug fix / Feature / Release）提供不同的 PR 模板。
-
-**决策：** 保持单个 PR 模板。
-
-**理由：**
-- GitHub 确实支持多 PR 模板（创建 `PULL_REQUEST_TEMPLATE/` 目录放入多个 `.md` 文件）
-- 但本项目不同类型 PR 的结构差异不大，一个模板配合标签足够
-- 多模板反而增加选择成本和维护成本
-
-**教训：** 多模板功能存在但不必滥用。根据项目实际复杂度决定，不是"越多越好"。
-
----
-
-### 2026-06-10: Alembic 迁移文件丢失导致启动失败
-
-**背景：** 数据库迁移目录 `backend/plugins/*/alembic/` 下的迁移文件被误删除，导致启动时自动迁移失败。
-
-**问题：** 项目启动报 Alembic 相关错误，数据库表结构无法自动创建。
-
-**根因分析：** 清理文件时未注意迁移目录的重要性，误删了 `.sql` 文件。
-
-**解决：** 重建迁移文件，恢复数据库版本号一致性。
-
-**教训：** Alembic 迁移文件是基础设施的一部分，不应手动删除。清理前应先确认文件用途。
-
----
-
-### 2026-06-10: CI 前端 API 类型生成需本地后端运行
-
-**背景：** `npm run generate:api` 需要本地后端正在运行（监听 8000 端口）才能获取 OpenAPI schema。
-
-**问题：** CI 环境中没有运行后端，导致 `generate:api` 步骤失败。
-
-**决策：** CI 中不再实际运行 `generate:api`，改为检查生成的 `generated.d.ts` 文件是否存在。
-
-**解决：** CI 脚本改为 `test -f src/services/api/generated.d.ts`，确保文件已被提交。
-
-**教训：** 依赖外部服务的生成步骤在 CI 中需要特殊处理。要么在 CI 启动服务，要么改为文件存在性检查。
-
----
-
-### 2026-06-05: 前端组件库迁移 —— 从 naive-ui 到自建组件
-
-**背景：** 项目初期使用 naive-ui 作为组件库，后续迁移到自建的 `Ar` 系列组件（ArButton、ArCard、ArTable 等）。
-
-**决策：** 全面替换 naive-ui 组件为自建组件。
-
-**理由：**
-- naive-ui 组件定制成本高
-- 项目需要统一的设计语言
-- 自建组件减少外部依赖，提升可控性
-
-**教训：** 对于追求 UI 一致性的项目，自建组件库虽然初期成本高，但长期维护更可控。迁移过程需要渐进式进行，避免大范围一次性替换。
-
----
-
-### 2026-06-12: 从 PyTorch 基础设施中学到的治理模式
-
-**背景：** 分析了 PyTorch 项目的 CI/CD（151 个工作流）、.github 配置（labeler、nitpicks、merge_rules）和 14 个 Claude Code skill。
-
-**关键发现：**
-
-1. **PR 自动标签** — PyTorch 用 `labeler.yml` 按文件路径自动打 `module:*` 标签。省去手动打标签的成本，且不会遗漏。
-2. **敏感文件提醒** — PyTorch 的 `nitpicks.yml` 在改关键文件时自动评论。类似"代码审查 guard"。
-3. **Skill 体系** — PyTorch 有 14 个专业 skill（triage、pr-review、fix-issue 等），每个 skill 职责单一、边界清晰。
-4. **Hooks 机制** — PyTorch 的 skill 支持 Pre/Post tool use hooks，在操作前后自动执行验证脚本。
-
-**借鉴到 Arche 的实践：**
-- 增加 `labeler.yml` + `pr-labeler.yml` 工作流实现 PR 自动标签
-- 增加 `nitpicks.yml` 工作流实现敏感文件自动提醒
-- 保持现有的 skill 结构，未来按需扩展
-
-**教训：** 大型项目的治理模式可以降维借鉴。不需要复制 151 个工作流，但 PR 自动标签和 Nitpicks 是低成本高收益的基础设施，适合任何规模的项目。
-
----
-
-### 2026-06-12: Windows PowerShell 下 gh issue create 含特殊字符的 body 会失败
-
-**背景：** 在 Windows PowerShell 中通过 `gh issue create --body` 创建 Issue，body 包含反引号、中文引号、换行等特殊字符。
-
-**问题：** PowerShell 将 body 参数中的特殊字符（如 `` ` ``、`"`、`'`）解释为 PowerShell 语法，导致报错 `unknown argument`。
-
-**根因分析：** PowerShell 对命令行参数的解析规则与 bash 不同。即使使用单引号包裹，body 中的反引号和嵌套引号仍会导致解析错误。
-
-**解决：** 改用 `--body-file <file>` 参数，将 body 内容写入临时文件再传入。这种方式完全绕过了 PowerShell 的命令行解析问题。
-
-**教训：** 在 Windows PowerShell 环境下，`gh issue create` 涉及多行含特殊字符的 body 时，始终用 `--body-file` 替代 `--body`。临时文件用完记得清理。
-
----
-
-### 2026-06-12: 替换 NPopconfirm 为自建 ArPopconfirm 组件的经验
-
-**背景：** Issue #120 帖子审核页删除按钮样式异常。NPopconfirm 的 trigger 插槽在 flex 容器中渲染了额外的 `<span>` 包装层，导致对齐偏差。
-
-**决策：** 选择方案 C——新建自建 `ArPopconfirm` 组件替代 naive-ui 的 `NPopconfirm`，而非用 CSS hack 修复。
-
-**理由：**
-- 项目已全面从 naive-ui 迁移到自建组件库，NPopconfirm 是少数残留的 naive-ui 组件
-- 自建组件完全可控，可以匹配项目的玻璃态设计系统
-- ArPopconfirm 使用 `display: inline-flex` 包装层，从根本上解决了 flex 容器中的布局对齐问题
-- 作为 `src/components/ui/` 下的通用组件，可供后续替换 PostTable、UserTable 等其他场景的 NPopconfirm
-
-**关键设计：**
-- 使用 `position: absolute` + `transform: translateX(-50%)` 实现弹出定位，不依赖第三方定位库
-- Vue `<Transition>` 实现淡入淡出 + 微位移动画
-- CSS 箭头使用 border 旋转 45° 实现，与设计系统玻璃态风格一致
-- 点击外部区域 + Esc 键关闭
-
-**教训：** 替换第三方 UI 组件时，优先考虑自建通用组件方案。虽然初期开发量稍大，但长期维护收益高——统一设计语言、减少外部依赖、完全可控。
+**Lesson:** When a library component fights your layout, replace it rather than patch around it. Positioning and transition utilities are worthwhile shared infrastructure.
