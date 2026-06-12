@@ -522,7 +522,11 @@ async def import_post(
         required_level=required_level,
         tags=tag_list,
     )
-    return {"code": "ok", "message": "文件解析成功，请检查内容后保存发布", "data": result}
+    return {
+        "code": "ok",
+        "message": "文件解析成功，请检查内容后保存发布",
+        "data": result,
+    }
 
 
 @router.post("/upload-file")
