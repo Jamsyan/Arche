@@ -204,10 +204,10 @@
             />
           </div>
           <div class="edit-topbar-tags">
-            <div class="topbar-tag-list">
+            <TransitionGroup name="tag-enter" tag="div" class="topbar-tag-list">
               <ArTag
-                v-for="(tag, i) in editorTags"
-                :key="i"
+                v-for="tag in editorTags"
+                :key="tag"
                 color="primary"
                 type="light"
                 closable
@@ -215,7 +215,7 @@
               >
                 {{ tag }}
               </ArTag>
-            </div>
+            </TransitionGroup>
             <input
               v-model="tagInputValue"
               class="tag-input-inline"
@@ -1107,6 +1107,21 @@ onMounted(fetchData)
 
 .tag-input-inline::placeholder {
   color: var(--text-tertiary);
+}
+
+.tag-enter-enter-active {
+  transition: all 0.25s var(--ease-out-smooth);
+}
+.tag-enter-leave-active {
+  transition: all 0.2s ease-in;
+}
+.tag-enter-enter-from {
+  opacity: 0;
+  transform: scale(0.7);
+}
+.tag-enter-leave-to {
+  opacity: 0;
+  transform: scale(0.7);
 }
 
 .edit-topbar-actions {
