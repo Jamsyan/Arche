@@ -272,10 +272,15 @@ function handleParagraphClick(para: Paragraph) {
   background: var(--surface-hover-color, rgba(128, 128, 128, 0.05));
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   color: var(--text-secondary);
+  overflow: visible;
 }
 
 .paragraph-text :deep(blockquote p) {
   margin: 0.3em 0;
+}
+
+.paragraph-text :deep(blockquote p:last-child) {
+  margin-bottom: 0;
 }
 
 .paragraph-text :deep(a) {

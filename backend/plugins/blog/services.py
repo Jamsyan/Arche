@@ -302,13 +302,27 @@ class BlogService:
 
     @staticmethod
     def _split_paragraphs(content: str) -> list[dict]:
-        """将正文按双换行分割为段落列表。"""
+        """将正文按双换行分割为段落列表，保留 blockquote 完整性。"""
         paragraphs = []
         raw = re.split(r"\n\n+", content.strip())
-        for i, p in enumerate(raw, start=1):
+        buffer = []
+        for p in raw:
             stripped = p.strip()
-            if stripped:
-                paragraphs.append({"index": i, "content": stripped})
+            if not stripped:
+                continue
+            if buffer and (stripped.startswith(">") or "<blockquote>" in stripped):
+                buffer.append(stripped)
+            else:
+                if buffer:
+                    paragraphs.append(
+                        {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
+                    )
+                    buffer = []
+                paragraphs.append({"index": len(paragraphs) + 1, "content": stripped})
+        if buffer:
+            paragraphs.append(
+                {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
+            )
         return paragraphs
 
     async def get_post_by_id(self, post_id: uuid.UUID) -> BlogPost:
@@ -1186,14 +1200,14 @@ class BlogService:
         # 从内容提取标题（第一个 # heading 或文件名）
         title, body = self._extract_title(text, filename)
 
-        return await self.create_post(
-            author_id=author_id,
-            title=title,
-            content=body,
-            tags=tags,
-            required_level=required_level,
-            user_level=user_level,
-        )
+        # 仅返回解析后的数据，不持久化
+        # 用户后续通过手动点击"保存"触发 create_post 流程
+        return {
+            "title": title,
+            "content": body,
+            "tags": tags or [],
+            "status": "pending",
+        }
 
     def _extract_title(self, text: str, fallback_filename: str) -> tuple[str, str]:
         """从 Markdown 文本中提取标题。"""

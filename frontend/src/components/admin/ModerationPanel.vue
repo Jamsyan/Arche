@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { marked } from 'marked'
 import { NInput, NSelect, NEmpty, useMessage } from 'naive-ui'
 import {
   getModerationPendingApi,
@@ -9,6 +10,10 @@ import {
   type BlogPost
 } from '@/services/api'
 import { ArButton, ArTag, ArPopconfirm } from '@/components/ui'
+
+function renderContent(text: string): string {
+  return marked.parse(text, { gfm: true }) as string
+}
 
 const message = useMessage()
 const q = ref('')
@@ -181,9 +186,8 @@ onMounted(() => fetchPosts())
             </span>
             <span>创建：{{ selectedPost.created_at?.slice(0, 10) }}</span>
           </div>
-          <div class="detail-content">
-            {{ selectedPost.content }}
-          </div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div class="detail-content" v-html="renderContent(selectedPost.content)" />
         </template>
         <template v-else>
           <div class="empty-state">

@@ -39,7 +39,7 @@ def init_db(
     pool_size: int = 10,
     max_overflow: int = 20,
     pool_pre_ping: bool = True,
-    pool_recycle: int = 3600,
+    pool_recycle: int = 300,
 ) -> tuple:
     global engine, session_factory
     kwargs: dict = {"echo": False}
@@ -49,11 +49,22 @@ def init_db(
         kwargs["max_overflow"] = max_overflow
         kwargs["pool_pre_ping"] = pool_pre_ping
         kwargs["pool_recycle"] = pool_recycle
+        kwargs["connect_args"] = {"statement_cache_size": 0}
     engine = create_async_engine(database_url, **kwargs)
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
     return engine, session_factory
+
+
+async def close_db() -> None:
+    """关闭数据库引擎，释放连接池。"""
+    global engine, session_factory, _initialized
+    if engine is not None:
+        await engine.dispose()
+        engine = None
+        session_factory = None
+        _initialized = False
 
 
 async def validate_schema() -> None:
