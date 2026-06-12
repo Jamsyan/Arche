@@ -10,7 +10,6 @@ on:
       - ".github/**"
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [master]
     paths-ignore:
       - "docs/**"
       - "*.md"
