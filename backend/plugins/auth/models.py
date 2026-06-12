@@ -26,7 +26,9 @@ class User(Base, HasSID):
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     nickname: Mapped[str] = mapped_column(String(64), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
-    avatar: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
+    avatar: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
     bio: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     links: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
     badges: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
@@ -94,28 +96,18 @@ class UserSettings(Base):
 
     __tablename__ = "user_settings"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     default_post_permission: Mapped[str] = mapped_column(
         String(16), nullable=False, default="public"
     )
-    language: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="zh-CN"
-    )
-    theme: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="auto"
-    )
+    language: Mapped[str] = mapped_column(String(16), nullable=False, default="zh-CN")
+    theme: Mapped[str] = mapped_column(String(16), nullable=False, default="auto")
     # 通知偏好
     notify_comment_reply: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True
     )
-    notify_like: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
-    )
-    notify_system: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
-    )
+    notify_like: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notify_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # 隐私偏好
     privacy_show_online: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True
@@ -130,13 +122,9 @@ class UserSettings(Base):
     default_post_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="draft"
     )
-    auto_save_interval: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=30
-    )
+    auto_save_interval: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     # 兜底 JSON：前端新增设置项塞这里，零迁移
-    extras: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True, default=None
-    )
+    extras: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
 
 class LoginHistory(Base):

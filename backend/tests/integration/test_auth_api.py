@@ -137,7 +137,12 @@ class TestLoginAPI:
         """辅助函数：注册用户并返回响应。"""
         return await client.post(
             "/api/auth/register",
-            json={"email": email, "username": username, "password": password, "nickname": "testuser"},
+            json={
+                "email": email,
+                "username": username,
+                "password": password,
+                "nickname": "testuser",
+            },
         )
 
     async def test_login_with_email_success(self, client):

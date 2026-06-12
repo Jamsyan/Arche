@@ -5,7 +5,16 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -231,9 +240,7 @@ class ModerationRecord(Base, HasSID):
         String(32), nullable=False
     )  # post / comment / user
     target_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    submitter_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
-    )
+    submitter_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     reviewer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, default=None
     )
@@ -261,9 +268,7 @@ class ChangeLog(Base, HasSID):
         String(32), nullable=False
     )  # post / comment / user
     target_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    operator_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
-    )
+    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     operation: Mapped[str] = mapped_column(
         String(32), nullable=False
     )  # create / update / delete / review

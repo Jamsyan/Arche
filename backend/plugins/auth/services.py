@@ -65,7 +65,8 @@ class AuthService:
             if nickname:
                 blacklist_result = await session.execute(
                     select(NicknameBlacklist).where(
-                        func.lower(NicknameBlacklist.keyword) == nickname.strip().lower()
+                        func.lower(NicknameBlacklist.keyword)
+                        == nickname.strip().lower()
                     )
                 )
                 if blacklist_result.scalar_one_or_none():
@@ -343,9 +344,7 @@ class AuthService:
                 "extras": settings.extras,
             }
 
-    async def update_user_settings(
-        self, user_id: uuid.UUID, updates: dict
-    ) -> dict:
+    async def update_user_settings(self, user_id: uuid.UUID, updates: dict) -> dict:
         """更新用户设置（仅更新提供的字段）。"""
         from backend.plugins.auth.models import UserSettings
 

@@ -170,9 +170,7 @@ async def update_my_settings(req: UpdateUserSettingsRequest, request: Request):
     container: ServiceContainer = request.app.state.container
     auth_service = container.get("auth")
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
-    result = await auth_service.update_user_settings(
-        uuid.UUID(user["id"]), updates
-    )
+    result = await auth_service.update_user_settings(uuid.UUID(user["id"]), updates)
     return {"code": "ok", "message": "更新成功", "data": result}
 
 

@@ -765,7 +765,6 @@ class BlogService:
 
             return self._comment_to_dict(comment)
 
-
     # --- 段落评论 ---
 
     async def get_paragraph_comments(
@@ -854,7 +853,6 @@ class BlogService:
             await session.refresh(comment)
 
             return self._comment_to_dict(comment)
-
 
     # --- 点赞 ---
 
@@ -978,7 +976,9 @@ class BlogService:
                 "page_size": page_size,
             }
 
-    async def approve_post(self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None) -> dict:
+    async def approve_post(
+        self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None
+    ) -> dict:
         """通过审核（P0）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -1016,7 +1016,9 @@ class BlogService:
 
             return self._post_to_dict(post)
 
-    async def reject_post(self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None) -> dict:
+    async def reject_post(
+        self, post_id: uuid.UUID, reviewer_id: uuid.UUID | None = None
+    ) -> dict:
         """拒绝审核（P0）。"""
         async with self.session_factory() as session:
             result = await session.execute(
@@ -1929,7 +1931,9 @@ class BlogService:
             "category_id": post.category_id,
             "created_at": post.created_at.isoformat() if post.created_at else None,
             "updated_at": post.updated_at.isoformat() if post.updated_at else None,
-            "published_at": post.published_at.isoformat() if post.published_at else None,
+            "published_at": post.published_at.isoformat()
+            if post.published_at
+            else None,
         }
 
     def _comment_to_dict(
