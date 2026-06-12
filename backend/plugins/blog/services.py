@@ -1186,14 +1186,14 @@ class BlogService:
         # 从内容提取标题（第一个 # heading 或文件名）
         title, body = self._extract_title(text, filename)
 
-        return await self.create_post(
-            author_id=author_id,
-            title=title,
-            content=body,
-            tags=tags,
-            required_level=required_level,
-            user_level=user_level,
-        )
+        # 仅返回解析后的数据，不持久化
+        # 用户后续通过手动点击"保存"触发 create_post 流程
+        return {
+            "title": title,
+            "content": body,
+            "tags": tags or [],
+            "status": "pending",
+        }
 
     def _extract_title(self, text: str, fallback_filename: str) -> tuple[str, str]:
         """从 Markdown 文本中提取标题。"""
