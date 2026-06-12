@@ -56,6 +56,16 @@ def init_db(
     return engine, session_factory
 
 
+async def close_db() -> None:
+    """关闭数据库引擎，释放连接池。"""
+    global engine, session_factory, _initialized
+    if engine is not None:
+        await engine.dispose()
+        engine = None
+        session_factory = None
+        _initialized = False
+
+
 async def validate_schema() -> None:
     """启动时校验数据库 schema 是否与模型一致。"""
     assert engine is not None, "Database not initialized. Call init_db() first."
