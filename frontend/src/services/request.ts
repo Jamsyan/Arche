@@ -272,6 +272,23 @@ service.interceptors.response.use(
         case 500:
           errorMessage = '服务器内部错误'
           break
+        case 422: {
+          const data = axiosError.response.data as Record<string, unknown> | undefined
+          if (data?.message && typeof data.message === 'string') {
+            errorMessage = data.message
+          } else if (data?.detail && Array.isArray(data.detail)) {
+            const detailMessages = (data.detail as Array<Record<string, unknown>>).map((item) => {
+              const loc = (item.loc as string[]) ?? []
+              const field = loc.length > 1 ? loc[loc.length - 1] : (loc[0] ?? '')
+              const msg = (item.msg as string) ?? '校验失败'
+              return field ? `${field}: ${msg}` : msg
+            })
+            errorMessage = detailMessages.join('；')
+          } else {
+            errorMessage = '请求参数校验失败'
+          }
+          break
+        }
         default:
           errorMessage = `请求错误 ${axiosError.response.status}`
       }
