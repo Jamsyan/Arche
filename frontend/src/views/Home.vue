@@ -45,14 +45,6 @@ function buildHistoryItems(allPosts: BlogPost[]) {
 const fetchPosts = async () => {
   loading.value = true
 
-  // 先以 mock 数据保底 —— 访客也能看到内容
-  posts.value = blogMockData.posts as BlogPost[]
-  total.value = blogMockData.posts.length
-  hotPosts.value = [...blogMockData.posts]
-    .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
-    .slice(0, 6) as BlogPost[]
-  buildHistoryItems(posts.value)
-
   try {
     const [latestRes, hotRes] = await Promise.all([
       withFallback(
@@ -69,20 +61,17 @@ const fetchPosts = async () => {
     const latestList = latestRes.list || []
     const hotList = hotRes.list || []
 
-    // 真实数据足够时才覆盖 mock
-    if (latestList.length >= 4) {
-      posts.value = latestList
-      total.value = latestRes.total || 0
-      buildHistoryItems(posts.value)
-    }
+    posts.value = latestList
+    total.value = latestRes.total || 0
+    buildHistoryItems(posts.value)
     if (hotList.length > 0) {
       hotPosts.value = hotList
     }
   } catch {
-    // mock 数据保持不变
+    posts.value = []
+    hotPosts.value = []
   } finally {
     loading.value = false
-    // 对缺少封面的帖子按需生成文字封面并持久化
     ensurePostsCovers(posts.value)
     ensurePostsCovers(hotPosts.value)
   }
