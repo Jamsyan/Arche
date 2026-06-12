@@ -225,3 +225,25 @@
 **解决：** 改用 `--body-file <file>` 参数，将 body 内容写入临时文件再传入。这种方式完全绕过了 PowerShell 的命令行解析问题。
 
 **教训：** 在 Windows PowerShell 环境下，`gh issue create` 涉及多行含特殊字符的 body 时，始终用 `--body-file` 替代 `--body`。临时文件用完记得清理。
+
+---
+
+### 2026-06-12: 替换 NPopconfirm 为自建 ArPopconfirm 组件的经验
+
+**背景：** Issue #120 帖子审核页删除按钮样式异常。NPopconfirm 的 trigger 插槽在 flex 容器中渲染了额外的 `<span>` 包装层，导致对齐偏差。
+
+**决策：** 选择方案 C——新建自建 `ArPopconfirm` 组件替代 naive-ui 的 `NPopconfirm`，而非用 CSS hack 修复。
+
+**理由：**
+- 项目已全面从 naive-ui 迁移到自建组件库，NPopconfirm 是少数残留的 naive-ui 组件
+- 自建组件完全可控，可以匹配项目的玻璃态设计系统
+- ArPopconfirm 使用 `display: inline-flex` 包装层，从根本上解决了 flex 容器中的布局对齐问题
+- 作为 `src/components/ui/` 下的通用组件，可供后续替换 PostTable、UserTable 等其他场景的 NPopconfirm
+
+**关键设计：**
+- 使用 `position: absolute` + `transform: translateX(-50%)` 实现弹出定位，不依赖第三方定位库
+- Vue `<Transition>` 实现淡入淡出 + 微位移动画
+- CSS 箭头使用 border 旋转 45° 实现，与设计系统玻璃态风格一致
+- 点击外部区域 + Esc 键关闭
+
+**教训：** 替换第三方 UI 组件时，优先考虑自建通用组件方案。虽然初期开发量稍大，但长期维护收益高——统一设计语言、减少外部依赖、完全可控。
