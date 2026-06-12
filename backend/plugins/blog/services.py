@@ -758,11 +758,13 @@ class BlogService:
             if post:
                 current = getattr(post, "comment_count", 0) or 0
                 post.comment_count = current + 1
+                session.add(post)
 
             await session.commit()
             await session.refresh(comment)
 
             return self._comment_to_dict(comment)
+
 
     # --- 段落评论 ---
 
@@ -846,6 +848,7 @@ class BlogService:
             if post:
                 current = getattr(post, "comment_count", 0) or 0
                 post.comment_count = current + 1
+                session.add(post)
 
             await session.commit()
             await session.refresh(comment)
@@ -910,6 +913,7 @@ class BlogService:
                 if post:
                     current = getattr(post, "like_count", 0) or 0
                     post.like_count = max(0, current - 1)
+                    session.add(post)
                 await session.commit()
                 return {"action": "unliked"}
 
@@ -923,6 +927,7 @@ class BlogService:
             if post:
                 current = getattr(post, "like_count", 0) or 0
                 post.like_count = current + 1
+                session.add(post)
             await session.commit()
             return {"action": "liked"}
 
