@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { NInput, NSelect, NEmpty, NPopconfirm, useMessage } from 'naive-ui'
+import { NInput, NSelect, NEmpty, useMessage } from 'naive-ui'
 import {
   getModerationPendingApi,
   approvePostApi,
@@ -8,7 +8,7 @@ import {
   deletePostApi,
   type BlogPost
 } from '@/services/api'
-import { ArButton, ArTag } from '@/components/ui'
+import { ArButton, ArTag, ArPopconfirm } from '@/components/ui'
 
 const message = useMessage()
 const q = ref('')
@@ -158,7 +158,7 @@ onMounted(() => fetchPosts())
                 通过
               </ArButton>
               <ArButton type="ghost" size="sm" @click="doReject(selectedPost.id)"> 驳回 </ArButton>
-              <NPopconfirm
+              <ArPopconfirm
                 title="确认删除"
                 :content="`确定删除「${selectedPost.title}」？`"
                 positive-text="确认"
@@ -168,7 +168,7 @@ onMounted(() => fetchPosts())
                 <template #trigger>
                   <ArButton type="danger" size="sm">删除</ArButton>
                 </template>
-              </NPopconfirm>
+              </ArPopconfirm>
             </div>
           </div>
           <div class="detail-meta">
