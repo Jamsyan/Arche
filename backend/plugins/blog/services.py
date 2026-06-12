@@ -314,11 +314,15 @@ class BlogService:
                 buffer.append(stripped)
             else:
                 if buffer:
-                    paragraphs.append({"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)})
+                    paragraphs.append(
+                        {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
+                    )
                     buffer = []
                 paragraphs.append({"index": len(paragraphs) + 1, "content": stripped})
         if buffer:
-            paragraphs.append({"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)})
+            paragraphs.append(
+                {"index": len(paragraphs) + 1, "content": "\n\n".join(buffer)}
+            )
         return paragraphs
 
     async def get_post_by_id(self, post_id: uuid.UUID) -> BlogPost:
