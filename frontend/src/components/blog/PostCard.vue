@@ -52,14 +52,25 @@ const coverStyle = computed(() => {
   return { background: getCoverGradient(props.post) }
 })
 
+function getIntroText(post: BlogPost): string {
+  if (post.introduction?.items?.length) {
+    return post.introduction.items
+      .map((item) => (item.key ? `${item.key} ${item.value}` : item.value))
+      .filter(Boolean)
+      .join(' ')
+  }
+  if (post.introduction?.abstract) return post.introduction.abstract
+  return ''
+}
+
 const excerpt = computed(() => {
-  const text = props.post.introduction?.abstract ?? ''
+  const text = getIntroText(props.post)
   return text.slice(0, 120)
 })
 
 // compact/dense 模式用更短的摘要
 const shortExcerpt = computed(() => {
-  const text = props.post.introduction?.abstract ?? ''
+  const text = getIntroText(props.post)
   return text.slice(0, 50)
 })
 

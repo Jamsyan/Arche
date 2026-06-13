@@ -262,14 +262,33 @@ onMounted(fetchPost)
       <!-- 分隔线 -->
       <div class="title-divider" />
 
-      <!-- 引言区域（结构化） -->
-      <div v-if="post.introduction?.abstract" class="intro-section">
-        <p class="intro-abstract">{{ post.introduction.abstract }}</p>
-        <div v-if="post.introduction.key_points?.length" class="intro-key-points">
-          <span v-for="point in post.introduction.key_points" :key="point" class="key-point">{{
-            point
-          }}</span>
+      <!-- 引言区域（K:V 结构） -->
+      <div v-if="post.introduction" class="intro-section">
+        <!-- 副标题 -->
+        <div v-if="post.introduction.subtitles?.length" class="intro-subtitles">
+          <p v-for="(sub, idx) in post.introduction.subtitles" :key="idx" class="intro-subtitle">
+            {{ sub }}
+          </p>
         </div>
+
+        <!-- K:V 项列表 -->
+        <div v-if="post.introduction.items?.length" class="intro-items">
+          <div
+            v-for="(item, idx) in post.introduction.items"
+            :key="idx"
+            class="intro-item"
+            :class="{ 'intro-item--no-key': !item.key }"
+          >
+            <span v-if="item.key" class="intro-item-key">{{ item.key }}</span>
+            <span class="intro-item-value">{{ item.value }}</span>
+          </div>
+        </div>
+
+        <!-- 向后兼容：旧的 abstract 格式 -->
+        <p v-else-if="post.introduction.abstract" class="intro-abstract">
+          {{ post.introduction.abstract }}
+        </p>
+
         <div v-if="post.introduction.reading_time" class="intro-meta">
           <span class="intro-reading-time">{{ post.introduction.reading_time }} 分钟阅读</span>
           <span v-if="post.introduction.difficulty_level" class="intro-difficulty">{{
@@ -419,22 +438,55 @@ onMounted(fetchPost)
   margin: 0 0 var(--spacing-sm);
 }
 
-.intro-key-points {
+/* ── 副标题 ── */
+
+.intro-subtitles {
+  margin-bottom: var(--spacing-sm);
+}
+
+.intro-subtitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 4px;
+}
+
+/* ── K:V 列表 ── */
+
+.intro-items {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: var(--spacing-sm);
 }
 
-.key-point {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: var(--primary-color);
-  background: var(--primary-light-color, rgba(102, 126, 234, 0.08));
-  border-radius: var(--radius-full);
-  font-weight: var(--font-weight-medium);
+.intro-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.intro-item--no-key {
+  display: block;
+  color: var(--text-secondary);
+}
+
+.intro-item-key {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.intro-item-key::after {
+  content: ':';
+  margin-left: 2px;
+  color: var(--text-tertiary);
+}
+
+.intro-item-value {
+  color: var(--text-secondary);
 }
 
 .intro-meta {

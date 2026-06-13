@@ -402,8 +402,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useMessage, NModal } from 'naive-ui'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
@@ -428,6 +428,25 @@ import { getCoverGradient } from '@/utils/cover'
 
 const router = useRouter()
 const message = useMessage()
+
+// ── 接收从仪表盘传入的 query params（文件导入等） ──
+const route = useRoute()
+onMounted(() => {
+  const qTitle = route.query.title as string | undefined
+  const qContent = route.query.content as string | undefined
+  const qTags = route.query.tags as string | undefined
+  const qCoverUrl = route.query.cover_url as string | undefined
+  if (qTitle) postTitle.value = decodeURIComponent(qTitle)
+  if (qContent) cards.value = parseMdToCards(decodeURIComponent(qContent))
+  if (qTags) {
+    try {
+      editorTags.value = JSON.parse(decodeURIComponent(qTags))
+    } catch {
+      /* ignore */
+    }
+  }
+  if (qCoverUrl) coverUrl.value = decodeURIComponent(qCoverUrl)
+})
 
 // ── 状态 ──
 
@@ -798,7 +817,7 @@ async function handleSave() {
     await createPostApi(payload)
     message.success('发布成功，帖子已提交审核')
     clearStaged()
-    router.push('/posts')
+    router.push('/create')
   } catch {
     message.error('保存失败，请重试')
   } finally {
@@ -822,7 +841,7 @@ async function saveDraft() {
     await createPostApi(payload)
     message.success('草稿已保存')
     clearStaged()
-    router.push('/posts')
+    router.push('/create')
   } catch {
     message.error('保存草稿失败')
   } finally {
@@ -834,7 +853,7 @@ function handleBack() {
   if (cards.value.length > 0 || postTitle.value.trim()) {
     if (!window.confirm('有未保存的内容，确定退出吗？')) return
   }
-  router.push('/posts')
+  router.push('/create')
 }
 </script>
 

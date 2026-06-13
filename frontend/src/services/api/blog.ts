@@ -15,6 +15,8 @@ export interface BlogPost {
   intro?: string
   content?: string
   introduction?: {
+    items?: Array<{ key?: string; value: string }>
+    subtitles?: string[]
     abstract?: string
     background?: string
     purpose?: string
@@ -90,6 +92,7 @@ export interface CreatePostPayload {
 export interface UpdatePostPayload {
   title?: string
   content?: string
+  status?: string
   introduction?: Record<string, unknown>
   paragraphs?: Array<{
     content: string
