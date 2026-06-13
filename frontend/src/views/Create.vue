@@ -280,15 +280,18 @@
             />
           </div>
           <div class="sidebar-inner">
-            <div class="sidebar-section">
-              <h3 class="sidebar-section-title">封面</h3>
+            <div class="sidebar-panel">
+              <div class="sidebar-panel-header">封面</div>
               <CoverUploader v-model:cover-url="coverUrl" @cover-file="handleCoverFile" />
             </div>
-            <AssetSidebar
-              :staged-files="stagedFiles"
-              @insert="handleInsertRef"
-              @upload="handleAssetUpload"
-            />
+            <div class="sidebar-panel">
+              <div class="sidebar-panel-header">素材</div>
+              <AssetSidebar
+                :staged-files="stagedFiles"
+                @insert="handleInsertRef"
+                @upload="handleAssetUpload"
+              />
+            </div>
           </div>
         </div>
       </main>
@@ -727,7 +730,7 @@ watch(tagInputValue, (val) => {
       const res = await getBlogTagsApi({ page: 1, page_size: 10 } as any, { silent: true })
       const list = (res.list || []) as BlogTag[]
       tagSuggestions.value = list
-        .filter((t) => t.name && !editorTags.value.includes(t.name))
+        .filter((t) => t.name && !editorTags.value.includes(t.name) && t.name.includes(val.trim()))
         .map((t) => ({ name: t.name!, ...(t.count != null ? { count: t.count } : {}) }))
       showTagSuggestions.value = tagSuggestions.value.length > 0
     } catch {
@@ -1420,17 +1423,18 @@ onMounted(fetchData)
   overflow-y: auto;
 }
 
-.sidebar-section {
+.sidebar-panel {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
 }
 
-.sidebar-section-title {
-  margin: 0;
-  font-size: 14px;
+.sidebar-panel-header {
+  font-size: 13px;
   font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 @media (max-width: 768px) {

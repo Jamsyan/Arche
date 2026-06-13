@@ -75,7 +75,7 @@ export function compressImage(file: File, options?: CompressOptions): Promise<Fi
       }
 
       // 不需要缩放则返回原文件
-      if (width === img.naturalWidth && height === img.naturalHeight) {
+      if (img.naturalWidth <= opts.maxWidth && img.naturalHeight <= opts.maxHeight) {
         resolve(file)
         return
       }
