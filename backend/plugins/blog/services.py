@@ -482,6 +482,7 @@ class BlogService:
         post_id: uuid.UUID,
         author_id: uuid.UUID,
         title: str | None = None,
+        status: str | None = None,
         introduction: dict | None = None,
         paragraphs_data: list[dict] | None = None,
         required_level: int | None = None,
@@ -510,6 +511,8 @@ class BlogService:
                 post.introduction = introduction
             if cover_url is not None:
                 post.cover_url = cover_url
+            if status is not None:
+                post.status = status
             if paragraphs_data is not None:
                 # 删除旧段落
                 await session.execute(

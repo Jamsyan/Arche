@@ -74,6 +74,17 @@ export const staticRoutes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/drafts',
+    name: 'Drafts',
+    component: () => import('@/views/user/Drafts.vue'),
+    meta: {
+      title: '草稿箱',
+      layout: 'guest',
+      requiresAuth: true,
+      searchScope: { type: 'post', placeholder: '搜索草稿...', label: '草稿' }
+    }
+  },
+  {
     path: '/assets',
     name: 'Assets',
     component: Assets,

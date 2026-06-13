@@ -92,6 +92,7 @@ export interface CreatePostPayload {
 export interface UpdatePostPayload {
   title?: string
   content?: string
+  status?: string
   introduction?: Record<string, unknown>
   paragraphs?: Array<{
     content: string

@@ -292,7 +292,7 @@ function goCreate() {
   router.push('/create/new')
 }
 function goDrafts() {
-  router.push('/posts?status=draft')
+  router.push('/drafts')
 }
 function continueDraft(postId: string) {
   router.push(`/posts/${postId}/edit`)
