@@ -216,12 +216,30 @@
                 {{ tag }}
               </ArTag>
             </TransitionGroup>
-            <input
-              v-model="tagInputValue"
-              class="tag-input-inline"
-              placeholder="标签"
-              @keydown="handleTagKeydown"
-            />
+            <div class="tag-autocomplete">
+              <input
+                v-model="tagInputValue"
+                class="tag-input-inline"
+                placeholder="标签"
+                maxlength="4"
+                @keydown="handleTagKeydown"
+                @focus="showTagSuggestions = tagSuggestions.length > 0"
+                @blur="handleTagInputBlur"
+              />
+              <Transition name="tag-suggest">
+                <div v-if="showTagSuggestions" class="tag-suggestions">
+                  <button
+                    v-for="s in tagSuggestions"
+                    :key="s.name"
+                    class="tag-suggestion-item"
+                    @mousedown.prevent="selectTagSuggestion(s.name)"
+                  >
+                    <span class="suggestion-name">{{ s.name }}</span>
+                    <span v-if="s.count != null" class="suggestion-count">{{ s.count }}</span>
+                  </button>
+                </div>
+              </Transition>
+            </div>
           </div>
           <div class="edit-topbar-actions">
             <ArButton type="ghost" @click="exitEdit">取消</ArButton>
@@ -282,14 +300,17 @@ import {
   uploadPostFileApi,
   createPostApi,
   updatePostApi,
+  getBlogTagsApi,
   type BlogPost,
-  type CreatePostPayload
+  type CreatePostPayload,
+  type BlogTag
 } from '@/services/api'
 import { uploadOssFileApi } from '@/services/api/oss'
 import { useLocalFiles } from '@/composables/useLocalFiles'
 import { marked } from 'marked'
 import { getCoverGradient } from '@/utils/cover'
 import { generateTextCover } from '@/utils/generateTextCover'
+import { compressImage } from '@/utils/imageCompress'
 import { parseHtmlToParagraphs } from '@/utils/paragraph'
 import { computeIntroduction } from '@/composables/useAutoIntroduction'
 import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
@@ -309,6 +330,8 @@ const isCreatingNew = ref(false)
 const editingPost = ref<BlogPost | null>(null)
 const tagInputValue = ref('')
 const editorTags = ref<string[]>([])
+const tagSuggestions = ref<{ name: string; count?: number }[]>([])
+const showTagSuggestions = ref(false)
 const accessLevels = [0, 1, 2, 3, 4, 5] as const
 const editorAccess = ref<number>(5)
 
@@ -499,10 +522,11 @@ const saveCurrent = async () => {
       }
     }
 
-    // 2. 上传封面（如果是本地 blob）
+    // 2. 上传封面（如果是本地 blob，先压缩再上传）
     let finalCoverUrl = coverUrl.value
     if (coverFile.value && coverUrl.value.startsWith('blob:')) {
-      const resp = await uploadOssFileApi(coverFile.value, false)
+      const compressed = await compressImage(coverFile.value)
+      const resp = await uploadOssFileApi(compressed, false)
       const respData = resp as unknown as { data?: { id: string } }
       const fileId = respData?.data?.id
       if (fileId) {
@@ -597,7 +621,45 @@ const handleTagKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault()
     addEditorTag()
+    showTagSuggestions.value = false
   }
+  if (e.key === 'Escape') {
+    showTagSuggestions.value = false
+  }
+}
+
+// ── 标签自动补全 ──
+let tagSearchTimer: ReturnType<typeof setTimeout> | null = null
+watch(tagInputValue, (val) => {
+  if (tagSearchTimer) clearTimeout(tagSearchTimer)
+  if (!val.trim()) {
+    tagSuggestions.value = []
+    showTagSuggestions.value = false
+    return
+  }
+  tagSearchTimer = setTimeout(async () => {
+    try {
+      const res = await getBlogTagsApi({ page: 1, page_size: 10 } as any, { silent: true })
+      const list = (res.list || []) as BlogTag[]
+      tagSuggestions.value = list
+        .filter((t) => t.name && !editorTags.value.includes(t.name))
+        .map((t) => ({ name: t.name!, ...(t.count != null ? { count: t.count } : {}) }))
+      showTagSuggestions.value = tagSuggestions.value.length > 0
+    } catch {
+      tagSuggestions.value = []
+      showTagSuggestions.value = false
+    }
+  }, 200)
+})
+
+function selectTagSuggestion(name: string) {
+  tagInputValue.value = name
+  addEditorTag()
+  showTagSuggestions.value = false
+}
+
+function handleTagInputBlur() {
+  setTimeout(() => (showTagSuggestions.value = false), 150)
 }
 
 const fetchData = async () => {
@@ -1124,9 +1186,73 @@ onMounted(fetchData)
   font-family: var(--font-sans);
   font-size: 13px;
   padding: 4px 0;
-  min-width: 70px;
+  max-width: 90px;
   flex: 1;
   transition: border-color var(--transition-fast);
+}
+
+.tag-autocomplete {
+  position: relative;
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  scrollbar-width: none;
+}
+
+.tag-suggestions::-webkit-scrollbar {
+  display: none;
+}
+
+.tag-suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.tag-suggestion-item:hover {
+  background: var(--surface-strong-color);
+}
+
+.suggestion-name {
+  font-weight: var(--font-weight-medium);
+}
+
+.suggestion-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-suggest-enter-active,
+.tag-suggest-leave-active {
+  transition: all 0.15s ease;
+}
+.tag-suggest-enter-from,
+.tag-suggest-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .tag-input-inline:focus {

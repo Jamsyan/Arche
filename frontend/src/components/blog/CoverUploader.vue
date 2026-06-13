@@ -200,17 +200,20 @@ function handleDelete(e: MouseEvent) {
 .cover-preview {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  max-height: 260px;
   border-radius: var(--radius-md);
   overflow: hidden;
   cursor: pointer;
   background: var(--surface-inset-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cover-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 260px;
+  object-fit: contain;
   display: block;
 }
 
