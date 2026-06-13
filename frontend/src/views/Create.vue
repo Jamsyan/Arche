@@ -543,7 +543,7 @@ const saveCurrent = async () => {
       title,
       content: finalContent,
       ...(finalCoverUrl ? { cover_url: finalCoverUrl } : {}),
-      ...(autoCoverUrl ? { auto_cover_url: autoCoverUrl } : {}),
+      ...(autoCoverUrl ? { cover_url: autoCoverUrl } : {}),
       tags: editorTags.value,
       required_level: editorAccess.value
     }

@@ -5,7 +5,7 @@ import { NPagination, useMessage } from 'naive-ui'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import { withFallback, blogMockData } from '@/services/mock'
 import { useUserStore } from '@/store/modules/user'
-import { PostCard, HeroCarousel, TrendingTags, WatchHistoryStack } from '@/components/blog'
+import { PostCardGrid, HeroCarousel, TrendingTags, WatchHistoryStack } from '@/components/blog'
 import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
 import type { WatchHistoryItem } from '@/components/blog/WatchHistoryStack.vue'
 
@@ -169,7 +169,7 @@ onMounted(async () => {
           class="grid-item"
           :style="{ animationDelay: `${index * 60}ms` }"
         >
-          <PostCard :post="post" mode="compact" @open="openPost(post)" />
+          <PostCardGrid :post="post" @open="openPost(post)" />
         </div>
       </div>
     </section>

@@ -1,4 +1,4 @@
-export { default as PostCard } from './PostCard.vue'
+export { PostCardBase, PostCardHero, PostCardGrid, PostCardCover, PostCardDense } from './post-card'
 export { default as HeroCarousel } from './HeroCarousel.vue'
 export { default as PostDetail } from './PostDetail.vue'
 export { default as PostEditor } from './PostEditor.vue'

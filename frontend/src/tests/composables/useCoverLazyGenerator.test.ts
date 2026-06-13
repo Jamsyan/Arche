@@ -37,7 +37,6 @@ function createPost(overrides: Record<string, any> = {}): any {
     content: '正文内容',
     tags: ['技术'],
     cover_url: undefined,
-    auto_cover_url: undefined,
     ...overrides
   }
 }
@@ -61,23 +60,6 @@ describe('useCoverLazyGenerator', () => {
       expect(result).toBe('/existing-cover.jpg')
       expect(mockGenerateTextCover).not.toHaveBeenCalled()
       expect(mockUploadOssFileApi).not.toHaveBeenCalled()
-    })
-
-    it('已有 auto_cover_url 时跳过处理，直接返回 auto_cover_url', async () => {
-      const post = createPost({ auto_cover_url: '/auto-cover.jpg' })
-
-      const result = await ensurePostCover(post)
-
-      expect(result).toBe('/auto-cover.jpg')
-      expect(mockGenerateTextCover).not.toHaveBeenCalled()
-    })
-
-    it('cover_url 和 auto_cover_url 同时存在时优先返回 auto_cover_url', async () => {
-      const post = createPost({ cover_url: '/manual.jpg', auto_cover_url: '/auto.jpg' })
-
-      const result = await ensurePostCover(post)
-
-      expect(result).toBe('/auto.jpg')
     })
 
     it('post 为 null/undefined 时返回 null', async () => {
@@ -116,12 +98,12 @@ describe('useCoverLazyGenerator', () => {
       const uploadedFile = mockUploadOssFileApi.mock.calls[0]![0] as File
       expect(uploadedFile.name).toBe('text-cover.jpg')
       expect(mockUploadOssFileApi.mock.calls[0]![1]).toBe(false)
-      // 检查持久化到后端
+      // 检查持久化到后端（统一存入 cover_url）
       expect(mockUpdatePostApi).toHaveBeenCalledWith('post-1', {
-        auto_cover_url: '/api/oss/files/oss-file-1'
+        cover_url: '/api/oss/files/oss-file-1'
       })
       // 检查更新了本地对象
-      expect(post.auto_cover_url).toBe('/api/oss/files/oss-file-1')
+      expect(post.cover_url).toBe('/api/oss/files/oss-file-1')
     })
 
     it('上传 OSS 返回不含 id 时返回 null', async () => {

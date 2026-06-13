@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NIcon, NTag } from 'naive-ui'
 import { PersonOutline, PricetagOutline } from '@vicons/ionicons5'
-import { PostCard } from '@/components/blog'
+import { PostCardDense } from '@/components/blog'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import { withFallback } from '@/services/mock'
 import { useSearchStore } from '@/store/modules/search'
@@ -294,11 +294,10 @@ const filteredItems = computed(() => {
             </TransitionGroup>
           </div>
           <div class="explore-grid">
-            <PostCard
+            <PostCardDense
               v-for="item in filteredItems"
               :key="item.id"
               :post="toBlogPost(item)"
-              mode="dense"
               @open="handleOpenItem"
             />
           </div>

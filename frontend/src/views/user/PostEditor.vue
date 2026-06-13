@@ -57,7 +57,7 @@ const handleSave = async (payload: CreatePostPayload | UpdatePostPayload) => {
       const resp = await uploadOssFileApi(file, false)
       const respData = resp as unknown as { data?: { id: string } }
       if (respData?.data?.id) {
-        ;(payload as any).auto_cover_url = `/api/oss/files/${respData.data.id}`
+        ;(payload as any).cover_url = `/api/oss/files/${respData.data.id}`
       }
     }
 

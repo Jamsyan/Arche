@@ -6,7 +6,7 @@
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { BlogPost } from '@/services/api'
-import PostCard from './PostCard.vue'
+import PostCardCover from './PostCardCover.vue'
 
 export interface WatchHistoryItem {
   post: BlogPost
@@ -129,8 +129,7 @@ function estimateDuration(post: BlogPost): string {
           class="scroll-card"
           @click="emit('open', item)"
         >
-          <PostCard
-            mode="cover"
+          <PostCardCover
             :post="item.post"
             :meta-progress="item.progress ?? 0"
             :meta-duration="estimateDuration(item.post)"

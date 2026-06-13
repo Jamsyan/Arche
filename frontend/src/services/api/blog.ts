@@ -11,8 +11,6 @@ export interface BlogPost {
   slug: string
   title: string
   cover_url?: string
-  auto_cover_url?: string
-  intro?: string
   content?: string
   introduction?: {
     abstract?: string
@@ -84,7 +82,6 @@ export interface CreatePostPayload {
   tags?: string[]
   required_level?: number
   cover_url?: string
-  auto_cover_url?: string
 }
 
 export interface UpdatePostPayload {
@@ -101,7 +98,6 @@ export interface UpdatePostPayload {
   tags?: string[]
   required_level?: number
   cover_url?: string
-  auto_cover_url?: string
 }
 
 export interface CreateCommentPayload {

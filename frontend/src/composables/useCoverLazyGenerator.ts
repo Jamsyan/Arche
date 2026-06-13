@@ -1,7 +1,7 @@
 /**
  * 帖子封面懒加载生成 composable。
  *
- * 当帖子没有手动封面（cover_url）且没有自动生成封面（auto_cover_url）时，
+ * 当帖子没有手动封面（cover_url）时，
  * 按需在浏览器端生成文字封面 → 上传 OSS → 持久化回后端。
  */
 import { generateTextCover } from '@/utils/generateTextCover'
@@ -20,8 +20,8 @@ const processingPosts = new Set<string>()
  */
 export async function ensurePostCover(post: BlogPost): Promise<string | null> {
   // 已有封面 → 跳过
-  if (!post || post.cover_url || post.auto_cover_url) {
-    return post?.auto_cover_url ?? post?.cover_url ?? null
+  if (!post || post.cover_url) {
+    return post?.cover_url ?? null
   }
   // 缺少必要字段或为 demo/占位数据 → 跳过
   if (!post.id || !post.title || post.id.startsWith('demo-')) {
@@ -42,15 +42,15 @@ export async function ensurePostCover(post: BlogPost): Promise<string | null> {
     const respData = resp as unknown as { data?: { id: string } }
     if (!respData?.data?.id) return null
 
-    const autoCoverUrl = `/api/oss/files/${respData.data.id}`
+    const coverUrl = `/api/oss/files/${respData.data.id}`
 
-    // 3. 持久化到后端
-    await updatePostApi(post.id, { auto_cover_url: autoCoverUrl })
+    // 3. 持久化到后端（统一存入 cover_url）
+    await updatePostApi(post.id, { cover_url: coverUrl })
 
     // 4. 更新本地响应式对象，UI 自动重新渲染
-    post.auto_cover_url = autoCoverUrl
+    post.cover_url = coverUrl
 
-    return autoCoverUrl
+    return coverUrl
   } catch (e) {
     console.warn('[useCoverLazyGenerator] 为帖子生成封面失败:', post.id, e)
     return null
@@ -67,7 +67,7 @@ export async function ensurePostsCovers(posts: BlogPost[]): Promise<void> {
   if (!posts || posts.length === 0) return
 
   const needCover = posts.filter(
-    (p) => p && !p.cover_url && !p.auto_cover_url && p.id && p.title && !p.id.startsWith('demo-')
+    (p) => p && !p.cover_url && p.id && p.title && !p.id.startsWith('demo-')
   )
   if (needCover.length === 0) return
 

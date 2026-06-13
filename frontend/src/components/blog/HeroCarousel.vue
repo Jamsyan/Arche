@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ArCarousel3D from '@/components/ui/ArCarousel3D.vue'
-import PostCard from './PostCard.vue'
+import PostCardHero from './PostCardHero.vue'
 import type { BlogPost } from '@/services/api'
 
 withDefaults(
@@ -24,12 +24,7 @@ function handleSelect(post: BlogPost) {
 <template>
   <ArCarousel3D :items="posts" :interval="interval" @select="handleSelect">
     <template #card="{ item: post, showOverlay }">
-      <PostCard
-        :post="post"
-        mode="showcase"
-        :show-overlay="showOverlay"
-        @open="emit('open', post)"
-      />
+      <PostCardHero :post="post" :show-overlay="showOverlay" @open="emit('open', post)" />
     </template>
   </ArCarousel3D>
 </template>

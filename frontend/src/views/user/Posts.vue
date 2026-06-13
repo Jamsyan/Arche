@@ -6,7 +6,7 @@ import { AddOutline } from '@/icons'
 import { ArTable, ArPagination } from '@/components/ui'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
-import { PostCard } from '@/components/blog'
+import { PostCardGrid } from '@/components/blog'
 import { deletePostApi, getMyPostsApi, type BlogPost } from '@/services/api'
 
 const message = useMessage()
@@ -56,10 +56,8 @@ const columns = [
     width: 400,
     render: (row: PostRow) =>
       h('div', { class: 'posts-title-cell' }, [
-        h(PostCard, {
-          post: toBlogPost(row),
-          layout: 'compact',
-          showExcerpt: false
+        h(PostCardGrid, {
+          post: toBlogPost(row)
         })
       ])
   },
@@ -241,7 +239,7 @@ onMounted(fetchPosts)
   padding-top: var(--spacing-md);
 }
 
-.posts-title-cell :deep(.blog-card--compact) {
+.posts-title-cell :deep(.post-card-grid) {
   border: none;
   padding: 0;
   background: transparent;
