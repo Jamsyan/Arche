@@ -290,6 +290,8 @@ import { useLocalFiles } from '@/composables/useLocalFiles'
 import { marked } from 'marked'
 import { getCoverGradient } from '@/utils/cover'
 import { generateTextCover } from '@/utils/generateTextCover'
+import { parseHtmlToParagraphs } from '@/utils/paragraph'
+import { computeIntroduction } from '@/composables/useAutoIntroduction'
 import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
 
 type PostTab = 'all' | 'published' | 'draft'
@@ -539,9 +541,21 @@ const saveCurrent = async () => {
 
     // 4. 发送保存请求
     const isEdit = !!editingPost.value
+
+    // 4.1 解析正文为结构化段落
+    const paragraphs = parseHtmlToParagraphs(finalContent)
+
+    // 4.2 引言为空时自动生成
+    const editorIntro = editorRef.value?.intro.trim()
+    const introduction = editorIntro
+      ? { abstract: editorIntro }
+      : (computeIntroduction(paragraphs) as Record<string, unknown>)
+
     const payload: CreatePostPayload = {
       title,
       content: finalContent,
+      ...(paragraphs.length > 0 ? { paragraphs } : {}),
+      ...(Object.keys(introduction).length > 0 ? { introduction } : {}),
       ...(finalCoverUrl ? { cover_url: finalCoverUrl } : {}),
       ...(autoCoverUrl ? { auto_cover_url: autoCoverUrl } : {}),
       tags: editorTags.value,
