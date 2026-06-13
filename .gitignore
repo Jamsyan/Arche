@@ -19,7 +19,6 @@ venv/
 .trae/*
 !.trae/rules
 !.trae/skills
-!.trae/specs
 
 # Environment files (never commit secrets)
 .env
