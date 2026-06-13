@@ -15,6 +15,8 @@ export interface BlogPost {
   intro?: string
   content?: string
   introduction?: {
+    items?: Array<{ key?: string; value: string }>
+    subtitles?: string[]
     abstract?: string
     background?: string
     purpose?: string

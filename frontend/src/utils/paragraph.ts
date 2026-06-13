@@ -14,6 +14,122 @@ export interface ParsedParagraph {
   media_url?: string
 }
 
+// ── 卡片编辑器类型 ──
+
+/** 卡片编辑器中的段落卡片类型 */
+export type CardType =
+  | 'text' // 正文段落
+  | 'quote' // 引用
+  | 'code' // 代码块
+  | 'image' // 图片
+
+/** 卡片编辑器中的段落卡片 */
+export interface CardData {
+  id: string
+  type: CardType
+  content: string
+  /** 仅 image 类型 */
+  media_url?: string
+}
+
+const CARD_TYPES: { type: CardType; label: string }[] = [
+  { type: 'text', label: '正文' },
+  { type: 'quote', label: '引用' },
+  { type: 'code', label: '代码' },
+  { type: 'image', label: '图片' }
+]
+
+export { CARD_TYPES }
+
+let _cardIdCounter = 0
+function generateCardId(): string {
+  return `card_${Date.now().toString(36)}_${++_cardIdCounter}`
+}
+
+/**
+ * 将 Markdown 文本按空行分割为段落卡片数组。
+ *
+ * 规则：
+ * - 按空行（\n\n+）分割段落
+ * - 代码块（```）内部不分割
+ * - 根据首行内容自动推断卡片类型
+ * - 首行 `# ` 标记为 title
+ * - 首个 `> ` 块标记为 abstract，后续的 > 块标记为 quote
+ * - `## ` / `### ` 标记为对应标题级别
+ * - ``` 块标记为 code
+ * - ![alt](url) 标记为 image
+ * - 其余为 text
+ */
+export function parseMdToCards(md: string): CardData[] {
+  if (!md || !md.trim()) return []
+
+  const lines = md.split('\n')
+  const cards: CardData[] = []
+  let currentBlock: string[] = []
+  let inCodeBlock = false
+
+  function flushBlock() {
+    if (currentBlock.length === 0) return
+    const raw = currentBlock.join('\n')
+    const content = raw.trim()
+    if (!content) return
+
+    const firstLine = currentBlock[0]?.trimStart() ?? ''
+    let type: CardType = 'text'
+
+    if (inCodeBlock) {
+      type = 'code'
+    } else if (firstLine.startsWith('> ')) {
+      type = 'quote'
+    } else if (/^!\[.*\]\(.*\)/.test(firstLine)) {
+      type = 'image'
+    }
+
+    cards.push({ id: generateCardId(), type, content })
+    currentBlock = []
+  }
+
+  for (const line of lines) {
+    // 代码块边界检测
+    if (/^```/.test(line.trimStart())) {
+      if (inCodeBlock) {
+        // 代码块结束
+        currentBlock.push(line)
+        flushBlock()
+        inCodeBlock = false
+      } else {
+        // 代码块开始
+        flushBlock()
+        inCodeBlock = true
+        currentBlock.push(line)
+      }
+      continue
+    }
+
+    if (inCodeBlock) {
+      currentBlock.push(line)
+      continue
+    }
+
+    // 空行 → 分割段落
+    if (line.trim() === '') {
+      flushBlock()
+      continue
+    }
+
+    currentBlock.push(line)
+  }
+
+  // 刷新最后一段
+  if (inCodeBlock) {
+    flushBlock()
+  } else {
+    flushBlock()
+  }
+
+  return cards
+}
+
 /** 块级标签选择器，按解析优先级排列 */
 const BLOCK_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'blockquote', 'figure', 'p']
 
