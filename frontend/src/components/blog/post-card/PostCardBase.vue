@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { BlogPost } from '@/services/api'
 import { getCoverGradient } from '@/utils/cover'
+import { buildExcerptFallback } from './utils'
 
 const props = defineProps<{
   post: BlogPost
@@ -22,16 +23,6 @@ const coverStyle = computed(() => {
   }
   return { background: getCoverGradient(props.post) }
 })
-
-/** 摘要为空时，用帖子元信息作为替代展示 */
-function buildExcerptFallback(post: BlogPost): string {
-  const parts: string[] = []
-  const intro = post.introduction
-  if (intro?.difficulty_level) parts.push(intro.difficulty_level)
-  if (post.category_id) parts.push(post.category_id)
-  if (parts.length > 0) return parts.join(' · ')
-  return ''
-}
 
 const excerpt = computed(() => {
   const abstract = props.post.introduction?.abstract

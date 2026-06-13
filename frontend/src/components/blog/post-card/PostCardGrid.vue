@@ -4,6 +4,7 @@ import { NIcon } from 'naive-ui'
 import { EyeOutline, HeartOutline } from '@vicons/ionicons5'
 import ArTag from '@/components/ui/ArTag.vue'
 import PostCardBase from './PostCardBase.vue'
+import { buildExcerptFallback } from './utils'
 import type { BlogPost } from '@/services/api'
 
 const props = defineProps<{
@@ -25,16 +26,6 @@ function tagColor(index: number) {
 const hasRealCover = computed(() => !!props.post.cover_url)
 
 const displayCoverUrl = computed(() => props.post.cover_url || '')
-
-/** 摘要为空时，用帖子元信息作为替代展示 */
-function buildExcerptFallback(post: BlogPost): string {
-  const parts: string[] = []
-  const intro = post.introduction
-  if (intro?.difficulty_level) parts.push(intro.difficulty_level)
-  if (post.category_id) parts.push(post.category_id)
-  if (parts.length > 0) return parts.join(' · ')
-  return ''
-}
 
 const shortExcerpt = computed(() => {
   const abstract = props.post.introduction?.abstract
