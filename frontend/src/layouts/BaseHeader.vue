@@ -24,7 +24,7 @@
           >首页</RouterLink
         >
         <RouterLink to="/explore" class="nav-item">探索</RouterLink>
-        <RouterLink v-if="isLoggedIn" to="/create" class="nav-item">创作</RouterLink>
+        <RouterLink v-if="isLoggedIn" to="/create" class="nav-item">发帖</RouterLink>
         <RouterLink v-if="isLoggedIn" to="/assets" class="nav-item">素材库</RouterLink>
         <RouterLink v-if="isLoggedIn" to="/tasks" class="nav-item">托管任务</RouterLink>
         <RouterLink to="/github" class="nav-item">GitHub</RouterLink>

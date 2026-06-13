@@ -89,7 +89,10 @@ onBeforeUnmount(() => {
 function estimateDuration(post: BlogPost): string {
   let text = ''
   if (post.introduction?.items?.length) {
-    text = post.introduction.items.map((i) => i.value).filter(Boolean).join(' ')
+    text = post.introduction.items
+      .map((i) => i.value)
+      .filter(Boolean)
+      .join(' ')
   } else {
     text = post.introduction?.abstract || post.title || ''
   }

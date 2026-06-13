@@ -4,11 +4,7 @@
       <span class="intro-kv-title">引言</span>
     </div>
     <div class="intro-kv-list">
-      <div
-        v-for="(item, index) in items"
-        :key="index"
-        class="intro-kv-row"
-      >
+      <div v-for="(item, index) in items" :key="index" class="intro-kv-row">
         <input
           v-model="item.key"
           class="kv-key-input"
@@ -24,7 +20,14 @@
           @input="emitUpdate"
         />
         <button class="kv-remove-btn" title="删除" @click="removeItem(index)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -32,7 +35,14 @@
       </div>
     </div>
     <button class="kv-add-btn" @click="addItem">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
       </svg>
@@ -128,7 +138,7 @@ function removeItem(index: number) {
 }
 
 .kv-key-input:focus {
-  border-color: var(--primary-color, #7c3aed);
+  border-color: var(--primary-color, #b83a2a);
 }
 
 .kv-value-input {
@@ -143,7 +153,7 @@ function removeItem(index: number) {
 }
 
 .kv-value-input:focus {
-  border-color: var(--primary-color, #7c3aed);
+  border-color: var(--primary-color, #b83a2a);
 }
 
 .kv-remove-btn {
@@ -182,8 +192,8 @@ function removeItem(index: number) {
 }
 
 .kv-add-btn:hover {
-  border-color: var(--primary-color, #7c3aed);
-  color: var(--primary-color, #7c3aed);
-  background: var(--primary-light-bg, #f5f3ff);
+  border-color: var(--primary-color, #b83a2a);
+  color: var(--primary-color, #b83a2a);
+  background: var(--primary-light-color, rgba(184, 58, 42, 0.08));
 }
 </style>

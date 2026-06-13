@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="paragraph-card"
-    :class="[`card--${card.type}`, { 'card--focused': isFocused }]"
-  >
+  <div class="paragraph-card" :class="[`card--${card.type}`, { 'card--focused': isFocused }]">
     <div class="card-body">
       <div class="card-main">
         <!-- 顶栏：类型选择 + 操作按钮 -->
@@ -16,23 +13,51 @@
           </div>
           <div class="card-toolbar-right">
             <button class="card-btn" title="上移" @click="$emit('move', index, index - 1)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polyline points="18 15 12 9 6 15" />
               </svg>
             </button>
             <button class="card-btn" title="下移" @click="$emit('move', index, index + 1)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
             <button class="card-btn" title="上方插入" @click="$emit('insert', index)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </button>
             <button class="card-btn card-btn--danger" title="删除" @click="$emit('delete', index)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -148,7 +173,7 @@ function escapeHtml(text: string): string {
 }
 
 .paragraph-card.card--focused {
-  border-color: var(--primary-color, #7c3aed);
+  border-color: var(--primary-color, #b83a2a);
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
 }
 
@@ -167,7 +192,7 @@ function escapeHtml(text: string): string {
 /* ── 类型特殊样式 ── */
 
 .card--quote {
-  border-left: 3px solid var(--quote-border, #7c3aed);
+  border-left: 3px solid var(--quote-border, #b83a2a);
 }
 
 .card--quote .card-content {
@@ -219,7 +244,7 @@ function escapeHtml(text: string): string {
 }
 
 .card-type-select:focus {
-  border-color: var(--primary-color, #7c3aed);
+  border-color: var(--primary-color, #b83a2a);
 }
 
 .card-btn {
