@@ -489,7 +489,9 @@ const accessDescriptions: Record<number, string> = {
 const estimatedWords = computed(() => {
   let total = 0
   for (const card of cards.value) {
-    const text = card.content.replace(/<[^>]*>/g, '')
+    const div = document.createElement('div')
+    div.innerHTML = card.content
+    const text = div.textContent || ''
     const cn = (text.match(/[\u4e00-\u9fff]/g) || []).length
     const en = (text.match(/[a-zA-Z]+/g) || []).length
     total += cn + en

@@ -29,7 +29,9 @@ export function computeIntroduction(paragraphs: ParsedParagraph[]): AutoIntroduc
   // 1. abstract: 取首个非空 text 段落的前 80 字
   const firstText = paragraphs.find((p) => p.type === 'text' && p.content.trim().length > 0)
   if (firstText) {
-    const cleaned = firstText.content.replace(/<[^>]*>/g, '').trim()
+    const div = document.createElement('div')
+    div.innerHTML = firstText.content
+    const cleaned = (div.textContent || '').trim()
     if (cleaned) {
       result.abstract = cleaned.slice(0, 80)
     }

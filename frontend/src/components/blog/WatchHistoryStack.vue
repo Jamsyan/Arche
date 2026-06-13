@@ -96,7 +96,9 @@ function estimateDuration(post: BlogPost): string {
   } else {
     text = post.introduction?.abstract || post.title || ''
   }
-  const len = text.replace(/<[^>]+>/g, '').length
+  const div = document.createElement('div')
+  div.innerHTML = text
+  const len = (div.textContent || '').length
   return `${Math.max(1, Math.ceil(len / 300))} 分钟`
 }
 </script>

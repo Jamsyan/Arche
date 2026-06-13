@@ -234,8 +234,8 @@ async function fetchUserInfo() {
     userInfo.value = {
       username: data.username || '',
       nickname: data.nickname || data.username || '',
-      avatar: data.avatar,
-      bio: data.bio,
+      avatar: data.avatar ?? '',
+      bio: data.bio ?? '',
       level: data.level ?? 5
     }
   } catch {
