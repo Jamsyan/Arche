@@ -6,7 +6,7 @@
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { BlogPost } from '@/services/api'
-import PostCardCover from './PostCardCover.vue'
+import PostCardCover from './post-card/PostCardCover.vue'
 
 export interface WatchHistoryItem {
   post: BlogPost

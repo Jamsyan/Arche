@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ArCarousel3D from '@/components/ui/ArCarousel3D.vue'
-import PostCardHero from './PostCardHero.vue'
+import PostCardHero from './post-card/PostCardHero.vue'
 import type { BlogPost } from '@/services/api'
 
 withDefaults(
