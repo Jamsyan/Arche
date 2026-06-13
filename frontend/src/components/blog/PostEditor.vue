@@ -30,7 +30,7 @@ const emit = defineEmits<{
 const isEdit = computed(() => !!props.post)
 
 const title = ref(props.post?.title || '')
-const intro = ref(props.post?.introduction?.abstract ?? (props.post as any)?.intro ?? '')
+const intro = ref(props.post?.introduction?.abstract ?? props.post?.intro ?? '')
 const content = ref(props.post?.content || '')
 const tagInput = ref('')
 const tags = ref<string[]>(props.post?.tags || [])
