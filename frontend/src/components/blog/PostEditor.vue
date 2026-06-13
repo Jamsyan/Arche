@@ -104,38 +104,30 @@ defineExpose({
 
 <template>
   <div class="post-editor">
-    <!-- 标题 -->
-    <div class="editor-field">
-      <label class="field-label">标题</label>
-      <ArInput
-        v-model:value="title"
-        placeholder="输入文章标题……"
-        size="large"
-        :maxlength="120"
-        show-count
-      />
-    </div>
+    <!-- 标题（大字号，无 label） -->
+    <ArInput
+      v-model:value="title"
+      placeholder="输入文章标题……"
+      size="large"
+      :maxlength="120"
+      show-count
+      class="title-input"
+    />
 
-    <!-- 引言 -->
-    <div class="editor-field">
-      <label class="field-label"
-        >引言 <span class="field-optional">（可选，用作文字封面素材）</span></label
-      >
-      <textarea
-        v-model="intro"
-        class="field-textarea"
-        placeholder="用一两句话概括文章精华……"
-        rows="2"
-        maxlength="512"
-      />
-      <span class="field-hint">未填写时将从正文自动截取</span>
-    </div>
+    <!-- ──── 分割线 ──── -->
+    <div class="editor-divider" />
 
-    <!-- 内容 -->
-    <div class="editor-field">
-      <label class="field-label">正文</label>
-      <RichTextEditor v-model="content" placeholder="开始写下你的想法……" />
-    </div>
+    <!-- 引言（灰色沉淀框，无 label） -->
+    <textarea
+      v-model="intro"
+      class="intro-box"
+      placeholder="用一两句话概括文章精华……"
+      rows="2"
+      maxlength="512"
+    />
+
+    <!-- 正文 -->
+    <RichTextEditor v-model="content" placeholder="开始写下你的想法……" />
 
     <!-- 标签 -->
     <div v-if="!hideFooter" class="editor-field">
@@ -195,53 +187,46 @@ defineExpose({
   font-family: var(--font-sans);
 }
 
-.editor-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+/* ── 标题 ── */
+.title-input {
+  font-size: 20px;
+}
+.title-input :deep(input) {
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
 }
 
-.field-label {
-  font-size: 14px;
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
+/* ── 分割线 ── */
+.editor-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0;
 }
 
-.field-optional {
-  font-weight: var(--font-weight-normal);
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.field-hint {
-  font-size: 12px;
-  color: var(--text-quaternary);
-  line-height: 1.4;
-}
-
-.field-textarea {
+/* ── 引言灰色沉淀框 ── */
+.intro-box {
   width: 100%;
   min-height: 56px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
+  padding: 12px 14px;
+  border: none;
   border-radius: var(--radius-md);
-  background: var(--surface-color);
-  color: var(--text-primary);
+  background: var(--surface-inset-color);
+  color: var(--text-secondary);
   font-family: var(--font-sans);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   outline: none;
   resize: vertical;
-  transition: border-color var(--transition-fast);
+  transition: background var(--transition-fast);
 }
 
-.field-textarea:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-light-color);
+.intro-box:focus {
+  background: var(--surface-strong-color);
 }
 
-.field-textarea::placeholder {
+.intro-box::placeholder {
   color: var(--text-quaternary);
+  font-style: italic;
 }
 
 .tag-input-row {

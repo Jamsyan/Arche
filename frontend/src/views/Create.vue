@@ -961,13 +961,27 @@ onMounted(fetchData)
   overflow: hidden;
 }
 
+/* ── 隐藏滚动条（全局统一后面单独做，先隐藏） ── */
+.edit-body,
+.edit-editor,
+.sidebar-inner,
+.sidebar-items {
+  scrollbar-width: none;
+}
+.edit-body::-webkit-scrollbar,
+.edit-editor::-webkit-scrollbar,
+.sidebar-inner::-webkit-scrollbar,
+.sidebar-items::-webkit-scrollbar {
+  display: none;
+}
+
 .edit-sidebar {
   width: 220px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border-color);
-  background: var(--bg-inset-color);
+  background: var(--surface-inset-color);
 }
 
 .sidebar-back {
