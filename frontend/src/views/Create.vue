@@ -125,6 +125,13 @@
                 <button class="action-btn" title="编辑" @click="handleEditPost(post)">
                   <NIcon size="16"><CreateOutline /></NIcon>
                 </button>
+                <button
+                  class="action-btn action-btn--danger"
+                  title="删除"
+                  @click="handleDeletePost(post)"
+                >
+                  <NIcon size="16"><TrashBinOutline /></NIcon>
+                </button>
               </div>
             </div>
           </div>
@@ -221,9 +228,6 @@
             />
           </div>
           <div class="edit-topbar-tags">
-            <ArButton size="sm" type="secondary" :loading="saving" @click="saveDraft">
-              存草稿
-            </ArButton>
             <TransitionGroup name="tag-enter" tag="div" class="topbar-tag-list">
               <ArTag
                 v-for="tag in editorTags"
@@ -262,6 +266,7 @@
             </div>
           </div>
           <div class="edit-topbar-actions">
+            <ArButton type="ghost" :loading="saving" @click="saveDraft">存草稿</ArButton>
             <ArButton type="ghost" @click="exitEdit">取消</ArButton>
             <ArButton type="primary" :loading="saving" :disabled="saving" @click="saveCurrent">
               {{ isCreatingNew ? '发布' : '保存' }}
@@ -310,7 +315,8 @@ import {
   HeartOutline,
   BookmarkOutline,
   TimeOutline,
-  CloudUploadOutline
+  CloudUploadOutline,
+  TrashBinOutline
 } from '@vicons/ionicons5'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
@@ -525,6 +531,17 @@ const handleEditPost = (post: BlogPost) => {
   editorAccess.value = (post.required_level as number) ?? 5
   coverUrl.value = post.cover_url || ''
   isEditorOpen.value = true
+}
+
+const handleDeletePost = async (post: BlogPost) => {
+  if (!window.confirm(`确定删除「${post.title || '无标题'}」吗？`)) return
+  try {
+    await deletePostApi(post.id)
+    message.success('删除成功')
+    await fetchData()
+  } catch {
+    message.error('删除失败')
+  }
 }
 
 const handleInsertRef = (refStr: string) => {
@@ -999,6 +1016,11 @@ onMounted(fetchData)
 .action-btn:hover {
   background: var(--surface-hover-color);
   color: var(--text-primary);
+}
+
+.action-btn--danger:hover {
+  background: rgba(208, 48, 48, 0.1);
+  color: var(--error-color);
 }
 
 .stats-tip {
