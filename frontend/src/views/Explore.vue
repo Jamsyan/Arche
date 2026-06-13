@@ -36,6 +36,17 @@ const allTags = ref<string[]>([])
 const allAuthors = ref<string[]>([])
 const loading = ref(false)
 
+function getIntroText(post: BlogPost): string {
+  if (post.introduction?.items?.length) {
+    return post.introduction.items
+      .map((item) => (item.key ? `${item.key} ${item.value}` : item.value))
+      .filter(Boolean)
+      .join(' ')
+  }
+  if (post.introduction?.abstract) return post.introduction.abstract
+  return ''
+}
+
 const convertBlogPostToExploreItem = (post: BlogPost, index: number): ExploreItem => {
   const gradientCovers = [
     'linear-gradient(135deg, #f2dfc7, #dcbca0)',
@@ -51,8 +62,8 @@ const convertBlogPostToExploreItem = (post: BlogPost, index: number): ExploreIte
     date: (post.created_at || '').slice(0, 10),
     likes: post.likes || 0,
     favorites: Math.max(1, Math.round((post.likes || 0) * 0.65)),
-    content: post.introduction?.abstract ?? '',
-    excerpt: (post.introduction?.abstract ?? '').slice(0, 60),
+    content: getIntroText(post),
+    excerpt: getIntroText(post).slice(0, 60),
     cover: gradientCovers[index % gradientCovers.length] ?? ''
   }
 }

@@ -87,8 +87,18 @@ onBeforeUnmount(() => {
 
 // ── 估算阅读时长 ──
 function estimateDuration(post: BlogPost): string {
-  const text = post.introduction?.abstract || post.title || ''
-  const len = text.replace(/<[^>]+>/g, '').length
+  let text = ''
+  if (post.introduction?.items?.length) {
+    text = post.introduction.items
+      .map((i) => i.value)
+      .filter(Boolean)
+      .join(' ')
+  } else {
+    text = post.introduction?.abstract || post.title || ''
+  }
+  const div = document.createElement('div')
+  div.innerHTML = text
+  const len = (div.textContent || '').length
   return `${Math.max(1, Math.ceil(len / 300))} 分钟`
 }
 </script>
