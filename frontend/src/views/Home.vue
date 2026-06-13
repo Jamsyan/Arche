@@ -65,7 +65,8 @@ const fetchPosts = async () => {
     total.value = latestRes.total || 0
     buildHistoryItems(posts.value)
     if (hotList.length > 0) {
-      hotPosts.value = hotList
+      // 轮播只展示有真实封面的帖子
+      hotPosts.value = hotList.filter((p) => p && p.cover_url)
     }
   } catch {
     posts.value = []

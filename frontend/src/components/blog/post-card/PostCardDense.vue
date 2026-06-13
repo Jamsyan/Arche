@@ -22,9 +22,20 @@ function tagColor(index: number) {
 
 const authorDisplay = computed(() => `@ ${props.post.author_username || '匿名'}`)
 
+/** 摘要为空时，用帖子元信息作为替代展示 */
+function buildExcerptFallback(post: BlogPost): string {
+  const parts: string[] = []
+  const intro = post.introduction
+  if (intro?.difficulty_level) parts.push(intro.difficulty_level)
+  if (post.category_id) parts.push(post.category_id)
+  if (parts.length > 0) return parts.join(' · ')
+  return ''
+}
+
 const shortExcerpt = computed(() => {
-  const text = props.post.introduction?.abstract ?? ''
-  return text.slice(0, 50)
+  const abstract = props.post.introduction?.abstract
+  if (abstract) return abstract.slice(0, 50)
+  return buildExcerptFallback(props.post)
 })
 
 /** 日期格式化：今年 → "04-01"，往年 → "2025-04-01" */

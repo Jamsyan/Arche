@@ -23,9 +23,20 @@ const coverStyle = computed(() => {
   return { background: getCoverGradient(props.post) }
 })
 
+/** 摘要为空时，用帖子元信息作为替代展示 */
+function buildExcerptFallback(post: BlogPost): string {
+  const parts: string[] = []
+  const intro = post.introduction
+  if (intro?.difficulty_level) parts.push(intro.difficulty_level)
+  if (post.category_id) parts.push(post.category_id)
+  if (parts.length > 0) return parts.join(' · ')
+  return ''
+}
+
 const excerpt = computed(() => {
-  const text = props.post.introduction?.abstract ?? ''
-  return text.slice(0, 120)
+  const abstract = props.post.introduction?.abstract
+  if (abstract) return abstract.slice(0, 120)
+  return buildExcerptFallback(props.post)
 })
 
 function handleClick() {

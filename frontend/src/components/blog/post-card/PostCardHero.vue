@@ -15,19 +15,18 @@ defineEmits<{
 <template>
   <PostCardBase :post="post" class="post-card-hero" @open="$emit('open', $event)">
     <template #cover>
-      <div
-        class="hero-cover"
-        :style="{ backgroundImage: post.cover_url ? `url(${post.cover_url})` : undefined }"
-      >
+      <div class="hero-cover" :style="{ backgroundImage: `url(${post.cover_url})` }">
         <div class="hero-shine" />
-      </div>
-      <div v-if="showOverlay" class="hero-overlay">
-        <div class="hero-overlay-body">
-          <span class="hero-author">{{ post.author_username || '匿名' }}</span>
-          <h3 class="hero-title">{{ post.title }}</h3>
+        <div v-if="showOverlay" class="hero-overlay">
+          <div class="hero-overlay-body">
+            <h3 class="hero-title">{{ post.title }}</h3>
+            <span class="hero-author">@{{ post.author_username || '匿名' }}</span>
+          </div>
         </div>
       </div>
     </template>
+    <template #content />
+    <template #actions />
   </PostCardBase>
 </template>
 
@@ -63,11 +62,11 @@ defineEmits<{
 
 .hero-overlay {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 50%, rgba(26, 24, 23, 0.75) 100%);
-  display: flex;
-  align-items: flex-end;
-  padding: var(--spacing-lg);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 32px var(--spacing-lg) var(--spacing-lg);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 100%);
   pointer-events: none;
 }
 
@@ -75,12 +74,6 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.hero-author {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.75);
-  font-weight: var(--font-weight-medium);
 }
 
 .hero-title {
@@ -94,5 +87,11 @@ defineEmits<{
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.hero-author {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: var(--font-weight-medium);
 }
 </style>
