@@ -11,6 +11,7 @@ export interface BlogPost {
   slug: string
   title: string
   cover_url?: string
+  auto_cover_url?: string
   intro?: string
   content?: string
   introduction?: {
