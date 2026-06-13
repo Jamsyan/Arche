@@ -62,17 +62,13 @@ function handleSave() {
   const payload: CreatePostPayload | UpdatePostPayload = isEdit.value
     ? {
         title: title.value.trim(),
-        ...(intro.value.trim()
-          ? { introduction: { abstract: intro.value.trim() } }
-          : {}),
+        ...(intro.value.trim() ? { introduction: { abstract: intro.value.trim() } } : {}),
         content: content.value.trim(),
         ...(props.coverUrl ? { cover_url: props.coverUrl } : {})
       }
     : {
         title: title.value.trim(),
-        ...(intro.value.trim()
-          ? { introduction: { abstract: intro.value.trim() } }
-          : {}),
+        ...(intro.value.trim() ? { introduction: { abstract: intro.value.trim() } } : {}),
         content: content.value.trim(),
         tags: tags.value,
         required_level: requiredLevel.value,

@@ -86,7 +86,9 @@ const displayDate = computed(() => formatDate(props.post.created_at || ''))
       <p v-if="hasRealCover && shortExcerpt" class="grid-excerpt grid-excerpt--compact">
         {{ shortExcerpt }}
       </p>
-      <p v-if="!hasRealCover && excerpt" class="grid-excerpt grid-excerpt--expanded">{{ excerpt }}</p>
+      <p v-if="!hasRealCover && excerpt" class="grid-excerpt grid-excerpt--expanded">
+        {{ excerpt }}
+      </p>
       <div v-if="displayTags.length > 0" class="grid-tags">
         <ArTag
           v-for="(tag, i) in displayTags"
