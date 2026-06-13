@@ -64,7 +64,24 @@
             <p v-else>草稿箱是空的</p>
           </div>
           <div v-else class="post-items">
+            <!-- 批量操作栏 -->
+            <div v-if="selectedPostIds.size > 0" class="batch-bar">
+              <span class="batch-count">已选 {{ selectedPostIds.size }} 篇</span>
+              <ArButton size="sm" type="danger" :loading="deleting" @click="handleBatchDelete">
+                批量删除
+              </ArButton>
+              <ArButton size="sm" type="ghost" @click="selectedPostIds.clear()">
+                取消选择
+              </ArButton>
+            </div>
             <div v-for="post in filteredPosts" :key="post.id" class="post-row">
+              <label class="post-checkbox" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="selectedPostIds.has(post.id)"
+                  @change="togglePostSelect(post.id)"
+                />
+              </label>
               <div class="post-info" @click="handleOpenPost(post)">
                 <span class="post-title">{{ post.title || '无标题' }}</span>
                 <div class="post-meta">
@@ -204,6 +221,9 @@
             />
           </div>
           <div class="edit-topbar-tags">
+            <ArButton size="sm" type="secondary" :loading="saving" @click="saveDraft">
+              存草稿
+            </ArButton>
             <TransitionGroup name="tag-enter" tag="div" class="topbar-tag-list">
               <ArTag
                 v-for="tag in editorTags"
@@ -300,6 +320,7 @@ import {
   uploadPostFileApi,
   createPostApi,
   updatePostApi,
+  deletePostApi,
   getBlogTagsApi,
   type BlogPost,
   type CreatePostPayload,
@@ -323,6 +344,8 @@ const editorRef = ref<InstanceType<typeof PostEditor> | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const loading = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
+const selectedPostIds = ref(new Set<string>())
 const posts = ref<BlogPost[]>([])
 const activeTab = ref<PostTab>('all')
 const isEditorOpen = ref(false)
@@ -459,6 +482,36 @@ const handleViewStats = (post: BlogPost) => {
 const handleCloseStats = () => {
   showStatsModal.value = false
   statsPost.value = null
+}
+
+// ── 多选批量操作 ──
+function togglePostSelect(postId: string) {
+  const set = selectedPostIds.value
+  if (set.has(postId)) {
+    set.delete(postId)
+  } else {
+    set.add(postId)
+  }
+  // 触发响应式更新
+  selectedPostIds.value = new Set(set)
+}
+
+async function handleBatchDelete() {
+  const ids = [...selectedPostIds.value]
+  if (ids.length === 0) return
+  if (!window.confirm(`确定删除选中的 ${ids.length} 篇文章吗？`)) return
+
+  deleting.value = true
+  try {
+    await Promise.all(ids.map((id) => deletePostApi(id)))
+    message.success(`已删除 ${ids.length} 篇文章`)
+    selectedPostIds.value = new Set()
+    await fetchData()
+  } catch {
+    message.error('删除失败，请重试')
+  } finally {
+    deleting.value = false
+  }
 }
 
 // Edit actions
@@ -599,6 +652,38 @@ const saveCurrent = async () => {
     }
   } catch {
     message.error('保存失败，请重试')
+  } finally {
+    saving.value = false
+  }
+}
+
+/** 存草稿：保存但不改变 status，不退出编辑器 */
+async function saveDraft() {
+  if (!editorRef.value) return
+  const title = editorRef.value.title.trim()
+  const content = editorRef.value.content.trim()
+  if (!title || !content) return
+
+  saving.value = true
+  try {
+    const payload: CreatePostPayload = {
+      title,
+      content,
+      tags: editorTags.value,
+      required_level: editorAccess.value,
+      ...(coverUrl.value ? { cover_url: coverUrl.value } : {})
+    }
+
+    if (editingPost.value) {
+      await updatePostApi(editingPost.value.id, payload)
+    } else {
+      await createPostApi(payload)
+      isCreatingNew.value = false
+    }
+    message.success('草稿已保存')
+    await fetchData()
+  } catch {
+    message.error('保存草稿失败')
   } finally {
     saving.value = false
   }
@@ -823,6 +908,35 @@ onMounted(fetchData)
 
 .post-row:hover {
   background: var(--surface-strong-color);
+}
+
+.post-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.post-checkbox input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px var(--spacing-lg);
+  background: var(--primary-light-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.batch-count {
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  color: var(--primary-color);
 }
 
 .post-info {
