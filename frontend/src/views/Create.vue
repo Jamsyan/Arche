@@ -219,10 +219,7 @@
             :key="level"
             class="access-option"
             :class="{ 'access-option--active': editorAccess === level }"
-            @click="
-              editorAccess = level
-              showAccessPopover = false
-            "
+            @click="handleAccessSelect(level)"
           >
             <span class="access-level">P{{ level }}</span>
             <span class="access-desc">{{ accessDescriptions[level] }}</span>
@@ -693,6 +690,11 @@ function selectTagSuggestion(name: string) {
 
 function handleTagInputBlur() {
   setTimeout(() => (showTagSuggestions.value = false), 150)
+}
+
+function handleAccessSelect(level: number) {
+  editorAccess.value = level
+  showAccessPopover.value = false
 }
 
 // ── 保存 ──
