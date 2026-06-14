@@ -135,7 +135,7 @@ provide('arForm', {
   labelWidth: props.labelWidth,
   labelPosition: props.labelPosition,
   validateField,
-  clearValidate,
+  clearValidate
 })
 </script>
 

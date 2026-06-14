@@ -24,33 +24,36 @@ const props = withDefaults(
 
 const { palette, tooltipStyle, tokens } = useArChartTheme()
 
-const option = computed(() => ({
-  color: palette(),
-  tooltip: { ...tooltipStyle(), trigger: 'item', formatter: '{b}: {c}' },
-  series: [
-    {
-      type: 'sankey',
-      layout: 'none',
-      layoutIterations: 32,
-      nodeWidth: 16,
-      nodeGap: 10,
-      data: props.nodes,
-      links: props.links,
-      label: {
-        fontSize: 12,
-        color: '#6b5e52',
-      },
-      lineStyle: {
-        color: 'gradient',
-        curveness: 0.5,
-      },
-      emphasis: {
-        focus: 'adjacency',
-        lineStyle: { opacity: 0.6 },
-      },
-    },
-  ],
-}) as Record<string, unknown>)
+const option = computed(
+  () =>
+    ({
+      color: palette(),
+      tooltip: { ...tooltipStyle(), trigger: 'item', formatter: '{b}: {c}' },
+      series: [
+        {
+          type: 'sankey',
+          layout: 'none',
+          layoutIterations: 32,
+          nodeWidth: 16,
+          nodeGap: 10,
+          data: props.nodes,
+          links: props.links,
+          label: {
+            fontSize: 12,
+            color: '#6b5e52'
+          },
+          lineStyle: {
+            color: 'gradient',
+            curveness: 0.5
+          },
+          emphasis: {
+            focus: 'adjacency',
+            lineStyle: { opacity: 0.6 }
+          }
+        }
+      ]
+    }) as Record<string, unknown>
+)
 </script>
 
 <template>

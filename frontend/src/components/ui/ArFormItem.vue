@@ -22,7 +22,7 @@ const props = withDefaults(
     label: '',
     prop: '',
     required: false,
-    showFeedback: true,
+    showFeedback: true
   }
 )
 
@@ -56,7 +56,7 @@ onMounted(() => {
     class="ar-form-item"
     :class="{
       'ar-form-item--error': hasError,
-      'ar-form-item--label-top': form?.labelPosition === 'top',
+      'ar-form-item--label-top': form?.labelPosition === 'top'
     }"
   >
     <label

@@ -26,16 +26,16 @@ const option = computed(() => {
     xAxis: {
       type: 'category',
       data: props.data.map((d) => d.name),
-      ...axis,
+      ...axis
     },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: t.borderLight } }, ...axis },
     series: [
       {
         type: 'boxplot',
         data: props.data.map((d) => d.value),
-        itemStyle: { color: t.accent, borderColor: t.accentHover },
-      },
-    ],
+        itemStyle: { color: t.accent, borderColor: t.accentHover }
+      }
+    ]
   } as Record<string, unknown>
 })
 </script>

@@ -5,7 +5,7 @@ import Register from '@/views/Register.vue'
 import PostDetail from '@/views/PostDetail.vue'
 import Explore from '@/views/Explore.vue'
 import About from '@/views/About.vue'
-import Create from '@/views/Create.vue'
+import CreateIndex from '@/views/create/index.vue'
 import Assets from '@/views/Assets.vue'
 import Scheduler from '@/views/Scheduler.vue'
 import GitHub from '@/views/GitHub.vue'
@@ -55,12 +55,22 @@ export const staticRoutes: RouteRecordRaw[] = [
   {
     path: '/create',
     name: 'Create',
-    component: Create,
+    component: CreateIndex,
     meta: {
       title: '创作',
       layout: 'guest',
       requiresAuth: true,
       searchScope: { type: 'post', placeholder: '搜索文章...', label: '文章' }
+    }
+  },
+  {
+    path: '/create/editor',
+    name: 'PostEditorNew',
+    component: () => import('@/views/create/editor.vue'),
+    meta: {
+      title: '编辑器',
+      layout: 'guest',
+      requiresAuth: true
     }
   },
   {
