@@ -203,7 +203,7 @@ import {
   SettingsOutline,
   LogOutOutline
 } from '@vicons/ionicons5'
-import SiteLogo from '@/components/SiteLogo.vue'
+import SiteLogo from '@/components/widgets/common/SiteLogo.vue'
 import ArAvatar from '@/components/ui/ArAvatar.vue'
 import { useUserStore } from '@/store/modules/user'
 import { useAppStore } from '@/store/modules/app'

@@ -4,7 +4,6 @@ import router from './router'
 import pinia from './store'
 import { setupDirectives } from './directives'
 import './router/guard'
-import './style.css'
 import './styles/theme.css'
 import { useAppStore } from '@/store/modules/app'
 

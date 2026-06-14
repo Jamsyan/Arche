@@ -274,9 +274,9 @@ import {
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
 import ArWheelPicker from '@/components/ui/ArWheelPicker.vue'
-import PostEditor from '@/components/blog/PostEditor.vue'
-import AssetSidebar from '@/components/blog/AssetSidebar.vue'
-import CoverUploader from '@/components/blog/CoverUploader.vue'
+import PostEditor from '@/components/widgets/blog/PostEditor.vue'
+import AssetSidebar from '@/components/widgets/blog/AssetSidebar.vue'
+import CoverUploader from '@/components/widgets/blog/CoverUploader.vue'
 import {
   getMyPostsApi,
   uploadPostFileApi,

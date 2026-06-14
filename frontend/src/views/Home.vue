@@ -5,9 +5,9 @@ import { NPagination, useMessage } from 'naive-ui'
 import { getBlogPostsApi, type BlogPost } from '@/services/api/blog'
 import { withFallback, blogMockData } from '@/services/mock'
 import { useUserStore } from '@/store/modules/user'
-import { PostCard, HeroCarousel, TrendingTags, WatchHistoryStack } from '@/components/blog'
+import { PostCard, HeroCarousel, TrendingTags, WatchHistoryStack } from '@/components/widgets'
 import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
-import type { WatchHistoryItem } from '@/components/blog/WatchHistoryStack.vue'
+import type { WatchHistoryItem } from '@/components/widgets/blog/WatchHistoryStack.vue'
 
 const route = useRoute()
 const router = useRouter()

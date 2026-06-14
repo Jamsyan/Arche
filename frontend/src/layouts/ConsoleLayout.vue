@@ -5,5 +5,5 @@
 </template>
 
 <script setup lang="ts">
-import ConsoleShell from '@/components/ConsoleShell.vue'
+import ConsoleShell from '@/components/widgets/common/ConsoleShell.vue'
 </script>
