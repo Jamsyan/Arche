@@ -8,9 +8,14 @@ import ArCard from '@/components/ui/ArCard.vue'
 import ArTag from '@/components/ui/ArTag.vue'
 import type { BlogPost } from '@/components/logic/api'
 
-const props = defineProps<{
-  post: BlogPost
-}>()
+const props = withDefaults(
+  defineProps<{
+    post: BlogPost
+    /** 入场动画延迟（ms），用于 staggered 效果 */
+    delay?: number
+  }>(),
+  { delay: 0 }
+)
 
 const emit = defineEmits<{
   open: [post: BlogPost]
@@ -49,6 +54,8 @@ function formatDate(dateStr: string): string {
     variant="elevated"
     :padding="hasRealCover ? 'sm' : 'md'"
     hoverable
+    class="card-in"
+    :style="{ animationDelay: `${delay}ms` }"
     @click="emit('open', post)"
   >
     <!-- 封面区：仅在有封面 URL 时渲染 -->
@@ -176,3 +183,20 @@ function formatDate(dateStr: string): string {
     </template>
   </ArCard>
 </template>
+
+<style scoped>
+.card-in {
+  animation: card-in 0.5s var(--ease-out-smooth) both;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
