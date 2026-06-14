@@ -23,15 +23,9 @@ export { default as PostListPanel } from './create/PostListPanel.vue'
 
 // ── 管理后台 ──
 export { default as ModerationPanel } from './admin/ModerationPanel.vue'
-export { default as PostTable } from './admin/PostTable.vue'
 export { default as UserTable } from './admin/UserTable.vue'
 export { default as SystemMetrics } from './admin/SystemMetrics.vue'
 
-// ── 用户相关 ──
-export { default as UserCard } from './user/UserCard.vue'
-export { default as UserMenu } from './user/UserMenu.vue'
-export type { MenuItem } from './user/UserMenu.vue'
-
-// --- 通用业务 ──
+// ── 通用业务 ──
 export { default as ConsoleShell } from './common/ConsoleShell.vue'
 export { default as SiteLogo } from './common/SiteLogo.vue'
