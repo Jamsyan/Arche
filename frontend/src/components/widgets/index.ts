@@ -2,17 +2,14 @@
 // 按功能域划分子目录，统一通过此文件导出
 
 // ── 博客业务 ──
-export { default as HeroCarousel } from './blog/HeroCarousel.vue'
+export { default as HeroCarousel } from './common/HeroCarousel.vue'
 export { default as PostDetail } from './blog/PostDetail.vue'
 export { default as PostEditor } from './blog/PostEditor.vue'
-export { default as RichTextEditor } from './blog/RichTextEditor.vue'
 export { default as CoverUploader } from './blog/CoverUploader.vue'
 export { default as AssetSidebar } from './blog/AssetSidebar.vue'
-export { default as LikeButton } from './blog/LikeButton.vue'
-export { default as FavoriteButton } from './blog/FavoriteButton.vue'
-export { default as ShareButton } from './blog/ShareButton.vue'
-export { default as CommentList } from './blog/CommentList.vue'
-export { default as CommentForm } from './blog/CommentForm.vue'
+export { default as LikeButton } from './common/LikeButton.vue'
+export { default as FavoriteButton } from './common/FavoriteButton.vue'
+export { default as ShareButton } from './common/ShareButton.vue'
 export { default as TagList } from './blog/TagList.vue'
 export { default as AuthorBar } from './blog/AuthorBar.vue'
 export { default as FloatingActions } from './blog/FloatingActions.vue'

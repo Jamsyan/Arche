@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import CommentForm from './CommentForm.vue'
-import CommentList from './CommentList.vue'
 import type { BlogComment } from '@/components/logic/api'
 import type { ParagraphData } from '@/components/logic/api'
 
@@ -48,10 +46,6 @@ watch(
     }
   }
 )
-
-function handleSubmit(content: string) {
-  emit('submitComment', content)
-}
 </script>
 
 <template>
@@ -73,13 +67,12 @@ function handleSubmit(content: string) {
         <!-- 评论列表 -->
         <div class="panel-comments">
           <div v-if="loading" class="panel-loading">加载中……</div>
-          <CommentList v-else :comments="comments" />
+          <div v-else class="panel-placeholder">评论功能暂时关闭，后续版本恢复</div>
         </div>
 
         <!-- 评论输入 -->
         <div class="panel-input">
-          <CommentForm v-if="isLoggedIn" :loading="posting" @submit="handleSubmit" />
-          <div v-else class="login-hint">登录后即可发表段落评论</div>
+          <div class="login-hint">登录后即可发表段落评论</div>
         </div>
       </div>
     </div>
@@ -193,6 +186,13 @@ function handleSubmit(content: string) {
 }
 
 .panel-loading {
+  text-align: center;
+  padding: var(--spacing-2xl) 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.panel-placeholder {
   text-align: center;
   padding: var(--spacing-2xl) 0;
   font-size: 13px;

@@ -23,11 +23,9 @@ import PostDetail from '@/components/widgets/blog/PostDetail.vue'
 import AuthorBar from '@/components/widgets/blog/AuthorBar.vue'
 import FloatingActions from '@/components/widgets/blog/FloatingActions.vue'
 import ParagraphCommentPanel from '@/components/widgets/blog/ParagraphCommentPanel.vue'
-import LikeButton from '@/components/widgets/blog/LikeButton.vue'
-import FavoriteButton from '@/components/widgets/blog/FavoriteButton.vue'
-import ShareButton from '@/components/widgets/blog/ShareButton.vue'
-import CommentForm from '@/components/widgets/blog/CommentForm.vue'
-import CommentList from '@/components/widgets/blog/CommentList.vue'
+import LikeButton from '@/components/widgets/common/LikeButton.vue'
+import FavoriteButton from '@/components/widgets/common/FavoriteButton.vue'
+import ShareButton from '@/components/widgets/common/ShareButton.vue'
 
 const route = useRoute()
 const message = useMessage()
@@ -317,15 +315,14 @@ onMounted(fetchPost)
           <span v-if="commentsCount > 0" class="comments-badge">{{ commentsCount }}</span>
         </div>
 
-        <CommentForm v-if="isLoggedIn" :loading="posting" @submit="submitComment" />
-        <div v-else class="login-hint">
+        <div class="login-hint">
           <span class="login-hint-icon">⟡</span>
           登录后即可发表评论
         </div>
 
         <div class="comments-divider" />
 
-        <CommentList :comments="comments" />
+        <div class="comments-placeholder">评论功能暂时关闭，后续版本恢复</div>
       </div>
     </div>
 
@@ -512,6 +509,13 @@ onMounted(fetchPost)
   height: 1px;
   margin: var(--spacing-md) 0;
   background: var(--divider-color);
+}
+
+.comments-placeholder {
+  text-align: center;
+  padding: var(--spacing-lg) 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
 .login-hint {
