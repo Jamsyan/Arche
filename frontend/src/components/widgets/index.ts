@@ -2,7 +2,6 @@
 // 按功能域划分子目录，统一通过此文件导出
 
 // ── 博客业务 ──
-export { default as PostCard } from './blog/PostCard.vue'
 export { default as HeroCarousel } from './blog/HeroCarousel.vue'
 export { default as PostDetail } from './blog/PostDetail.vue'
 export { default as PostEditor } from './blog/PostEditor.vue'

@@ -169,7 +169,7 @@ onMounted(async () => {
           class="grid-item"
           :style="{ animationDelay: `${index * 60}ms` }"
         >
-          <PostCard :post="post" mode="compact" @open="openPost(post)" />
+          <PostCardForCompact :post="post" @open="openPost(post)" />
         </div>
       </div>
     </section>
