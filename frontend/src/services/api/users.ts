@@ -7,16 +7,24 @@ export interface AdminUser {
   username: string
   nickname: string
   avatar?: string
-  permissions: string[]
+  bio?: string
+  links?: string[]
+  badges?: string[]
   is_active?: boolean
   level?: number
+  blog_quality_level?: number
   /** active | deleted_by_admin | user_requested_deletion */
   deletion_status?: string
   /** violation | user_request */
   deletion_reason?: string
-  deletion_expires_at?: string
-  deleted_at?: string
+  deletion_expires_at?: string | null
+  deleted_at?: string | null
+  login_count?: number
+  last_login_at?: string | null
+  last_login_ip?: string | null
+  last_active_at?: string | null
   created_at?: string
+  updated_at?: string
 }
 
 export interface UsersQueryParams extends ApiListParams {
@@ -26,11 +34,16 @@ export interface UsersQueryParams extends ApiListParams {
 export interface UpdateUserPayload {
   level?: number
   is_active?: boolean
+  nickname?: string
+  avatar?: string
+  bio?: string
+  links?: string[]
 }
 
 export interface CreateAdminUserPayload {
   email: string
   username: string
+  nickname?: string
   password: string
   level?: number
 }

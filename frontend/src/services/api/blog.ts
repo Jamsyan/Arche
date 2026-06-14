@@ -10,26 +10,44 @@ export interface BlogPost {
   id: string
   slug: string
   title: string
-  intro?: string
-  content: string
   cover_url?: string
   auto_cover_url?: string
-  source_url?: string
-  source_name?: string
+  intro?: string
+  content?: string
+  introduction?: {
+    abstract?: string
+    background?: string
+    purpose?: string
+    key_points?: string[]
+    reading_time?: number
+    difficulty_level?: string
+  }
+  paragraph_ids?: string[]
   tags: string[]
   required_level?: number
   status?: string
+  is_pinned?: boolean
+  is_featured?: boolean
+  category_id?: string
+  like_count?: number
+  comment_count?: number
   created_at?: string
   updated_at?: string
+  published_at?: string | null
   author_username?: string
   likes?: number
   views?: number
-  paragraphs?: Paragraph[]
+  paragraphs?: ParagraphData[]
 }
 
-export interface Paragraph {
-  index: number
+export interface ParagraphData {
+  pid: string
   content: string
+  type: string
+  word_count: number
+  heading?: string
+  media_url?: string
+  caption?: string
 }
 
 export interface BlogComment {
@@ -38,20 +56,31 @@ export interface BlogComment {
   content: string
   author_id: string
   author_username?: string
-  paragraph_index?: number
+  paragraph_pid?: string
+  status?: string
+  like_count?: number
   created_at?: string
+  updated_at?: string
 }
 
 export interface BlogTag {
   id?: string
   name: string
+  color?: string
   count?: number
 }
 
 export interface CreatePostPayload {
   title: string
-  intro?: string
-  content: string
+  content?: string
+  introduction?: Record<string, unknown>
+  paragraphs?: Array<{
+    content: string
+    type: string
+    heading?: string
+    media_url?: string
+    caption?: string
+  }>
   tags?: string[]
   required_level?: number
   cover_url?: string
@@ -60,8 +89,15 @@ export interface CreatePostPayload {
 
 export interface UpdatePostPayload {
   title?: string
-  intro?: string
   content?: string
+  introduction?: Record<string, unknown>
+  paragraphs?: Array<{
+    content: string
+    type: string
+    heading?: string
+    media_url?: string
+    caption?: string
+  }>
   tags?: string[]
   required_level?: number
   cover_url?: string
@@ -128,23 +164,22 @@ export const createPostCommentApi = (
 
 export const getParagraphCommentsApi = (
   postId: string,
-  paragraphIndex: number,
+  paragraphPid: string,
   params?: ApiListParams,
   config?: RequestConfig
 ) =>
   get<BackendPaginated<BlogComment>>(
-    `/blog/posts/${postId}/paragraph-comments/${paragraphIndex}`,
+    `/blog/posts/${postId}/paragraph-comments/${paragraphPid}`,
     params,
     config
   ).then(normalizePaginated)
 
 export const createParagraphCommentApi = (
   postId: string,
-  paragraphIndex: number,
+  paragraphPid: string,
   payload: CreateCommentPayload,
   config?: RequestConfig
-) =>
-  post<BlogComment>(`/blog/posts/${postId}/paragraph-comments/${paragraphIndex}`, payload, config)
+) => post<BlogComment>(`/blog/posts/${postId}/paragraph-comments/${paragraphPid}`, payload, config)
 
 export const getLikeStatusApi = (postId: string, config?: RequestConfig) =>
   get<LikeStatus>(`/blog/posts/${postId}/like-status`, undefined, config)
@@ -208,4 +243,13 @@ export const uploadPostFileApi = (file: File, config?: RequestConfig) => {
     ...config,
     headers: { ...config?.headers, 'Content-Type': 'multipart/form-data' }
   })
+}
+
+export async function getPostParagraphsApi(
+  postId: string,
+  params?: { limit?: number; offset?: number },
+  config?: RequestConfig
+): Promise<ParagraphData[]> {
+  const res = await get(`/blog/posts/${postId}/paragraphs`, params, config)
+  return (res as any).data || []
 }

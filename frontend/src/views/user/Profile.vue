@@ -74,7 +74,7 @@ const handleLogout = async () => {
           <span class="info-label">权限</span>
           <span class="info-value">
             {{
-              userStore.userInfo?.permissions.length
+              userStore.userInfo?.permissions?.length
                 ? `${userStore.userInfo.permissions.length} 项权限`
                 : '无权限'
             }}

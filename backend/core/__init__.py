@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import config_manager as config_manager
 from .container import ServiceContainer
-from .db import init_db
+from .db import close_db, init_db
 from .middleware import register_error_handlers, setup_cors, setup_security_headers
 from .plugin_registry import registry
 
@@ -253,6 +253,7 @@ def create_app() -> FastAPI:
 
     @app.on_event("shutdown")
     async def shutdown():
+        await close_db()
         registry.on_shutdown()
         container.shutdown()
 

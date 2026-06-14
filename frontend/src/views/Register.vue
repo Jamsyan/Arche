@@ -68,6 +68,7 @@ const handleRegister = async () => {
     await registerApi({
       email: formModel.email,
       username: formModel.username,
+      nickname: formModel.username,
       password: formModel.password
     })
     $message.success('注册成功，请登录')

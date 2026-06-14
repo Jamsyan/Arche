@@ -12,6 +12,7 @@ class TestMassAssignment:
                 "email": "mass-assign@test.com",
                 "username": "massassigntest",
                 "password": "testpass123",
+                "nickname": "testuser",
                 "level": 0,  # 尝试提权
             },
         )
@@ -32,6 +33,7 @@ class TestMassAssignment:
                 "email": "mass-assign2@test.com",
                 "username": "massassigntest2",
                 "password": "testpass123",
+                "nickname": "testuser",
                 "is_active": True,
             },
         )
@@ -47,6 +49,7 @@ class TestMassAssignment:
                 "email": "mass-assign3@test.com",
                 "username": "massassigntest3",
                 "password": "testpass123",
+                "nickname": "testuser",
                 "role": "admin",
                 "permissions": ["*"],
             },

@@ -41,12 +41,14 @@ async def user_and_admin_tokens(db_container):
     admin_result = await svc.register(
         email="blog_admin@example.com",
         username="blog_admin",
+        nickname="test_user",
         password="password123",
     )
     # 第二个用户为 P5
     user_result = await svc.register(
         email="blog_user@example.com",
         username="blog_user",
+        nickname="test_user",
         password="password123",
     )
     return {

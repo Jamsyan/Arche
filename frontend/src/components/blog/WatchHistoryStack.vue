@@ -87,7 +87,7 @@ onBeforeUnmount(() => {
 
 // ── 估算阅读时长 ──
 function estimateDuration(post: BlogPost): string {
-  const text = post.content || ''
+  const text = post.introduction?.abstract || post.title || ''
   const len = text.replace(/<[^>]+>/g, '').length
   return `${Math.max(1, Math.ceil(len / 300))} 分钟`
 }

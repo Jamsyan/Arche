@@ -8,7 +8,7 @@ import { generateTextCover } from '@/utils/generateTextCover'
 import { uploadOssFileApi } from '@/services/api/oss'
 import { updatePostApi, type BlogPost } from '@/services/api/blog'
 
-/** 正在处理中的帖子 ID 集合，防止重复触发 */
+/** 正在处理中的帖子 ID 集合，防止并发重复触发 */
 const processingPosts = new Set<string>()
 
 /**
@@ -27,7 +27,7 @@ export async function ensurePostCover(post: BlogPost): Promise<string | null> {
   if (!post.id || !post.title || post.id.startsWith('demo-')) {
     return null
   }
-  // 防止重复处理同一帖子
+  // 防止并发重复处理同一帖子
   if (processingPosts.has(post.id)) return null
   processingPosts.add(post.id)
 

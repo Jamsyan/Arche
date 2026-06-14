@@ -325,6 +325,7 @@ class TestSearchServiceGlobalSearch:
             user = User(
                 sid="user-550e-8400-e29b-41d4-a716-4466-5544-0000",
                 username="testuser",
+                nickname="testuser",
                 email="test@example.com",
                 password_hash="hashed_pwd",
                 level=5,
@@ -333,7 +334,6 @@ class TestSearchServiceGlobalSearch:
                 sid="asse-post-550e-8400-e29b-41d4-a716-4466-5544-0001",
                 title="test 标题",
                 slug="test-post",
-                content="测试内容",
                 status="published",
                 required_level=5,
                 author_id=uuid.uuid4(),
@@ -359,6 +359,7 @@ class TestSearchServiceGlobalSearch:
                 user = User(
                     sid=f"user-550e-8400-e29b-41d4-a716-4466-5544-{i:04d}",
                     username=f"testuser{i}",
+                    nickname="testuser",
                     email=f"test{i}@example.com",
                     password_hash="hashed_pwd",
                     level=5,
@@ -387,6 +388,7 @@ class TestSearchServiceGlobalSearch:
             user = User(
                 sid="user-550e-8400-e29b-41d4-a716-4466-5544-0000",
                 username="john_doe",
+                nickname="testuser",
                 email="john@other.com",
                 password_hash="hashed_pwd",
                 level=5,

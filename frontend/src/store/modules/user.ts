@@ -31,8 +31,8 @@ export const useUserStore = defineStore(
       const permissionStore = usePermissionStore()
       const userLevel = nextUserInfo.level ?? 5
       const normalizedPermissions =
-        nextUserInfo.permissions?.length > 0
-          ? nextUserInfo.permissions
+        (nextUserInfo.permissions?.length ?? 0) > 0
+          ? nextUserInfo.permissions!
           : userLevel === 0
             ? ['*']
             : []

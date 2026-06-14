@@ -31,10 +31,14 @@ class AuthService:
 
     # --- 用户注册 ---
     async def register(
-        self, email: str, username: str, password: str, level: int = 5
+        self, email: str, username: str, nickname: str, password: str, level: int = 5
     ) -> dict:
         """注册新用户。第一个注册用户自动成为 P0（最高权限），后续默认 P5。"""
-        from backend.plugins.auth.models import User
+        from backend.plugins.auth.models import (
+            NicknameBlacklist,
+            User,
+            UserSettings,
+        )
 
         # email 格式简单校验
         if "@" not in email or not email.strip():
@@ -57,6 +61,19 @@ class AuthService:
             if existing:
                 raise AppError("用户名已存在", code="username_exists", status_code=409)
 
+            # 检查昵称是否在黑名单中
+            if nickname:
+                blacklist_result = await session.execute(
+                    select(NicknameBlacklist).where(
+                        func.lower(NicknameBlacklist.keyword)
+                        == nickname.strip().lower()
+                    )
+                )
+                if blacklist_result.scalar_one_or_none():
+                    raise AppError(
+                        "昵称包含敏感词", code="nickname_blocked", status_code=400
+                    )
+
             # 第一个注册用户自动成为 P0
             count_result = await session.execute(select(func.count(User.id)))
             is_first_user = count_result.scalar() == 0
@@ -72,11 +89,17 @@ class AuthService:
                 id=user_id,
                 email=email,
                 username=username,
+                nickname=nickname,
                 password_hash=password_hash,
                 level=effective_level,
             )
             user.generate_sid("user")
             session.add(user)
+
+            # 创建默认用户设置
+            settings = UserSettings(user_id=user_id)
+            session.add(settings)
+
             await session.commit()
             await session.refresh(user)
 
@@ -97,7 +120,7 @@ class AuthService:
     # --- 用户登录 ---
     async def login(self, identity: str, password: str, client_ip: str = "") -> dict:
         """验证邮箱或用户名+密码，返回 JWT token。"""
-        from backend.plugins.auth.models import User
+        from backend.plugins.auth.models import LoginHistory, User
 
         # 暴力破解防护：基于 identity + IP 的限流检查
         limiter_key = f"{identity}-{client_ip}" if client_ip else identity
@@ -135,12 +158,27 @@ class AuthService:
             # 登录成功，重置限流计数
             self._login_limiter.reset(limiter_key)
 
+            # 记录登录历史和审计字段
+            now = datetime.now(timezone.utc)
+            login_history = LoginHistory(
+                user_id=user.id,
+                ip=client_ip,
+            )
+            session.add(login_history)
+
+            user.login_count = (user.login_count or 0) + 1
+            user.last_login_at = now
+            user.last_login_ip = client_ip
+
             access_token = self._create_token(
                 user, expires_hours=self.access_token_expire_hours
             )
             refresh_token = self._create_token(
                 user, expires_days=self.refresh_token_expire_days
             )
+
+            await session.commit()
+            await session.refresh(user)
 
             return {
                 "user": self._user_to_dict(user),
@@ -230,6 +268,7 @@ class AuthService:
             "sub": str(user.id),
             "email": user.email,
             "username": user.username,
+            "nickname": user.nickname,
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
             "exp": exp,
@@ -250,8 +289,13 @@ class AuthService:
         """将 User 对象转为字典（用于返回）。"""
         return {
             "id": str(user.id),
+            "nickname": user.nickname,
             "email": user.email,
             "username": user.username,
+            "avatar": user.avatar,
+            "bio": user.bio,
+            "links": user.links,
+            "badges": user.badges,
             "level": user.level,
             "blog_quality_level": user.blog_quality_level,
             "is_active": user.is_active,
@@ -261,9 +305,203 @@ class AuthService:
             if user.deletion_expires_at
             else None,
             "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None,
+            "login_count": user.login_count,
+            "last_login_at": user.last_login_at.isoformat()
+            if user.last_login_at
+            else None,
+            "last_login_ip": user.last_login_ip,
+            "last_active_at": user.last_active_at.isoformat()
+            if user.last_active_at
+            else None,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
+
+    # --- 用户设置 ---
+    async def get_user_settings(self, user_id: uuid.UUID) -> dict | None:
+        """获取用户设置。"""
+        from backend.plugins.auth.models import UserSettings
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            settings = result.scalar_one_or_none()
+            if not settings:
+                return None
+            return {
+                "default_post_permission": settings.default_post_permission,
+                "language": settings.language,
+                "theme": settings.theme,
+                "notify_comment_reply": settings.notify_comment_reply,
+                "notify_like": settings.notify_like,
+                "notify_system": settings.notify_system,
+                "privacy_show_online": settings.privacy_show_online,
+                "privacy_show_login_history": settings.privacy_show_login_history,
+                "privacy_show_badges": settings.privacy_show_badges,
+                "default_post_status": settings.default_post_status,
+                "auto_save_interval": settings.auto_save_interval,
+                "extras": settings.extras,
+            }
+
+    async def update_user_settings(self, user_id: uuid.UUID, updates: dict) -> dict:
+        """更新用户设置（仅更新提供的字段）。"""
+        from backend.plugins.auth.models import UserSettings
+
+        allowed_fields = {
+            "default_post_permission",
+            "language",
+            "theme",
+            "notify_comment_reply",
+            "notify_like",
+            "notify_system",
+            "privacy_show_online",
+            "privacy_show_login_history",
+            "privacy_show_badges",
+            "default_post_status",
+            "auto_save_interval",
+            "extras",
+        }
+
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            settings = result.scalar_one_or_none()
+            if not settings:
+                raise AppError("设置不存在", code="settings_not_found", status_code=404)
+
+            for key, value in updates.items():
+                if key in allowed_fields:
+                    setattr(settings, key, value)
+
+            await session.commit()
+            await session.refresh(settings)
+            return await self.get_user_settings(user_id)
+
+    # --- 登录历史 ---
+    async def get_login_history(
+        self, user_id: uuid.UUID, page: int = 1, page_size: int = 20
+    ) -> dict:
+        """获取用户登录历史。"""
+        from backend.plugins.auth.models import LoginHistory
+
+        async with self.session_factory() as session:
+            query = (
+                select(LoginHistory)
+                .where(LoginHistory.user_id == user_id)
+                .order_by(LoginHistory.login_at.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+            result = await session.execute(query)
+            records = result.scalars().all()
+
+            count_query = select(func.count(LoginHistory.id)).where(
+                LoginHistory.user_id == user_id
+            )
+            total = (await session.execute(count_query)).scalar_one()
+
+            return {
+                "list": [
+                    {
+                        "id": r.id,
+                        "ip": r.ip,
+                        "device_name": r.device_name,
+                        "location": r.location,
+                        "login_at": r.login_at.isoformat() if r.login_at else None,
+                    }
+                    for r in records
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    # --- 违规记录 ---
+    async def get_violations(
+        self, user_id: uuid.UUID, page: int = 1, page_size: int = 20
+    ) -> dict:
+        """获取用户违规记录。"""
+        from backend.plugins.auth.models import ViolationRecord
+
+        async with self.session_factory() as session:
+            query = (
+                select(ViolationRecord)
+                .where(ViolationRecord.user_id == user_id)
+                .order_by(ViolationRecord.banned_at.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+            result = await session.execute(query)
+            records = result.scalars().all()
+
+            count_query = select(func.count(ViolationRecord.id)).where(
+                ViolationRecord.user_id == user_id
+            )
+            total = (await session.execute(count_query)).scalar_one()
+
+            return {
+                "list": [
+                    {
+                        "id": r.id,
+                        "violation_type": r.violation_type,
+                        "reason": r.reason,
+                        "ban_duration": r.ban_duration,
+                        "banned_at": r.banned_at.isoformat() if r.banned_at else None,
+                        "unbanned_at": r.unbanned_at.isoformat()
+                        if r.unbanned_at
+                        else None,
+                    }
+                    for r in records
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    # --- 已知设备 ---
+    async def get_devices(
+        self, user_id: uuid.UUID, page: int = 1, page_size: int = 20
+    ) -> dict:
+        """获取用户已知设备列表。"""
+        from backend.plugins.auth.models import KnownDevice
+
+        async with self.session_factory() as session:
+            query = (
+                select(KnownDevice)
+                .where(KnownDevice.user_id == user_id)
+                .order_by(KnownDevice.last_seen_at.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+            result = await session.execute(query)
+            records = result.scalars().all()
+
+            count_query = select(func.count(KnownDevice.id)).where(
+                KnownDevice.user_id == user_id
+            )
+            total = (await session.execute(count_query)).scalar_one()
+
+            return {
+                "list": [
+                    {
+                        "id": r.id,
+                        "device_name": r.device_name,
+                        "device_mac": r.device_mac,
+                        "first_seen_at": r.first_seen_at.isoformat()
+                        if r.first_seen_at
+                        else None,
+                        "last_seen_at": r.last_seen_at.isoformat()
+                        if r.last_seen_at
+                        else None,
+                    }
+                    for r in records
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
 
     # --- 用户管理（P0） ---
     async def list_users(
@@ -320,8 +558,12 @@ class AuthService:
         user_id: uuid.UUID,
         level: int | None = None,
         is_active: bool | None = None,
+        nickname: str | None = None,
+        avatar: str | None = None,
+        bio: str | None = None,
+        links: list | None = None,
     ) -> dict:
-        """修改用户等级或状态。"""
+        """修改用户信息。"""
         from backend.plugins.auth.models import User
 
         async with self.session_factory() as session:
@@ -334,6 +576,14 @@ class AuthService:
                 user.level = level
             if is_active is not None:
                 user.is_active = is_active
+            if nickname is not None:
+                user.nickname = nickname
+            if avatar is not None:
+                user.avatar = avatar
+            if bio is not None:
+                user.bio = bio
+            if links is not None:
+                user.links = links
 
             await session.commit()
             await session.refresh(user)
@@ -388,10 +638,10 @@ class AuthService:
 
     # --- 管理员创建用户 ---
     async def admin_create_user(
-        self, email: str, username: str, password: str, level: int = 5
+        self, email: str, username: str, nickname: str, password: str, level: int = 5
     ) -> dict:
         """管理员手动创建用户（不自动赋予 P0）。"""
-        from backend.plugins.auth.models import User
+        from backend.plugins.auth.models import User, UserSettings
 
         if "@" not in email or not email.strip():
             raise AppError("邮箱格式不正确", code="invalid_email", status_code=400)
@@ -419,11 +669,16 @@ class AuthService:
                 id=user_id,
                 email=email,
                 username=username,
+                nickname=nickname,
                 password_hash=password_hash,
                 level=level,
             )
             user.generate_sid("user")
             session.add(user)
+
+            settings = UserSettings(user_id=user_id)
+            session.add(settings)
+
             await session.commit()
             await session.refresh(user)
             return self._user_to_dict(user)
