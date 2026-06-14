@@ -1,105 +1,256 @@
+<script setup lang="ts">
+/**
+ * AppHeader — 全局顶部导航栏
+ *
+ * 使用 ArTopNav 提供布局容器，通过 slot 注入业务内容。
+ * 不包含任何自定义布局 CSS，所有布局由 ArTopNav 提供。
+ */
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { NIcon } from 'naive-ui'
+import { SearchOutline, PersonOutline, SettingsOutline, LogOutOutline } from '@vicons/ionicons5'
+import ArTopNav from '@/components/ui/ArTopNav.vue'
+import ArAvatar from '@/components/ui/ArAvatar.vue'
+import SiteLogo from '@/components/widgets/common/SiteLogo.vue'
+import { useUserStore } from '@/lib/store/modules/user'
+import { useAppStore } from '@/lib/store/modules/app'
+import { useSearchStore } from '@/lib/store/modules/search'
+import type { Suggestion } from '@/lib/store/modules/search'
+
+const props = defineProps<{
+  layoutMode: 'guest' | 'user' | 'admin'
+}>()
+
+const emit = defineEmits<{
+  toggleSidebar: []
+}>()
+
+const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
+const appStore = useAppStore()
+const searchStore = useSearchStore()
+
+const showUserMenu = ref(false)
+const selectedIndex = ref(-1)
+const searchWrapRef = ref<HTMLElement | null>(null)
+const repoUrl = 'https://github.com/jamnodesmith/Arche'
+
+const isLoggedIn = computed(() => userStore.isLoggedIn)
+const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
+
+/** 当前页面的搜索作用域（从路由 meta 读取） */
+const searchScope = computed(() => {
+  const scope = route.meta?.searchScope as
+    | { type?: string; placeholder?: string; label?: string }
+    | undefined
+  return scope ?? null
+})
+
+const searchPlaceholder = computed(() => searchScope.value?.placeholder ?? '搜索...')
+
+/** 面包屑 */
+const breadcrumb = computed(() => {
+  const path = route.path
+  const layoutLabel = props.layoutMode === 'admin' ? '管理后台' : '首页'
+  if (path === '/') return [layoutLabel]
+
+  const routeName = route.name
+  if (routeName && typeof routeName === 'string') {
+    return [layoutLabel, routeName]
+  }
+  return [layoutLabel, '页面']
+})
+
+/** 用户输入处理 */
+const onSearchInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  searchStore.setKeyword(target.value)
+  selectedIndex.value = -1
+}
+
+/** 回车搜索 */
+const onSearchEnter = () => {
+  const kw = searchStore.keyword.trim()
+  if (!kw) return
+
+  // 如果有选中的建议，跳转
+  if (selectedIndex.value >= 0 && selectedIndex.value < searchStore.suggestions.length) {
+    const item = searchStore.suggestions[selectedIndex.value]
+    if (item) navigateToSuggestion(item)
+    return
+  }
+
+  // 如果有建议列表，跳转到第一个
+  if (searchStore.hasSuggestions) {
+    const item = searchStore.suggestions[0]
+    if (item) navigateToSuggestion(item)
+    return
+  }
+
+  // 否则根据 scope 走搜索
+  const scope = searchScope.value
+  if (scope?.type === 'user') {
+    router.push({ path: '/admin/users/list', query: { q: kw } })
+  } else if (scope?.type === 'content') {
+    router.push({ path: '/admin/content/moderation', query: { q: kw } })
+  } else {
+    router.push({ path: '/explore', query: { q: kw || undefined } })
+  }
+
+  searchStore.clearSearch()
+}
+
+/** 建议导航（上下键） */
+const onSuggestionNavigate = (dir: 'up' | 'down') => {
+  const len = searchStore.suggestions.length
+  if (len === 0) return
+
+  if (dir === 'down') {
+    selectedIndex.value = selectedIndex.value < len - 1 ? selectedIndex.value + 1 : 0
+  } else {
+    selectedIndex.value = selectedIndex.value > 0 ? selectedIndex.value - 1 : len - 1
+  }
+}
+
+/** 点击建议 */
+const onSuggestionClick = (item: Suggestion) => {
+  navigateToSuggestion(item)
+}
+
+/** 跳转到建议目标 */
+const navigateToSuggestion = (item: Suggestion) => {
+  searchStore.clearSearch()
+  selectedIndex.value = -1
+  if (item.url) {
+    router.push(item.url)
+  }
+}
+
+const handleLogout = async () => {
+  showUserMenu.value = false
+  await userStore.logout()
+  router.push('/')
+}
+
+const goToProfile = () => {
+  router.push('/profile')
+  showUserMenu.value = false
+}
+
+const goToHome = () => {
+  router.push('/')
+  showUserMenu.value = false
+}
+
+/** 点击外部关闭下拉 */
+const handleClickOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.ar-top-nav__right') && !target.closest('.user-menu-wrap')) {
+    showUserMenu.value = false
+  }
+  // 点击搜索外部关闭建议面板
+  if (searchWrapRef.value && !searchWrapRef.value.contains(target)) {
+    searchStore.deactivate()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+</script>
+
 <template>
-  <header
-    class="base-header"
-    :class="[`base-header--${layoutMode}`, { 'is-mobile': appStore.isMobile }]"
+  <ArTopNav
+    :variant="layoutMode"
+    :showMenuToggle="layoutMode !== 'guest'"
+    @toggleSidebar="emit('toggleSidebar')"
   >
-    <!-- Header Left -->
-    <div class="header-left">
-      <button
-        v-if="layoutMode !== 'guest'"
-        class="menu-toggle"
-        @click="$emit('toggle-sidebar')"
-        aria-label="切换侧边栏"
-      >
-        <NIcon size="20"><MenuOutline /></NIcon>
-      </button>
+    <template #left>
       <SiteLogo size="md" />
+    </template>
+
+    <!-- 中心区域：导航菜单 / 面包屑 + 全局搜索 -->
+    <nav v-if="layoutMode === 'guest'" class="nav-menu">
+      <RouterLink to="/" class="nav-item" :class="{ active: $route.path === '/' }">首页</RouterLink>
+      <RouterLink to="/explore" class="nav-item">探索</RouterLink>
+      <RouterLink v-if="isLoggedIn" to="/create" class="nav-item">创作</RouterLink>
+      <RouterLink v-if="isLoggedIn" to="/assets" class="nav-item">素材库</RouterLink>
+      <RouterLink v-if="isLoggedIn" to="/tasks" class="nav-item">托管任务</RouterLink>
+      <RouterLink to="/github" class="nav-item">GitHub</RouterLink>
+    </nav>
+    <div v-else class="breadcrumb">
+      <span v-for="(item, index) in breadcrumb" :key="index">
+        {{ item }}
+        <span v-if="index < breadcrumb.length - 1" class="breadcrumb-sep">/</span>
+      </span>
     </div>
 
-    <!-- Header Center -->
-    <div class="header-center">
-      <!-- Guest 模式：导航菜单 -->
-      <nav v-if="layoutMode === 'guest'" class="nav-menu">
-        <RouterLink to="/" class="nav-item" :class="{ active: $route.path === '/' }"
-          >首页</RouterLink
-        >
-        <RouterLink to="/explore" class="nav-item">探索</RouterLink>
-        <RouterLink v-if="isLoggedIn" to="/create" class="nav-item">创作</RouterLink>
-        <RouterLink v-if="isLoggedIn" to="/assets" class="nav-item">素材库</RouterLink>
-        <RouterLink v-if="isLoggedIn" to="/tasks" class="nav-item">托管任务</RouterLink>
-        <RouterLink to="/github" class="nav-item">GitHub</RouterLink>
-      </nav>
-
-      <!-- User/Admin 模式：面包屑 -->
-      <div v-else class="breadcrumb">
-        <span v-for="(item, index) in breadcrumb" :key="index">
-          {{ item }}
-          <span v-if="index < breadcrumb.length - 1" class="breadcrumb-sep">/</span>
-        </span>
+    <!-- 全局搜索栏（所有模式下显示） -->
+    <div class="search-section" :class="{ 'search-section--compact': layoutMode !== 'guest' }">
+      <div class="search-wrap" ref="searchWrapRef">
+        <NIcon class="search-leading-icon" size="17" aria-hidden="true">
+          <SearchOutline />
+        </NIcon>
+        <input
+          :value="searchStore.keyword"
+          class="search-input"
+          type="search"
+          :placeholder="searchPlaceholder"
+          aria-label="全局搜索"
+          @input="onSearchInput"
+          @focus="searchStore.activate()"
+          @blur="searchStore.deactivate()"
+          @keydown.enter="onSearchEnter"
+          @keydown.down.prevent="onSuggestionNavigate('down')"
+          @keydown.up.prevent="onSuggestionNavigate('up')"
+          @keydown.escape="searchStore.deactivate()"
+        />
+        <!-- 加载指示器 -->
+        <div v-if="searchStore.loading" class="search-loading">
+          <span class="loading-dot"></span>
+        </div>
       </div>
 
-      <!-- 全局搜索栏（所有模式下显示） -->
-      <div class="search-section" :class="{ 'search-section--compact': layoutMode !== 'guest' }">
-        <div class="search-wrap" ref="searchWrapRef">
-          <NIcon class="search-leading-icon" size="17" aria-hidden="true">
-            <SearchOutline />
-          </NIcon>
-          <input
-            :value="searchStore.keyword"
-            class="search-input"
-            type="search"
-            :placeholder="searchPlaceholder"
-            aria-label="全局搜索"
-            @input="onSearchInput"
-            @focus="searchStore.activate()"
-            @blur="searchStore.deactivate()"
-            @keydown.enter="onSearchEnter"
-            @keydown.down.prevent="onSuggestionNavigate('down')"
-            @keydown.up.prevent="onSuggestionNavigate('up')"
-            @keydown.escape="searchStore.deactivate()"
-          />
-          <!-- 加载指示器 -->
-          <div v-if="searchStore.loading" class="search-loading">
-            <span class="loading-dot"></span>
-          </div>
-        </div>
-
-        <!-- 下拉建议面板 -->
-        <Transition name="suggestions-fade">
-          <div
-            v-if="
-              searchStore.active &&
-              searchStore.hasContent &&
-              (searchStore.hasSuggestions || searchStore.loading)
-            "
-            class="search-suggestions"
-            @mousedown.prevent
-          >
-            <div v-if="searchStore.loading" class="suggestions-loading">搜索中...</div>
-            <div v-else class="suggestions-list">
-              <div
-                v-for="(item, index) in searchStore.suggestions"
-                :key="item.sid"
-                class="suggestion-item"
-                :class="{ 'suggestion-item--active': selectedIndex === index }"
-                @mousedown="onSuggestionClick(item)"
-              >
-                <span class="suggestion-type-badge" :class="`suggestion-type--${item.type}`">
-                  {{ item.type }}
-                </span>
-                <div class="suggestion-content">
-                  <span class="suggestion-label">{{ item.label }}</span>
-                  <span class="suggestion-sublabel">{{ item.sublabel }}</span>
-                </div>
+      <!-- 下拉建议面板 -->
+      <Transition name="suggestions-fade">
+        <div
+          v-if="
+            searchStore.active &&
+            searchStore.hasContent &&
+            (searchStore.hasSuggestions || searchStore.loading)
+          "
+          class="search-suggestions"
+          @mousedown.prevent
+        >
+          <div v-if="searchStore.loading" class="suggestions-loading">搜索中...</div>
+          <div v-else class="suggestions-list">
+            <div
+              v-for="(item, index) in searchStore.suggestions"
+              :key="item.sid"
+              class="suggestion-item"
+              :class="{ 'suggestion-item--active': selectedIndex === index }"
+              @mousedown="onSuggestionClick(item)"
+            >
+              <span class="suggestion-type-badge" :class="`suggestion-type--${item.type}`">
+                {{ item.type }}
+              </span>
+              <div class="suggestion-content">
+                <span class="suggestion-label">{{ item.label }}</span>
+                <span class="suggestion-sublabel">{{ item.sublabel }}</span>
               </div>
             </div>
           </div>
-        </Transition>
-      </div>
+        </div>
+      </Transition>
     </div>
 
-    <!-- Header Right — 整体组切换（mode="out-in" 避免双元素并发导致的 reflow 跳变） -->
-    <div class="header-right">
+    <template #right>
+      <!-- 整体组切换（mode="out-in" 避免双元素并发导致的 reflow 跳变） -->
       <Transition name="group-swap" mode="out-in">
         <div v-if="layoutMode === 'guest' && !isLoggedIn" key="logged-out" class="logged-out-group">
           <a :href="repoUrl" target="_blank" rel="noopener noreferrer" class="nav-item">加入我们</a>
@@ -188,214 +339,11 @@
           <button class="dropdown-item logout-item" @click="handleLogout">退出登录</button>
         </div>
       </div>
-    </div>
-  </header>
+    </template>
+  </ArTopNav>
 </template>
 
-<script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { NIcon } from 'naive-ui'
-import {
-  SearchOutline,
-  MenuOutline,
-  PersonOutline,
-  SettingsOutline,
-  LogOutOutline
-} from '@vicons/ionicons5'
-import SiteLogo from '@/components/widgets/common/SiteLogo.vue'
-import ArAvatar from '@/components/ui/ArAvatar.vue'
-import { useUserStore } from '@/lib/store/modules/user'
-import { useAppStore } from '@/lib/store/modules/app'
-import { useSearchStore } from '@/lib/store/modules/search'
-import type { Suggestion } from '@/lib/store/modules/search'
-
-const props = defineProps<{
-  layoutMode: 'guest' | 'user' | 'admin'
-}>()
-
-defineEmits<{
-  'toggle-sidebar': []
-}>()
-
-const router = useRouter()
-const route = useRoute()
-const userStore = useUserStore()
-const appStore = useAppStore()
-const searchStore = useSearchStore()
-
-const showUserMenu = ref(false)
-const selectedIndex = ref(-1)
-const searchWrapRef = ref<HTMLElement | null>(null)
-const repoUrl = 'https://github.com/jamnodesmith/Arche'
-
-const isLoggedIn = computed(() => userStore.isLoggedIn)
-const isAdmin = computed(() => (userStore.userInfo?.level ?? 5) === 0)
-
-// 当前页面的搜索作用域（从路由 meta 读取）
-const searchScope = computed(() => {
-  const scope = route.meta?.searchScope as
-    | { type?: string; placeholder?: string; label?: string }
-    | undefined
-  return scope ?? null
-})
-
-const searchPlaceholder = computed(() => searchScope.value?.placeholder ?? '搜索...')
-
-// 面包屑
-const breadcrumb = computed(() => {
-  const path = route.path
-  const layoutLabel = props.layoutMode === 'admin' ? '管理后台' : '首页'
-  if (path === '/') return [layoutLabel]
-
-  const routeName = route.name
-  if (routeName && typeof routeName === 'string') {
-    return [layoutLabel, routeName]
-  }
-  return [layoutLabel, '页面']
-})
-
-// 用户输入处理
-const onSearchInput = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  searchStore.setKeyword(target.value)
-  selectedIndex.value = -1
-}
-
-// 回车搜索
-const onSearchEnter = () => {
-  const kw = searchStore.keyword.trim()
-  if (!kw) return
-
-  // 如果有选中的建议，跳转
-  if (selectedIndex.value >= 0 && selectedIndex.value < searchStore.suggestions.length) {
-    const item = searchStore.suggestions[selectedIndex.value]
-    if (item) navigateToSuggestion(item)
-    return
-  }
-
-  // 如果有建议列表，跳转到第一个
-  if (searchStore.hasSuggestions) {
-    const item = searchStore.suggestions[0]
-    if (item) navigateToSuggestion(item)
-    return
-  }
-
-  // 否则根据 scope 走搜索
-  const scope = searchScope.value
-  if (scope?.type === 'user') {
-    router.push({ path: '/admin/users/list', query: { q: kw } })
-  } else if (scope?.type === 'content') {
-    router.push({ path: '/admin/content/moderation', query: { q: kw } })
-  } else {
-    router.push({ path: '/explore', query: { q: kw || undefined } })
-  }
-
-  searchStore.clearSearch()
-}
-
-// 建议导航（上下键）
-const onSuggestionNavigate = (dir: 'up' | 'down') => {
-  const len = searchStore.suggestions.length
-  if (len === 0) return
-
-  if (dir === 'down') {
-    selectedIndex.value = selectedIndex.value < len - 1 ? selectedIndex.value + 1 : 0
-  } else {
-    selectedIndex.value = selectedIndex.value > 0 ? selectedIndex.value - 1 : len - 1
-  }
-}
-
-// 点击建议
-const onSuggestionClick = (item: Suggestion) => {
-  navigateToSuggestion(item)
-}
-
-// 跳转到建议目标
-const navigateToSuggestion = (item: Suggestion) => {
-  searchStore.clearSearch()
-  selectedIndex.value = -1
-  if (item.url) {
-    router.push(item.url)
-  }
-}
-
-const handleLogout = async () => {
-  showUserMenu.value = false
-  await userStore.logout()
-  router.push('/')
-}
-
-const goToProfile = () => {
-  router.push('/profile')
-  showUserMenu.value = false
-}
-
-const goToHome = () => {
-  router.push('/')
-  showUserMenu.value = false
-}
-
-// 点击外部关闭下拉
-const handleClickOutside = (e: MouseEvent) => {
-  const target = e.target as HTMLElement
-  if (!target.closest('.header-right') && !target.closest('.user-menu-wrap')) {
-    showUserMenu.value = false
-  }
-  // 点击搜索外部关闭建议面板
-  if (searchWrapRef.value && !searchWrapRef.value.contains(target)) {
-    searchStore.deactivate()
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
-</script>
-
-<style scoped>
-.base-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  background: var(--surface-color);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  padding: 0 var(--content-padding);
-  gap: var(--layout-gap);
-  z-index: 100;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  flex-shrink: 0;
-}
-
-.header-center {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  gap: var(--spacing-md);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  flex-shrink: 0;
-  position: relative;
-}
-
+<style>
 /* ── Guest Mode: Nav Menu ── */
 .nav-menu {
   display: flex;
@@ -826,19 +774,6 @@ onBeforeUnmount(() => {
 
 /* ── Responsive ── */
 @media (max-width: 992px) {
-  .base-header--guest .header-center {
-    gap: var(--spacing-sm);
-  }
-
-  .base-header--guest .nav-menu {
-    gap: 2px;
-  }
-
-  .base-header--guest .nav-item {
-    padding: 6px 10px;
-    font-size: 13px;
-  }
-
   .search-section--compact .search-wrap {
     max-width: 240px;
   }
@@ -851,6 +786,7 @@ onBeforeUnmount(() => {
 .group-swap-leave-active {
   transition: all 0.3s ease;
 }
+
 .group-swap-leave-to {
   opacity: 0;
   transform: translateX(-15px);
@@ -859,6 +795,7 @@ onBeforeUnmount(() => {
 .group-swap-enter-active {
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 .group-swap-enter-from {
   opacity: 0;
   transform: translateX(25px);

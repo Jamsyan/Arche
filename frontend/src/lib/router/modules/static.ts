@@ -170,7 +170,7 @@ export const staticRoutes: RouteRecordRaw[] = [
   // ====== 控制台 & 管理后台（嵌套路由，侧边栏不销毁） ======
   {
     path: '/console',
-    component: () => import('@/layouts/ConsoleLayout.vue'),
+    component: () => import('@/components/widgets/common/ConsoleShell.vue'),
     meta: { layout: 'guest', requiresAuth: true, level: 0 },
     children: [
       {
