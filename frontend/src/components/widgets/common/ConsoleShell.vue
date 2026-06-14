@@ -11,7 +11,7 @@ import {
   AddOutline,
   CloseOutline
 } from '@vicons/ionicons5'
-import { useUserStore } from '@/store/modules/user'
+import { useUserStore } from '@/lib/store/modules/user'
 
 const router = useRouter()
 const route = useRoute()

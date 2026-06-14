@@ -4,7 +4,7 @@ import ArInput from '@/components/ui/ArInput.vue'
 import ArButton from '@/components/ui/ArButton.vue'
 import ArTag from '@/components/ui/ArTag.vue'
 import RichTextEditor from './RichTextEditor.vue'
-import type { BlogPost, CreatePostPayload, UpdatePostPayload } from '@/services/api'
+import type { BlogPost, CreatePostPayload, UpdatePostPayload } from '@/components/logic/api'
 
 const props = withDefaults(
   defineProps<{

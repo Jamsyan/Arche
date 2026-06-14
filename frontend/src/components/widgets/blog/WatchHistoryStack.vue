@@ -5,7 +5,7 @@
  * 卡片平铺排列，鼠标滚轮/拖拽滚动，两端限位卡片提示上限并支持跳转。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
-import type { BlogPost } from '@/services/api'
+import type { BlogPost } from '@/components/logic/api'
 import PostCard from './PostCard.vue'
 
 export interface WatchHistoryItem {

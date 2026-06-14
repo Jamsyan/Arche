@@ -8,7 +8,7 @@
  */
 
 import { getCoverGradient } from './cover'
-import type { BlogPost } from '@/services/api'
+import type { BlogPost } from '@/components/logic/api'
 
 /** canvas 输出尺寸 */
 const W = 640

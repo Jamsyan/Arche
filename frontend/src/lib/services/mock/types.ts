@@ -1,4 +1,4 @@
-import type { BlogPost } from '@/services/api/blog'
+import type { BlogPost } from '@/components/logic/api/blog'
 
 export interface MockAuthor {
   name: string

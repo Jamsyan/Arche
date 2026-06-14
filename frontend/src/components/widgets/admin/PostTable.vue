@@ -2,7 +2,7 @@
 import { h, ref } from 'vue'
 import { NInput, NSelect, NPopconfirm, useMessage } from 'naive-ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
-import { getBlogPostsApi, deletePostApi, type BlogPost } from '@/services/api'
+import { getBlogPostsApi, deletePostApi, type BlogPost } from '@/components/logic/api'
 import { ArButton, ArTag, ArTable, ArPagination } from '@/components/ui'
 
 interface PostRow {

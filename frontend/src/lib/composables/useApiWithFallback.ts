@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { withFallback, type WithFallbackOptions } from '@/services/mock'
+import { withFallback, type WithFallbackOptions } from '@/lib/services/mock'
 
 export interface UseApiWithFallbackResult<T> {
   data: Ref<T>

@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import { EyeOutline, HeartOutline, BookmarkOutline, ChatbubbleOutline } from '@vicons/ionicons5'
 import ArTag from '@/components/ui/ArTag.vue'
-import { getCoverGradient } from '@/utils/cover'
-import type { BlogPost } from '@/services/api'
+import { getCoverGradient } from '@/lib/utils/cover'
+import type { BlogPost } from '@/components/logic/api'
 
 type PostCardMode = 'showcase' | 'media' | 'feed' | 'stack' | 'cover' | 'compact' | 'dense'
 

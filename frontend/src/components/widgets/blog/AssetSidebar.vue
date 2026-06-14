@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getMyOssFilesApi, getOssFileUrl } from '@/services/api'
-import type { StagedFile } from '@/composables/useLocalFiles'
-import type { OSSFile } from '@/services/api'
+import { getMyOssFilesApi, getOssFileUrl } from '@/components/logic/api'
+import type { StagedFile } from '@/components/logic/useLocalFiles'
+import type { OSSFile } from '@/components/logic/api'
 
 const props = withDefaults(
   defineProps<{

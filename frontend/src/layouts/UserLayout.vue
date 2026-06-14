@@ -7,8 +7,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { HomeOutline } from '@/icons'
-import { usePermissionStore } from '@/store/modules/permission'
-import { buildLayoutMenus } from '@/router/menu'
+import { usePermissionStore } from '@/lib/store/modules/permission'
+import { buildLayoutMenus } from '@/lib/router/menu'
 import BaseLayout from './BaseLayout.vue'
 
 const permissionStore = usePermissionStore()

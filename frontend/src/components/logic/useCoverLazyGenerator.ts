@@ -4,9 +4,9 @@
  * 当帖子没有手动封面（cover_url）且没有自动生成封面（auto_cover_url）时，
  * 按需在浏览器端生成文字封面 → 上传 OSS → 持久化回后端。
  */
-import { generateTextCover } from '@/utils/generateTextCover'
-import { uploadOssFileApi } from '@/services/api/oss'
-import { updatePostApi, type BlogPost } from '@/services/api/blog'
+import { generateTextCover } from '@/lib/utils/generateTextCover'
+import { uploadOssFileApi } from '@/components/logic/api/oss'
+import { updatePostApi, type BlogPost } from '@/components/logic/api/blog'
 
 /** 正在处理中的帖子 ID 集合，防止并发重复触发 */
 const processingPosts = new Set<string>()

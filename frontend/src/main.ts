@@ -5,7 +5,7 @@ import pinia from './store'
 import { setupDirectives } from './directives'
 import './router/guard'
 import './styles/theme.css'
-import { useAppStore } from '@/store/modules/app'
+import { useAppStore } from '@/lib/store/modules/app'
 
 const app = createApp(App)
 

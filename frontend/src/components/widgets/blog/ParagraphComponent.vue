@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import type { ParagraphData } from '@/services/api'
+import type { ParagraphData } from '@/components/logic/api'
 
 defineProps<{
   paragraph: ParagraphData

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterView, useRouter } from 'vue-router'
 import { NLayout, NLayoutHeader, NLayoutSider, NLayoutContent, NMenu } from 'naive-ui'
-import { useUserStore } from '@/store/modules/user'
+import { useUserStore } from '@/lib/store/modules/user'
 
 const router = useRouter()
 const userStore = useUserStore()

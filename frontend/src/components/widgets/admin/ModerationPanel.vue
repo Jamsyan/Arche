@@ -8,7 +8,7 @@ import {
   rejectPostApi,
   deletePostApi,
   type BlogPost
-} from '@/services/api'
+} from '@/components/logic/api'
 import { ArButton, ArTag, ArPopconfirm } from '@/components/ui'
 
 function renderContent(text: string): string {

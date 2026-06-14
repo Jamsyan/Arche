@@ -284,13 +284,13 @@ import {
   updatePostApi,
   type BlogPost,
   type CreatePostPayload
-} from '@/services/api'
-import { uploadOssFileApi } from '@/services/api/oss'
-import { useLocalFiles } from '@/composables/useLocalFiles'
+} from '@/components/logic/api'
+import { uploadOssFileApi } from '@/components/logic/api/oss'
+import { useLocalFiles } from '@/components/logic/useLocalFiles'
 import { marked } from 'marked'
-import { getCoverGradient } from '@/utils/cover'
-import { generateTextCover } from '@/utils/generateTextCover'
-import { ensurePostsCovers } from '@/composables/useCoverLazyGenerator'
+import { getCoverGradient } from '@/lib/utils/cover'
+import { generateTextCover } from '@/lib/utils/generateTextCover'
+import { ensurePostsCovers } from '@/components/logic/useCoverLazyGenerator'
 
 type PostTab = 'all' | 'published' | 'draft'
 

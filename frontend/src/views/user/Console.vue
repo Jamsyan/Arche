@@ -221,7 +221,7 @@ import {
   getNotificationsApi,
   type DashboardData,
   type NotificationItem
-} from '@/services/api/system'
+} from '@/components/logic/api/system'
 
 const router = useRouter()
 

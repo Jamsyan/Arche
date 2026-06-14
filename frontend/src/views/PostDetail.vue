@@ -17,8 +17,8 @@ import {
   type BlogPost,
   type BlogComment,
   type ParagraphData
-} from '@/services/api'
-import { useUserStore } from '@/store/modules/user'
+} from '@/components/logic/api'
+import { useUserStore } from '@/lib/store/modules/user'
 import PostDetail from '@/components/widgets/blog/PostDetail.vue'
 import AuthorBar from '@/components/widgets/blog/AuthorBar.vue'
 import FloatingActions from '@/components/widgets/blog/FloatingActions.vue'

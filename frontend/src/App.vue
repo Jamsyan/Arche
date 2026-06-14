@@ -37,7 +37,7 @@ import {
   dateZhCN,
   type GlobalThemeOverrides
 } from 'naive-ui'
-import { useAppStore } from '@/store/modules/app'
+import { useAppStore } from '@/lib/store/modules/app'
 import GuestLayout from '@/layouts/GuestLayout.vue'
 import UserLayout from '@/layouts/UserLayout.vue'
 

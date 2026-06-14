@@ -2,8 +2,8 @@
 import { ref, watch } from 'vue'
 import CommentForm from './CommentForm.vue'
 import CommentList from './CommentList.vue'
-import type { BlogComment } from '@/services/api'
-import type { ParagraphData } from '@/services/api'
+import type { BlogComment } from '@/components/logic/api'
+import type { ParagraphData } from '@/components/logic/api'
 
 const props = withDefaults(
   defineProps<{

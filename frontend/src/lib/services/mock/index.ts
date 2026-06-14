@@ -1,5 +1,5 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
-import { $message } from '@/utils/message'
+import { $message } from '@/lib/utils/message'
 
 export { blogMockData } from './blog'
 export { authMockData } from './auth'

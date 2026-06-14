@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BlogComment } from '@/services/api'
+import type { BlogComment } from '@/components/logic/api'
 
 defineProps<{
   comments: BlogComment[]

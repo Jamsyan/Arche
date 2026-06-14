@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ParagraphComponent from './ParagraphComponent.vue'
-import type { ParagraphData } from '@/services/api'
+import type { ParagraphData } from '@/components/logic/api'
 
 const props = defineProps<{
   paragraphs: ParagraphData[]

@@ -205,10 +205,10 @@ import {
 } from '@vicons/ionicons5'
 import SiteLogo from '@/components/widgets/common/SiteLogo.vue'
 import ArAvatar from '@/components/ui/ArAvatar.vue'
-import { useUserStore } from '@/store/modules/user'
-import { useAppStore } from '@/store/modules/app'
-import { useSearchStore } from '@/store/modules/search'
-import type { Suggestion } from '@/store/modules/search'
+import { useUserStore } from '@/lib/store/modules/user'
+import { useAppStore } from '@/lib/store/modules/app'
+import { useSearchStore } from '@/lib/store/modules/search'
+import type { Suggestion } from '@/lib/store/modules/search'
 
 const props = defineProps<{
   layoutMode: 'guest' | 'user' | 'admin'

@@ -289,7 +289,7 @@ import { useMessage } from 'naive-ui'
 import { NModal, NForm, NFormItem, NSelect, NInputNumber, NPopconfirm } from 'naive-ui'
 import { ArTag, ArTable, ArButton } from '@/components/ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
-import { getUserStatsApi, type UserStats } from '@/services/api/auth'
+import { getUserStatsApi, type UserStats } from '@/components/logic/api/auth'
 import {
   getUsersApi,
   disableUserApi,
@@ -302,7 +302,7 @@ import {
   type AdminUser,
   type HotPost,
   type Paginated
-} from '@/services/api'
+} from '@/components/logic/api'
 
 const message = useMessage()
 

@@ -3,7 +3,7 @@ import { h, onMounted, ref } from 'vue'
 import { NInput, NProgress, useMessage } from 'naive-ui'
 import { ArButton, ArTable } from '@/components/ui'
 import type { ArTableColumn } from '@/components/ui/ArTable.vue'
-import { getOssAdminQuotasApi, updateOssUserQuotaApi, type OSSQuota } from '@/services/api'
+import { getOssAdminQuotasApi, updateOssUserQuotaApi, type OSSQuota } from '@/components/logic/api'
 
 const message = useMessage()
 const quotas = ref<OSSQuota[]>([])

@@ -1,10 +1,10 @@
 import router from './index'
-import { resetAllStores } from '@/store'
-import { useUserStore } from '@/store/modules/user'
-import { usePermissionStore } from '@/store/modules/permission'
-import { $message } from '@/utils/message'
-import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
-import { cancelAllPendingRequests } from '@/services/request'
+import { resetAllStores } from '@/lib/store'
+import { useUserStore } from '@/lib/store/modules/user'
+import { usePermissionStore } from '@/lib/store/modules/permission'
+import { $message } from '@/lib/utils/message'
+import { AUTH_UNAUTHORIZED_EVENT } from '@/lib/constants/auth'
+import { cancelAllPendingRequests } from '@/lib/services/request'
 let routerInitiated = false
 
 const isCurrentRoutePublic = () => {

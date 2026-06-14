@@ -6,8 +6,8 @@ import axios, {
   AxiosError,
   CanceledError
 } from 'axios'
-import { $message } from '@/utils/message'
-import { AUTH_UNAUTHORIZED_EVENT } from '@/constants/auth'
+import { $message } from '@/lib/utils/message'
+import { AUTH_UNAUTHORIZED_EVENT } from '@/lib/constants/auth'
 
 // 响应数据格式定义，和后端约定
 export interface ResponseData<T = any> {

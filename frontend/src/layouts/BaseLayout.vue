@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAppStore } from '@/store/modules/app'
+import { useAppStore } from '@/lib/store/modules/app'
 import type { Component } from 'vue'
 import BaseHeader from './BaseHeader.vue'
 import BaseSidebar from './BaseSidebar.vue'

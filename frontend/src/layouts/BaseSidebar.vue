@@ -66,7 +66,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Component } from 'vue'
-import { useAppStore } from '@/store/modules/app'
+import { useAppStore } from '@/lib/store/modules/app'
 
 interface SidebarItem {
   title: string

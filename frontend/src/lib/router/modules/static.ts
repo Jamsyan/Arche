@@ -11,7 +11,7 @@ import Scheduler from '@/views/Scheduler.vue'
 import GitHub from '@/views/GitHub.vue'
 import NotFound from '@/views/NotFound.vue'
 import Forbidden from '@/views/Forbidden.vue'
-import { API_PERMISSION } from '@/constants/permissions'
+import { API_PERMISSION } from '@/lib/constants/permissions'
 
 export const staticRoutes: RouteRecordRaw[] = [
   {
