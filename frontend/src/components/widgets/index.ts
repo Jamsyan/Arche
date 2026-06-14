@@ -4,9 +4,6 @@
 // ── 博客业务 ──
 export { default as HeroCarousel } from './common/HeroCarousel.vue'
 export { default as PostDetail } from './blog/PostDetail.vue'
-export { default as PostEditor } from './blog/PostEditor.vue'
-export { default as CoverUploader } from './blog/CoverUploader.vue'
-export { default as AssetSidebar } from './blog/AssetSidebar.vue'
 export { default as LikeButton } from './common/LikeButton.vue'
 export { default as FavoriteButton } from './common/FavoriteButton.vue'
 export { default as ShareButton } from './common/ShareButton.vue'
@@ -16,6 +13,13 @@ export { default as WatchHistoryStack } from './blog/WatchHistoryStack.vue'
 export { default as ParagraphComponent } from './blog/ParagraphComponent.vue'
 export { default as PostTitle } from './blog/PostTitle.vue'
 export { default as PostIntro } from './blog/PostIntro.vue'
+
+// ── 创作中心 ──
+export { default as PostEditor } from './create/PostEditor.vue'
+export { default as CoverUploader } from './create/CoverUploader.vue'
+export { default as AssetSidebar } from './create/AssetSidebar.vue'
+export { default as PostStatsCards } from './create/PostStatsCards.vue'
+export { default as PostListPanel } from './create/PostListPanel.vue'
 
 // ── 管理后台 ──
 export { default as ModerationPanel } from './admin/ModerationPanel.vue'
