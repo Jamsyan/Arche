@@ -19,39 +19,43 @@ const props = withDefaults(
 )
 
 const chartRef = ref<HTMLDivElement>()
-let instance: echarts.ECharts | null = null
-let resizeObserver: ResizeObserver | null = null
+const instance = ref<echarts.ECharts | null>(null)
+const resizeObserver = ref<ResizeObserver | null>(null)
 
 function initChart() {
   if (!chartRef.value || props.lazy) return
-  instance?.dispose()
-  instance = echarts.init(chartRef.value, undefined, { renderer: 'canvas' })
-  instance.setOption(props.option)
+  instance.value?.dispose()
+  instance.value = echarts.init(chartRef.value, undefined, { renderer: 'canvas' })
+  instance.value.setOption(props.option)
   // ResizeObserver 代替 window.resize
-  resizeObserver = new ResizeObserver(() => {
-    instance?.resize()
+  resizeObserver.value = new ResizeObserver(() => {
+    instance.value?.resize()
   })
-  resizeObserver.observe(chartRef.value)
+  resizeObserver.value.observe(chartRef.value)
 }
 
 function updateChart() {
-  if (!instance) return
-  instance.setOption(props.option, { notMerge: false })
+  if (!instance.value) return
+  instance.value.setOption(props.option, { notMerge: false })
 }
 
 onMounted(initChart)
 
-watch(() => props.option, updateChart, { deep: true })
+watch(() => props.option, updateChart, { deep: true, immediate: true })
 
 onUnmounted(() => {
-  resizeObserver?.disconnect()
-  instance?.dispose()
-  instance = null
+  resizeObserver.value?.disconnect()
+  instance.value?.dispose()
+  instance.value = null
 })
 </script>
 
 <template>
-  <div ref="chartRef" class="ar-chart" :style="{ height: typeof height === 'number' ? height + 'px' : height }" />
+  <div
+    ref="chartRef"
+    class="ar-chart"
+    :style="{ height: typeof height === 'number' ? height + 'px' : height }"
+  />
 </template>
 
 <style scoped>

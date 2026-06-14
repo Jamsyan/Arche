@@ -20,44 +20,47 @@ const props = withDefaults(
   }
 )
 
-const { palette, tooltipStyle } = useArChartTheme()
+const { palette, tooltipStyle, tokens } = useArChartTheme()
 
-const option = computed(() => ({
-  color: palette(),
-  tooltip: {
-    ...tooltipStyle(),
-    trigger: 'item',
-    formatter: '{b}: {c} ({d}%)',
-  },
-  series: [
-    {
-      type: 'pie',
-      data: props.data,
-      radius: props.donut ? ['40%', '65%'] : '60%',
-      roseType: props.rose ? 'area' : undefined,
-      label: {
-        show: true,
-        fontSize: 12,
-        color: '#6b5e52',
-        formatter: '{b}',
-      },
-      labelLine: {
-        lineStyle: { color: '#e5ddd4' },
-      },
-      itemStyle: {
-        borderRadius: 4,
-        borderColor: '#fff',
-        borderWidth: 2,
-      },
-      emphasis: {
-        itemStyle: {
-          shadowBlur: 10,
-          shadowColor: 'rgba(0, 0, 0, 0.15)',
-        },
-      },
+const option = computed(() => {
+  const t = tokens()
+  return {
+    color: palette(),
+    tooltip: {
+      ...tooltipStyle(),
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
     },
-  ],
-}) as Record<string, unknown>)
+    series: [
+      {
+        type: 'pie',
+        data: props.data,
+        radius: props.donut ? ['40%', '65%'] : '60%',
+        roseType: props.rose ? 'area' : undefined,
+        label: {
+          show: true,
+          fontSize: 12,
+          color: t.textSecondary,
+          formatter: '{b}'
+        },
+        labelLine: {
+          lineStyle: { color: t.borderLight }
+        },
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.15)'
+          }
+        }
+      }
+    ]
+  }
+}) as Record<string, unknown>
 </script>
 
 <template>
